@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Cpu, Menu, View, Info, ShieldCheck, Video, CheckCircle2, BrainCircuit, FileText, Gauge, BarChart, ArrowRight } from "lucide-react";
+import { Cpu, Menu, View, Info, ShieldCheck, Video, CheckCircle2, BrainCircuit, FileText, Gauge, BarChart, ArrowRight, PlayCircle, Tag } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Tooltip,
@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/tooltip"
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Card, CardContent } from '@/components/ui/card';
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
+import { Badge } from '@/components/ui/badge';
 
 interface PublicWebsiteViewProps {
   onSwitchView: () => void;
@@ -23,6 +25,7 @@ const navLinks = [
   { href: '#home', label: 'Home' },
   { href: '#about', label: 'About' },
   { href: '#how-it-works', label: 'How it works' },
+  { href: '#product', label: 'Product' },
   { href: '#pricing', label: 'Pricing' },
   { href: '#faq', label: 'FAQ' },
   { href: '#contact', label: 'Contact' },
@@ -383,6 +386,102 @@ function HowItWorksSection() {
     );
 }
 
+function ProductSection() {
+    const videoThumbnail = PlaceHolderImages.find(p => p.id === 'video-thumbnail');
+    const smallVideos = [
+        {
+            title: "Why most traders fail without a journal",
+            tag: "Psychology",
+            href: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        },
+        {
+            title: "How Arjun analyzes your trades",
+            tag: "Journaling",
+            href: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        },
+        {
+            title: "Using Risk Center to protect your account",
+            tag: "Risk",
+            href: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        },
+        {
+            title: "Turning emotions into data",
+            tag: "Psychology",
+            href: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        },
+        {
+            title: "Advanced: Setting up trade plans",
+            tag: "Discipline",
+            href: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        }
+    ];
+
+    return (
+        <div className="text-center">
+            <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">See EdgeCipher in action</h2>
+            <p className="mt-4 text-lg text-muted-foreground">Short videos on discipline, journaling, and how Arjun helps you grow.</p>
+            
+            <div className="mt-16 max-w-4xl mx-auto">
+                <div className="aspect-w-16 aspect-h-9 rounded-lg overflow-hidden border-2 border-primary/30 shadow-2xl shadow-primary/10">
+                     <iframe
+                        src="https://www.youtube.com/embed/j1Y-y3_gsgI?si=q8x5v1e7v3y7m1z0"
+                        title="YouTube video player"
+                        frameBorder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowFullScreen
+                        className="w-full h-full"
+                    ></iframe>
+                </div>
+            </div>
+
+            <div className="mt-16">
+                 <Carousel
+                    opts={{
+                        align: "start",
+                        loop: true,
+                    }}
+                    className="w-full"
+                >
+                    <CarouselContent className="-ml-4">
+                        {smallVideos.map((video, index) => (
+                             <CarouselItem key={index} className="pl-4 md:basis-1/2 lg:basis-1/3">
+                                <a href={video.href} target="_blank" rel="noopener noreferrer" className="block group">
+                                    <Card className="h-full bg-muted/30 border-border/50 overflow-hidden transform-gpu transition-all hover:bg-muted/50 hover:border-primary/30 hover:-translate-y-1">
+                                        <div className="relative aspect-video">
+                                            {videoThumbnail && (
+                                                 <Image
+                                                    src={videoThumbnail.imageUrl}
+                                                    alt={video.title}
+                                                    layout="fill"
+                                                    objectFit="cover"
+                                                    className="transition-transform duration-300 group-hover:scale-105"
+                                                    data-ai-hint={videoThumbnail.imageHint}
+                                                />
+                                            )}
+                                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                                                <PlayCircle className="h-12 w-12 text-white/70 transition-transform duration-300 group-hover:scale-110 group-hover:text-white" />
+                                            </div>
+                                        </div>
+                                        <CardContent className="p-4">
+                                            <Badge variant="secondary" className="mb-2 bg-primary/10 text-primary">{video.tag}</Badge>
+                                            <p className="font-semibold text-foreground text-left">{video.title}</p>
+                                        </CardContent>
+                                    </Card>
+                                </a>
+                            </CarouselItem>
+                        ))}
+                    </CarouselContent>
+                    <CarouselPrevious className="ml-12" />
+                    <CarouselNext className="mr-12" />
+                </Carousel>
+            </div>
+             <p className="mt-12 text-sm text-muted-foreground/80">
+                These are public YouTube videos from the EdgeCipher channel. In the real product, they’ll be curated and updated automatically.
+            </p>
+        </div>
+    );
+}
+
 function Footer() {
     return (
         <footer className="border-t border-border/50 py-8">
@@ -408,7 +507,7 @@ export function PublicWebsiteView({ onSwitchView }: PublicWebsiteViewProps) {
              <HowItWorksSection />
         </Section>
         <Section id="product">
-             <h2 className="text-3xl font-bold text-center">Product Explainer</h2>
+             <ProductSection />
         </Section>
         <Section id="pricing" className="bg-muted/20">
              <h2 className="text-3xl font-bold text-center">Pricing</h2>

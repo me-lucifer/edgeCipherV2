@@ -5,6 +5,12 @@
       "description": "A stylized avatar for the AI mentor 'Arjun' and a mini dashboard preview.",
       "imageUrl": "https://images.unsplash.com/photo-1668242372382-9e6282c63578?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxhYnN0cmFjdCUyMGRhdGF8ZW58MHx8fHwxNzYzNzY5NDEwfDA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "abstract data"
+    },
+    {
+      "id": "video-thumbnail",
+      "description": "A generic placeholder for video thumbnails.",
+      "imageUrl": "https://images.unsplash.com/photo-1594704339796-905c16ea861a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxhYnN0cmFjdCUyMGxpbmVzfGVufDB8fHx8MTc2NDA0NjM1OXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "abstract lines"
     }
   ]
 }
