@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Cpu, Menu, View, Info, ShieldCheck, Video, CheckCircle2, BrainCircuit, FileText, Gauge, BarChart, ArrowRight, PlayCircle, Tag } from "lucide-react";
+import { Cpu, Menu, View, Info, ShieldCheck, Video, CheckCircle2, BrainCircuit, FileText, Gauge, BarChart, ArrowRight, PlayCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Tooltip,
@@ -16,6 +16,7 @@ import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Card, CardContent } from '@/components/ui/card';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { Badge } from '@/components/ui/badge';
+import { ThemeSwitcher } from './theme-switcher';
 
 interface PublicWebsiteViewProps {
   onSwitchView: () => void;
@@ -207,8 +208,8 @@ function Hero() {
                              <Image
                                 src={mentorCardImage.imageUrl}
                                 alt="Mini dashboard preview"
-                                layout="fill"
-                                objectFit="cover"
+                                fill
+                                style={{objectFit: 'cover'}}
                                 className="opacity-30"
                                 data-ai-hint={mentorCardImage.imageHint}
                               />
@@ -452,8 +453,8 @@ function ProductSection() {
                                                  <Image
                                                     src={videoThumbnail.imageUrl}
                                                     alt={video.title}
-                                                    layout="fill"
-                                                    objectFit="cover"
+                                                    fill
+                                                    style={{objectFit: 'cover'}}
                                                     className="transition-transform duration-300 group-hover:scale-105"
                                                     data-ai-hint={videoThumbnail.imageHint}
                                                 />
@@ -520,6 +521,7 @@ export function PublicWebsiteView({ onSwitchView }: PublicWebsiteViewProps) {
         </Section>
       </main>
       <Footer />
+      <ThemeSwitcher />
     </div>
   );
 }
