@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Cpu, Menu, View, Info, ShieldCheck, Video, CheckCircle2 } from "lucide-react";
+import { Cpu, Menu, View, Info, ShieldCheck, Video, CheckCircle2, BrainCircuit, FileText, Gauge, BarChart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Tooltip,
@@ -13,7 +13,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 
 interface PublicWebsiteViewProps {
   onSwitchView: () => void;
@@ -207,7 +207,7 @@ function Hero() {
                                 layout="fill"
                                 objectFit="cover"
                                 className="opacity-30"
-                                data-ai-hint={mentorCardİmage.imageHint}
+                                data-ai-hint={mentorCardImage.imageHint}
                               />
                            )}
                            <div className="absolute inset-0 bg-gradient-to-t from-card/80 to-transparent p-4 flex items-end">
@@ -225,6 +225,84 @@ function Hero() {
         </div>
     </div>
   );
+}
+
+const ValueCard = ({ icon: Icon, title, description, tooltip, learnMore }: { icon: React.ElementType, title: string, description: string, tooltip?: string, learnMore?: boolean }) => (
+    <Card className="bg-muted/30 border-border/50 transform-gpu transition-all hover:bg-muted/50 hover:border-primary/30">
+        <CardContent className="p-6">
+            <div className="flex items-start gap-4">
+                <div className="bg-primary/10 text-primary p-2 rounded-lg">
+                    <Icon className="h-6 w-6" />
+                </div>
+                <div className="flex-1">
+                    <h3 className="font-semibold text-foreground">
+                        {tooltip ? <InfoTooltip text={tooltip}>{title}</InfoTooltip> : title}
+                    </h3>
+                    <p className="text-sm text-muted-foreground mt-1">{description}</p>
+                    {learnMore && (
+                        <p className="text-xs text-primary/80 mt-2">Learn more in app →</p>
+                    )}
+                </div>
+            </div>
+        </CardContent>
+    </Card>
+);
+
+function AboutSection() {
+    const values = [
+        {
+            icon: BrainCircuit,
+            title: "AI Coaching",
+            description: "Personalized feedback on your trading patterns and psychology.",
+            learnMore: true,
+        },
+        {
+            icon: FileText,
+            title: "Trade Planning",
+            description: "Define your rules and setups for disciplined execution.",
+            learnMore: true,
+        },
+        {
+            icon: Gauge,
+            title: "Risk Center",
+            description: "Monitor your exposure and key metrics like max drawdown.",
+            tooltip: "Max drawdown is the maximum observed loss from a peak to a trough of a portfolio.",
+            learnMore: true,
+        },
+        {
+            icon: BarChart,
+            title: "Performance Analytics",
+            description: "Go beyond P&L to understand your true trading performance.",
+            learnMore: true,
+        }
+    ];
+
+    return (
+        <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+            <div className="space-y-6">
+                <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">Why EdgeCipher?</h2>
+                <p className="text-lg text-muted-foreground">
+                    EdgeCipher is your personal trading coach, not another signal group or auto-trading bot. We focus on building discipline, robust risk management, and a winning psychology for crypto futures traders.
+                </p>
+                <ul className="space-y-4">
+                    {[
+                        "Arjun, your AI mentor, learns from your own trade history.",
+                        "Build and follow your trading rules, instead of chasing random setups.",
+                        "Turn your trade journal into real insights, not just a spreadsheet.",
+                        "Stay in control: EdgeCipher never executes trades, it only coaches you."
+                    ].map((item, i) => (
+                        <li key={i} className="flex items-start">
+                            <CheckCircle2 className="h-5 w-5 text-primary mr-3 mt-1 flex-shrink-0" />
+                            <span className="text-muted-foreground">{item}</span>
+                        </li>
+                    ))}
+                </ul>
+            </div>
+            <div className="space-y-4">
+                {values.map((value, i) => <ValueCard key={i} {...value} />)}
+            </div>
+        </div>
+    );
 }
 
 
@@ -247,7 +325,7 @@ export function PublicWebsiteView({ onSwitchView }: PublicWebsiteViewProps) {
           <Hero />
         </Section>
         <Section id="about">
-            <h2 className="text-3xl font-bold text-center">About / Value Proposition</h2>
+            <AboutSection />
         </Section>
         <Section id="how-it-works" className="bg-muted/20">
              <h2 className="text-3xl font-bold text-center">How It Works</h2>
