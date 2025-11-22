@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Cpu, Menu, View, Info, ShieldCheck, Video, CheckCircle2, BrainCircuit, FileText, Gauge, BarChart } from "lucide-react";
+import { Cpu, Menu, View, Info, ShieldCheck, Video, CheckCircle2, BrainCircuit, FileText, Gauge, BarChart, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Tooltip,
@@ -159,7 +159,7 @@ function Hero() {
                     Trade better, not more.
                 </h1>
                 <p className="mx-auto mt-6 max-w-xl text-lg text-muted-foreground">
-                    EdgeCipher introduces Arjun, an <InfoTooltip text="a virtual coach that reviews your trades and behaviour to give you feedback and suggestions.">AI mentor</InfoTooltip> that analyzes your trades, psychology, and risk to help you become a disciplined, consistent <InfoTooltip text="contracts that let you speculate on the future price of a cryptocurrency, often with leverage.">crypto futures</InfoTooltip> trader.
+                    EdgeCipher introduces Arjun, an <InfoTooltip text="A virtual coach that reviews your trades and behaviour to give you feedback and suggestions.">AI mentor</InfoTooltip> that analyzes your trades, psychology, and risk to help you become a disciplined, consistent <InfoTooltip text="Contracts that let you speculate on the future price of a cryptocurrency, often with leverage.">crypto futures</InfoTooltip> trader.
                 </p>
                 <div className="mt-8 flex flex-wrap gap-4">
                     <Button size="lg">Start Free</Button>
@@ -305,6 +305,83 @@ function AboutSection() {
     );
 }
 
+function HowItWorksSection() {
+    const steps = [
+        {
+            step: "01",
+            title: "Sign up & tell us about your trading",
+            description: "Create your account, describe your style (scalper, day trader, swing), and set your goals.",
+            tooltip: "This initial information helps Arjun understand your starting point to provide truly personalized coaching."
+        },
+        {
+            step: "02",
+            title: "Connect or log your trades",
+            description: "Connect your exchange or log trades manually. EdgeCipher never controls your capital—it only reads your history.",
+            note: "Your API keys are read-only and encrypted. They are used for analysis only."
+        },
+        {
+            step: "03",
+            title: "Arjun analyzes your performance & psychology",
+            description: "Arjun reviews your stats, patterns, and journal notes to highlight strengths, weak spots, and rule breaks.",
+            hint: "No more guessing why you keep repeating the same mistakes."
+        },
+        {
+            step: "04",
+            title: "Get a plan & follow your rules",
+            description: "You get clear rules, daily focus, and weekly reviews so you can become consistent over time.",
+            hint: "The goal isn’t more trades. It’s better decisions."
+        }
+    ];
+
+    return (
+        <div className="text-center">
+            <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">How it works</h2>
+            <p className="mt-4 text-lg text-muted-foreground">From your trades to clear, actionable coaching.</p>
+            <div className="relative mt-16 grid gap-8 md:grid-cols-2 lg:grid-cols-4 lg:gap-4">
+                {/* Desktop timeline arrows */}
+                <div className="hidden lg:block absolute top-1/2 left-0 right-0 -translate-y-1/2">
+                    <div className="flex justify-around max-w-3xl mx-auto">
+                        <ArrowRight className="h-8 w-8 text-border/70" />
+                        <ArrowRight className="h-8 w-8 text-border/70" />
+                        <ArrowRight className="h-8 w-8 text-border/70" />
+                    </div>
+                </div>
+
+                {steps.map((item, index) => (
+                    <div key={index} className="relative z-10">
+                        <Card className="h-full bg-muted/30 border-border/50 text-left">
+                            <CardContent className="p-6">
+                                <div className="flex items-start gap-4">
+                                    <div className="bg-primary text-primary-foreground rounded-full h-8 w-8 flex-shrink-0 flex items-center justify-center text-sm font-bold">
+                                        {item.step}
+                                    </div>
+                                    <div className="flex-1">
+                                        <h3 className="font-semibold text-foreground">
+                                            {item.tooltip ? 
+                                                <InfoTooltip text={item.tooltip}>{item.title}</InfoTooltip>
+                                                : item.title
+                                            }
+                                        </h3>
+                                    </div>
+                                </div>
+                                <p className="text-sm text-muted-foreground mt-4">{item.description}</p>
+                                {item.note && (
+                                    <p className="mt-3 text-xs text-muted-foreground/80 flex items-center gap-2">
+                                        <Info className="h-3 w-3" />
+                                        {item.note}
+                                    </p>
+                                )}
+                                {item.hint && (
+                                    <p className="mt-3 text-xs italic text-primary/80">"{item.hint}"</p>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
 
 function Footer() {
     return (
@@ -328,7 +405,7 @@ export function PublicWebsiteView({ onSwitchView }: PublicWebsiteViewProps) {
             <AboutSection />
         </Section>
         <Section id="how-it-works" className="bg-muted/20">
-             <h2 className="text-3xl font-bold text-center">How It Works</h2>
+             <HowItWorksSection />
         </Section>
         <Section id="product">
              <h2 className="text-3xl font-bold text-center">Product Explainer</h2>
