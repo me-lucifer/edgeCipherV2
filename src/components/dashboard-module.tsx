@@ -315,10 +315,10 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
                 </div>
                  <div className="bg-muted/50 p-4 rounded-lg border border-dashed border-primary/20 relative">
                     <div className="text-sm text-muted-foreground">
-                        <span className="font-semibold text-foreground flex items-center gap-2">
+                        <div className="font-semibold text-foreground flex items-center gap-2">
                              <Bot className="h-4 w-4 text-primary" />
                              Arjun's Daily Insight
-                        </span>
+                        </div>
                         <div className="mt-2 italic">
                            "{arjunMessage}"
                         </div>
@@ -350,12 +350,38 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
                                         <p className="font-semibold text-foreground font-mono">$12,345.67</p>
                                     </div>
                                     <div>
-                                        <p className="text-sm text-muted-foreground">Margin Used</p>
-                                        <p className="font-semibold text-foreground font-mono">15.2%</p>
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <div className="cursor-help">
+                                                        <p className="text-sm text-muted-foreground flex items-center justify-center gap-1">
+                                                            Margin Used <Info className="h-3 w-3" />
+                                                        </p>
+                                                        <p className="font-semibold text-foreground font-mono">15.2%</p>
+                                                    </div>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>The percentage of your capital used for open positions.</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
                                     </div>
                                     <div>
-                                        <p className="text-sm text-muted-foreground">Unrealized P&L</p>
-                                        <PnlDisplay value={146.38} />
+                                         <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <div className="cursor-help">
+                                                        <p className="text-sm text-muted-foreground flex items-center justify-center gap-1">
+                                                            Unrealized P&L <Info className="h-3 w-3" />
+                                                        </p>
+                                                        <PnlDisplay value={146.38} />
+                                                    </div>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>Profit or loss on open positions that is not locked in yet.</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
                                     </div>
                                 </div>
                                 <Table>
@@ -403,9 +429,20 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
                 <div className="grid md:grid-cols-2 gap-8">
                      <Card className="bg-muted/30 border-border/50">
                         <CardHeader>
-                            <CardTitle className="text-base flex items-center gap-2">
+                             <CardTitle className="text-base flex items-center gap-2">
                                 <Gauge className="h-5 w-5" />
-                                Crypto VIX
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <span className="flex items-center gap-1 cursor-help">
+                                                Crypto VIX <Info className="h-3 w-3" />
+                                            </span>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>An index showing current crypto market volatility (0-100).</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
@@ -465,3 +502,4 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
 
 
     
+
