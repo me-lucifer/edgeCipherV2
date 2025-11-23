@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -106,9 +107,9 @@ const NavItemGroup: React.FC<{
 );
 
 
-function ModuleView({ currentModule }: { currentModule: Module }) {
+function ModuleView({ currentModule, onSetModule }: { currentModule: Module; onSetModule: (module: 'settings') => void; }) {
     if (currentModule === 'dashboard') {
-        return <DashboardModule />;
+        return <DashboardModule onSetModule={onSetModule} />;
     }
 
     const allNavItems = [...mainNavItems, ...analyticsNavItems, ...marketNavItems, ...communityNavItems, ...settingsNavItems];
@@ -164,7 +165,7 @@ function AppHeader({ onToggleSidebar, onSetModule }: { onToggleSidebar: () => vo
             </Button>
             <div>
                 <h1 className="text-lg font-semibold text-foreground">
-                    {greeting}, {persona.primaryPersonaName || 'Trader'}
+                    {greeting}, {persona.primaryPersonaName?.split(' ')[0] || 'Trader'}
                 </h1>
                 <p className="text-sm text-muted-foreground">Here's your mission control for disciplined trading.</p>
             </div>
@@ -277,7 +278,7 @@ export function AuthenticatedAppShell() {
             <AppHeader onToggleSidebar={() => setSidebarOpen(!isSidebarOpen)} onSetModule={setCurrentModule} />
             <main className="flex-1 overflow-y-auto">
                 <div className="mx-auto max-w-6xl h-full p-4 sm:p-6 lg:p-8">
-                    <ModuleView currentModule={currentModule} />
+                    <ModuleView currentModule={currentModule} onSetModule={setCurrentModule} />
                 </div>
             </main>
         </div>

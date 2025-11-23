@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useAuth } from "@/context/auth-provider";
@@ -43,7 +44,7 @@ function PnlDisplay({ value }: { value: number }) {
     const isPositive = value >= 0;
     return (
         <div className={cn(
-            "flex items-center text-base font-semibold",
+            "flex items-center font-semibold",
             isPositive ? 'text-green-400' : 'text-red-400'
         )}>
             {isPositive ? <TrendingUp className="mr-2 h-4 w-4" /> : <TrendingDown className="mr-2 h-4 w-4" />}
@@ -166,7 +167,11 @@ function TradeDecisionStrip() {
     );
 }
 
-export function DashboardModule() {
+interface DashboardModuleProps {
+    onSetModule: (module: 'settings') => void;
+}
+
+export function DashboardModule({ onSetModule }: DashboardModuleProps) {
     const [persona, setPersona] = useState<Persona>({});
     const [isBrokerConnected, setIsBrokerConnected] = useState(false);
     const { logout } = useAuth();
@@ -195,7 +200,7 @@ export function DashboardModule() {
             <CardContent className="p-6 grid md:grid-cols-3 gap-6 items-center">
                 <div className="md:col-span-2">
                     <h1 className="text-2xl font-bold tracking-tight text-foreground">
-                        Welcome, {persona.primaryPersonaName?.split(' ')[1] || 'Trader'}.
+                        Welcome, {persona.primaryPersonaName?.split(' ')[0] || 'Trader'}.
                     </h1>
                      <p className="text-muted-foreground mt-1">
                         Persona: <span className="font-semibold text-primary">{persona.primaryPersonaName || 'The Determined Trader'}</span>
@@ -278,7 +283,7 @@ export function DashboardModule() {
                                 <Link className="h-8 w-8 text-muted-foreground mx-auto" />
                                 <h3 className="mt-4 text-lg font-semibold text-foreground">No broker connected</h3>
                                 <p className="mt-1 text-sm text-muted-foreground">Connect your broker to see live account data and open positions.</p>
-                                <Button className="mt-4">Connect Broker</Button>
+                                <Button className="mt-4" onClick={() => onSetModule('settings')}>Connect Broker</Button>
                             </div>
                         )}
                     </CardContent>
@@ -386,5 +391,3 @@ export function DashboardModule() {
         </div>
     </div>
   );
-
-    
