@@ -204,7 +204,7 @@ function InfoTooltip({ text, children }: { text: string, children: React.ReactNo
           </span>
         </TooltipTrigger>
         <TooltipContent className="max-w-xs bg-muted text-muted-foreground border-border shadow-lg">
-          <p>{text}</p>
+          <span>{text}</span>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
@@ -1195,5 +1195,3 @@ export function PublicWebsiteView({ onSwitchView }: PublicWebsiteViewProps) {
     </div>
   );
 }
-
-    
