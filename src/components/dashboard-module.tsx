@@ -201,7 +201,7 @@ function PerformanceSummary({ dailyPnl7d, dailyPnl30d, performanceState, hasHist
 
     if (!hasHistory) {
          return (
-            <Card className="bg-muted/30 border-border/50">
+            <Card id="demo-highlight-3" className="bg-muted/30 border-border/50">
                 <CardHeader>
                     <CardTitle>Performance Summary</CardTitle>
                     <CardDescription>No trading history found yet.</CardDescription>
@@ -242,7 +242,7 @@ function PerformanceSummary({ dailyPnl7d, dailyPnl30d, performanceState, hasHist
     const winLossLabel = timeRange === 'today' ? (totalPnl > 0 ? '1W / 0L' : (totalPnl < 0 ? '0W / 1L' : '0W / 0L')) : `${wins}W / ${losses}L`;
 
     return (
-        <Card className="bg-muted/30 border-border/50">
+        <Card id="demo-highlight-3" className="bg-muted/30 border-border/50">
             <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                     <CardTitle>Performance Summary</CardTitle>
@@ -574,7 +574,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
     <div className="space-y-8">
         <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
             {/* User Header & Arjun Insight */}
-            <Card className="w-full bg-muted/20 border-border/50">
+            <Card id="demo-highlight-1" className="w-full bg-muted/20 border-border/50">
                 <CardContent className="p-6 grid md:grid-cols-3 gap-6 items-center">
                     <div className="md:col-span-2">
                         <h1 className="text-2xl font-bold tracking-tight text-foreground">
@@ -650,7 +650,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
             {/* Left column */}
             <div className="lg:col-span-2 space-y-8">
                 {/* Account & Positions Snapshot */}
-                <Card className="bg-muted/30 border-border/50">
+                <Card id="demo-highlight-2" className="bg-muted/30 border-border/50">
                     <CardHeader className="flex flex-row items-center justify-between">
                          <CardTitle>Account Snapshot</CardTitle>
                          {connection.brokerConnected && <Badge variant="secondary">{connection.brokerName} (Connected)</Badge>}
@@ -790,7 +790,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                 />
 
                  {/* Market Context & Risk */}
-                <div className="grid md:grid-cols-2 gap-8">
+                <div id="demo-highlight-4" className="grid md:grid-cols-2 gap-8">
                      <Card className="bg-muted/30 border-border/50">
                         <CardHeader>
                              <CardTitle className="text-base flex items-center gap-2">
@@ -822,7 +822,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
             </div>
 
             {/* Right column */}
-            <div className="lg:col-span-1 space-y-8">
+            <div id="demo-highlight-5" className="lg:col-span-1 space-y-8">
                  {/* Quick Actions */}
                 <Card className="bg-muted/30 border-border/50">
                     <CardHeader>

@@ -34,6 +34,7 @@ import { CryptoVixModule } from './crypto-vix-module';
 import { NewsModule } from './news-module';
 import { CommunityModule } from './community-module';
 import { ProfileSettingsModule } from './profile-settings-module';
+import { DashboardDemoHelper } from './dashboard-demo-helper';
 
 type Module = 
   | 'dashboard' 
@@ -288,13 +289,31 @@ export function AuthenticatedAppShell() {
   const [isMobileNavOpen, setMobileNavOpen] = useState(false);
   const [aiCoachingInitialMessage, setAiCoachingInitialMessage] = useState<string | null>(null);
   const [isInitialLoading, setInitialLoading] = useState(true);
+  const [isDemoHelperOpen, setDemoHelperOpen] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       setInitialLoading(false);
     }, 1200);
 
-    return () => clearTimeout(timer);
+    const helperSeen = localStorage.getItem('ec_demo_helper_seen');
+    if (!helperSeen) {
+        setDemoHelperOpen(true);
+        localStorage.setItem('ec_demo_helper_seen', 'true');
+    }
+    
+    const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === '?' && e.shiftKey) {
+            setDemoHelperOpen(prev => !prev);
+        }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+        clearTimeout(timer);
+        window.removeEventListener('keydown', handleKeyDown);
+    };
   }, []);
 
   const handleSetModule = (id: Module, context?: any) => {
@@ -379,6 +398,9 @@ export function AuthenticatedAppShell() {
             </main>
         </div>
         <ThemeSwitcher />
+         {currentModule === 'dashboard' && !isInitialLoading && (
+            <DashboardDemoHelper isOpen={isDemoHelperOpen} onOpenChange={setDemoHelperOpen} />
+        )}
     </div>
     </TooltipProvider>
   );
