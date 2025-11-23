@@ -856,10 +856,89 @@ function ContactSection() {
 }
 
 function Footer() {
+    const footerNavLinks = [
+        { href: '#home', label: 'Home' },
+        { href: '#how-it-works', label: 'How it works' },
+        { href: '#pricing', label: 'Pricing' },
+        { href: '#faq', label: 'FAQ' },
+        { href: '#contact', label: 'Contact' },
+    ];
+
+    const legalLinks = [
+        { href: '#', label: 'Terms of Use' },
+        { href: '#', label: 'Privacy Policy' },
+    ];
+    
     return (
-        <footer className="border-t border-border/50 py-8">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-muted-foreground text-sm">
-                <p>&copy; {new Date().getFullYear()} EdgeCipher. All rights reserved.</p>
+        <footer className="bg-muted/20 border-t border-border/50 py-12">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    {/* Left Column */}
+                    <div className="space-y-4 md:col-span-2 lg:col-span-1">
+                        <div className="flex items-center gap-2">
+                            <Cpu className="h-6 w-6 text-primary" />
+                            <span className="text-xl font-bold text-foreground">EdgeCipher</span>
+                        </div>
+                        <p className="text-muted-foreground text-sm max-w-xs">
+                            AI-powered coaching for crypto futures traders.
+                        </p>
+                        <div className="flex items-center gap-2 pt-2">
+                           <a href="#" className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), "text-muted-foreground hover:text-foreground h-8 w-8")}>
+                                <Youtube className="h-5 w-5" />
+                                <span className="sr-only">YouTube</span>
+                           </a>
+                           <a href="#" className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), "text-muted-foreground hover:text-foreground h-8 w-8")}>
+                                <XIcon className="h-5 w-5" />
+                                <span className="sr-only">X (Twitter)</span>
+                           </a>
+                            <a href="#" className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), "text-muted-foreground hover:text-foreground h-8 w-8")}>
+                                <Linkedin className="h-5 w-5" />
+                                <span className="sr-only">LinkedIn</span>
+                           </a>
+                        </div>
+                    </div>
+
+                    {/* Center Column */}
+                    <div className="space-y-4">
+                        <h4 className="font-semibold text-foreground">Quick Links</h4>
+                        <ul className="space-y-2">
+                            {footerNavLinks.map(link => (
+                                <li key={link.href}>
+                                    <a 
+                                        href={link.href} 
+                                        onClick={(e) => handleScrollTo(e, link.href)} 
+                                        className="text-sm text-muted-foreground hover:text-primary transition-colors"
+                                    >
+                                        {link.label}
+                                    </a>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+
+                    {/* Right Column */}
+                    <div className="space-y-4">
+                        <h4 className="font-semibold text-foreground">Legal</h4>
+                        <ul className="space-y-2">
+                            {legalLinks.map(link => (
+                                <li key={link.href}>
+                                    <a href={link.href} className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                                        {link.label}
+                                    </a>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                </div>
+
+                <div className="mt-12 pt-8 border-t border-border/50 text-sm text-muted-foreground space-y-4">
+                    <p>
+                        Trading involves risk. EdgeCipher is an educational and analytical tool and does not provide financial advice or guarantee profits.
+                    </p>
+                    <p>
+                        &copy; {new Date().getFullYear()} EdgeCipher. All rights reserved.
+                    </p>
+                </div>
             </div>
         </footer>
     );
@@ -870,7 +949,7 @@ export function PublicWebsiteView({ onSwitchView }: PublicWebsiteViewProps) {
     <div className="relative flex min-h-screen w-full flex-col bg-background text-foreground">
       <Header onSwitchView={onSwitchView} />
       <main>
-        <Section id="home" className="pt-0 -mt-20">
+        <Section id="home" className="pt-0 lg:-mt-20">
           <Hero />
         </Section>
         <Section id="about">
@@ -897,5 +976,3 @@ export function PublicWebsiteView({ onSwitchView }: PublicWebsiteViewProps) {
     </div>
   );
 }
-
-    
