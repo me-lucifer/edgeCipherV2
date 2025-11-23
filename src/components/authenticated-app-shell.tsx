@@ -23,7 +23,6 @@ import {
 } from "@/components/ui/tooltip"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Separator } from './ui/separator';
-import { ThemeSwitcher } from './theme-switcher';
 import { AiCoachingModule } from './ai-coaching-module';
 import { TradePlanningModule } from './trade-planning-module';
 import { TradeJournalModule } from './trade-journal-module';
@@ -37,6 +36,7 @@ import { ProfileSettingsModule } from './profile-settings-module';
 import { DashboardDemoHelper } from './dashboard-demo-helper';
 import { Badge } from './ui/badge';
 import { useEventLog } from '@/context/event-log-provider';
+import { DemoControls } from './demo-controls';
 
 type Module = 
   | 'dashboard' 
@@ -459,7 +459,7 @@ export function AuthenticatedAppShell() {
                 </div>
             </main>
         </div>
-        <ThemeSwitcher />
+        {currentModule === 'dashboard' && <DemoControls />}
          {currentModule === 'dashboard' && !isInitialLoading && (
             <DashboardDemoHelper isOpen={isDemoHelperOpen} onOpenChange={setDemoHelperOpen} />
         )}

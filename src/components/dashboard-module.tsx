@@ -10,8 +10,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Bot, FileText, Gauge, BarChart as BarChartIcon, ArrowRight, TrendingUp, TrendingDown, BookOpen, Link, ArrowRightCircle, Lightbulb, Info, Newspaper, HelpCircle, CheckCircle, Sparkles, LineChart as LineChartIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { Label } from "./ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "./ui/dialog";
 import { Skeleton } from "./ui/skeleton";
 import { useEventLog } from "@/context/event-log-provider";
@@ -25,7 +23,7 @@ interface Persona {
     disciplineScore?: number;
 }
 
-type DemoScenario = "normal" | "high_vol" | "drawdown" | "no_positions";
+export type DemoScenario = "normal" | "high_vol" | "drawdown" | "no_positions";
 
 const features = [
     { id: 'tradePlanning', icon: FileText, title: "Plan new trade" },
@@ -422,25 +420,6 @@ function NewsSnapshot({ onSetModule }: { onSetModule: (module: any) => void }) {
     )
 }
 
-function DemoScenarioSwitcher({ scenario, onScenarioChange }: { scenario: DemoScenario, onScenarioChange: (scenario: DemoScenario) => void }) {
-    return (
-        <div className="flex items-center gap-2">
-            <Label htmlFor="scenario-select" className="text-sm text-muted-foreground hidden md:block">Demo Scenario:</Label>
-            <Select value={scenario} onValueChange={onScenarioChange}>
-                <SelectTrigger id="scenario-select" className="w-[180px] h-9">
-                    <SelectValue placeholder="Select scenario" />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="normal">Normal Day</SelectItem>
-                    <SelectItem value="high_vol">High Volatility</SelectItem>
-                    <SelectItem value="drawdown">In Drawdown</SelectItem>
-                    <SelectItem value="no_positions">New User / No Data</SelectItem>
-                </SelectContent>
-            </Select>
-        </div>
-    );
-}
-
 function DashboardSkeleton() {
     return (
         <div className="space-y-8 animate-pulse">
@@ -458,9 +437,6 @@ function DashboardSkeleton() {
                         </div>
                     </CardContent>
                 </Card>
-                <div className="pl-4 pt-1 flex-shrink-0">
-                    <Skeleton className="h-9 w-[250px]" />
-                </div>
             </div>
 
             <Skeleton className="h-16 w-full" />
@@ -699,9 +675,6 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                     </div>
                 </CardContent>
             </Card>
-            <div className="pl-4 pt-1 flex-shrink-0 w-full sm:w-auto">
-                 <DemoScenarioSwitcher scenario={scenario} onScenarioChange={handleScenarioChange} />
-            </div>
         </div>
 
         <Dialog open={isWhyModalOpen} onOpenChange={setWhyModalOpen}>
@@ -998,5 +971,3 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
     </div>
   );
 }
-
-    

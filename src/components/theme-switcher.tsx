@@ -13,7 +13,12 @@ import { Button } from "./ui/button"
 import { Paintbrush, Check } from "lucide-react"
 import { useTheme, type Theme } from "./theme-provider"
 import { cn } from "@/lib/utils"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 const themes: { name: string, id: Theme, color: string }[] = [
     { name: "Aurora Teal", id: "teal", color: "bg-[#22d3ee]" },
@@ -23,11 +28,10 @@ const themes: { name: string, id: Theme, color: string }[] = [
 ]
 
 export function ThemeSwitcher() {
-    const { theme: activeTheme, setTheme } = useTheme();
-
+    const { theme: activeTheme, setTheme } = useTheme()
     return (
         <div className="fixed bottom-4 right-4 z-50">
-             <DropdownMenu>
+            <DropdownMenu>
                 <TooltipProvider>
                     <Tooltip>
                         <TooltipTrigger asChild>
