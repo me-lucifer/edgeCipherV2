@@ -1,12 +1,16 @@
 
 "use client";
 
+import { useState } from "react";
 import { useAuth, type OnboardingStep } from "@/context/auth-provider";
 import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
 import { Progress } from "./ui/progress";
-import { CheckCircle, Circle, User, HelpCircle, Link2, History, Bot } from "lucide-react";
+import { CheckCircle, Circle, User, HelpCircle, Link2, History, Bot, PlayCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Checkbox } from "./ui/checkbox";
+import { Label } from "./ui/label";
+import { useToast } from "@/hooks/use-toast";
 
 const steps: { id: OnboardingStep; title: string; icon: React.ElementType }[] = [
     { id: "welcome", title: "Welcome", icon: User },
@@ -16,14 +20,68 @@ const steps: { id: OnboardingStep; title: string; icon: React.ElementType }[] = 
     { id: "persona", title: "Persona summary", icon: Bot },
 ];
 
+function WelcomeStep({ onContinue }: { onContinue: () => void }) {
+    const [hasAgreed, setHasAgreed] = useState(false);
+    const { toast } = useToast();
+
+    const handleVideoClick = () => {
+        toast({
+            title: "Intro Video",
+            description: "In a real product, an introductory video would play here.",
+        });
+    };
+
+    return (
+        <div className="space-y-6">
+            <div>
+                <h2 className="text-2xl font-semibold text-foreground">Arjun will help you trade better, not more.</h2>
+                <div className="mt-4 space-y-4 text-muted-foreground">
+                    <p>
+                        Welcome to EdgeCipher. You're about to set up your AI mentor, <span className="font-semibold text-primary">Arjun</span>. This one-time process is crucial because successful trading isn't just about charts—it's about psychology, discipline, and having a system.
+                    </p>
+                    <p>
+                        Instead of giving you signals, Arjun analyzes your actual trade history and journaling to give you personalized coaching. This onboarding will help us understand your starting point.
+                    </p>
+                </div>
+            </div>
+            
+            <Card 
+                className="group cursor-pointer aspect-video rounded-lg overflow-hidden border-2 border-primary/20 shadow-lg shadow-primary/10 relative flex flex-col items-center justify-center text-center p-8 bg-muted/30 transition-all hover:border-primary/40"
+                onClick={handleVideoClick}
+            >
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-black/20" />
+                <div className="relative z-10">
+                        <div className="w-16 h-16 rounded-full border-2 border-primary flex items-center justify-center mb-4 transition-transform group-hover:scale-110">
+                        <PlayCircle className="h-8 w-8 text-primary" />
+                    </div>
+                    <h3 className="text-xl font-bold text-foreground">5-minute intro: how EdgeCipher and Arjun work</h3>
+                </div>
+            </Card>
+
+            <div className="space-y-4 pt-4">
+                 <div className="flex items-center space-x-2">
+                    <Checkbox id="understand-intro" checked={hasAgreed} onCheckedChange={(checked) => setHasAgreed(checked as boolean)} />
+                    <Label htmlFor="understand-intro" className="text-sm font-normal text-muted-foreground cursor-pointer">
+                        I've watched or understand the intro.
+                    </Label>
+                </div>
+                 <Button onClick={onContinue} disabled={!hasAgreed} className="w-full sm:w-auto">
+                    Continue to Questionnaire
+                </Button>
+            </div>
+            
+            <p className="text-xs text-muted-foreground/80 pt-4">
+                You can always revisit this intro later from the Help section in the full app.
+            </p>
+        </div>
+    );
+}
+
 function OnboardingStepContent({ currentStep, onNext, onBack }: { currentStep: OnboardingStep, onNext: () => void, onBack: () => void }) {
     // These are placeholders. Each will be built out in subsequent steps.
     const content: Record<OnboardingStep, React.ReactNode> = {
         welcome: (
-            <div>
-                <h2 className="text-2xl font-semibold text-foreground">Welcome to EdgeCipher!</h2>
-                <p className="mt-2 text-muted-foreground">Let's get your AI mentor, Arjun, set up. This quick process helps us personalize your coaching experience.</p>
-            </div>
+            <WelcomeStep onContinue={onNext} />
         ),
         questionnaire: (
             <div>
@@ -51,21 +109,23 @@ function OnboardingStepContent({ currentStep, onNext, onBack }: { currentStep: O
         ),
     };
 
+    const isWelcomeStep = currentStep === 'welcome';
+
     return (
         <div className="flex flex-col h-full">
             <div className="flex-1">
                 {content[currentStep]}
             </div>
-            <div className="flex justify-between items-center pt-8 mt-auto">
-                <div>
-                     {currentStep !== 'welcome' && (
+            {!isWelcomeStep && (
+                <div className="flex justify-between items-center pt-8 mt-auto">
+                    <div>
                         <Button variant="ghost" onClick={onBack}>Back</Button>
-                    )}
+                    </div>
+                    <Button onClick={onNext}>
+                        {currentStep === 'persona' ? 'Finish & Go to Dashboard' : 'Continue'}
+                    </Button>
                 </div>
-                <Button onClick={onNext}>
-                    {currentStep === 'persona' ? 'Finish & Go to Dashboard' : 'Continue'}
-                </Button>
-            </div>
+            )}
         </div>
     )
 }
@@ -153,3 +213,5 @@ export function OnboardingView() {
         </div>
     );
 }
+
+    
