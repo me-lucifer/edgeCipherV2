@@ -1069,7 +1069,7 @@ function Footer() {
 
                 <div className="mt-12 pt-8 border-t border-border/50 text-sm text-muted-foreground space-y-4">
                     <p>
-                        Trading involves risk. EdgeCipher is an educational and analytical tool and does not provide financial advice or guarantee profits.
+                        <span className="font-semibold text-foreground">Demo prototype – not a live trading product.</span> Trading involves risk. EdgeCipher is an educational and analytical tool and does not provide financial advice or guarantee profits.
                     </p>
                     <p>
                         &copy; {new Date().getFullYear()} EdgeCipher. All rights reserved.

@@ -35,6 +35,7 @@ import { NewsModule } from './news-module';
 import { CommunityModule } from './community-module';
 import { ProfileSettingsModule } from './profile-settings-module';
 import { DashboardDemoHelper } from './dashboard-demo-helper';
+import { Badge } from './ui/badge';
 
 type Module = 
   | 'dashboard' 
@@ -218,6 +219,17 @@ function AppHeader({ onSetModule }: { onSetModule: (module: Module) => void; }) 
             </div>
         </div>
         <div className="flex items-center gap-2 sm:gap-4">
+            <TooltipProvider>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Badge variant="outline" className="hidden sm:flex cursor-help border-amber-500/50 text-amber-400">Prototype</Badge>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-xs">
+                        <p>This is a non-production prototype. Data is mocked or stored only in your browser. No real trading or live API calls happen here.</p>
+                    </TooltipContent>
+                </Tooltip>
+            </TooltipProvider>
+
             <TooltipProvider>
                 <Tooltip>
                     <TooltipTrigger asChild>
