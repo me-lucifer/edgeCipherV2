@@ -164,11 +164,10 @@ function TradeDecisionStrip({ vixZone, performanceState, disciplineScore}: { vix
     );
 }
 
-function PerformanceSummary({ dailyPnl, performanceState }: { dailyPnl: number[], performanceState: string }) {
-    const todayPnl = dailyPnl[dailyPnl.length - 1];
-    const total7dPnl = dailyPnl.reduce((acc, pnl) => acc + pnl, 0);
-    const wins = dailyPnl.filter(pnl => pnl > 0).length;
-    const losses = dailyPnl.filter(pnl => pnl < 0).length;
+type TimeRange = 'today' | '7d' | '30d';
+
+function PerformanceSummary({ dailyPnl7d, dailyPnl30d, performanceState }: { dailyPnl7d: number[], dailyPnl30d: number[], performanceState: string }) {
+    const [timeRange, setTimeRange] = useState<TimeRange>('7d');
 
     const getArjunPerformanceView = () => {
         if (performanceState === "drawdown") {
@@ -180,49 +179,72 @@ function PerformanceSummary({ dailyPnl, performanceState }: { dailyPnl: number[]
         return "Stable performance recently.";
     }
 
+    const dataForRange = {
+        'today': [dailyPnl7d[dailyPnl7d.length - 1]],
+        '7d': dailyPnl7d,
+        '30d': dailyPnl30d,
+    }[timeRange];
+
+    const totalPnl = dataForRange.reduce((acc, pnl) => acc + pnl, 0);
+    const wins = dataForRange.filter(pnl => pnl > 0).length;
+    const losses = dataForRange.filter(pnl => pnl < 0).length;
+    const winLossLabel = timeRange === 'today' ? (totalPnl > 0 ? '1W / 0L' : (totalPnl < 0 ? '0W / 1L' : '0W / 0L')) : `${wins}W / ${losses}L`;
+
     return (
-        <>
-            <div className="grid md:grid-cols-3 gap-8">
-                <Card className="bg-muted/30 border-border/50">
+        <Card className="bg-muted/30 border-border/50">
+            <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Performance Summary</CardTitle>
+                 <div className="flex items-center gap-1 rounded-full bg-muted p-1">
+                    {(['today', '7d', '30d'] as TimeRange[]).map(range => (
+                        <Button
+                            key={range}
+                            size="sm"
+                            variant={timeRange === range ? 'secondary' : 'ghost'}
+                            onClick={() => setTimeRange(range)}
+                            className="rounded-full h-8 px-3 text-xs"
+                        >
+                            {range === 'today' ? 'Today' : (range === '7d' ? '7D' : '30D')}
+                        </Button>
+                    ))}
+                </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                <div className="grid grid-cols-2 md:grid-cols-2 gap-8">
+                    <Card className="bg-muted/30 border-border/50">
+                        <CardHeader>
+                            <CardTitle className="text-base">Realized PnL</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <PnlDisplay value={totalPnl} />
+                        </CardContent>
+                    </Card>
+                    <Card className="bg-muted/30 border-border/50">
+                        <CardHeader>
+                            <CardTitle className="text-base">Win/Loss</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-lg font-semibold font-mono">{winLossLabel}</p>
+                            <p className="text-xs text-muted-foreground">(Based on days)</p>
+                        </CardContent>
+                    </Card>
+                </div>
+                 <Card className="bg-muted/30 border-border/50">
                     <CardHeader>
-                        <CardTitle className="text-base">Today's Realized PnL</CardTitle>
+                        <CardTitle className="text-base">
+                            {timeRange === 'today' ? 'Today\'s' : timeRange === '7d' ? '7-Day' : '30-Day'} PnL Sparkline
+                        </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <PnlDisplay value={todayPnl} />
+                        <div className="h-20 w-full bg-muted rounded-md flex items-center justify-center border-2 border-dashed border-border/50">
+                            <p className="text-sm text-muted-foreground">[Sparkline for {timeRange} placeholder]</p>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-4">
+                            <span className="font-semibold text-foreground">Arjun's view:</span> {getArjunPerformanceView()}
+                        </p>
                     </CardContent>
                 </Card>
-                <Card className="bg-muted/30 border-border/50">
-                    <CardHeader>
-                        <CardTitle className="text-base">Today's Win/Loss</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-lg font-semibold font-mono">{wins > 0 || losses > 0 ? `${wins}W / ${losses}L` : '0W / 0L'}</p>
-                        <p className="text-xs text-muted-foreground">(Based on last 7 days)</p>
-                    </CardContent>
-                </Card>
-                <Card className="bg-muted/30 border-border/50">
-                    <CardHeader>
-                        <CardTitle className="text-base">Last 7 Days PnL</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <PnlDisplay value={total7dPnl} />
-                    </CardContent>
-                </Card>
-            </div>
-            <Card className="bg-muted/30 border-border/50">
-                <CardHeader>
-                    <CardTitle className="text-base">7-Day PnL Sparkline</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="h-20 w-full bg-muted rounded-md flex items-center justify-center border-2 border-dashed border-border/50">
-                        <p className="text-sm text-muted-foreground">[Sparkline chart placeholder]</p>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-4">
-                        <span className="font-semibold text-foreground">Arjun's view:</span> {getArjunPerformanceView()}
-                    </p>
-                </CardContent>
-            </Card>
-        </>
+            </CardContent>
+        </Card>
     );
 }
 
@@ -338,13 +360,18 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
                 }
 
                 // Performance data
-                let dailyPnl = [120, -80, 250, -40, 0, 180, -60];
+                let dailyPnl7d = [120, -80, 250, -40, 0, 180, -60];
                 if (currentScenario === 'drawdown') {
-                    dailyPnl = [50, -150, -280, 80, -90, -400, -210];
+                    dailyPnl7d = [50, -150, -280, 80, -90, -400, -210];
                 }
 
-                const total7d = dailyPnl.reduce((a, b) => a + b, 0);
-                const lastThreeDays = dailyPnl.slice(-3);
+                const dailyPnl30d = [
+                    ...Array.from({ length: 23 }, () => (Math.random() - 0.45) * 300),
+                    ...dailyPnl7d
+                ];
+
+                const total7d = dailyPnl7d.reduce((a, b) => a + b, 0);
+                const lastThreeDays = dailyPnl7d.slice(-3);
                 
                 let performanceState = "stable";
                 if (total7d < 0 && lastThreeDays.filter(p => p < 0).length >= 2) {
@@ -369,10 +396,8 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
                         vixZone: getVixZone(vixValue),
                     },
                     performance: {
-                        dailyPnl,
-                        todayPnl: dailyPnl[dailyPnl.length-1],
-                        winsToday: dailyPnl.filter(p => p > 0).length,
-                        lossesToday: dailyPnl.filter(p => p < 0).length,
+                        dailyPnl7d,
+                        dailyPnl30d,
                         performanceState,
                     },
                     positions: brokerConnected ? openPositions : [],
@@ -573,7 +598,11 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
                 </Card>
 
                 {/* Performance Summary */}
-                <PerformanceSummary dailyPnl={performance.dailyPnl} performanceState={performance.performanceState} />
+                <PerformanceSummary 
+                    dailyPnl7d={performance.dailyPnl7d}
+                    dailyPnl30d={performance.dailyPnl30d}
+                    performanceState={performance.performanceState}
+                />
 
                  {/* Market Context & Risk */}
                 <div className="grid md:grid-cols-2 gap-8">
