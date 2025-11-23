@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Cpu, Menu, View, Info, ShieldCheck, Video, CheckCircle2, BrainCircuit, FileText, Gauge, BarChart, ArrowRight, PlayCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
