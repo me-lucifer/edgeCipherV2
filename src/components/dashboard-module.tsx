@@ -14,6 +14,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/t
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Label } from "./ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "./ui/dialog";
+import { Skeleton } from "./ui/skeleton";
 
 interface Persona {
     primaryPersonaName?: string;
@@ -373,11 +374,82 @@ function DemoScenarioSwitcher({ scenario, onScenarioChange }: { scenario: DemoSc
     );
 }
 
-interface DashboardModuleProps {
-    onSetModule: (module: any, context?: any) => void;
+function DashboardSkeleton() {
+    return (
+        <div className="space-y-8 animate-pulse">
+            <div className="flex justify-between items-start">
+                <Card className="w-full bg-muted/20 border-border/50">
+                    <CardContent className="p-6 grid md:grid-cols-3 gap-6 items-center">
+                        <div className="md:col-span-2 space-y-2">
+                            <Skeleton className="h-8 w-3/4" />
+                            <Skeleton className="h-5 w-1/2" />
+                        </div>
+                        <div className="bg-muted/50 p-4 rounded-lg border border-dashed border-primary/20 space-y-2">
+                            <Skeleton className="h-5 w-1/3" />
+                            <Skeleton className="h-4 w-full" />
+                            <Skeleton className="h-4 w-3/4" />
+                        </div>
+                    </CardContent>
+                </Card>
+                <div className="pl-4 pt-1 flex-shrink-0">
+                    <Skeleton className="h-9 w-[250px]" />
+                </div>
+            </div>
+
+            <Skeleton className="h-16 w-full" />
+
+            <div className="grid lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-2 space-y-8">
+                    <Card className="bg-muted/30 border-border/50">
+                        <CardHeader><Skeleton className="h-6 w-1/3" /></CardHeader>
+                        <CardContent className="space-y-4">
+                            <Skeleton className="h-24 w-full" />
+                            <Skeleton className="h-40 w-full" />
+                        </CardContent>
+                    </Card>
+                    <Card className="bg-muted/30 border-border/50">
+                        <CardHeader><Skeleton className="h-6 w-1/3" /></CardHeader>
+                        <CardContent><Skeleton className="h-48 w-full" /></CardContent>
+                    </Card>
+                    <div className="grid md:grid-cols-2 gap-8">
+                        <Card className="bg-muted/30 border-border/50">
+                            <CardHeader><Skeleton className="h-5 w-1/2" /></CardHeader>
+                            <CardContent><Skeleton className="h-16 w-full" /></CardContent>
+                        </Card>
+                        <Card className="bg-muted/30 border-border/50">
+                            <CardHeader><Skeleton className="h-5 w-1/2" /></CardHeader>
+                            <CardContent className="space-y-3">
+                                <Skeleton className="h-10 w-full" />
+                                <Skeleton className="h-10 w-full" />
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+                <div className="space-y-8">
+                    <Card className="bg-muted/30 border-border/50">
+                        <CardHeader><Skeleton className="h-6 w-1/2" /></CardHeader>
+                        <CardContent className="space-y-3">
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                        </CardContent>
+                    </Card>
+                    <Card className="bg-muted/30 border-border/50">
+                        <CardHeader><Skeleton className="h-6 w-1/2" /></CardHeader>
+                        <CardContent><Skeleton className="h-24 w-full" /></CardContent>
+                    </Card>
+                </div>
+            </div>
+        </div>
+    );
 }
 
-export function DashboardModule({ onSetModule }: DashboardModuleProps) {
+interface DashboardModuleProps {
+    onSetModule: (module: any, context?: any) => void;
+    isLoading: boolean;
+}
+
+export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps) {
     const [scenario, setScenario] = useState<DemoScenario>('normal');
     const [isWhyModalOpen, setWhyModalOpen] = useState(false);
     
@@ -482,6 +554,10 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
     }
 
     const data = useDashboardMockData(scenario);
+    
+    if (isLoading) {
+        return <DashboardSkeleton />;
+    }
 
     if (!data) {
         return null; // or a loading skeleton

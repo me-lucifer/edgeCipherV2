@@ -116,9 +116,9 @@ const NavItemGroup: React.FC<{
 );
 
 
-function ModuleView({ currentModule, onSetModule, aiCoachingInitialMessage }: { currentModule: Module; onSetModule: (module: Module, context?: any) => void; aiCoachingInitialMessage: string | null }) {
+function ModuleView({ currentModule, onSetModule, aiCoachingInitialMessage, isLoading }: { currentModule: Module; onSetModule: (module: Module, context?: any) => void; aiCoachingInitialMessage: string | null; isLoading: boolean }) {
     if (currentModule === 'dashboard') {
-        return <DashboardModule onSetModule={onSetModule} />;
+        return <DashboardModule onSetModule={onSetModule} isLoading={isLoading} />;
     }
 
     if (currentModule === 'aiCoaching') {
@@ -265,7 +265,15 @@ export function AuthenticatedAppShell() {
   const [currentModule, setCurrentModule] = useState<Module>('dashboard');
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const [aiCoachingInitialMessage, setAiCoachingInitialMessage] = useState<string | null>(null);
+  const [isInitialLoading, setInitialLoading] = useState(true);
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setInitialLoading(false);
+    }, 1200);
+
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleSetModule = (id: Module, context?: any) => {
     setCurrentModule(id);
@@ -337,7 +345,8 @@ export function AuthenticatedAppShell() {
                     <ModuleView 
                         currentModule={currentModule} 
                         onSetModule={handleSetModule} 
-                        aiCoachingInitialMessage={aiCoachingInitialMessage} 
+                        aiCoachingInitialMessage={aiCoachingInitialMessage}
+                        isLoading={isInitialLoading && currentModule === 'dashboard'} 
                     />
                 </div>
             </main>
