@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -33,6 +32,7 @@ import { RiskCenterModule } from './risk-center-module';
 import { CryptoVixModule } from './crypto-vix-module';
 import { NewsModule } from './news-module';
 import { CommunityModule } from './community-module';
+import { ProfileSettingsModule } from './profile-settings-module';
 
 type Module = 
   | 'dashboard' 
@@ -157,6 +157,10 @@ function ModuleView({ currentModule, onSetModule, aiCoachingInitialMessage }: { 
         return <CommunityModule onSetModule={onSetModule} />;
     }
 
+    if (currentModule === 'settings') {
+      return <ProfileSettingsModule onSetModule={onSetModule} />;
+    }
+
     const allNavItems = [...mainNavItems, ...analyticsNavItems, ...marketNavItems, ...communityNavItems, ...settingsNavItems];
     const item = allNavItems.find(item => item.id === currentModule);
 
@@ -233,7 +237,7 @@ function AppHeader({ onToggleSidebar, onSetModule }: { onToggleSidebar: () => vo
                 <DropdownMenuContent align="end" className="w-56">
                     <DropdownMenuLabel>My Account</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => alert('Profile page coming soon!')}>
+                    <DropdownMenuItem onClick={() => onSetModule('settings')}>
                         <UserCircle className="mr-2 h-4 w-4" />
                         <span>Profile</span>
                     </DropdownMenuItem>
