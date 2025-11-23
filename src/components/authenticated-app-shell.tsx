@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/tooltip"
 import { Separator } from './ui/separator';
 import { ThemeSwitcher } from './theme-switcher';
+import { AiCoachingModule } from './ai-coaching-module';
 
 type Module = 
   | 'dashboard' 
@@ -110,6 +111,10 @@ const NavItemGroup: React.FC<{
 function ModuleView({ currentModule, onSetModule }: { currentModule: Module; onSetModule: (module: Module) => void; }) {
     if (currentModule === 'dashboard') {
         return <DashboardModule onSetModule={onSetModule} />;
+    }
+
+    if (currentModule === 'aiCoaching') {
+      return <AiCoachingModule onSetModule={onSetModule} />;
     }
 
     const allNavItems = [...mainNavItems, ...analyticsNavItems, ...marketNavItems, ...communityNavItems, ...settingsNavItems];
