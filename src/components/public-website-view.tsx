@@ -1078,5 +1078,3 @@ export function PublicWebsiteView({ onSwitchView }: PublicWebsiteViewProps) {
     </div>
   );
 }
-
-    
