@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useAuth } from "@/context/auth-provider";
@@ -8,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
-import { Bot, FileText, Gauge, BarChart, ArrowRight, TrendingUp, TrendingDown, BookOpen, Link, ArrowRightCircle, Lightbulb, Info, Newspaper, HelpCircle } from "lucide-react";
+import { Bot, FileText, Gauge, BarChart, ArrowRight, TrendingUp, TrendingDown, BookOpen, Link, ArrowRightCircle, Lightbulb, Info, Newspaper, HelpCircle, CheckCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
@@ -44,6 +43,12 @@ const growthPlanItems = [
     "Limit yourself to 5 trades per day.",
     "Only trade your best A+ setup for the next 2 weeks.",
     "Complete a daily journal review for at least 10 days.",
+];
+
+const newUserGrowthPlanItems = [
+    "Connect your broker or start logging trades manually.",
+    "Draft your initial trading plan.",
+    "Watch the 'Intro to Journaling' video (coming soon).",
 ];
 
 function PnlDisplay({ value }: { value: number }) {
@@ -84,11 +89,23 @@ const getTradeDecision = ({
   vixZone,
   performanceState,
   disciplineScore,
+  hasHistory,
 }: {
   vixZone: string;
   performanceState: string;
   disciplineScore: number;
+  hasHistory: boolean;
 }) => {
+   // ZERO STATE condition
+  if (!hasHistory) {
+     return {
+      status: "Focus",
+      message: "Focus on learning and building your plan before risking capital.",
+      chipColor: "bg-blue-500/20 text-blue-400",
+      glowColor: "shadow-[0_0_10px_rgba(59,130,246,0.3)]",
+    };
+  }
+
   // RED conditions
   if (vixZone === "Extreme" && disciplineScore < 50) {
     return {
@@ -134,12 +151,13 @@ const getTradeDecision = ({
   };
 };
 
-function TradeDecisionStrip({ vixZone, performanceState, disciplineScore}: { vixZone: string, performanceState: string, disciplineScore: number }) {
+function TradeDecisionStrip({ vixZone, performanceState, disciplineScore, hasHistory}: { vixZone: string, performanceState: string, disciplineScore: number, hasHistory: boolean }) {
 
     const decision = getTradeDecision({
         vixZone: vixZone,
         performanceState: performanceState, 
         disciplineScore: disciplineScore,
+        hasHistory: hasHistory,
     });
 
     return (
@@ -155,7 +173,7 @@ function TradeDecisionStrip({ vixZone, performanceState, disciplineScore}: { vix
                         decision.chipColor,
                         decision.glowColor
                     )}>
-                        {decision.status} – Trade with caution
+                        {decision.status} {decision.status !== 'Focus' && '– Trade with caution'}
                     </div>
                     <p className="text-sm text-muted-foreground">{decision.message}</p>
                 </div>
@@ -166,7 +184,7 @@ function TradeDecisionStrip({ vixZone, performanceState, disciplineScore}: { vix
 
 type TimeRange = 'today' | '7d' | '30d';
 
-function PerformanceSummary({ dailyPnl7d, dailyPnl30d, performanceState, onSetModule }: { dailyPnl7d: number[], dailyPnl30d: number[], performanceState: string, onSetModule: (module: any) => void; }) {
+function PerformanceSummary({ dailyPnl7d, dailyPnl30d, performanceState, hasHistory, onSetModule }: { dailyPnl7d: number[], dailyPnl30d: number[], performanceState: string, hasHistory: boolean, onSetModule: (module: any) => void; }) {
     const [timeRange, setTimeRange] = useState<TimeRange>('7d');
 
     const getArjunPerformanceView = () => {
@@ -177,6 +195,37 @@ function PerformanceSummary({ dailyPnl7d, dailyPnl30d, performanceState, onSetMo
             return "Excellent work this week. Stay focused and protect your capital.";
         }
         return "Stable performance recently.";
+    }
+
+    if (!hasHistory) {
+         return (
+            <Card className="bg-muted/30 border-border/50">
+                <CardHeader>
+                    <CardTitle>Performance Summary</CardTitle>
+                    <CardDescription>No trading history found yet.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="p-6 text-center border-2 border-dashed border-border/50 rounded-lg">
+                        <h3 className="text-lg font-semibold text-foreground">Getting Started</h3>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                            After a few days of trading, Arjun will show performance patterns here.
+                        </p>
+                    </div>
+                     <ul className="space-y-3 pt-2">
+                        {[
+                            { text: "Connect your broker or start logging trades." },
+                            { text: "Use the Journal to log both trades and emotions." },
+                            { text: "Check your Growth Plan for today's focus." },
+                        ].map((item, i) => (
+                            <li key={i} className="flex items-start gap-3">
+                                <div className="w-4 h-4 rounded-full bg-primary/20 text-primary flex items-center justify-center flex-shrink-0 mt-1" />
+                                <span className="text-muted-foreground text-sm">{item.text}</span>
+                            </li>
+                        ))}
+                    </ul>
+                </CardContent>
+            </Card>
+        );
     }
 
     const dataForRange = {
@@ -307,7 +356,7 @@ function DemoScenarioSwitcher({ scenario, onScenarioChange }: { scenario: DemoSc
                     <SelectItem value="normal">Normal Day</SelectItem>
                     <SelectItem value="high_vol">High Volatility</SelectItem>
                     <SelectItem value="drawdown">In Drawdown</SelectItem>
-                    <SelectItem value="no_positions">No Open Positions</SelectItem>
+                    <SelectItem value="no_positions">New User / No Data</SelectItem>
                 </SelectContent>
             </Select>
         </div>
@@ -369,20 +418,27 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
                 if (currentScenario === 'drawdown') {
                     dailyPnl7d = [50, -150, -280, 80, -90, -400, -210];
                 }
+                
+                const hasHistory = currentScenario !== 'no_positions';
 
-                const dailyPnl30d = [
-                    ...Array.from({ length: 23 }, () => (Math.random() - 0.45) * 300),
-                    ...dailyPnl7d
-                ];
+                if (currentScenario === 'no_positions') {
+                    dailyPnl7d = [0, 0, 0, 0, 0, 0, 0];
+                }
+
+                const dailyPnl30d = hasHistory
+                    ? [...Array.from({ length: 23 }, () => (Math.random() - 0.45) * 300), ...dailyPnl7d]
+                    : Array(30).fill(0);
 
                 const total7d = dailyPnl7d.reduce((a, b) => a + b, 0);
                 const lastThreeDays = dailyPnl7d.slice(-3);
                 
                 let performanceState = "stable";
-                if (total7d < 0 && lastThreeDays.filter(p => p < 0).length >= 2) {
-                    performanceState = "drawdown";
-                } else if (lastThreeDays.every(p => p > 0)) {
-                    performanceState = "hot_streak";
+                if (hasHistory) {
+                    if (total7d < 0 && lastThreeDays.filter(p => p < 0).length >= 2) {
+                        performanceState = "drawdown";
+                    } else if (lastThreeDays.every(p => p > 0)) {
+                        performanceState = "hot_streak";
+                    }
                 }
                 
                 setData({
@@ -404,9 +460,10 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
                         dailyPnl7d,
                         dailyPnl30d,
                         performanceState,
+                        hasHistory,
                     },
-                    positions: brokerConnected ? openPositions : [],
-                    growthPlanToday: growthPlanItems,
+                    positions: brokerConnected && hasHistory ? openPositions : [],
+                    growthPlanToday: hasHistory ? growthPlanItems : newUserGrowthPlanItems,
                 });
             }
         }, [currentScenario]);
@@ -499,7 +556,8 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
         <TradeDecisionStrip 
             vixZone={market.vixZone} 
             performanceState={performance.performanceState}
-            disciplineScore={personaData.disciplineScore} 
+            disciplineScore={personaData.disciplineScore}
+            hasHistory={performance.hasHistory} 
         />
         
         <div className="grid lg:grid-cols-3 gap-8">
@@ -612,6 +670,7 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
                     dailyPnl7d={performance.dailyPnl7d}
                     dailyPnl30d={performance.dailyPnl30d}
                     performanceState={performance.performanceState}
+                    hasHistory={performance.hasHistory}
                     onSetModule={onSetModule}
                 />
 
@@ -672,7 +731,7 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
                     </CardHeader>
                     <CardContent>
                          <ul className="space-y-3">
-                            {growthPlanToday.slice(0,2).map((item: string, i: number) => (
+                            {growthPlanToday.slice(0,3).map((item: string, i: number) => (
                                 <li key={i} className="flex items-start gap-3">
                                     <div className="w-4 h-4 rounded-full bg-primary/20 text-primary flex items-center justify-center flex-shrink-0 mt-1" />
                                     <span className="text-muted-foreground text-sm">{item}</span>
