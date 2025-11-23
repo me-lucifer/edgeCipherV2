@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
-import { Bot, FileText, Gauge, BarChart as BarChartIcon, ArrowRight, TrendingUp, TrendingDown, BookOpen, Link, ArrowRightCircle, Lightbulb, Info, Newspaper, HelpCircle, CheckCircle, Sparkles, LineChart } from "lucide-react";
+import { Bot, FileText, Gauge, BarChart as BarChartIcon, ArrowRight, TrendingUp, TrendingDown, BookOpen, Link, ArrowRightCircle, Lightbulb, Info, Newspaper, HelpCircle, CheckCircle, Sparkles, LineChart as LineChartIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
@@ -16,7 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Skeleton } from "./ui/skeleton";
 import { useEventLog } from "@/context/event-log-provider";
 import { ScrollArea } from "./ui/scroll-area";
-import { BarChart, CartesianGrid, XAxis, YAxis, Bar, Line, ResponsiveContainer } from "recharts";
+import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "./ui/chart";
 
 interface Persona {
@@ -927,7 +927,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                           </ChartContainer>
                         ) : (
                           <div className="h-40 w-full bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-border/50">
-                              <LineChart className="h-12 w-12 text-muted-foreground/50" />
+                              <LineChartIcon className="h-12 w-12 text-muted-foreground/50" />
                               <p className="text-sm text-muted-foreground ml-4">No data yet</p>
                           </div>
                         )}
