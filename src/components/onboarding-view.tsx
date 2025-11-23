@@ -1,17 +1,25 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth, type OnboardingStep } from "@/context/auth-provider";
 import { Button } from "./ui/button";
-import { Card, CardContent } from "./ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Progress } from "./ui/progress";
-import { CheckCircle, Circle, User, HelpCircle, Link2, History, Bot, PlayCircle } from "lucide-react";
+import { CheckCircle, Circle, User, HelpCircle, Link2, History, Bot, PlayCircle, Lock, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "./ui/checkbox";
 import { Label } from "./ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { OnboardingQuestionnaire } from "./onboarding-questionnaire";
+import Image from "next/image";
+import { PlaceHolderImages } from "@/lib/placeholder-images";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "./ui/form";
+import { Input } from "./ui/input";
+import { Alert, AlertDescription } from "./ui/alert";
 
 const steps: { id: OnboardingStep; title: string; icon: React.ElementType }[] = [
     { id: "welcome", title: "Welcome", icon: User },
@@ -78,7 +86,154 @@ function WelcomeStep({ onContinue }: { onContinue: () => void }) {
     );
 }
 
-function OnboardingStepContent({ currentStep, onNext, onBack }: { currentStep: OnboardingStep, onNext: () => void, onBack: () => void }) {
+const brokerSchema = z.object({
+    apiKey: z.string().min(1, "API Key is required."),
+    apiSecret: z.string().min(1, "API Secret is required."),
+});
+
+function BrokerConnectionStep({ onContinue, onSkip }: { onContinue: () => void; onSkip: () => void; }) {
+    const { toast } = useToast();
+    const videoThumbnail = PlaceHolderImages.find(p => p.id === 'video-thumbnail');
+    const [showSkipWarning, setShowSkipWarning] = useState(false);
+
+    const form = useForm<z.infer<typeof brokerSchema>>({
+        resolver: zodResolver(brokerSchema),
+        defaultValues: { apiKey: "", apiSecret: "" },
+    });
+
+    const onSubmit = (values: z.infer<typeof brokerSchema>) => {
+        console.log("Connect broker (prototype):", values);
+        if (typeof window !== "undefined") {
+            localStorage.setItem("ec_broker_connected", "true");
+            localStorage.setItem("ec_broker_name", "Delta");
+        }
+        onContinue();
+    };
+
+    const handleSkip = () => {
+        if (typeof window !== "undefined") {
+            localStorage.setItem("ec_broker_connected", "false");
+        }
+        setShowSkipWarning(true);
+        // Delay navigation to show the warning
+        setTimeout(() => {
+            onSkip();
+        }, 3000);
+    };
+
+    const handleVideoClick = () => {
+        toast({
+            title: "Video Placeholder",
+            description: "In a real product, a guide on creating API keys would play here.",
+        });
+    };
+
+    return (
+        <div className="space-y-6">
+            <p className="text-muted-foreground">
+                To analyze your real trading behavior, Arjun needs read-only access to your trade history.
+                EdgeCipher never controls your capital.
+            </p>
+
+            <div className="grid lg:grid-cols-2 gap-8">
+                {/* Left: Form */}
+                <Card className="bg-muted/30">
+                    <CardHeader>
+                        <CardTitle>Connect Delta Exchange</CardTitle>
+                        <CardDescription>Enter your read-only API keys below.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Form {...form}>
+                            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                                <FormField
+                                    control={form.control}
+                                    name="apiKey"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>API Key</FormLabel>
+                                            <FormControl><Input placeholder="Your API Key" {...field} /></FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="apiSecret"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>API Secret</FormLabel>
+                                            <FormControl><Input type="password" placeholder="••••••••••••••••" {...field} /></FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <Button type="submit" className="w-full">
+                                    Connect Delta (Prototype)
+                                </Button>
+                            </form>
+                        </Form>
+                    </CardContent>
+                </Card>
+
+                {/* Right: Help/Info */}
+                <div className="space-y-4">
+                    <Card
+                        onClick={handleVideoClick}
+                        className="group cursor-pointer overflow-hidden border-border/50 bg-muted/30 transition-all hover:border-primary/30"
+                    >
+                        <div className="relative aspect-video">
+                            {videoThumbnail && (
+                                <Image
+                                    src={videoThumbnail.imageUrl} alt="How to get API keys"
+                                    fill style={{ objectFit: 'cover' }}
+                                    className="opacity-20 transition-opacity group-hover:opacity-30"
+                                    data-ai-hint={videoThumbnail.imageHint}
+                                />
+                            )}
+                            <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4">
+                                <div className="w-12 h-12 rounded-full border-2 border-primary/50 flex items-center justify-center mb-2 transition-colors group-hover:border-primary">
+                                    <PlayCircle className="h-6 w-6 text-primary/80 transition-colors group-hover:text-primary" />
+                                </div>
+                                <h4 className="font-semibold text-foreground">How to create API keys on Delta</h4>
+                            </div>
+                        </div>
+                    </Card>
+                    <Card className="bg-muted/30 border-border/50">
+                        <CardHeader className="flex-row items-center gap-4 space-y-0 p-4">
+                            <Lock className="h-5 w-5 text-primary flex-shrink-0" />
+                            <CardTitle className="text-base">Your Security is Critical</CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-4 pt-0">
+                            <ul className="space-y-2 text-xs text-muted-foreground">
+                                <li className="flex items-start gap-2"><ArrowRight className="h-3 w-3 mt-0.5 text-primary flex-shrink-0" /><span>Always use <strong>read-only</strong> API keys.</span></li>
+                                <li className="flex items-start gap-2"><ArrowRight className="h-3 w-3 mt-0.5 text-primary flex-shrink-0" /><span>EdgeCipher will never ask for withdrawal permissions.</span></li>
+                                <li className="flex items-start gap-2"><ArrowRight className="h-3 w-3 mt-0.5 text-primary flex-shrink-0" /><span>You can revoke keys at any time from the exchange.</span></li>
+                            </ul>
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
+
+            <div className="pt-4 text-center">
+                <Button variant="link" onClick={handleSkip} disabled={showSkipWarning}>
+                    Skip for now – I’ll connect later
+                </Button>
+            </div>
+
+            {showSkipWarning && (
+                <Alert variant="default" className="bg-muted/50 border-primary/30">
+                    <AlertDescription className="text-center text-primary">
+                        Skipping... Your initial coaching will be based only on your questionnaire.
+                    </AlertDescription>
+                </Alert>
+            )}
+
+        </div>
+    );
+}
+
+
+function OnboardingStepContent({ currentStep, onNext, onBack, onSkipToPersona }: { currentStep: OnboardingStep, onNext: () => void, onBack: () => void, onSkipToPersona: () => void }) {
     // These are placeholders. Each will be built out in subsequent steps.
     const content: Record<OnboardingStep, React.ReactNode> = {
         welcome: (
@@ -88,10 +243,7 @@ function OnboardingStepContent({ currentStep, onNext, onBack }: { currentStep: O
             <OnboardingQuestionnaire onComplete={onNext} onBack={onBack} />
         ),
         broker: (
-             <div>
-                <h2 className="text-2xl font-semibold text-foreground">Connect Your Broker</h2>
-                <p className="mt-2 text-muted-foreground">Connect your exchange account so Arjun can analyze your trades. (Content for this step will be added next).</p>
-            </div>
+             <BrokerConnectionStep onContinue={onNext} onSkip={onSkipToPersona} />
         ),
         history: (
              <div>
@@ -107,15 +259,14 @@ function OnboardingStepContent({ currentStep, onNext, onBack }: { currentStep: O
         ),
     };
 
-    const isWelcomeStep = currentStep === 'welcome';
-    const isQuestionnaireStep = currentStep === 'questionnaire';
+    const isComplexStep = ['welcome', 'questionnaire', 'broker'].includes(currentStep);
 
     return (
         <div className="flex flex-col h-full">
             <div className="flex-1">
                 {content[currentStep]}
             </div>
-            {!isWelcomeStep && !isQuestionnaireStep && (
+            {!isComplexStep && (
                 <div className="flex justify-between items-center pt-8 mt-auto">
                     <div>
                         <Button variant="ghost" onClick={onBack}>Back</Button>
@@ -157,6 +308,10 @@ export function OnboardingView() {
             setOnboardingStep(stepId);
         }
     }
+    
+    const handleSkipToPersona = () => {
+        setOnboardingStep('persona');
+    };
 
     return (
         <div className="flex min-h-screen w-full flex-col items-center justify-center bg-background p-4 sm:p-6 lg:p-8">
@@ -203,6 +358,7 @@ export function OnboardingView() {
                                     currentStep={onboardingStep}
                                     onNext={handleNext}
                                     onBack={handleBack}
+                                    onSkipToPersona={handleSkipToPersona}
                                 />
                             </div>
                         </main>
@@ -212,3 +368,5 @@ export function OnboardingView() {
         </div>
     );
 }
+
+    
