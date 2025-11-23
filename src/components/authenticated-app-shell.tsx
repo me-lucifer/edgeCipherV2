@@ -14,7 +14,7 @@ import {
 import { useAuth } from '@/context/auth-provider';
 import { LayoutDashboard, Bot, FileText, Gauge, BarChart, Settings, HelpCircle, Bell, UserCircle, LogOut, Cpu, PanelLeft, Book, BrainCircuit, LineChart, Newspaper, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { DashboardPlaceholder } from './dashboard-placeholder';
+import { DashboardModule } from './dashboard-module';
 import {
   Tooltip,
   TooltipContent,
@@ -107,7 +107,7 @@ const NavItemGroup: React.FC<{
 
 function ModuleView({ currentModule }: { currentModule: Module }) {
     if (currentModule === 'dashboard') {
-        return <DashboardPlaceholder />;
+        return <DashboardModule />;
     }
 
     const allNavItems = [...mainNavItems, ...analyticsNavItems, ...marketNavItems, ...communityNavItems, ...settingsNavItems];
@@ -275,7 +275,7 @@ export function AuthenticatedAppShell() {
         )}>
             <AppHeader onToggleSidebar={() => setSidebarOpen(!isSidebarOpen)} onSetModule={setCurrentModule} />
             <main className="flex-1 overflow-y-auto">
-                <div className="mx-auto max-w-6xl h-full">
+                <div className="mx-auto max-w-6xl h-full p-4 sm:p-6 lg:p-8">
                     <ModuleView currentModule={currentModule} />
                 </div>
             </main>
