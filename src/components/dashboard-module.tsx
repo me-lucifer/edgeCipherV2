@@ -42,7 +42,10 @@ const growthPlanItems = [
 function PnlDisplay({ value }: { value: number }) {
     const isPositive = value >= 0;
     return (
-        <div className={`flex items-center text-base font-semibold ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
+        <div className={cn(
+            "flex items-center text-base font-semibold",
+            isPositive ? 'text-green-400' : 'text-red-400'
+        )}>
             {isPositive ? <TrendingUp className="mr-2 h-4 w-4" /> : <TrendingDown className="mr-2 h-4 w-4" />}
             <span>{isPositive ? '+' : ''}${value.toFixed(2)}</span>
         </div>
@@ -257,10 +260,14 @@ export function DashboardModule() {
                                         {openPositions.map(pos => (
                                             <TableRow key={pos.symbol}>
                                                 <TableCell>{pos.symbol}</TableCell>
-                                                <TableCell className={pos.direction === 'Long' ? 'text-green-400' : 'text-red-400'}>{pos.direction}</TableCell>
+                                                <TableCell className={cn(pos.direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{pos.direction}</TableCell>
                                                 <TableCell>{pos.size}</TableCell>
                                                 <TableCell><PnlDisplay value={pos.pnl} /></TableCell>
-                                                <TableCell><Badge variant={pos.risk === 'Low' ? 'secondary' : 'default'} className={pos.risk === 'Medium' ? 'bg-yellow-500/20 text-yellow-400' : ''}>{pos.risk}</Badge></TableCell>
+                                                <TableCell><Badge variant={pos.risk === 'Low' ? 'secondary' : 'default'} className={cn(
+                                                    pos.risk === 'Medium' && 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+                                                    pos.risk === 'High' && 'bg-red-500/20 text-red-400 border-red-500/30',
+                                                    pos.risk === 'Low' && 'bg-green-500/20 text-green-400 border-green-500/30'
+                                                )}>{pos.risk}</Badge></TableCell>
                                             </TableRow>
                                         ))}
                                     </TableBody>
@@ -314,7 +321,7 @@ export function DashboardModule() {
                         </CardHeader>
                         <CardContent>
                              <p className="text-3xl font-bold">78 <span className="text-base font-normal text-muted-foreground">/ 100</span></p>
-                             <p className="text-sm text-yellow-400 font-semibold">High Volatility Zone</p>
+                             <p className="text-sm text-amber-400 font-semibold">High Volatility Zone</p>
                              <p className="text-xs text-muted-foreground mt-2">Expect larger swings. Consider reducing size.</p>
                         </CardContent>
                     </Card>
@@ -326,7 +333,11 @@ export function DashboardModule() {
                             {newsItems.map((item, index) => (
                                 <div key={index} className="text-sm">
                                     <p className="text-foreground truncate">{item.headline}</p>
-                                    <Badge variant={item.sentiment === 'Bullish' ? 'default' : item.sentiment === 'Bearish' ? 'destructive' : 'secondary'} className={item.sentiment === 'Bullish' ? 'bg-green-500/20 text-green-400' : ''}>
+                                    <Badge variant={item.sentiment === 'Bullish' ? 'default' : item.sentiment === 'Bearish' ? 'destructive' : 'secondary'} className={cn(
+                                        item.sentiment === 'Bullish' && 'bg-green-500/20 text-green-400 border-green-500/30',
+                                        item.sentiment === 'Bearish' && 'bg-red-500/20 text-red-400 border-red-500/30',
+                                        item.sentiment === 'Neutral' && 'bg-gray-500/20 text-gray-400 border-gray-500/30'
+                                    )}>
                                         {item.sentiment}
                                     </Badge>
                                 </div>
