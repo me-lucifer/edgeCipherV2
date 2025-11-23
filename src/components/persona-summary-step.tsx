@@ -34,39 +34,6 @@ function ScoreGauge({ label, value, colorClass }: { label: string; value: number
     )
 }
 
-// Add indicatorClassName to Progress component props
-declare module "react" {
-  interface IntrinsicElements {
-    "progress": React.DetailedHTMLProps<React.ProgressHTMLAttributes<HTMLProgressElement>, HTMLProgressElement> & { indicatorClassName?: string }
-  }
-}
-// Hack to pass indicatorClassName to the ProgressPrimitive.Indicator
-// We can't modify the ui/progress.tsx file directly
-const OriginalProgress = Progress;
-const PatchedProgress = React.forwardRef<
-  React.ElementRef<typeof OriginalProgress>,
-  React.ComponentPropsWithoutRef<typeof OriginalProgress> & { indicatorClassName?: string }
->(({ indicatorClassName, ...props }, ref) => (
-    <OriginalProgress
-        {...props}
-        ref={ref}
-        children={
-          // This is a bit of a hack to get the child Indicator
-          React.Children.map(props.children, child => {
-            if (React.isValidElement(child)) {
-              // The Indicator is the first child
-              return React.cloneElement(child as React.ReactElement, {
-                // @ts-ignore
-                className: cn(child.props.className, indicatorClassName),
-              });
-            }
-            return child;
-          })
-        }
-    />
-));
-
-
 export function PersonaSummaryStep({ onComplete, onBack }: PersonaSummaryStepProps) {
     const [persona, setPersona] = useState<Persona>({});
 
@@ -190,5 +157,3 @@ CustomProgress.displayName = 'Progress';
 
 // Import ProgressPrimitive to make the custom progress component work
 import * as ProgressPrimitive from "@radix-ui/react-progress";
-
-
