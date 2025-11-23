@@ -17,6 +17,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { Badge } from '@/components/ui/badge';
 import { ThemeSwitcher } from './theme-switcher';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+
 
 interface PublicWebsiteViewProps {
   onSwitchView: () => void;
@@ -612,6 +614,58 @@ function PricingSection() {
     );
 }
 
+function FaqSection() {
+    const faqs = [
+        {
+            question: "Is EdgeCipher a signal group or auto-trading bot?",
+            answer: "No. EdgeCipher does not give ‘buy/sell now’ signals and it never executes trades on your behalf. It’s an AI coach that helps you understand your own performance, risk, and behaviour."
+        },
+        {
+            question: "Do I have to be an experienced trader to use EdgeCipher?",
+            answer: "Not at all. Many users are beginners. You can start by manually logging trades, learning the basics, and using Arjun to understand your patterns and mistakes."
+        },
+        {
+            question: "Does EdgeCipher have access to my money?",
+            answer: "No. When you connect an exchange or broker in the real product, you use read-only API keys. EdgeCipher only reads your trade history to analyze it and never controls your capital."
+        },
+        {
+            question: "Can I use EdgeCipher without connecting my broker?",
+            answer: "Yes. You can manually log your trades and still get journaling, analytics, and AI coaching based on the data you provide."
+        },
+        {
+            question: "Is this financial advice?",
+            answer: "No. EdgeCipher is an educational and analytical tool. It helps you reflect, plan, and analyze your own decisions, but it does not provide personalized investment advice."
+        },
+        {
+            question: "Which markets does EdgeCipher support?",
+            answer: "The initial focus is on crypto futures. Over time, more instruments and platforms may be added based on user demand."
+        }
+    ];
+
+    return (
+        <div className="max-w-3xl mx-auto">
+            <div className="text-center mb-12">
+                <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">Frequently asked questions</h2>
+                <p className="mt-4 text-lg text-muted-foreground">If you’re new to crypto trading or AI coaching, you’re in the right place.</p>
+            </div>
+            <Accordion type="single" collapsible className="w-full">
+                {faqs.map((faq, index) => (
+                    <AccordionItem key={index} value={`item-${index}`} className="border-b border-border/50">
+                        <AccordionTrigger className="text-left hover:no-underline">{faq.question}</AccordionTrigger>
+                        <AccordionContent className="text-muted-foreground">
+                            {faq.answer}
+                        </AccordionContent>
+                    </AccordionItem>
+                ))}
+            </Accordion>
+             <p className="mt-12 text-center text-sm text-muted-foreground/80">
+                Still have questions? Scroll to Contact or reach out via email.
+            </p>
+        </div>
+    );
+}
+
+
 function Footer() {
     return (
         <footer className="border-t border-border/50 py-8">
@@ -643,7 +697,7 @@ export function PublicWebsiteView({ onSwitchView }: PublicWebsiteViewProps) {
              <PricingSection />
         </Section>
         <Section id="faq">
-             <h2 className="text-3xl font-bold text-center">FAQ</h2>
+             <FaqSection />
         </Section>
         <Section id="contact" className="bg-muted/20">
              <h2 className="text-3xl font-bold text-center">Contact</h2>
