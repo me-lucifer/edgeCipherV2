@@ -26,6 +26,7 @@ import { Separator } from './ui/separator';
 import { ThemeSwitcher } from './theme-switcher';
 import { AiCoachingModule } from './ai-coaching-module';
 import { TradePlanningModule } from './trade-planning-module';
+import { TradeJournalModule } from './trade-journal-module';
 
 type Module = 
   | 'dashboard' 
@@ -120,6 +121,10 @@ function ModuleView({ currentModule, onSetModule, aiCoachingInitialMessage }: { 
 
     if (currentModule === 'tradePlanning') {
       return <TradePlanningModule onSetModule={onSetModule} />;
+    }
+
+    if (currentModule === 'tradeJournal') {
+      return <TradeJournalModule onSetModule={onSetModule} />;
     }
 
     const allNavItems = [...mainNavItems, ...analyticsNavItems, ...marketNavItems, ...communityNavItems, ...settingsNavItems];
