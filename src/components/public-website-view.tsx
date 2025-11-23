@@ -177,14 +177,14 @@ function Section({ id, children, className }: { id: string, children: React.Reac
 function InfoTooltip({ text, children }: { text: string, children: React.ReactNode }) {
   return (
     <TooltipProvider>
-      <Tooltip>
+      <Tooltip delayDuration={0}>
         <TooltipTrigger asChild>
-          <span className="inline-flex items-center gap-1.5">
+          <span className="inline-flex items-center gap-1.5 border-b border-dashed border-muted-foreground/50">
             {children}
             <Info className="h-4 w-4 text-muted-foreground/80 cursor-help" />
           </span>
         </TooltipTrigger>
-        <TooltipContent className="max-w-xs bg-muted text-muted-foreground border-border">
+        <TooltipContent className="max-w-xs bg-muted text-muted-foreground border-border shadow-lg">
           <p>{text}</p>
         </TooltipContent>
       </Tooltip>
@@ -207,7 +207,7 @@ function Hero({ onAuthOpen }: { onAuthOpen: (tab: AuthModalTab) => void }) {
                     Trade better, not more.
                 </h1>
                 <p className="mx-auto mt-6 max-w-xl text-lg text-muted-foreground">
-                    EdgeCipher introduces Arjun, an <InfoTooltip text="A virtual coach that reviews your trades and behaviour to give you feedback and suggestions.">AI mentor</InfoTooltip> that analyzes your trades, psychology, and risk to help you become a disciplined, consistent <InfoTooltip text="Contracts that let you speculate on the future price of a cryptocurrency, often with leverage.">crypto futures</InfoTooltip> trader.
+                    EdgeCipher introduces Arjun, an <InfoTooltip text="A virtual coach that reviews your trades and behaviour to give you feedback and suggestions.">AI mentor</InfoTooltip> that analyzes your trades, psychology, and risk to help you become a disciplined, consistent <InfoTooltip text="Contracts that let you speculate on the future price of a cryptocurrency, often using leverage. They can amplify both gains and losses.">crypto futures</InfoTooltip> trader.
                 </p>
                 <div className="mt-8 flex flex-wrap gap-4">
                     <Button size="lg" onClick={() => onAuthOpen('signup')}>Start Free</Button>
@@ -314,7 +314,7 @@ function AboutSection() {
             icon: Gauge,
             title: "Risk Center",
             description: "Monitor your exposure and key metrics like max drawdown.",
-            tooltip: "Max drawdown is the maximum observed loss from a peak to a trough of a portfolio.",
+            tooltip: "How much your capital has fallen from its peak, usually expressed as a percentage. Large drawdowns are a sign of risk issues.",
             learnMore: true,
         },
         {
@@ -334,14 +334,25 @@ function AboutSection() {
                 </p>
                 <ul className="space-y-4">
                     {[
-                        "Arjun, your AI mentor, learns from your own trade history.",
-                        "Build and follow your trading rules, instead of chasing random setups.",
-                        "Turn your trade journal into real insights, not just a spreadsheet.",
-                        "Stay in control: EdgeCipher never executes trades, it only coaches you."
+                        {text: "Arjun, your AI mentor, learns from your own trade history."},
+                        {text: "Build and follow your trading rules, instead of chasing random setups."},
+                        {text: "Turn your ", tooltip: {
+                            trigger: "trade journal",
+                            content: "A structured log of your past trades, including entries, exits, reasons, and emotions. It’s the basis for learning from your decisions."
+                        }, afterText: " into real insights, not just a spreadsheet."},
+                        {text: "Stay in control: EdgeCipher never executes trades, it only coaches you."}
                     ].map((item, i) => (
                         <li key={i} className="flex items-start">
                             <CheckCircle2 className="h-5 w-5 text-primary mr-3 mt-1 flex-shrink-0" />
-                            <span className="text-muted-foreground">{item}</span>
+                            <span className="text-muted-foreground">
+                                {item.text}
+                                {item.tooltip && (
+                                    <InfoTooltip text={item.tooltip.content}>
+                                        {item.tooltip.trigger}
+                                    </InfoTooltip>
+                                )}
+                                {item.afterText}
+                            </span>
                         </li>
                     ))}
                 </ul>
@@ -533,7 +544,6 @@ const PricingCard = ({
     price,
     features,
     ctaText,
-    ctaVariant = "default",
     highlighted = false,
     onClickCta
 }: {
@@ -542,7 +552,6 @@ const PricingCard = ({
     price: string,
     features: string[],
     ctaText: string,
-    ctaVariant?: "default" | "outline",
     highlighted?: boolean,
     onClickCta: (e: React.MouseEvent<HTMLButtonElement>) => void;
 }) => (
@@ -596,7 +605,6 @@ function PricingSection({ onAuthOpen }: { onAuthOpen: (tab: AuthModalTab) => voi
                 "Access to public community",
             ],
             ctaText: "Start Free",
-            ctaVariant: "outline",
             action: () => onAuthOpen('signup')
         },
         {
@@ -623,7 +631,6 @@ function PricingSection({ onAuthOpen }: { onAuthOpen: (tab: AuthModalTab) => voi
                 "Custom onboarding & support"
             ],
             ctaText: "Contact Sales",
-            ctaVariant: "outline",
             action: (e: React.MouseEvent<HTMLButtonElement>) => {
               const el = e.target as HTMLElement;
               const anchor = document.createElement('a');
