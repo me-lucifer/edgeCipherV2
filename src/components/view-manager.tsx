@@ -1,52 +1,95 @@
+
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { ViewSelector } from '@/components/view-selector';
 import { PublicWebsiteView } from '@/components/public-website-view';
 import { AdminAppView } from '@/components/admin-app-view';
+import { useAuth } from '@/context/auth-provider';
+import { DashboardPlaceholder } from './dashboard-placeholder';
+import { OnboardingView } from './onboarding-view';
 
-export type View = 'selector' | 'website' | 'admin';
+export type DevView = 'selector' | 'website' | 'admin';
+type AppView = 'publicLanding' | 'onboarding' | 'dashboardPlaceholder';
 
 export function ViewManager() {
-  const [currentView, setCurrentView] = useState<View | null>(null);
-
-  useEffect(() => {
-    const storedView = localStorage.getItem('ec_view') as View | null;
-    if (storedView && ['website', 'admin'].includes(storedView)) {
-      setCurrentView(storedView);
-    } else {
-      setCurrentView('selector');
+  const [devView, setDevView] = useState<DevView | null>(null);
+  const { authToken, isOnboardingComplete, authLoading } = useAuth();
+  
+  // Dev view state management
+  useState(() => {
+    if (typeof window !== 'undefined') {
+      const storedView = localStorage.getItem('ec_view') as DevView | null;
+      if (storedView && ['website', 'admin'].includes(storedView)) {
+        setDevView(storedView);
+      } else {
+        setDevView('selector');
+      }
     }
-  }, []);
+  });
 
-  const handleSelectView = (view: View) => {
+  const handleSelectDevView = (view: DevView) => {
     if (view !== 'selector') {
       localStorage.setItem('ec_view', view);
     }
-    setCurrentView(view);
+    setDevView(view);
   };
 
-  const handleSwitchView = () => {
+  const handleSwitchDevView = () => {
     localStorage.removeItem('ec_view');
-    setCurrentView('selector');
+    setDevView('selector');
   };
+  
+  // Determine which main app view to show based on auth state
+  const getAppView = (): AppView => {
+    if (!authToken) {
+      return 'publicLanding';
+    }
+    if (!isOnboardingComplete) {
+      return 'onboarding';
+    }
+    return 'dashboardPlaceholder';
+  }
 
-  if (currentView === null) {
+  const appView = getAppView();
+
+  if (authLoading || devView === null) {
     return (
         <div className="flex h-screen w-screen items-center justify-center" />
     );
   }
 
-  if (currentView === 'selector') {
-    return <ViewSelector onSelectView={handleSelectView} />;
+  // Handle dev view selection first
+  if (devView === 'selector') {
+    return <ViewSelector onSelectView={handleSelectDevView} />;
   }
 
-  if (currentView === 'website') {
-    return <PublicWebsiteView onSwitchView={handleSwitchView} />;
+  if (devView === 'admin') {
+    return <AdminAppView onSwitchView={handleSwitchDevView} />;
   }
 
-  if (currentView === 'admin') {
-    return <AdminAppView onSwitchView={handleSwitchView} />;
+  // If devView is 'website', use the auth-based routing
+  if (devView === 'website') {
+    switch(appView) {
+      case 'publicLanding':
+        return <PublicWebsiteView onSwitchView={handleSwitchDevView} onShowDashboard={() => {
+          // This simulates a direct navigation to dashboard for an already onboarded user
+          // For the prototype, we can just toggle a local state
+          console.log("Simulating dashboard view for an already-onboarded user.");
+        }}/>;
+      case 'onboarding':
+        return <OnboardingView />;
+      case 'dashboardPlaceholder':
+        return <DashboardPlaceholder onBack={() => {
+            // This is tricky in the prototype. We can't go "back" to the landing page
+            // if auth rules say we should be on dashboard. 
+            // For now, we'll log out to reset.
+            console.log("For prototype, logging out to return to landing page.");
+            localStorage.removeItem('ec_auth_token');
+            localStorage.removeItem('ec_onboarding_complete');
+            window.location.reload();
+        }} />;
+    }
   }
 
   return null;

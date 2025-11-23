@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -22,7 +22,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -30,7 +30,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { AuthModal, type AuthModalTab } from './auth-modal';
 import { LoggedInDropdown } from './logged-in-dropdown';
 import { TopBanner } from './top-banner';
-import { DashboardPlaceholder } from './dashboard-placeholder';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,9 +39,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { useAuth } from '@/context/auth-provider';
 
 interface PublicWebsiteViewProps {
   onSwitchView: () => void;
+  onShowDashboard: () => void;
 }
 
 const navLinks = [
@@ -72,21 +73,18 @@ function handleScrollTo(e: React.MouseEvent<HTMLAnchorElement>, href: string) {
 };
 
 function Header({ 
-  onSwitchView, 
-  isLoggedIn, 
-  onLogout, 
+  onSwitchView,
   onShowDashboard, 
   onAuthOpen,
   activeLink
 }: { 
   onSwitchView: () => void;
-  isLoggedIn: boolean;
-  onLogout: () => void;
   onShowDashboard: () => void;
   onAuthOpen: (tab: AuthModalTab) => void;
   activeLink: string;
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const { authToken } = useAuth();
 
   const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
     handleScrollTo(e, href);
@@ -115,8 +113,8 @@ function Header({
         ))}
       </nav>
       <div className="hidden md:flex items-center gap-4">
-        {isLoggedIn ? (
-          <LoggedInDropdown onLogout={onLogout} onShowDashboard={onShowDashboard} />
+        {authToken ? (
+          <LoggedInDropdown onShowDashboard={onShowDashboard} />
         ) : (
           <>
             <Button variant="ghost" onClick={() => onAuthOpen('login')}>Login</Button>
@@ -157,10 +155,10 @@ function Header({
                 ))}
                 </nav>
                 <div className="mt-auto flex flex-col gap-4">
-                  {isLoggedIn ? (
+                  {authToken ? (
                     <>
                       <Button size="lg" variant="outline" onClick={() => { onShowDashboard(); setIsOpen(false); }}>Dashboard</Button>
-                      <Button size="lg" onClick={() => { onLogout(); setIsOpen(false); }}>Logout</Button>
+                      {/* Logout is handled by dropdown context now */}
                     </>
                   ) : (
                     <>
@@ -1075,23 +1073,23 @@ function Footer() {
     );
 }
 
-export function PublicWebsiteView({ onSwitchView }: PublicWebsiteViewProps) {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+export function PublicWebsiteView({ onSwitchView, onShowDashboard }: PublicWebsiteViewProps) {
+  const { authToken } = useAuth();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalTab, setAuthModalTab] = useState<AuthModalTab>('signup');
   const [showBanner, setShowBanner] = useState(false);
-  const [showDashboard, setShowDashboard] = useState(false);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
   const [activeLink, setActiveLink] = useState('#home');
+  
+  useEffect(() => {
+    // Show banner if logged in for the first time in a session
+    if (authToken && !sessionStorage.getItem('ec_banner_shown')) {
+      setShowBanner(true);
+      sessionStorage.setItem('ec_banner_shown', 'true');
+    }
+  }, [authToken]);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('ec_auth');
-      if (token) {
-        setIsLoggedIn(true);
-      }
-    }
-
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -1116,32 +1114,12 @@ export function PublicWebsiteView({ onSwitchView }: PublicWebsiteViewProps) {
     setIsAuthModalOpen(true);
   };
 
-  const handleAuthSuccess = () => {
-    setIsAuthModalOpen(false);
-    setIsLoggedIn(true);
-    setShowBanner(true);
-  };
-
-  const handleLogout = () => {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('ec_auth');
-    }
-    setIsLoggedIn(false);
-    setShowBanner(false);
-  };
-
-  if (showDashboard) {
-    return <DashboardPlaceholder onBack={() => setShowDashboard(false)} />;
-  }
-
   return (
     <div className="relative flex min-h-screen w-full flex-col bg-background text-foreground">
       {showBanner && <TopBanner />}
       <Header 
         onSwitchView={onSwitchView}
-        isLoggedIn={isLoggedIn}
-        onLogout={handleLogout}
-        onShowDashboard={() => setShowDashboard(true)}
+        onShowDashboard={onShowDashboard}
         onAuthOpen={handleAuthOpen}
         activeLink={activeLink}
       />
@@ -1177,7 +1155,6 @@ export function PublicWebsiteView({ onSwitchView }: PublicWebsiteViewProps) {
         isOpen={isAuthModalOpen}
         onOpenChange={setIsAuthModalOpen}
         defaultTab={authModalTab}
-        onAuthSuccess={handleAuthSuccess}
       />
       <AlertDialog open={isVideoModalOpen} onOpenChange={setIsVideoModalOpen}>
         <AlertDialogContent>

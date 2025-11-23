@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "./ui/checkbox";
+import { useAuth } from "@/context/auth-provider";
 
 export type AuthModalTab = "login" | "signup";
 
@@ -18,7 +19,6 @@ interface AuthModalProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   defaultTab?: AuthModalTab;
-  onAuthSuccess: () => void;
 }
 
 const loginSchema = z.object({
@@ -39,7 +39,8 @@ const signupSchema = z.object({
 });
 
 
-export function AuthModal({ isOpen, onOpenChange, defaultTab = "signup", onAuthSuccess }: AuthModalProps) {
+export function AuthModal({ isOpen, onOpenChange, defaultTab = "signup" }: AuthModalProps) {
+  const { login } = useAuth();
   
   const loginForm = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
@@ -51,21 +52,16 @@ export function AuthModal({ isOpen, onOpenChange, defaultTab = "signup", onAuthS
     defaultValues: { email: "", password: "", confirmPassword: "", acceptTerms: false },
   });
 
-  const handleAuth = () => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem("ec_auth", "demo-token");
-    }
-    onAuthSuccess();
-  }
-
   const onLoginSubmit = (values: z.infer<typeof loginSchema>) => {
     console.log("Login (Prototype):", values);
-    handleAuth();
+    login("demo-token", false, false, "welcome");
+    onOpenChange(false);
   };
 
   const onSignupSubmit = (values: z.infer<typeof signupSchema>) => {
     console.log("Signup (Prototype):", values);
-    handleAuth();
+    login("demo-token", false, false, "welcome");
+    onOpenChange(false);
   };
   
   return (

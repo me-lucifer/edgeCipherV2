@@ -11,13 +11,14 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Button } from "./ui/button"
 import { LayoutDashboard, LogOut, UserCircle } from "lucide-react"
+import { useAuth } from "@/context/auth-provider";
 
 interface LoggedInDropdownProps {
-    onLogout: () => void;
     onShowDashboard: () => void;
 }
 
-export function LoggedInDropdown({ onLogout, onShowDashboard }: LoggedInDropdownProps) {
+export function LoggedInDropdown({ onShowDashboard }: LoggedInDropdownProps) {
+  const { logout } = useAuth();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -34,7 +35,7 @@ export function LoggedInDropdown({ onLogout, onShowDashboard }: LoggedInDropdown
           <span>Simulate Dashboard</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={onLogout}>
+        <DropdownMenuItem onClick={logout}>
           <LogOut className="mr-2 h-4 w-4" />
           <span>Logout (Prototype)</span>
         </DropdownMenuItem>
