@@ -924,7 +924,7 @@ function ContactForm() {
                 />
               </FormControl>
               <div className="space-y-1 leading-none">
-                <FormLabel>I'm a new trader and might need extra guidance.</FormLabel>
+                <FormLabel className="text-sm font-normal">I'm a new trader and might need extra guidance.</FormLabel>
               </div>
             </FormItem>
           )}
@@ -1149,7 +1149,7 @@ export function PublicWebsiteView({ onSwitchView }: PublicWebsiteViewProps) {
         <Section id="home" className="pt-0 lg:-mt-20">
           <Hero onAuthOpen={handleAuthOpen} />
         </Section>
-        <Section id="about">
+        <Section id="about" className="pt-10 lg:pt-16">
             <AboutSection />
         </Section>
         <Section id="how-it-works" className="bg-muted/20">
