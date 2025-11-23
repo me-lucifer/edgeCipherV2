@@ -1,57 +1,155 @@
 
 "use client";
 
-import { useAuth } from "@/context/auth-provider";
+import { useAuth, type OnboardingStep } from "@/context/auth-provider";
 import { Button } from "./ui/button";
+import { Card, CardContent } from "./ui/card";
+import { Progress } from "./ui/progress";
+import { CheckCircle, Circle, User, HelpCircle, Link2, History, Bot } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+const steps: { id: OnboardingStep; title: string; icon: React.ElementType }[] = [
+    { id: "welcome", title: "Welcome", icon: User },
+    { id: "questionnaire", title: "Questionnaire", icon: HelpCircle },
+    { id: "broker", title: "Broker connection", icon: Link2 },
+    { id: "history", title: "History & AI analysis", icon: History },
+    { id: "persona", title: "Persona summary", icon: Bot },
+];
+
+function OnboardingStepContent({ currentStep, onNext, onBack }: { currentStep: OnboardingStep, onNext: () => void, onBack: () => void }) {
+    // These are placeholders. Each will be built out in subsequent steps.
+    const content: Record<OnboardingStep, React.ReactNode> = {
+        welcome: (
+            <div>
+                <h2 className="text-2xl font-semibold text-foreground">Welcome to EdgeCipher!</h2>
+                <p className="mt-2 text-muted-foreground">Let's get your AI mentor, Arjun, set up. This quick process helps us personalize your coaching experience.</p>
+            </div>
+        ),
+        questionnaire: (
+            <div>
+                <h2 className="text-2xl font-semibold text-foreground">Your Trading Style</h2>
+                <p className="mt-2 text-muted-foreground">Tell us a bit about how you trade. (Content for this step will be added next).</p>
+            </div>
+        ),
+        broker: (
+             <div>
+                <h2 className="text-2xl font-semibold text-foreground">Connect Your Broker</h2>
+                <p className="mt-2 text-muted-foreground">Connect your exchange account so Arjun can analyze your trades. (Content for this step will be added next).</p>
+            </div>
+        ),
+        history: (
+             <div>
+                <h2 className="text-2xl font-semibold text-foreground">Analyze Your History</h2>
+                <p className="mt-2 text-muted-foreground">Arjun is now analyzing your past performance to find patterns. (Content for this step will be added next).</p>
+            </div>
+        ),
+        persona: (
+             <div>
+                <h2 className="text-2xl font-semibold text-foreground">Your Trading Persona</h2>
+                <p className="mt-2 text-muted-foreground">Based on your data, here's your initial trader persona. (Content for this step will be added next).</p>
+            </div>
+        ),
+    };
+
+    return (
+        <div className="flex flex-col h-full">
+            <div className="flex-1">
+                {content[currentStep]}
+            </div>
+            <div className="flex justify-between items-center pt-8 mt-auto">
+                <div>
+                     {currentStep !== 'welcome' && (
+                        <Button variant="ghost" onClick={onBack}>Back</Button>
+                    )}
+                </div>
+                <Button onClick={onNext}>
+                    {currentStep === 'persona' ? 'Finish & Go to Dashboard' : 'Continue'}
+                </Button>
+            </div>
+        </div>
+    )
+}
+
 
 export function OnboardingView() {
     const { onboardingStep, setOnboardingStep, completeOnboarding, logout } = useAuth();
     
-    const nextStep = () => {
-        switch(onboardingStep) {
-            case "welcome":
-                setOnboardingStep("questionnaire");
-                break;
-            case "questionnaire":
-                setOnboardingStep("broker");
-                break;
-            case "broker":
-                setOnboardingStep("history");
-                break;
-            case "history":
-                setOnboardingStep("persona");
-                break;
-            case "persona":
-                completeOnboarding();
-                break;
+    const currentStepIndex = steps.findIndex(step => step.id === onboardingStep);
+    const progress = ((currentStepIndex + 1) / steps.length) * 100;
+
+    const handleNext = () => {
+        if (currentStepIndex < steps.length - 1) {
+            setOnboardingStep(steps[currentStepIndex + 1].id);
+        } else {
+            completeOnboarding();
+        }
+    };
+
+    const handleBack = () => {
+        if (currentStepIndex > 0) {
+            setOnboardingStep(steps[currentStepIndex - 1].id);
+        }
+    };
+    
+    const handleSetStep = (stepId: OnboardingStep) => {
+        const newStepIndex = steps.findIndex(s => s.id === stepId);
+        // Allow navigation only to previous steps
+        if (newStepIndex < currentStepIndex) {
+            setOnboardingStep(stepId);
         }
     }
 
     return (
-        <div className="flex min-h-screen w-full flex-col items-center justify-center bg-background text-center p-4">
-            <div className="max-w-xl">
-                <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
-                    Onboarding Wizard
-                </h1>
-                <p className="mt-6 text-lg text-muted-foreground">
-                    This is where the user would complete their profile.
-                </p>
-                <div className="mt-8 p-6 bg-muted/30 rounded-lg border border-border">
-                    <p className="text-2xl font-semibold text-primary">{onboardingStep.charAt(0).toUpperCase() + onboardingStep.slice(1)}</p>
-                    <p className="text-muted-foreground mt-2">
-                        Current Step: <strong>{onboardingStep}</strong>
-                    </p>
-                </div>
+        <div className="flex min-h-screen w-full flex-col items-center justify-center bg-background p-4 sm:p-6 lg:p-8">
+            <Card className="w-full max-w-4xl bg-muted/20 border-border/50">
+                <CardContent className="p-0">
+                    <div className="p-6 border-b border-border/50">
+                        <p className="text-sm text-muted-foreground">Step {currentStepIndex + 1} of {steps.length}</p>
+                        <Progress value={progress} className="mt-2 h-2" />
+                    </div>
+                    <div className="grid md:grid-cols-[240px_1fr]">
+                        {/* Left: Step navigation */}
+                        <aside className="hidden md:flex flex-col gap-1 p-6 border-r border-border/50">
+                             <h3 className="px-2 pb-2 text-sm font-semibold text-foreground">Onboarding Steps</h3>
+                            {steps.map((step, index) => {
+                                const isCompleted = index < currentStepIndex;
+                                const isCurrent = index === currentStepIndex;
+                                return (
+                                    <button
+                                        key={step.id}
+                                        onClick={() => handleSetStep(step.id)}
+                                        disabled={index > currentStepIndex}
+                                        className={cn(
+                                            "flex items-center gap-3 rounded-md p-2 text-left text-sm transition-colors",
+                                            isCurrent ? "bg-primary/10 text-primary font-semibold" : "text-muted-foreground",
+                                            index < currentStepIndex ? "hover:bg-muted/50 hover:text-foreground cursor-pointer" : "cursor-default"
+                                        )}
+                                    >
+                                        {isCompleted ? <CheckCircle className="h-5 w-5 text-primary" /> : <step.icon className="h-5 w-5" />}
+                                        <span>{step.title}</span>
+                                    </button>
+                                );
+                            })}
+                            <div className="mt-auto pt-8">
+                                <Button variant="link" size="sm" className="text-muted-foreground" onClick={logout}>Logout & Exit</Button>
+                            </div>
+                        </aside>
 
-                <div className="mt-8 flex gap-4 justify-center">
-                    <Button onClick={nextStep}>
-                        {onboardingStep === 'persona' ? 'Finish Onboarding' : 'Next Step (Prototype)'}
-                    </Button>
-                    <Button variant="outline" onClick={logout}>
-                        Logout
-                    </Button>
-                </div>
-            </div>
+                        {/* Right: Active step content */}
+                        <main className="p-8">
+                            <h1 className="text-3xl font-bold text-foreground tracking-tight">{steps[currentStepIndex].title}</h1>
+                            <p className="mt-2 text-sm text-muted-foreground">This is a one-time setup so Arjun can coach you properly.</p>
+                            <div className="mt-8">
+                                <OnboardingStepContent 
+                                    currentStep={onboardingStep}
+                                    onNext={handleNext}
+                                    onBack={handleBack}
+                                />
+                            </div>
+                        </main>
+                    </div>
+                </CardContent>
+            </Card>
         </div>
     );
 }
