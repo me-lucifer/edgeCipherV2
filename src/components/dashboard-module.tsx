@@ -8,8 +8,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
-import { Bot, FileText, Gauge, BarChart, ArrowRight, TrendingUp, TrendingDown, BookOpen, Link, ArrowRightCircle, Lightbulb } from "lucide-react";
+import { Bot, FileText, Gauge, BarChart, ArrowRight, TrendingUp, TrendingDown, BookOpen, Link, ArrowRightCircle, Lightbulb, Info, Newspaper } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 
 interface Persona {
     primaryPersonaName?: string;
@@ -29,9 +30,9 @@ const openPositions = [
 ]
 
 const newsItems = [
-    { headline: "Fed hints at slower rate hikes, crypto market rallies", sentiment: "Bullish" },
-    { headline: "Major exchange announces new security upgrades after hack", sentiment: "Neutral" },
-    { headline: "Regulatory uncertainty in Asia spooks investors", sentiment: "Bearish" },
+    { headline: "Fed hints at slower rate hikes, crypto market rallies", sentiment: "Bullish", summary: "The market reacted positively to the recent announcement." },
+    { headline: "Major exchange announces new security upgrades after hack", sentiment: "Neutral", summary: "The exchange aims to restore user confidence with the move." },
+    { headline: "Regulatory uncertainty in Asia spooks investors", sentiment: "Bearish", summary: "New draft regulations have caused a sell-off in regional markets." },
 ]
 
 const growthPlanItems = [
@@ -231,8 +232,50 @@ function PerformanceSummary() {
     );
 }
 
+function NewsSnapshot({ onSetModule }: { onSetModule: (module: any) => void }) {
+    return (
+         <Card className="bg-muted/30 border-border/50">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <Newspaper className="h-5 w-5" />
+                    News Snapshot
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p className="max-w-xs">Headlines can trigger sharp moves. Use them as context, but don’t chase every story.</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
+                <div className="space-y-4">
+                    {newsItems.map((item, index) => (
+                        <div key={index} className="border-b border-border/50 pb-3 last:border-b-0 last:pb-0">
+                            <div className="flex justify-between items-start">
+                                <p className="font-semibold text-foreground text-sm pr-4">{item.headline}</p>
+                                <Badge variant="secondary" className={cn(
+                                    item.sentiment === 'Bullish' && 'bg-green-500/20 text-green-400 border-green-500/30',
+                                    item.sentiment === 'Bearish' && 'bg-red-500/20 text-red-400 border-red-500/30'
+                                )}>{item.sentiment}</Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">{item.summary}</p>
+                        </div>
+                    ))}
+                </div>
+                 <Button variant="link" className="px-0 mt-4 text-primary/90 hover:text-primary" onClick={() => onSetModule('news')}>
+                    Open full News module <ArrowRight className="ml-1 h-4 w-4" />
+                </Button>
+            </CardContent>
+        </Card>
+    )
+}
+
 interface DashboardModuleProps {
-    onSetModule: (module: 'settings') => void;
+    onSetModule: (module: any) => void;
 }
 
 export function DashboardModule({ onSetModule }: DashboardModuleProps) {
@@ -360,7 +403,10 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
                 <div className="grid md:grid-cols-2 gap-8">
                      <Card className="bg-muted/30 border-border/50">
                         <CardHeader>
-                            <CardTitle className="text-base">Crypto VIX</CardTitle>
+                            <CardTitle className="text-base flex items-center gap-2">
+                                <Gauge className="h-5 w-5" />
+                                Crypto VIX
+                            </CardTitle>
                         </CardHeader>
                         <CardContent>
                              <p className="text-3xl font-bold font-mono">78 <span className="text-base font-normal text-muted-foreground">/ 100</span></p>
@@ -368,14 +414,7 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
                              <p className="text-xs text-muted-foreground mt-2">Expect larger swings. Consider reducing size.</p>
                         </CardContent>
                     </Card>
-                    <Card className="bg-muted/30 border-border/50">
-                        <CardHeader>
-                            <CardTitle>News Snapshot</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            [News items placeholder]
-                        </CardContent>
-                    </Card>
+                    <NewsSnapshot onSetModule={onSetModule} />
                 </div>
             </div>
 
@@ -388,7 +427,7 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
                     </CardHeader>
                     <CardContent className="space-y-3">
                         {features.map(feature => (
-                            <Button key={feature.id} variant="outline" className="w-full justify-start">
+                            <Button key={feature.id} variant="outline" className="w-full justify-start" onClick={() => onSetModule(feature.id)}>
                                 <feature.icon className="mr-2 h-4 w-4" />
                                 {feature.title}
                                 <ArrowRightCircle className="ml-auto h-4 w-4 text-muted-foreground" />

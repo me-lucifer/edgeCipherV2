@@ -60,7 +60,7 @@ const analyticsNavItems: NavItem[] = [
 const marketNavItems: NavItem[] = [
   { id: 'riskCenter', label: 'Risk Center', icon: Gauge },
   { id: 'cryptoVix', label: 'Crypto VIX', icon: LineChart, comingSoon: true },
-  { id: 'news', label: 'News', icon: Newspaper, comingSoon: true },
+  { id: 'news', label: 'News', icon: Newspaper, comingSoon: false }, // Enabled for navigation
 ]
 
 const communityNavItems: NavItem[] = [
@@ -107,7 +107,7 @@ const NavItemGroup: React.FC<{
 );
 
 
-function ModuleView({ currentModule, onSetModule }: { currentModule: Module; onSetModule: (module: 'settings') => void; }) {
+function ModuleView({ currentModule, onSetModule }: { currentModule: Module; onSetModule: (module: Module) => void; }) {
     if (currentModule === 'dashboard') {
         return <DashboardModule onSetModule={onSetModule} />;
     }
