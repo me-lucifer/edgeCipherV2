@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import { useAuth, type OnboardingStep } from "@/context/auth-provider";
 import { Button } from "./ui/button";
-import { Card, CardContent } from "./ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "./ui/card";
 import { Progress } from "./ui/progress";
 import { CheckCircle, User, HelpCircle, Link2, History, Bot, PlayCircle, Lock, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -388,3 +388,5 @@ export function OnboardingView() {
         </div>
     );
 }
+
+    
