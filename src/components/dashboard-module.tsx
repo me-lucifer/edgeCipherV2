@@ -11,12 +11,16 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Bot, FileText, Gauge, BarChart, ArrowRight, TrendingUp, TrendingDown, BookOpen, Link, ArrowRightCircle, Lightbulb, Info, Newspaper } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { Label } from "./ui/label";
 
 interface Persona {
     primaryPersonaName?: string;
     riskScore?: number;
     disciplineScore?: number;
 }
+
+type DemoScenario = "normal" | "high_vol" | "drawdown" | "no_positions";
 
 const features = [
     { id: 'tradePlanning', icon: FileText, title: "Plan new trade" },
@@ -254,16 +258,48 @@ function NewsSnapshot({ onSetModule }: { onSetModule: (module: any) => void }) {
     )
 }
 
+function DemoScenarioSwitcher({ scenario, onScenarioChange }: { scenario: DemoScenario, onScenarioChange: (scenario: DemoScenario) => void }) {
+    return (
+        <div className="flex items-center gap-2">
+            <Label htmlFor="scenario-select" className="text-sm text-muted-foreground">Demo Scenario:</Label>
+            <Select value={scenario} onValueChange={onScenarioChange}>
+                <SelectTrigger id="scenario-select" className="w-[180px] h-9">
+                    <SelectValue placeholder="Select scenario" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="normal">Normal Day</SelectItem>
+                    <SelectItem value="high_vol">High Volatility</SelectItem>
+                    <SelectItem value="drawdown">In Drawdown</SelectItem>
+                    <SelectItem value="no_positions">No Open Positions</SelectItem>
+                </SelectContent>
+            </Select>
+        </div>
+    );
+}
+
 interface DashboardModuleProps {
     onSetModule: (module: any) => void;
 }
 
 export function DashboardModule({ onSetModule }: DashboardModuleProps) {
-    const [persona, setPersona] = useState<Persona>({});
-    const [isBrokerConnected, setIsBrokerConnected] = useState(false);
+    const [scenario, setScenario] = useState<DemoScenario>('normal');
     
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            const savedScenario = localStorage.getItem('ec_demo_scenario') as DemoScenario;
+            if (savedScenario) {
+                setScenario(savedScenario);
+            }
+        }
+    }, []);
+
+    const handleScenarioChange = (newScenario: DemoScenario) => {
+        localStorage.setItem('ec_demo_scenario', newScenario);
+        setScenario(newScenario);
+    };
+
     // This is not a real hook, just a helper to centralize data logic for the prototype
-    const useDashboardMockData = () => {
+    const useDashboardMockData = (currentScenario: DemoScenario) => {
         const [data, setData] = useState<any>(null);
 
         useEffect(() => {
@@ -273,11 +309,16 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
                 const loadedPersona = personaData ? JSON.parse(personaData) : {};
 
                 // Connection data
-                const brokerConnected = localStorage.getItem('ec_broker_connected') === 'true';
+                let brokerConnected = localStorage.getItem('ec_broker_connected') === 'true';
+                if (currentScenario === 'no_positions') {
+                    brokerConnected = false;
+                }
                 const brokerName = localStorage.getItem('ec_broker_name') || "";
 
                 // Market data
-                const vixValue = 78; // Mock value
+                let vixValue = 45;
+                if (currentScenario === 'high_vol') vixValue = 82;
+
                 const getVixZone = (vix: number) => {
                     if (vix > 75) return "Extreme";
                     if (vix > 50) return "Elevated";
@@ -286,7 +327,11 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
                 }
 
                 // Performance data
-                const dailyPnl = [120, -80, 250, -40, 0, 180, -60];
+                let dailyPnl = [120, -80, 250, -40, 0, 180, -60];
+                if (currentScenario === 'drawdown') {
+                    dailyPnl = [50, -150, -280, 80, -90, -400, -210];
+                }
+
                 const total7d = dailyPnl.reduce((a, b) => a + b, 0);
                 const lastThreeDays = dailyPnl.slice(-3);
                 
@@ -301,7 +346,7 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
                     persona: {
                         primaryPersonaName: loadedPersona.primaryPersonaName || 'Trader',
                         riskScore: loadedPersona.riskScore || 50,
-                        disciplineScore: loadedPersona.disciplineScore || 50,
+                        disciplineScore: currentScenario === 'drawdown' ? 35 : (loadedPersona.disciplineScore || 65),
                         emotionScore: loadedPersona.emotionScore || 50,
                     },
                     connection: {
@@ -322,17 +367,13 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
                     positions: brokerConnected ? openPositions : [],
                     growthPlanToday: growthPlanItems,
                 });
-
-                // Set states that are used in the main component
-                setPersona(loadedPersona);
-                setIsBrokerConnected(brokerConnected);
             }
-        }, []);
+        }, [currentScenario]);
 
         return data;
     }
 
-    const data = useDashboardMockData();
+    const data = useDashboardMockData(scenario);
 
     if (!data) {
         return null; // or a loading skeleton
@@ -348,30 +389,35 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
 
   return (
     <div className="space-y-8">
-        {/* User Header & Arjun Insight */}
-        <Card className="w-full bg-muted/20 border-border/50">
-            <CardContent className="p-6 grid md:grid-cols-3 gap-6 items-center">
-                <div className="md:col-span-2">
-                    <h1 className="text-2xl font-bold tracking-tight text-foreground">
-                        Welcome, {personaData.primaryPersonaName?.split(' ')[0] || 'Trader'}.
-                    </h1>
-                     <p className="text-muted-foreground mt-1">
-                        Persona: <span className="font-semibold text-primary">{personaData.primaryPersonaName || 'The Determined Trader'}</span>
-                    </p>
-                </div>
-                 <div className="bg-muted/50 p-4 rounded-lg border border-dashed border-primary/20 relative">
-                    <div className="text-sm text-muted-foreground">
-                        <div className="font-semibold text-foreground flex items-center gap-2">
-                             <Bot className="h-4 w-4 text-primary" />
-                             Arjun's Daily Insight
-                        </div>
-                        <div className="mt-2 italic">
-                           "{arjunMessage}"
+        <div className="flex justify-between items-start">
+            {/* User Header & Arjun Insight */}
+            <Card className="w-full bg-muted/20 border-border/50">
+                <CardContent className="p-6 grid md:grid-cols-3 gap-6 items-center">
+                    <div className="md:col-span-2">
+                        <h1 className="text-2xl font-bold tracking-tight text-foreground">
+                            Welcome, {personaData.primaryPersonaName?.split(' ')[0] || 'Trader'}.
+                        </h1>
+                        <p className="text-muted-foreground mt-1">
+                            Persona: <span className="font-semibold text-primary">{personaData.primaryPersonaName || 'The Determined Trader'}</span>
+                        </p>
+                    </div>
+                    <div className="bg-muted/50 p-4 rounded-lg border border-dashed border-primary/20 relative">
+                        <div className="text-sm text-muted-foreground">
+                            <div className="font-semibold text-foreground flex items-center gap-2">
+                                <Bot className="h-4 w-4 text-primary" />
+                                Arjun's Daily Insight
+                            </div>
+                            <div className="mt-2 italic">
+                            "{arjunMessage}"
+                            </div>
                         </div>
                     </div>
-                </div>
-            </CardContent>
-        </Card>
+                </CardContent>
+            </Card>
+            <div className="pl-4 pt-1 flex-shrink-0">
+                 <DemoScenarioSwitcher scenario={scenario} onScenarioChange={handleScenarioChange} />
+            </div>
+        </div>
 
         <TradeDecisionStrip 
             vixZone={market.vixZone} 
@@ -434,32 +480,39 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
                                         </TooltipProvider>
                                     </div>
                                 </div>
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Symbol</TableHead>
-                                            <TableHead>Direction</TableHead>
-                                            <TableHead>Size</TableHead>
-                                            <TableHead>PnL</TableHead>
-                                            <TableHead>Risk</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {positions.map((pos: any) => (
-                                            <TableRow key={pos.symbol}>
-                                                <TableCell className="font-mono">{pos.symbol}</TableCell>
-                                                <TableCell className={cn(pos.direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{pos.direction}</TableCell>
-                                                <TableCell className="font-mono">{pos.size}</TableCell>
-                                                <TableCell><PnlDisplay value={pos.pnl} /></TableCell>
-                                                <TableCell><Badge variant={pos.risk === 'Low' ? 'secondary' : 'default'} className={cn(
-                                                    pos.risk === 'Medium' && 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-                                                    pos.risk === 'High' && 'bg-red-500/20 text-red-400 border-red-500/30',
-                                                    pos.risk === 'Low' && 'bg-green-500/20 text-green-400 border-green-500/30'
-                                                )}>{pos.risk}</Badge></TableCell>
+                                {positions.length > 0 ? (
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Symbol</TableHead>
+                                                <TableHead>Direction</TableHead>
+                                                <TableHead>Size</TableHead>
+                                                <TableHead>PnL</TableHead>
+                                                <TableHead>Risk</TableHead>
                                             </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {positions.map((pos: any) => (
+                                                <TableRow key={pos.symbol}>
+                                                    <TableCell className="font-mono">{pos.symbol}</TableCell>
+                                                    <TableCell className={cn(pos.direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{pos.direction}</TableCell>
+                                                    <TableCell className="font-mono">{pos.size}</TableCell>
+                                                    <TableCell><PnlDisplay value={pos.pnl} /></TableCell>
+                                                    <TableCell><Badge variant={pos.risk === 'Low' ? 'secondary' : 'default'} className={cn(
+                                                        pos.risk === 'Medium' && 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+                                                        pos.risk === 'High' && 'bg-red-500/20 text-red-400 border-red-500/30',
+                                                        pos.risk === 'Low' && 'bg-green-500/20 text-green-400 border-green-500/30'
+                                                    )}>{pos.risk}</Badge></TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                ) : (
+                                    <div className="text-center p-8 border-2 border-dashed border-border/50 rounded-lg">
+                                        <h3 className="text-lg font-semibold text-foreground">No open positions</h3>
+                                        <p className="mt-1 text-sm text-muted-foreground">When you have open trades, they will appear here.</p>
+                                    </div>
+                                )}
                             </div>
                         ) : (
                             <div className="text-center p-8 border-2 border-dashed border-border/50 rounded-lg">
@@ -545,3 +598,5 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
     </div>
   );
 }
+
+    
