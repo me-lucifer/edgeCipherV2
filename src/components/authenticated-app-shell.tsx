@@ -31,6 +31,7 @@ import { PerformanceAnalyticsModule } from './performance-analytics-module';
 import { StrategyManagementModule } from './strategy-management-module';
 import { RiskCenterModule } from './risk-center-module';
 import { CryptoVixModule } from './crypto-vix-module';
+import { NewsModule } from './news-module';
 
 type Module = 
   | 'dashboard' 
@@ -145,6 +146,10 @@ function ModuleView({ currentModule, onSetModule, aiCoachingInitialMessage }: { 
     
     if (currentModule === 'cryptoVix') {
       return <CryptoVixModule onSetModule={onSetModule} />;
+    }
+
+    if (currentModule === 'news') {
+        return <NewsModule onSetModule={onSetModule} />;
     }
 
     const allNavItems = [...mainNavItems, ...analyticsNavItems, ...marketNavItems, ...communityNavItems, ...settingsNavItems];
@@ -333,7 +338,3 @@ export function AuthenticatedAppShell() {
     </TooltipProvider>
   );
 }
-
-    
-
-    
