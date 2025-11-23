@@ -4,9 +4,9 @@
 import { useState, useEffect } from "react";
 import { useAuth, type OnboardingStep } from "@/context/auth-provider";
 import { Button } from "./ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
+import { Card, CardContent } from "./ui/card";
 import { Progress } from "./ui/progress";
-import { CheckCircle, Circle, User, HelpCircle, Link2, History, Bot, PlayCircle, Lock, ArrowRight } from "lucide-react";
+import { CheckCircle, User, HelpCircle, Link2, History, Bot, PlayCircle, Lock, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "./ui/checkbox";
 import { Label } from "./ui/label";
@@ -21,6 +21,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "./ui/input";
 import { Alert, AlertDescription } from "./ui/alert";
 import { HistoryAnalysisStep } from "./history-analysis-step";
+import { PersonaSummaryStep } from "./persona-summary-step";
 
 const steps: { id: OnboardingStep; title: string; icon: React.ElementType }[] = [
     { id: "welcome", title: "Welcome", icon: User },
@@ -234,8 +235,7 @@ function BrokerConnectionStep({ onContinue, onSkip }: { onContinue: () => void; 
 }
 
 
-function OnboardingStepContent({ currentStep, onNext, onBack, onSkipToPersona }: { currentStep: OnboardingStep, onNext: () => void, onBack: () => void, onSkipToPersona: () => void }) {
-    // These are placeholders. Each will be built out in subsequent steps.
+function OnboardingStepContent({ currentStep, onNext, onBack, onSkipToPersona, onComplete }: { currentStep: OnboardingStep, onNext: () => void, onBack: () => void, onSkipToPersona: () => void, onComplete: () => void }) {
     const content: Record<OnboardingStep, React.ReactNode> = {
         welcome: (
             <WelcomeStep onContinue={onNext} />
@@ -250,14 +250,11 @@ function OnboardingStepContent({ currentStep, onNext, onBack, onSkipToPersona }:
              <HistoryAnalysisStep onComplete={onNext} />
         ),
         persona: (
-             <div>
-                <h2 className="text-2xl font-semibold text-foreground">Your Trading Persona</h2>
-                <p className="mt-2 text-muted-foreground">Based on your data, here's your initial trader persona. (Content for this step will be added next).</p>
-            </div>
+             <PersonaSummaryStep onComplete={onComplete} onBack={onBack} />
         ),
     };
 
-    const isComplexStep = ['welcome', 'questionnaire', 'broker', 'history'].includes(currentStep);
+    const isComplexStep = ['welcome', 'questionnaire', 'broker', 'history', 'persona'].includes(currentStep);
 
     return (
         <div className="flex flex-col h-full">
@@ -269,9 +266,7 @@ function OnboardingStepContent({ currentStep, onNext, onBack, onSkipToPersona }:
                     <div>
                         <Button variant="ghost" onClick={onBack}>Back</Button>
                     </div>
-                    <Button onClick={onNext}>
-                        {currentStep === 'persona' ? 'Finish & Go to Dashboard' : 'Continue'}
-                    </Button>
+                    <Button onClick={onNext}>Continue</Button>
                 </div>
             )}
         </div>
@@ -302,10 +297,12 @@ export function OnboardingView() {
             } else {
                  setOnboardingStep(nextStep.id);
             }
-        } else {
-            completeOnboarding();
         }
     };
+
+    const handleComplete = () => {
+        completeOnboarding();
+    }
 
     const handleBack = () => {
         if (currentStepIndex > 0) {
@@ -381,6 +378,7 @@ export function OnboardingView() {
                                     onNext={handleNext}
                                     onBack={handleBack}
                                     onSkipToPersona={handleSkipToPersona}
+                                    onComplete={handleComplete}
                                 />
                             </div>
                         </main>
@@ -390,5 +388,3 @@ export function OnboardingView() {
         </div>
     );
 }
-
-    

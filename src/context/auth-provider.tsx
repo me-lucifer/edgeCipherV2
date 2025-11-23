@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
-export type OnboardingStep = "welcome" | "questionnaire" | "broker" | "history" | "persona";
+export type OnboardingStep = "welcome" | "questionnaire" | "broker" | "history" | "persona" | "completed";
 
 interface AuthState {
   authToken: string | null;
@@ -61,6 +61,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('ec_email_verified');
     localStorage.removeItem('ec_onboarding_complete');
     localStorage.removeItem('ec_onboarding_step');
+    localStorage.removeItem('ec_broker_connected');
+    localStorage.removeItem('ec_broker_name');
+    localStorage.removeItem('ec_persona_base');
+    localStorage.removeItem('ec_persona_final');
+    localStorage.removeItem('ec_onboarding_answers');
     localStorage.removeItem('ec_banner_shown'); // Also clear banner
     setAuthState({ authToken: null, isEmailVerified: false, isOnboardingComplete: false, onboardingStep: 'welcome', authLoading: false });
     window.location.reload(); // Reload to ensure all state is reset
@@ -73,7 +78,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const completeOnboarding = useCallback(() => {
     localStorage.setItem('ec_onboarding_complete', 'true');
-    setAuthState(prev => ({ ...prev, isOnboardingComplete: true }));
+    localStorage.setItem('ec_onboarding_step', 'completed');
+    setAuthState(prev => ({ ...prev, isOnboardingComplete: true, onboardingStep: 'completed' }));
   }, []);
 
   const value = {

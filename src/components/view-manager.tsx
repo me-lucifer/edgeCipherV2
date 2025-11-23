@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ViewSelector } from '@/components/view-selector';
 import { PublicWebsiteView } from '@/components/public-website-view';
 import { AdminAppView } from '@/components/admin-app-view';
@@ -14,10 +14,10 @@ type AppView = 'publicLanding' | 'onboarding' | 'dashboardPlaceholder';
 
 export function ViewManager() {
   const [devView, setDevView] = useState<DevView | null>(null);
-  const { authToken, isOnboardingComplete, authLoading } = useAuth();
+  const { authToken, isOnboardingComplete, authLoading, logout } = useAuth();
   
   // Dev view state management
-  useState(() => {
+  useEffect(() => {
     if (typeof window !== 'undefined') {
       const storedView = localStorage.getItem('ec_view') as DevView | null;
       if (storedView && ['website', 'admin'].includes(storedView)) {
@@ -26,7 +26,7 @@ export function ViewManager() {
         setDevView('selector');
       }
     }
-  });
+  }, []);
 
   const handleSelectDevView = (view: DevView) => {
     if (view !== 'selector') {
@@ -74,20 +74,16 @@ export function ViewManager() {
       case 'publicLanding':
         return <PublicWebsiteView onSwitchView={handleSwitchDevView} onShowDashboard={() => {
           // This simulates a direct navigation to dashboard for an already onboarded user
-          // For the prototype, we can just toggle a local state
-          console.log("Simulating dashboard view for an already-onboarded user.");
+          // We can't just switch view, because the user is not authenticated. 
+          // For the prototype, we can explain this to the user.
+          alert("This action is for an already logged-in and onboarded user. Please log in to see the dashboard.");
         }}/>;
       case 'onboarding':
         return <OnboardingView />;
       case 'dashboardPlaceholder':
         return <DashboardPlaceholder onBack={() => {
-            // This is tricky in the prototype. We can't go "back" to the landing page
-            // if auth rules say we should be on dashboard. 
-            // For now, we'll log out to reset.
-            console.log("For prototype, logging out to return to landing page.");
-            localStorage.removeItem('ec_auth_token');
-            localStorage.removeItem('ec_onboarding_complete');
-            window.location.reload();
+            // For the prototype, we'll log out to reset and return to the landing page.
+            logout();
         }} />;
     }
   }
