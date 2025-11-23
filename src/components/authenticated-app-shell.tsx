@@ -29,6 +29,7 @@ import { TradePlanningModule } from './trade-planning-module';
 import { TradeJournalModule } from './trade-journal-module';
 import { PerformanceAnalyticsModule } from './performance-analytics-module';
 import { StrategyManagementModule } from './strategy-management-module';
+import { RiskCenterModule } from './risk-center-module';
 
 type Module = 
   | 'dashboard' 
@@ -135,6 +136,10 @@ function ModuleView({ currentModule, onSetModule, aiCoachingInitialMessage }: { 
     
     if (currentModule === 'strategyManagement') {
       return <StrategyManagementModule onSetModule={onSetModule} />;
+    }
+
+    if (currentModule === 'riskCenter') {
+      return <RiskCenterModule onSetModule={onSetModule} />;
     }
 
     const allNavItems = [...mainNavItems, ...analyticsNavItems, ...marketNavItems, ...communityNavItems, ...settingsNavItems];
@@ -323,5 +328,7 @@ export function AuthenticatedAppShell() {
     </TooltipProvider>
   );
 }
+
+    
 
     
