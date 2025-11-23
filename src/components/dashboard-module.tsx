@@ -120,30 +120,12 @@ const getTradeDecision = ({
   };
 };
 
-function TradeDecisionStrip() {
-    // Mock data for the decision logic
-    const mockVix = 75; // Elevated
-    const getVixZone = (vix: number) => {
-        if (vix > 80) return "Extreme";
-        if (vix > 60) return "Elevated";
-        if (vix > 30) return "Normal";
-        return "Calm";
-    }
-
-    const [persona, setPersona] = useState<Persona>({});
-     useEffect(() => {
-        if (typeof window !== "undefined") {
-            const personaData = localStorage.getItem("ec_persona_final") || localStorage.getItem("ec_persona_base");
-            if (personaData) {
-                setPersona(JSON.parse(personaData));
-            }
-        }
-    }, []);
+function TradeDecisionStrip({ vixZone, performanceState, disciplineScore}: { vixZone: string, performanceState: string, disciplineScore: number }) {
 
     const decision = getTradeDecision({
-        vixZone: getVixZone(mockVix),
-        performanceState: "drawdown", // Mock state
-        disciplineScore: persona.disciplineScore || 50,
+        vixZone: vixZone,
+        performanceState: performanceState, 
+        disciplineScore: disciplineScore,
     });
 
     return (
@@ -168,20 +150,18 @@ function TradeDecisionStrip() {
     );
 }
 
-function PerformanceSummary() {
-    const mockDailyPnl = [120, -80, 250, -40, 0, 180, -60];
-    const todayPnl = mockDailyPnl[mockDailyPnl.length - 1];
-    const total7dPnl = mockDailyPnl.reduce((acc, pnl) => acc + pnl, 0);
-    const wins = mockDailyPnl.filter(pnl => pnl > 0).length;
-    const losses = mockDailyPnl.filter(pnl => pnl < 0).length;
+function PerformanceSummary({ dailyPnl, performanceState }: { dailyPnl: number[], performanceState: string }) {
+    const todayPnl = dailyPnl[dailyPnl.length - 1];
+    const total7dPnl = dailyPnl.reduce((acc, pnl) => acc + pnl, 0);
+    const wins = dailyPnl.filter(pnl => pnl > 0).length;
+    const losses = dailyPnl.filter(pnl => pnl < 0).length;
 
     const getArjunPerformanceView = () => {
-        const consecutiveLosses = mockDailyPnl.slice(-3).every(pnl => pnl < 0);
-        if (consecutiveLosses && total7dPnl < 0) {
+        if (performanceState === "drawdown") {
             return "You’re in a drawdown, reduce size and focus on A+ setups.";
         }
-        if (total7dPnl > 500) {
-            return "Excellent work this week. Stay focused.";
+        if (performanceState === "hot_streak") {
+            return "Excellent work this week. Stay focused and protect your capital.";
         }
         return "Stable performance recently.";
     }
@@ -281,22 +261,88 @@ interface DashboardModuleProps {
 export function DashboardModule({ onSetModule }: DashboardModuleProps) {
     const [persona, setPersona] = useState<Persona>({});
     const [isBrokerConnected, setIsBrokerConnected] = useState(false);
-    const { logout } = useAuth();
-
-    useEffect(() => {
-        if (typeof window !== "undefined") {
-            const personaData = localStorage.getItem("ec_persona_final") || localStorage.getItem("ec_persona_base");
-            if (personaData) {
-                setPersona(JSON.parse(personaData));
-            }
-            setIsBrokerConnected(localStorage.getItem('ec_broker_connected') === 'true');
-        }
-    }, []);
     
-    const mockPerformanceState = 'drawdown';
+    // This is not a real hook, just a helper to centralize data logic for the prototype
+    const useDashboardMockData = () => {
+        const [data, setData] = useState<any>(null);
+
+        useEffect(() => {
+            if (typeof window !== "undefined") {
+                // Persona data
+                const personaData = localStorage.getItem("ec_persona_final") || localStorage.getItem("ec_persona_base");
+                const loadedPersona = personaData ? JSON.parse(personaData) : {};
+
+                // Connection data
+                const brokerConnected = localStorage.getItem('ec_broker_connected') === 'true';
+                const brokerName = localStorage.getItem('ec_broker_name') || "";
+
+                // Market data
+                const vixValue = 78; // Mock value
+                const getVixZone = (vix: number) => {
+                    if (vix > 75) return "Extreme";
+                    if (vix > 50) return "Elevated";
+                    if (vix > 25) return "Normal";
+                    return "Calm";
+                }
+
+                // Performance data
+                const dailyPnl = [120, -80, 250, -40, 0, 180, -60];
+                const total7d = dailyPnl.reduce((a, b) => a + b, 0);
+                const lastThreeDays = dailyPnl.slice(-3);
+                
+                let performanceState = "stable";
+                if (total7d < 0 && lastThreeDays.filter(p => p < 0).length >= 2) {
+                    performanceState = "drawdown";
+                } else if (lastThreeDays.every(p => p > 0)) {
+                    performanceState = "hot_streak";
+                }
+                
+                setData({
+                    persona: {
+                        primaryPersonaName: loadedPersona.primaryPersonaName || 'Trader',
+                        riskScore: loadedPersona.riskScore || 50,
+                        disciplineScore: loadedPersona.disciplineScore || 50,
+                        emotionScore: loadedPersona.emotionScore || 50,
+                    },
+                    connection: {
+                        brokerConnected,
+                        brokerName,
+                    },
+                    market: {
+                        vixValue,
+                        vixZone: getVixZone(vixValue),
+                    },
+                    performance: {
+                        dailyPnl,
+                        todayPnl: dailyPnl[dailyPnl.length-1],
+                        winsToday: dailyPnl.filter(p => p > 0).length,
+                        lossesToday: dailyPnl.filter(p => p < 0).length,
+                        performanceState,
+                    },
+                    positions: brokerConnected ? openPositions : [],
+                    growthPlanToday: growthPlanItems,
+                });
+
+                // Set states that are used in the main component
+                setPersona(loadedPersona);
+                setIsBrokerConnected(brokerConnected);
+            }
+        }, []);
+
+        return data;
+    }
+
+    const data = useDashboardMockData();
+
+    if (!data) {
+        return null; // or a loading skeleton
+    }
+
+    const { persona: personaData, connection, market, performance, positions, growthPlanToday } = data;
+
     const arjunMessage = getArjunMessage({
-        disciplineScore: persona.disciplineScore,
-        performanceState: mockPerformanceState
+        disciplineScore: personaData.disciplineScore,
+        performanceState: performance.performanceState
     });
 
 
@@ -307,10 +353,10 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
             <CardContent className="p-6 grid md:grid-cols-3 gap-6 items-center">
                 <div className="md:col-span-2">
                     <h1 className="text-2xl font-bold tracking-tight text-foreground">
-                        Welcome, {persona.primaryPersonaName?.split(' ')[0] || 'Trader'}.
+                        Welcome, {personaData.primaryPersonaName?.split(' ')[0] || 'Trader'}.
                     </h1>
                      <p className="text-muted-foreground mt-1">
-                        Persona: <span className="font-semibold text-primary">{persona.primaryPersonaName || 'The Determined Trader'}</span>
+                        Persona: <span className="font-semibold text-primary">{personaData.primaryPersonaName || 'The Determined Trader'}</span>
                     </p>
                 </div>
                  <div className="bg-muted/50 p-4 rounded-lg border border-dashed border-primary/20 relative">
@@ -327,7 +373,11 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
             </CardContent>
         </Card>
 
-        <TradeDecisionStrip />
+        <TradeDecisionStrip 
+            vixZone={market.vixZone} 
+            performanceState={performance.performanceState}
+            disciplineScore={personaData.disciplineScore} 
+        />
         
         <div className="grid lg:grid-cols-3 gap-8">
             {/* Left column */}
@@ -338,12 +388,12 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
                         <CardTitle>Account & Positions Snapshot</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        {isBrokerConnected ? (
+                        {connection.brokerConnected ? (
                             <div className="space-y-6">
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
                                     <div>
                                         <p className="text-sm text-muted-foreground">Broker</p>
-                                        <p className="font-semibold text-foreground">Delta</p>
+                                        <p className="font-semibold text-foreground">{connection.brokerName}</p>
                                     </div>
                                     <div>
                                         <p className="text-sm text-muted-foreground">Balance</p>
@@ -395,7 +445,7 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {openPositions.map(pos => (
+                                        {positions.map((pos: any) => (
                                             <TableRow key={pos.symbol}>
                                                 <TableCell className="font-mono">{pos.symbol}</TableCell>
                                                 <TableCell className={cn(pos.direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{pos.direction}</TableCell>
@@ -423,7 +473,7 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
                 </Card>
 
                 {/* Performance Summary */}
-                <PerformanceSummary />
+                <PerformanceSummary dailyPnl={performance.dailyPnl} performanceState={performance.performanceState} />
 
                  {/* Market Context & Risk */}
                 <div className="grid md:grid-cols-2 gap-8">
@@ -446,8 +496,8 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                             <p className="text-3xl font-bold font-mono">78 <span className="text-base font-normal text-muted-foreground">/ 100</span></p>
-                             <p className="text-sm text-amber-400 font-semibold">High Volatility Zone</p>
+                             <p className="text-3xl font-bold font-mono">{market.vixValue} <span className="text-base font-normal text-muted-foreground">/ 100</span></p>
+                             <p className="text-sm text-amber-400 font-semibold">{market.vixZone} Volatility Zone</p>
                              <p className="text-xs text-muted-foreground mt-2">Expect larger swings. Consider reducing size.</p>
                         </CardContent>
                     </Card>
@@ -480,7 +530,7 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
                     </CardHeader>
                     <CardContent>
                          <ul className="space-y-3">
-                            {growthPlanItems.slice(0,2).map((item, i) => (
+                            {growthPlanToday.slice(0,2).map((item: string, i: number) => (
                                 <li key={i} className="flex items-start gap-3">
                                     <div className="w-4 h-4 rounded-full bg-primary/20 text-primary flex items-center justify-center flex-shrink-0 mt-1" />
                                     <span className="text-muted-foreground text-sm">{item}</span>
@@ -494,12 +544,4 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
         </div>
     </div>
   );
-
-    
-
-    
-
-
-
-    
-
+}
