@@ -66,16 +66,26 @@ export function AuthModal({ isOpen, onOpenChange, defaultTab = "signup" }: AuthM
   });
 
   const onLoginSubmit = (values: z.infer<typeof loginSchema>) => {
-    console.log("Login (Prototype):", values);
-    login("demo-token", false, false, "welcome");
-    onOpenChange(false);
+    console.log("Login submitted (Prototype):", values);
+    // Prototype logic: Assume any login is for a user who needs to verify email.
+    // In a real app, you'd get this status from an API.
+    const isVerified = false; // Hardcoded for prototype to always show OTP on login
+
+    if (!isVerified) {
+        setPendingEmail(values.email);
+        setModalView("otp");
+    } else {
+        // This branch is for a user who is already verified.
+        // The main ViewManager will handle redirection to onboarding or dashboard.
+        const onboardingComplete = localStorage.getItem('ec_onboarding_complete') === 'true';
+        const step = (localStorage.getItem('ec_onboarding_step') as any) || 'welcome';
+        login("demo-token", true, onboardingComplete, step);
+        onOpenChange(false);
+    }
   };
 
   const onSignupSubmit = (values: z.infer<typeof signupSchema>) => {
     console.log("Signup form submitted (Prototype):", values);
-    if (typeof window !== 'undefined') {
-        localStorage.setItem("ec_pending_email", values.email);
-    }
     setPendingEmail(values.email);
     setModalView("otp");
   };
@@ -83,9 +93,6 @@ export function AuthModal({ isOpen, onOpenChange, defaultTab = "signup" }: AuthM
   const onOtpSubmit = (values: z.infer<typeof otpSchema>) => {
       console.log("OTP submitted (Prototype):", values);
       if (values.otp === "123456") {
-        if (typeof window !== 'undefined') {
-            localStorage.removeItem("ec_pending_email");
-        }
         login("demo-token", true, false, "welcome");
         onOpenChange(false);
       } else {
@@ -186,7 +193,10 @@ export function AuthModal({ isOpen, onOpenChange, defaultTab = "signup" }: AuthM
                             </FormItem>
                             )}
                         />
-                        <Button type="submit" className="w-full">Login (Prototype)</Button>
+                        <Button type="submit" className="w-full">Login</Button>
+                         <p className="text-xs text-muted-foreground text-center pt-1">
+                            Prototype: after login we send you into onboarding or the dashboard preview depending on your status.
+                        </p>
                         </form>
                     </Form>
                     </div>

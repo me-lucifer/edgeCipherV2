@@ -738,7 +738,6 @@ function PricingSection({ onAuthOpen }: { onAuthOpen: (tab: AuthModalTab) => voi
                         price={plan.price}
                         features={plan.features}
                         ctaText={plan.ctaText}
-                        highlighted={plan.highlighted}
                         onClickCta={plan.action as (e: React.MouseEvent<HTMLButtonElement | HTMLAnchorElement>) => void}
                     />
                 ))}
@@ -1172,3 +1171,5 @@ export function PublicWebsiteView({ onSwitchView, onShowDashboard }: PublicWebsi
     </div>
   );
 }
+
+    
