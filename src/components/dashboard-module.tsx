@@ -322,7 +322,9 @@ function NewsSnapshot({ onSetModule }: { onSetModule: (module: any) => void }) {
                     <TooltipProvider>
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                                <Button variant="ghost" size="icon" className="h-6 w-6">
+                                  <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                                </Button>
                             </TooltipTrigger>
                             <TooltipContent>
                                 <p className="max-w-xs">Headlines can trigger sharp moves. Use them as context, but don’t chase every story.</p>
@@ -798,9 +800,11 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                                 <TooltipProvider>
                                     <Tooltip>
                                         <TooltipTrigger asChild>
-                                            <span className="flex items-center gap-1 cursor-help">
+                                           <Button variant="ghost" size="icon" className="h-6 w-6">
+                                             <span className="flex items-center gap-1 cursor-help">
                                                 Crypto VIX <Info className="h-3 w-3" />
                                             </span>
+                                          </Button>
                                         </TooltipTrigger>
                                         <TooltipContent>
                                             <p>An index showing current crypto market volatility (0-100).</p>
