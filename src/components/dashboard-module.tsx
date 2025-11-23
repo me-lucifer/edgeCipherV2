@@ -319,9 +319,9 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
                              <Bot className="h-4 w-4 text-primary" />
                              Arjun's Daily Insight
                         </span>
-                        <blockquote className="mt-2 italic">
+                        <div className="mt-2 italic">
                            "{arjunMessage}"
-                        </blockquote>
+                        </div>
                     </div>
                 </div>
             </CardContent>
