@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useAuth } from "@/context/auth-provider";
@@ -29,8 +30,8 @@ const features = [
 ];
 
 const openPositions = [
-    { symbol: 'BTC-PERP', direction: 'Long', size: '0.5', pnl: 234.50, risk: 'Medium' },
-    { symbol: 'ETH-PERP', direction: 'Short', size: '12', pnl: -88.12, risk: 'Low' },
+    { symbol: 'BTC-PERP', direction: 'Long', size: '0.5', entry: 68500.0, last: 68969.5, pnl: 234.50, risk: 'Medium' },
+    { symbol: 'ETH-PERP', direction: 'Short', size: '12', entry: 3605.0, last: 3597.65, pnl: -88.12, risk: 'Low' },
 ]
 
 const newsItems = [
@@ -128,7 +129,7 @@ const getTradeDecision = ({
   if (vixZone === "Elevated" || performanceState === "drawdown") {
     return {
       status: "Amber",
-      message: "Conditions are tricky. Keep risk small and stick strictly to your A+ setups.",
+      message: "Keep risk small and stick strictly to your A+ setups.",
       chipColor: "bg-amber-500/20 text-amber-400",
       glowColor: "shadow-[0_0_10px_rgba(245,158,11,0.3)]",
     };
@@ -173,7 +174,7 @@ function TradeDecisionStrip({ vixZone, performanceState, disciplineScore, hasHis
                         decision.chipColor,
                         decision.glowColor
                     )}>
-                        {decision.status} {decision.status !== 'Focus' && '– Trade with caution'}
+                        {decision.status}
                     </div>
                     <p className="text-sm text-muted-foreground">{decision.message}</p>
                 </div>
@@ -306,7 +307,7 @@ function NewsSnapshot({ onSetModule }: { onSetModule: (module: any) => void }) {
     return (
          <Card className="bg-muted/30 border-border/50">
             <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="flex items-center gap-2 text-base">
                     <Newspaper className="h-5 w-5" />
                     News Snapshot
                     <TooltipProvider>
@@ -328,6 +329,7 @@ function NewsSnapshot({ onSetModule }: { onSetModule: (module: any) => void }) {
                             <div className="flex justify-between items-start">
                                 <p className="font-semibold text-foreground text-sm pr-4">{item.headline}</p>
                                 <Badge variant="secondary" className={cn(
+                                    'text-xs',
                                     item.sentiment === 'Bullish' && 'bg-green-500/20 text-green-400 border-green-500/30',
                                     item.sentiment === 'Bearish' && 'bg-red-500/20 text-red-400 border-red-500/30'
                                 )}>{item.sentiment}</Badge>
@@ -499,11 +501,11 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
                         </p>
                     </div>
                     <div className="bg-muted/50 p-4 rounded-lg border border-dashed border-primary/20 relative">
+                         <div className="font-semibold text-foreground flex items-center gap-2">
+                            <Bot className="h-4 w-4 text-primary" />
+                            Arjun's Daily Insight
+                        </div>
                         <div className="text-sm text-muted-foreground">
-                            <div className="font-semibold text-foreground flex items-center gap-2">
-                                <Bot className="h-4 w-4 text-primary" />
-                                Arjun's Daily Insight
-                            </div>
                             <div className="mt-2 italic">
                                 "{arjunInsight.message}"
                             </div>
@@ -565,54 +567,70 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
             <div className="lg:col-span-2 space-y-8">
                 {/* Account & Positions Snapshot */}
                 <Card className="bg-muted/30 border-border/50">
-                    <CardHeader>
-                        <CardTitle>Account & Positions Snapshot</CardTitle>
+                    <CardHeader className="flex flex-row items-center justify-between">
+                         <CardTitle>Account Snapshot</CardTitle>
+                         {connection.brokerConnected && <Badge variant="secondary">{connection.brokerName} (Connected)</Badge>}
                     </CardHeader>
                     <CardContent>
                         {connection.brokerConnected ? (
                             <div className="space-y-6">
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                                    <div>
-                                        <p className="text-sm text-muted-foreground">Broker</p>
-                                        <p className="font-semibold text-foreground">{connection.brokerName}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-sm text-muted-foreground">Balance</p>
-                                        <p className="font-semibold text-foreground font-mono">$12,345.67</p>
-                                    </div>
-                                    <div>
-                                        <TooltipProvider>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <div className="cursor-help">
-                                                        <p className="text-sm text-muted-foreground flex items-center justify-center gap-1">
-                                                            Margin Used <Info className="h-3 w-3" />
-                                                        </p>
-                                                        <p className="font-semibold text-foreground font-mono">15.2%</p>
-                                                    </div>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p>The percentage of your capital used for open positions.</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
-                                    </div>
-                                    <div>
-                                         <TooltipProvider>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <div className="cursor-help">
-                                                        <p className="text-sm text-muted-foreground flex items-center justify-center gap-1">
-                                                            Unrealized P&L <Info className="h-3 w-3" />
-                                                        </p>
-                                                        <PnlDisplay value={146.38} />
-                                                    </div>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p>Profit or loss on open positions that is not locked in yet.</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
+                                <div className="p-4 bg-muted/50 rounded-lg">
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                                        <div>
+                                            <p className="text-sm text-muted-foreground">Balance</p>
+                                            <p className="font-semibold text-foreground font-mono">$12,345.67</p>
+                                        </div>
+                                        <div>
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <div className="cursor-help">
+                                                            <p className="text-sm text-muted-foreground flex items-center justify-center gap-1">
+                                                                Available Margin <Info className="h-3 w-3" />
+                                                            </p>
+                                                            <p className="font-semibold text-foreground font-mono">$8,765.43</p>
+                                                        </div>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>Funds free to open new positions.</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        </div>
+                                        <div>
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <div className="cursor-help">
+                                                            <p className="text-sm text-muted-foreground flex items-center justify-center gap-1">
+                                                                Unrealized P&L <Info className="h-3 w-3" />
+                                                            </p>
+                                                            <PnlDisplay value={146.38} />
+                                                        </div>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>Profit or loss on open positions that is not locked in yet.</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        </div>
+                                         <div>
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <div className="cursor-help">
+                                                            <p className="text-sm text-muted-foreground flex items-center justify-center gap-1">
+                                                                Margin Used <Info className="h-3 w-3" />
+                                                            </p>
+                                                            <p className="font-semibold text-foreground font-mono">15.2%</p>
+                                                        </div>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>The percentage of your capital used for open positions.</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        </div>
                                     </div>
                                 </div>
                                 {positions.length > 0 ? (
@@ -623,6 +641,7 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
                                                     <TableHead>Symbol</TableHead>
                                                     <TableHead>Direction</TableHead>
                                                     <TableHead>Size</TableHead>
+                                                    <TableHead>Entry</TableHead>
                                                     <TableHead>PnL</TableHead>
                                                     <TableHead>Risk</TableHead>
                                                 </TableRow>
@@ -633,8 +652,10 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
                                                         <TableCell className="font-mono">{pos.symbol}</TableCell>
                                                         <TableCell className={cn(pos.direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{pos.direction}</TableCell>
                                                         <TableCell className="font-mono">{pos.size}</TableCell>
+                                                         <TableCell className="font-mono">{pos.entry.toFixed(2)}</TableCell>
                                                         <TableCell><PnlDisplay value={pos.pnl} /></TableCell>
                                                         <TableCell><Badge variant={pos.risk === 'Low' ? 'secondary' : 'default'} className={cn(
+                                                            'text-xs',
                                                             pos.risk === 'Medium' && 'bg-amber-500/20 text-amber-400 border-amber-500/30',
                                                             pos.risk === 'High' && 'bg-red-500/20 text-red-400 border-red-500/30',
                                                             pos.risk === 'Low' && 'bg-green-500/20 text-green-400 border-green-500/30'
@@ -644,7 +665,7 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
                                             </TableBody>
                                         </Table>
                                          <Button variant="link" className="px-0 mt-4 text-primary/90 hover:text-primary" onClick={() => onSetModule('tradeJournal')}>
-                                            View open positions <ArrowRight className="ml-1 h-4 w-4" />
+                                            View all open positions <ArrowRight className="ml-1 h-4 w-4" />
                                         </Button>
                                     </>
                                 ) : (
@@ -696,7 +717,7 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
                         </CardHeader>
                         <CardContent>
                              <p className="text-3xl font-bold font-mono">{market.vixValue} <span className="text-base font-normal text-muted-foreground">/ 100</span></p>
-                             <p className="text-sm text-amber-400 font-semibold">{market.vixZone} Volatility Zone</p>
+                             <p className={cn("text-sm font-semibold", market.vixZone === 'Extreme' || market.vixZone === 'Elevated' ? 'text-amber-400' : 'text-muted-foreground')}>{market.vixZone} Volatility Zone</p>
                              <Button variant="link" className="px-0 h-auto text-xs text-muted-foreground hover:text-primary mt-2" onClick={() => onSetModule('riskCenter')}>
                                 Open Risk Center <ArrowRight className="ml-1 h-3 w-3" />
                             </Button>
@@ -748,5 +769,7 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
     </div>
   );
 }
+
+    
 
     
