@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -179,9 +180,9 @@ function InfoTooltip({ text, children }: { text: string, children: React.ReactNo
     <TooltipProvider>
       <Tooltip delayDuration={0}>
         <TooltipTrigger asChild>
-          <span className="inline-flex items-center gap-1.5 border-b border-dashed border-muted-foreground/50">
+          <span className="inline-flex items-center gap-1.5 border-b border-dashed border-muted-foreground/50 cursor-help">
             {children}
-            <Info className="h-4 w-4 text-muted-foreground/80 cursor-help" />
+            <Info className="h-4 w-4 text-muted-foreground/80" />
           </span>
         </TooltipTrigger>
         <TooltipContent className="max-w-xs bg-muted text-muted-foreground border-border shadow-lg">
@@ -553,7 +554,7 @@ const PricingCard = ({
     features: string[],
     ctaText: string,
     highlighted?: boolean,
-    onClickCta: (e: React.MouseEvent<HTMLButtonElement>) => void;
+    onClickCta: (e: React.MouseEvent<HTMLButtonElement | HTMLAnchorElement>) => void;
 }) => (
     <Card className={cn(
         "flex flex-col",
@@ -585,9 +586,18 @@ const PricingCard = ({
             </ul>
         </CardContent>
         <div className="p-6 pt-0">
-            <Button onClick={onClickCta} className="w-full" variant={highlighted ? 'default' : 'outline'} size="lg">
-                {ctaText}
-            </Button>
+             {title === "Team / Mentor" ? (
+                <a href="#contact" onClick={onClickCta} className={cn(
+                    "block w-full text-center",
+                    buttonVariants({ variant: highlighted ? 'default' : 'outline', size: 'lg' })
+                )}>
+                    {ctaText}
+                </a>
+            ) : (
+                <Button onClick={onClickCta} className="w-full" variant={highlighted ? 'default' : 'outline'} size="lg">
+                    {ctaText}
+                </Button>
+            )}
         </div>
     </Card>
 );
@@ -631,11 +641,10 @@ function PricingSection({ onAuthOpen }: { onAuthOpen: (tab: AuthModalTab) => voi
                 "Custom onboarding & support"
             ],
             ctaText: "Contact Sales",
-            action: (e: React.MouseEvent<HTMLButtonElement>) => {
-              const el = e.target as HTMLElement;
+            action: (e: React.MouseEvent<HTMLButtonElement | HTMLAnchorElement>) => {
               const anchor = document.createElement('a');
               anchor.href = "#contact";
-              handleScrollTo(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }) as unknown as React.MouseEvent<HTMLAnchorElement>, '#contact');
+              handleScrollTo(e as React.MouseEvent<HTMLAnchorElement>, '#contact');
             }
         }
     ];
@@ -909,8 +918,8 @@ function Footer() {
     ];
 
     const legalLinks = [
-        { href: '#', label: 'Terms of Use' },
-        { href: '#', label: 'Privacy Policy' },
+        { href: '#terms', label: 'Terms of Use' },
+        { href: '#privacy', label: 'Privacy Policy' },
     ];
     
     return (
