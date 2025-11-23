@@ -104,3 +104,11 @@
     min-height: 100vh;
   }
 }
+
+@layer utilities {
+    .animate-metric-pulse {
+        animation: metric-pulse 0.5s ease-out;
+    }
+}
+
+    

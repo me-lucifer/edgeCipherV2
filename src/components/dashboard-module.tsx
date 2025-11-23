@@ -54,11 +54,11 @@ const newUserGrowthPlanItems = [
     "Watch the 'Intro to Journaling' video (coming soon).",
 ];
 
-function PnlDisplay({ value }: { value: number }) {
+function PnlDisplay({ value, animateKey }: { value: number, animateKey: number }) {
     const isPositive = value >= 0;
     return (
-        <div className={cn(
-            "flex items-center font-semibold font-mono",
+        <div key={animateKey} className={cn(
+            "flex items-center font-semibold font-mono animate-metric-pulse",
             isPositive ? 'text-green-400' : 'text-red-400'
         )}>
             {isPositive ? <TrendingUp className="mr-2 h-4 w-4" /> : <TrendingDown className="mr-2 h-4 w-4" />}
@@ -148,7 +148,7 @@ const getTradeDecision = ({
   };
 };
 
-function TradeDecisionStrip({ vixZone, performanceState, disciplineScore, hasHistory}: { vixZone: string, performanceState: string, disciplineScore: number, hasHistory: boolean }) {
+function TradeDecisionStrip({ vixZone, performanceState, disciplineScore, hasHistory, animateKey }: { vixZone: string, performanceState: string, disciplineScore: number, hasHistory: boolean, animateKey: number }) {
 
     const decision = getTradeDecision({
         vixZone: vixZone,
@@ -159,7 +159,7 @@ function TradeDecisionStrip({ vixZone, performanceState, disciplineScore, hasHis
 
     return (
         <Card className="bg-muted/30 border-border/50">
-            <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <CardContent key={animateKey} className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-metric-pulse">
                 <div className="flex items-center gap-3">
                     <Lightbulb className="h-5 w-5 text-primary" />
                     <h3 className="font-semibold text-foreground">Should I trade today?</h3>
@@ -212,7 +212,7 @@ function StreakStatus({ streak, onSetModule }: { streak: { winning: number, losi
 }
 
 
-function PerformanceSummary({ dailyPnl7d, dailyPnl30d, performanceState, hasHistory, streak, onSetModule }: { dailyPnl7d: number[], dailyPnl30d: number[], performanceState: string, hasHistory: boolean, streak: { winning: number, losing: number }, onSetModule: (module: any, context?: any) => void; }) {
+function PerformanceSummary({ dailyPnl7d, dailyPnl30d, performanceState, hasHistory, streak, onSetModule, animateKey }: { dailyPnl7d: number[], dailyPnl30d: number[], performanceState: string, hasHistory: boolean, streak: { winning: number, losing: number }, onSetModule: (module: any, context?: any) => void, animateKey: number }) {
     const [timeRange, setTimeRange] = useState<TimeRange>('7d');
 
     const getArjunPerformanceView = () => {
@@ -317,14 +317,14 @@ function PerformanceSummary({ dailyPnl7d, dailyPnl30d, performanceState, hasHist
                             <CardTitle className="text-base">Realized PnL</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <PnlDisplay value={totalPnl} />
+                            <PnlDisplay value={totalPnl} animateKey={animateKey} />
                         </CardContent>
                     </Card>
                     <Card className="bg-muted/30 border-border/50">
                         <CardHeader>
                             <CardTitle className="text-base">Win/Loss</CardTitle>
                         </CardHeader>
-                        <CardContent>
+                        <CardContent key={animateKey} className="animate-metric-pulse">
                             <p className="text-lg font-semibold font-mono">{winLossLabel}</p>
                             <p className="text-xs text-muted-foreground">(Based on days)</p>
                         </CardContent>
@@ -336,7 +336,7 @@ function PerformanceSummary({ dailyPnl7d, dailyPnl30d, performanceState, hasHist
                             {timeRange === 'today' ? 'Today\'s' : timeRange === '7d' ? '7-Day' : '30-Day'} PnL
                         </CardTitle>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent key={animateKey} className="animate-metric-pulse">
                         <ChartContainer config={pnlChartConfig} className="h-20 w-full">
                             <BarChart accessibilityLayer data={pnlChartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                                 <XAxis dataKey="day" hide />
@@ -496,6 +496,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
     const { addLog } = useEventLog();
     const [scenario, setScenario] = useState<DemoScenario>('normal');
     const [isWhyModalOpen, setWhyModalOpen] = useState(false);
+    const [animateKey, setAnimateKey] = useState(0);
     
     useEffect(() => {
         if (typeof window !== "undefined") {
@@ -503,14 +504,20 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
             if (savedScenario) {
                 setScenario(savedScenario);
             }
+            
+            const handleStorageChange = (e: StorageEvent) => {
+                if (e.key === 'ec_demo_scenario') {
+                    const newScenario = e.newValue as DemoScenario;
+                    setScenario(newScenario);
+                    addLog(`Demo scenario switched to: ${newScenario}`);
+                    setAnimateKey(k => k + 1);
+                }
+            };
+    
+            window.addEventListener('storage', handleStorageChange);
+            return () => window.removeEventListener('storage', handleStorageChange);
         }
-    }, []);
-
-    const handleScenarioChange = (newScenario: DemoScenario) => {
-        localStorage.setItem('ec_demo_scenario', newScenario);
-        setScenario(newScenario);
-        addLog(`Demo scenario switched to: ${newScenario}`);
-    };
+    }, [addLog]);
 
     const useDashboardMockData = (currentScenario: DemoScenario) => {
         const [data, setData] = useState<any>(null);
@@ -659,7 +666,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                             Persona: <span className="font-semibold text-primary">{personaData.primaryPersonaName || 'The Determined Trader'}</span>
                         </p>
                     </div>
-                    <div className="bg-muted/50 p-4 rounded-lg border border-dashed border-primary/20 relative">
+                    <div key={animateKey} className="bg-muted/50 p-4 rounded-lg border border-dashed border-primary/20 relative animate-metric-pulse">
                          <div className="font-semibold text-foreground flex items-center gap-2">
                             <Bot className="h-4 w-4 text-primary" />
                             Arjun's Daily Insight
@@ -715,7 +722,8 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
             vixZone={market.vixZone} 
             performanceState={performance.performanceState}
             disciplineScore={personaData.disciplineScore}
-            hasHistory={performance.hasHistory} 
+            hasHistory={performance.hasHistory}
+            animateKey={animateKey}
         />
         
         <div className="grid lg:grid-cols-3 gap-8">
@@ -728,7 +736,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                     <CardContent>
                         {connection.brokerConnected ? (
                             <div className="space-y-6">
-                                <div className="p-4 bg-muted/50 rounded-lg">
+                                <div key={animateKey} className="p-4 bg-muted/50 rounded-lg animate-metric-pulse">
                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
                                         <div>
                                             <p className="text-sm text-muted-foreground">Balance</p>
@@ -759,7 +767,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                                                             <p className="text-sm text-muted-foreground flex items-center justify-center gap-1">
                                                                 Unrealized P&L <Info className="h-3 w-3" />
                                                             </p>
-                                                            <PnlDisplay value={146.38} />
+                                                            <PnlDisplay value={146.38} animateKey={animateKey} />
                                                         </div>
                                                     </TooltipTrigger>
                                                     <TooltipContent>
@@ -808,7 +816,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                                                             <TableCell className={cn(pos.direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{pos.direction}</TableCell>
                                                             <TableCell className="font-mono">{pos.size}</TableCell>
                                                             <TableCell className="font-mono">{pos.entry.toFixed(2)}</TableCell>
-                                                            <TableCell><PnlDisplay value={pos.pnl} /></TableCell>
+                                                            <TableCell><PnlDisplay value={pos.pnl} animateKey={animateKey} /></TableCell>
                                                             <TableCell><Badge variant={pos.risk === 'Low' ? 'secondary' : 'default'} className={cn(
                                                                 'text-xs',
                                                                 pos.risk === 'Medium' && 'bg-amber-500/20 text-amber-400 border-amber-500/30',
@@ -859,6 +867,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                     hasHistory={performance.hasHistory}
                     streak={performance.streak}
                     onSetModule={onSetModule}
+                    animateKey={animateKey}
                 />
 
                 <div id="demo-highlight-4" className="grid md:grid-cols-2 gap-8">
@@ -883,7 +892,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                                 </TooltipProvider>
                             </CardDescription>
                         </CardHeader>
-                        <CardContent>
+                        <CardContent key={animateKey} className="animate-metric-pulse">
                              <p className="text-3xl font-bold font-mono">{market.vixValue} <span className="text-base font-normal text-muted-foreground">/ 100</span></p>
                              <p className={cn("text-sm font-semibold", market.vixZone === 'Extreme' || market.vixZone === 'Elevated' ? 'text-amber-400' : 'text-muted-foreground')}>{market.vixZone} Volatility Zone</p>
                              <Button variant="link" className="px-0 h-auto text-xs text-muted-foreground hover:text-primary mt-2" onClick={() => onSetModule('riskCenter')}>
@@ -915,7 +924,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                         <CardTitle>Today's Focus</CardTitle>
                         <CardDescription>From your initial growth plan.</CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent key={animateKey} className="animate-metric-pulse">
                          <ul className="space-y-3">
                             {growthPlanToday.slice(0,3).map((item: string, i: number) => (
                                 <li key={i} className="flex items-start gap-3">
@@ -934,7 +943,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                         <CardTitle>Equity curve (30 days)</CardTitle>
                         <CardDescription>Visual view of your recent balance swings.</CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent key={animateKey} className="animate-metric-pulse">
                         {performance.hasHistory ? (
                           <ChartContainer config={equityChartConfig} className="h-40 w-full">
                             <ResponsiveContainer>
@@ -971,3 +980,5 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
     </div>
   );
 }
+
+    

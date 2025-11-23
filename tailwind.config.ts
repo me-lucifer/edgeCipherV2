@@ -1,3 +1,4 @@
+
 import type {Config} from 'tailwindcss';
 
 export default {
@@ -91,12 +92,19 @@ export default {
             height: '0',
           },
         },
+        'metric-pulse': {
+            '0%': { opacity: '0.5', transform: 'scale(0.98)' },
+            '100%': { opacity: '1', transform: 'scale(1)' },
+        }
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
+        'metric-pulse': 'metric-pulse 0.5s ease-out',
       },
     },
   },
   plugins: [require('tailwindcss-animate')],
 } satisfies Config;
+
+    

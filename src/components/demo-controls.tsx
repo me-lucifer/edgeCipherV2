@@ -36,7 +36,6 @@ const scenarios: {id: DemoScenario, label: string, description: string, icon: Re
 
 export function DemoControls() {
     const { theme: activeTheme, setTheme } = useTheme();
-    const { addLog } = useEventLog();
     const [scenario, setScenario] = useState<DemoScenario>('normal');
     
     useEffect(() => {
@@ -50,9 +49,10 @@ export function DemoControls() {
 
     const handleScenarioChange = (newScenario: string) => {
         const scenario = newScenario as DemoScenario;
+        // The event listener in DashboardModule will pick this up
         localStorage.setItem('ec_demo_scenario', scenario);
+        // We also need to manually update state here for the radio group to reflect the change
         setScenario(scenario);
-        addLog(`Demo scenario switched to: ${scenario}`);
     };
 
     return (
@@ -121,3 +121,5 @@ export function DemoControls() {
         </div>
     )
 }
+
+    
