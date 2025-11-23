@@ -63,8 +63,11 @@ const marketNavItems: NavItem[] = [
 
 const communityNavItems: NavItem[] = [
     { id: 'community', label: 'Community', icon: Users, comingSoon: true },
-    { id: 'settings', label: 'Settings', icon: Settings },
 ]
+
+const settingsNavItems: NavItem[] = [
+    { id: 'settings', label: 'Settings', icon: Settings },
+];
 
 const NavItemGroup: React.FC<{
   items: NavItem[];
@@ -107,22 +110,23 @@ function ModuleView({ currentModule }: { currentModule: Module }) {
         return <DashboardPlaceholder />;
     }
 
-    const item = [...mainNavItems, ...analyticsNavItems, ...marketNavItems, ...communityNavItems].find(item => item.id === currentModule);
+    const allNavItems = [...mainNavItems, ...analyticsNavItems, ...marketNavItems, ...communityNavItems, ...settingsNavItems];
+    const item = allNavItems.find(item => item.id === currentModule);
 
     return (
-        <div className="flex flex-1 items-center justify-center p-8">
-            <div className="text-center">
+        <div className="flex flex-1 items-center justify-center p-4 sm:p-6 lg:p-8 h-full">
+            <div className="text-center max-w-md mx-auto">
                 <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-6 border border-dashed border-border">
                     {item && <item.icon className="h-8 w-8 text-muted-foreground" />}
                 </div>
                 <h2 className="text-2xl font-bold text-foreground">
-                    {item?.label}
+                    {item?.label} Module
                 </h2>
                 <p className="mt-2 text-muted-foreground">
-                    This module is under construction.
+                    This is a prototype placeholder for the {item?.label} module. This is where the dedicated interface for this feature will live.
                 </p>
                 {item?.comingSoon && (
-                    <p className="mt-1 text-sm text-primary">
+                    <p className="mt-4 text-sm font-semibold text-primary/80">
                         This feature is coming soon!
                     </p>
                 )}
@@ -131,7 +135,7 @@ function ModuleView({ currentModule }: { currentModule: Module }) {
     );
 }
 
-function AppHeader({ onToggleSidebar }: { onToggleSidebar: () => void }) {
+function AppHeader({ onToggleSidebar, onSetModule }: { onToggleSidebar: () => void; onSetModule: (module: Module) => void; }) {
   const { logout } = useAuth();
   const [persona, setPersona] = useState<{ primaryPersonaName?: string }>({});
   const [greeting, setGreeting] = useState("Welcome");
@@ -186,7 +190,7 @@ function AppHeader({ onToggleSidebar }: { onToggleSidebar: () => void }) {
                         <UserCircle className="mr-2 h-4 w-4" />
                         <span>Profile</span>
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setCurrentModule('settings')}>
+                    <DropdownMenuItem onClick={() => onSetModule('settings')}>
                         <Settings className="mr-2 h-4 w-4" />
                         <span>Settings</span>
                     </DropdownMenuItem>
@@ -244,6 +248,7 @@ export function AuthenticatedAppShell() {
                 <div className="mt-auto flex flex-col gap-1">
                     <Separator className={cn('my-2', !isSidebarOpen && 'mx-auto w-1/2')} />
                     <NavItemGroup items={communityNavItems} currentModule={currentModule} isSidebarOpen={isSidebarOpen} onItemClick={handleItemClick} />
+                    <NavItemGroup items={settingsNavItems} currentModule={currentModule} isSidebarOpen={isSidebarOpen} onItemClick={handleItemClick} />
                 </div>
             </nav>
 
@@ -268,14 +273,14 @@ export function AuthenticatedAppShell() {
             "flex flex-1 flex-col transition-all",
             isSidebarOpen ? "md:pl-64" : "md:pl-20"
         )}>
-            <AppHeader onToggleSidebar={() => setSidebarOpen(!isSidebarOpen)} />
+            <AppHeader onToggleSidebar={() => setSidebarOpen(!isSidebarOpen)} onSetModule={setCurrentModule} />
             <main className="flex-1 overflow-y-auto">
-                <ModuleView currentModule={currentModule} />
+                <div className="mx-auto max-w-6xl h-full">
+                    <ModuleView currentModule={currentModule} />
+                </div>
             </main>
         </div>
     </div>
     </TooltipProvider>
   );
 }
-
-    
