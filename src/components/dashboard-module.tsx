@@ -11,6 +11,8 @@ import { Bot, FileText, Gauge, BarChart, ArrowRight, TrendingUp, TrendingDown, B
 
 interface Persona {
     primaryPersonaName?: string;
+    riskScore?: number;
+    disciplineScore?: number;
 }
 
 const features = [
@@ -39,12 +41,24 @@ const growthPlanItems = [
 function PnlDisplay({ value }: { value: number }) {
     const isPositive = value >= 0;
     return (
-        <div className={`flex items-center text-lg font-semibold ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
-            {isPositive ? <TrendingUp className="mr-2 h-5 w-5" /> : <TrendingDown className="mr-2 h-5 w-5" />}
+        <div className={`flex items-center text-base font-semibold ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
+            {isPositive ? <TrendingUp className="mr-2 h-4 w-4" /> : <TrendingDown className="mr-2 h-4 w-4" />}
             <span>{isPositive ? '+' : ''}${value.toFixed(2)}</span>
         </div>
     );
 }
+
+// Mock data and helper for Arjun's message
+const getArjunMessage = ({ disciplineScore = 50, performanceState = 'stable' }: { disciplineScore?: number, performanceState?: string }) => {
+    if (performanceState === 'drawdown' && disciplineScore < 50) {
+        return "You’re in a drawdown and discipline has been slipping. Today, focus on following your rules, not making back losses.";
+    }
+    if (performanceState === 'hot_streak') {
+        return "You're on a hot streak. Protect your capital and don't get overconfident. Stick to the plan.";
+    }
+    return "Your performance has been stable recently. Keep following the plan and avoid unnecessary experimentation.";
+};
+
 
 export function DashboardModule() {
     const [persona, setPersona] = useState<Persona>({});
@@ -60,25 +74,36 @@ export function DashboardModule() {
             setIsBrokerConnected(localStorage.getItem('ec_broker_connected') === 'true');
         }
     }, []);
+    
+    // Mock performance state for Arjun's message
+    const mockPerformanceState = 'drawdown';
+    const arjunMessage = getArjunMessage({
+        disciplineScore: persona.disciplineScore,
+        performanceState: mockPerformanceState
+    });
+
 
   return (
     <div className="space-y-8">
         {/* User Header & Arjun Insight */}
-        <Card className="w-full bg-muted/30 border-border/50">
+        <Card className="w-full bg-muted/20 border-border/50">
             <CardContent className="p-6 grid md:grid-cols-3 gap-6 items-center">
                 <div className="md:col-span-2">
                     <h1 className="text-2xl font-bold tracking-tight text-foreground">
-                        Welcome, {persona.primaryPersonaName || 'Trader'}.
+                        Welcome, {persona.primaryPersonaName?.split(' ')[1] || 'Trader'}.
                     </h1>
                      <p className="text-muted-foreground mt-1">
                         Persona: <span className="font-semibold text-primary">{persona.primaryPersonaName || 'The Determined Trader'}</span>
                     </p>
                 </div>
-                 <div className="bg-muted/50 p-4 rounded-lg border border-dashed border-border/50">
+                 <div className="bg-muted/50 p-4 rounded-lg border border-dashed border-primary/20 relative">
                     <p className="text-sm text-muted-foreground">
-                        <span className="font-semibold text-foreground">Arjun's Note:</span>
-                        <blockquote className="mt-1 italic">
-                           "Remember, your P&L is a lagging indicator of your process. Today, let's focus on executing your A+ setup flawlessly, regardless of the outcome. One good trade."
+                        <span className="font-semibold text-foreground flex items-center gap-2">
+                             <Bot className="h-4 w-4 text-primary" />
+                             Arjun's Daily Insight
+                        </span>
+                        <blockquote className="mt-2 italic">
+                           "{arjunMessage}"
                         </blockquote>
                     </p>
                 </div>
@@ -247,5 +272,3 @@ export function DashboardModule() {
     </div>
   );
 }
-
-    
