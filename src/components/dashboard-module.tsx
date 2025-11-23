@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
-import { Bot, FileText, Gauge, BarChart, ArrowRight, TrendingUp, TrendingDown, BookOpen, Link, ArrowRightCircle, Lightbulb, Info, Newspaper, HelpCircle, CheckCircle, Sparkles } from "lucide-react";
+import { Bot, FileText, Gauge, BarChart, ArrowRight, TrendingUp, TrendingDown, BookOpen, Link, ArrowRightCircle, Lightbulb, Info, Newspaper, HelpCircle, CheckCircle, Sparkles, LineChart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
@@ -847,6 +847,21 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                         <Button variant="link" className="px-0 mt-2 text-primary/90 hover:text-primary" onClick={() => onSetModule('settings')}>
                             View full plan <ArrowRight className="ml-1 h-4 w-4" />
                         </Button>
+                    </CardContent>
+                </Card>
+                 <Card className="bg-muted/30 border-border/50">
+                    <CardHeader>
+                        <CardTitle>Equity curve (30 days)</CardTitle>
+                        <CardDescription>Visual view of your recent balance swings.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="h-40 w-full bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-border/50">
+                            <LineChart className="h-12 w-12 text-muted-foreground/50" />
+                            <p className="text-sm text-muted-foreground ml-4">[Chart placeholder]</p>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-4">
+                            Green slopes mean your equity is growing. Flat or choppy zones are where discipline matters most.
+                        </p>
                     </CardContent>
                 </Card>
             </div>
