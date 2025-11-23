@@ -22,6 +22,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { Separator } from './ui/separator';
+import { ThemeSwitcher } from './theme-switcher';
 
 type Module = 
   | 'dashboard' 
@@ -280,6 +281,7 @@ export function AuthenticatedAppShell() {
                 </div>
             </main>
         </div>
+        <ThemeSwitcher />
     </div>
     </TooltipProvider>
   );
