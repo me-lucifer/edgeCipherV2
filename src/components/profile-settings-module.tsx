@@ -13,7 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { AlertCircle, Link2, Lock, Trash2 } from "lucide-react";
+import { AlertCircle, Link2, Lock, Trash2, Shield, CreditCard, Mail, Bot, User, Bell } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 
 interface ProfileSettingsModuleProps {
@@ -280,17 +280,174 @@ function BrokerTab() {
     );
 }
 
+const notificationsSchema = z.object({
+  arjunAlerts: z.boolean().default(true),
+  dailySummary: z.boolean().default(true),
+  riskBreach: z.boolean().default(true),
+  communityMentions: z.boolean().default(false),
+  maxEmails: z.string().default("3"),
+});
 
-function PlaceholderTab({ title }: { title: string }) {
-    return (
-        <div className="text-center py-12 border-2 border-dashed border-border/50 rounded-lg">
-             <AlertCircle className="mx-auto h-12 w-12 text-muted-foreground" />
-            <h3 className="mt-4 text-lg font-semibold text-foreground">{title} Settings Coming Soon</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-                This is a prototype. The full version will have settings for {title.toLowerCase()}.
-            </p>
+function NotificationsTab() {
+  const { toast } = useToast();
+  const form = useForm<z.infer<typeof notificationsSchema>>({
+    resolver: zodResolver(notificationsSchema),
+    defaultValues: () => {
+      if (typeof window !== "undefined") {
+        return JSON.parse(localStorage.getItem("ec_notifications_prefs") || "{}");
+      }
+      return {};
+    },
+  });
+
+  const onSubmit = (data: z.infer<typeof notificationsSchema>) => {
+    localStorage.setItem("ec_notifications_prefs", JSON.stringify(data));
+    toast({ title: "Notification settings saved." });
+  };
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+        <Card className="bg-muted/30 border-border/50">
+          <CardHeader>
+            <CardTitle>Email Notifications</CardTitle>
+            <CardDescription>Manage how often we email you.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <FormField control={form.control} name="arjunAlerts" render={({ field }) => (
+              <FormItem className="flex items-center justify-between rounded-lg border p-4 bg-muted/50">
+                <div className="space-y-0.5"><FormLabel className="flex items-center gap-2"><Bot />Arjun's Weekly Insights</FormLabel></div>
+                <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+              </FormItem>
+            )} />
+            <FormField control={form.control} name="dailySummary" render={({ field }) => (
+              <FormItem className="flex items-center justify-between rounded-lg border p-4 bg-muted/50">
+                <div className="space-y-0.5"><FormLabel className="flex items-center gap-2"><Mail />Daily Summary Email</FormLabel></div>
+                <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+              </FormItem>
+            )} />
+            <FormField control={form.control} name="communityMentions" render={({ field }) => (
+              <FormItem className="flex items-center justify-between rounded-lg border p-4 bg-muted/50">
+                <div className="space-y-0.5"><FormLabel className="flex items-center gap-2"><User />Community Mentions</FormLabel></div>
+                <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+              </FormItem>
+            )} />
+          </CardContent>
+        </Card>
+        <Card className="bg-muted/30 border-border/50">
+          <CardHeader>
+            <CardTitle>In-App Notifications</CardTitle>
+            <CardDescription>Real-time alerts while you trade.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <FormField control={form.control} name="riskBreach" render={({ field }) => (
+              <FormItem className="flex items-center justify-between rounded-lg border p-4 bg-muted/50">
+                <div className="space-y-0.5"><FormLabel className="flex items-center gap-2"><Bell />Risk Breach Notifications</FormLabel><p className="text-xs text-muted-foreground">Get an alert when you are about to break one of your risk rules.</p></div>
+                <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+              </FormItem>
+            )} />
+          </CardContent>
+        </Card>
+        <div className="flex justify-end">
+          <Button type="submit">Save Notifications</Button>
         </div>
-    )
+      </form>
+    </Form>
+  );
+}
+
+const passwordSchema = z.object({
+    oldPassword: z.string().min(1, "Old password is required."),
+    newPassword: z.string().min(8, "New password must be at least 8 characters."),
+    confirmPassword: z.string(),
+}).refine(data => data.newPassword === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+});
+
+function SecurityTab() {
+  const { toast } = useToast();
+  const form = useForm<z.infer<typeof passwordSchema>>({
+    resolver: zodResolver(passwordSchema),
+    defaultValues: { oldPassword: "", newPassword: "", confirmPassword: "" },
+  });
+
+  const onSubmit = (data: z.infer<typeof passwordSchema>) => {
+    toast({ title: "Password changed (prototype)", description: "In a real app, your password would be updated." });
+    form.reset();
+  };
+  
+  return (
+    <div className="space-y-8">
+      <Card className="bg-muted/30 border-border/50">
+        <CardHeader>
+          <CardTitle>Change Password</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField control={form.control} name="oldPassword" render={({ field }) => (
+                <FormItem><FormLabel>Old Password</FormLabel><FormControl><Input type="password" {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
+              <FormField control={form.control} name="newPassword" render={({ field }) => (
+                <FormItem><FormLabel>New Password</FormLabel><FormControl><Input type="password" {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
+              <FormField control={form.control} name="confirmPassword" render={({ field }) => (
+                <FormItem><FormLabel>Confirm New Password</FormLabel><FormControl><Input type="password" {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
+              <div className="flex justify-end">
+                <Button type="submit">Change Password</Button>
+              </div>
+            </form>
+          </Form>
+        </CardContent>
+      </Card>
+       <Card className="bg-muted/30 border-border/50">
+          <CardHeader><CardTitle>Two-Factor Authentication (2FA)</CardTitle></CardHeader>
+          <CardContent>
+            <Alert variant="default" className="bg-muted">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Coming Soon</AlertTitle>
+              <AlertDescription>
+                2FA will be available in a future update to further secure your account.
+              </AlertDescription>
+            </Alert>
+          </CardContent>
+        </Card>
+      <Alert variant="destructive">
+        <Shield className="h-4 w-4" />
+        <AlertTitle>Security Best Practices</AlertTitle>
+        <AlertDescription>
+          Never share your password or API keys with anyone. EdgeCipher staff will never ask for them. Use read-only API keys where possible.
+        </AlertDescription>
+      </Alert>
+    </div>
+  );
+}
+
+function BillingTab() {
+  return (
+    <Card className="bg-muted/30 border-border/50">
+      <CardHeader>
+        <CardTitle>Billing &amp; Subscription</CardTitle>
+        <CardDescription>Manage your plan and view payment history.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="p-6 bg-muted rounded-lg border">
+          <div className="flex justify-between items-center">
+            <div>
+              <p className="text-sm text-muted-foreground">Current Plan</p>
+              <p className="text-xl font-bold text-foreground">Pro Trial (Prototype)</p>
+            </div>
+            <Button disabled>Manage Plan</Button>
+          </div>
+        </div>
+        <div className="text-center">
+          <p className="text-muted-foreground">This is a placeholder for the billing management area.</p>
+        </div>
+      </CardContent>
+    </Card>
+  )
 }
 
 export function ProfileSettingsModule({ onSetModule }: ProfileSettingsModuleProps) {
@@ -303,21 +460,23 @@ export function ProfileSettingsModule({ onSetModule }: ProfileSettingsModuleProp
 
       <Tabs defaultValue="profile" className="w-full">
         <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="profile">Profile</TabsTrigger>
-          <TabsTrigger value="broker">Broker</TabsTrigger>
-          <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          <TabsTrigger value="security">Security</TabsTrigger>
-          <TabsTrigger value="billing">Billing</TabsTrigger>
+          <TabsTrigger value="profile"><User className="mr-2 h-4 w-4" />Profile</TabsTrigger>
+          <TabsTrigger value="broker"><Link2 className="mr-2 h-4 w-4" />Broker</TabsTrigger>
+          <TabsTrigger value="notifications"><Bell className="mr-2 h-4 w-4" />Notifications</TabsTrigger>
+          <TabsTrigger value="security"><Shield className="mr-2 h-4 w-4" />Security</TabsTrigger>
+          <TabsTrigger value="billing"><CreditCard className="mr-2 h-4 w-4" />Billing</TabsTrigger>
         </TabsList>
 
         <div className="mt-6">
           <TabsContent value="profile"><ProfileTab /></TabsContent>
           <TabsContent value="broker"><BrokerTab /></TabsContent>
-          <TabsContent value="notifications"><PlaceholderTab title="Notifications" /></TabsContent>
-          <TabsContent value="security"><PlaceholderTab title="Security" /></TabsContent>
-          <TabsContent value="billing"><PlaceholderTab title="Billing" /></TabsContent>
+          <TabsContent value="notifications"><NotificationsTab /></TabsContent>
+          <TabsContent value="security"><SecurityTab /></TabsContent>
+          <TabsContent value="billing"><BillingTab /></TabsContent>
         </div>
       </Tabs>
     </div>
   );
 }
+
+    
