@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Image from 'next/image';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Cpu, Menu, View, Info, ShieldCheck, Video, CheckCircle2, BrainCircuit, FileText, Gauge, BarChart, ArrowRight, PlayCircle } from "lucide-react";
+import { Cpu, Menu, View, Info, ShieldCheck, Video, CheckCircle2, BrainCircuit, FileText, Gauge, BarChart, ArrowRight, PlayCircle, Youtube, Linkedin, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Tooltip,
@@ -18,7 +18,14 @@ import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious
 import { Badge } from '@/components/ui/badge';
 import { ThemeSwitcher } from './theme-switcher';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface PublicWebsiteViewProps {
   onSwitchView: () => void;
@@ -665,6 +672,188 @@ function FaqSection() {
     );
 }
 
+const formSchema = z.object({
+  fullName: z.string().min(2, { message: "Please enter your full name." }),
+  email: z.string().email({ message: "Please enter a valid email address." }),
+  topic: z.enum(["general", "pricing", "partnership", "bug"]),
+  message: z.string().min(10, { message: "Message must be at least 10 characters." }),
+  isNewTrader: z.boolean().default(false),
+});
+
+function ContactForm() {
+  const [submitted, setSubmitted] = useState(false);
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      fullName: "",
+      email: "",
+      topic: "general",
+      message: "",
+      isNewTrader: false,
+    },
+  });
+
+  function onSubmit(values: z.infer<typeof formSchema>) {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem("ec_contact_last", JSON.stringify(values));
+    }
+    setSubmitted(true);
+    form.reset();
+  }
+  
+  if (submitted) {
+    return (
+      <Card className="bg-muted/30 border-primary/30">
+        <CardContent className="p-8 text-center">
+            <CheckCircle2 className="h-12 w-12 text-primary mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-foreground">Thanks for reaching out!</h3>
+            <p className="mt-2 text-muted-foreground">
+                In the real app, the team would receive your message. For this prototype, we’ve saved your submission locally.
+            </p>
+             <Button onClick={() => setSubmitted(false)} className="mt-6">Send another message</Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <FormField
+          control={form.control}
+          name="fullName"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Full name</FormLabel>
+              <FormControl>
+                <Input placeholder="John Doe" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="email"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Email</FormLabel>
+              <FormControl>
+                <Input placeholder="you@example.com" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="topic"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Topic</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a topic" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="general">General question</SelectItem>
+                  <SelectItem value="pricing">Pricing / plans</SelectItem>
+                  <SelectItem value="partnership">Partnership / team</SelectItem>
+                  <SelectItem value="bug">Bug / feedback</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="message"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Message</FormLabel>
+              <FormControl>
+                <Textarea placeholder="How can we help?" className="min-h-[120px]" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="isNewTrader"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 bg-muted/30">
+              <FormControl>
+                <Checkbox
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+              <div className="space-y-1 leading-none">
+                <FormLabel>I'm a new trader and might need extra guidance.</FormLabel>
+              </div>
+            </FormItem>
+          )}
+        />
+        <Button type="submit" size="lg" className="w-full">Send Message</Button>
+      </form>
+    </Form>
+  )
+}
+
+const XIcon = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+        <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+    </svg>
+)
+
+function ContactSection() {
+    return (
+        <div className="text-center">
+            <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">Contact us</h2>
+            <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">We’ll be happy to hear from you, whether you’re a beginner or a prop firm.</p>
+
+            <div className="mt-16 grid lg:grid-cols-2 gap-12 text-left">
+                <div>
+                    <ContactForm />
+                </div>
+                <div className="space-y-8">
+                     <div className="p-6 rounded-lg bg-muted/30 border border-border/50">
+                        <h3 className="font-semibold text-foreground">Response Times</h3>
+                        <p className="text-muted-foreground mt-2 text-sm">We aim to respond within 24-48 business hours in the real product. For this prototype, your message is stored in your browser's local storage.</p>
+                     </div>
+                     <div className="space-y-4">
+                        <h3 className="font-semibold text-foreground">Other ways to reach us</h3>
+                        <div className="flex items-center gap-4 text-muted-foreground">
+                            <Mail className="h-5 w-5 text-primary" />
+                            <a href="mailto:support@edgecipher.com" className="hover:text-foreground">support@edgecipher.com (placeholder)</a>
+                        </div>
+                     </div>
+                     <div className="space-y-4">
+                        <h3 className="font-semibold text-foreground">Follow us</h3>
+                        <div className="flex items-center gap-4">
+                           <a href="#" className={cn(buttonVariants({ variant: 'outline', size: 'icon' }), "text-muted-foreground hover:text-foreground")}>
+                                <Youtube className="h-5 w-5" />
+                                <span className="sr-only">YouTube</span>
+                           </a>
+                           <a href="#" className={cn(buttonVariants({ variant: 'outline', size: 'icon' }), "text-muted-foreground hover:text-foreground")}>
+                                <XIcon className="h-5 w-5" />
+                                <span className="sr-only">X (Twitter)</span>
+                           </a>
+                            <a href="#" className={cn(buttonVariants({ variant: 'outline', size: 'icon' }), "text-muted-foreground hover:text-foreground")}>
+                                <Linkedin className="h-5 w-5" />
+                                <span className="sr-only">LinkedIn</span>
+                           </a>
+                        </div>
+                     </div>
+                </div>
+            </div>
+        </div>
+    );
+}
 
 function Footer() {
     return (
@@ -700,7 +889,7 @@ export function PublicWebsiteView({ onSwitchView }: PublicWebsiteViewProps) {
              <FaqSection />
         </Section>
         <Section id="contact" className="bg-muted/20">
-             <h2 className="text-3xl font-bold text-center">Contact</h2>
+             <ContactSection />
         </Section>
       </main>
       <Footer />
@@ -708,3 +897,5 @@ export function PublicWebsiteView({ onSwitchView }: PublicWebsiteViewProps) {
     </div>
   );
 }
+
+    
