@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Bot, User, BrainCircuit, Activity, ShieldAlert, Send, CornerDownLeft, Info, PanelRightOpen, PanelRightClose } from "lucide-react";
+import { Bot, User, BrainCircuit, Activity, ShieldAlert, Send, CornerDownLeft, Info, PanelRightOpen, PanelRightClose, Sparkles } from "lucide-react";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { cn } from "@/lib/utils";
 import { useForm } from "react-hook-form";
@@ -16,8 +16,14 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormMessage } from "./ui/form";
 import { Progress } from "./ui/progress";
 
+type Message = {
+    sender: 'user' | 'bot';
+    text: string;
+}
+
 interface AiCoachingModuleProps {
     onSetModule: (module: any) => void;
+    initialMessage?: string | null;
 }
 
 interface Persona {
@@ -31,6 +37,19 @@ const chatSchema = z.object({
   message: z.string().min(1, "Message cannot be empty"),
 });
 
+const presetQuestions = [
+    "Why am I in a drawdown?",
+    "Am I overtrading lately?",
+    "Help me define rules for my A+ setup.",
+    "How should I trade in high volatility?",
+];
+
+const cannedResponses = [
+    "That's a great question. Based on your recent history, it seems like holding onto losers too long is a key factor. Your average losing trade is 1.5x larger than your average winner. Let's focus on defining clear invalidation points before you enter a trade.",
+    "Interesting point. Volatility can feel like an opportunity, but it's also where most unforced errors happen. For your persona, high volatility often triggers FOMO. The best approach is to reduce your size by 50% and wait for very clear A+ setups.",
+    "Let's break that down. Overtrading is often a symptom of not having a clear plan. Your log shows you take 40% of your trades outside of your defined trading session. A good first step would be to set a hard rule: no trades outside of your 2-hour primary session for one week.",
+];
+
 function ScoreGauge({ label, value, colorClass }: { label: string; value: number; colorClass: string; }) {
     return (
         <div>
@@ -43,11 +62,21 @@ function ScoreGauge({ label, value, colorClass }: { label: string; value: number
     )
 }
 
-export function AiCoachingModule({ onSetModule }: AiCoachingModuleProps) {
+export function AiCoachingModule({ onSetModule, initialMessage = null }: AiCoachingModuleProps) {
     const [persona, setPersona] = useState<Persona>({});
     const [isContextPanelOpen, setContextPanelOpen] = useState(true);
+    const [messages, setMessages] = useState<Message[]>([
+        { sender: 'bot', text: "Welcome back. Let's review your last session. What's on your mind?" },
+        { sender: 'user', text: "I got stopped out of my ETH short yesterday and it felt unfair. The market just seemed to be hunting stops." },
+    ]);
+    const scrollAreaRef = useRef<HTMLDivElement>(null);
+
     const mentorCardImage = PlaceHolderImages.find(p => p.id === 'mentor-card');
 
+    const addMessage = (sender: 'user' | 'bot', text: string) => {
+        setMessages(prev => [...prev, { sender, text }]);
+    }
+    
     useEffect(() => {
         if (typeof window !== "undefined") {
             const personaData = localStorage.getItem("ec_persona_final") || localStorage.getItem("ec_persona_base");
@@ -57,14 +86,40 @@ export function AiCoachingModule({ onSetModule }: AiCoachingModuleProps) {
         }
     }, []);
 
+    useEffect(() => {
+        if(initialMessage) {
+            handleMessageSubmit(initialMessage);
+        }
+    }, [initialMessage]);
+
+    useEffect(() => {
+        if (scrollAreaRef.current) {
+            scrollAreaRef.current.scrollTo({
+                top: scrollAreaRef.current.scrollHeight,
+                behavior: 'smooth'
+            });
+        }
+    }, [messages]);
+
     const form = useForm<z.infer<typeof chatSchema>>({
         resolver: zodResolver(chatSchema),
         defaultValues: { message: "" },
     });
     
-    const onSubmit = (values: z.infer<typeof chatSchema>) => {
-        console.log("Chat message submitted:", values.message);
+    const handleMessageSubmit = (message: string) => {
+        if (!message) return;
+        addMessage("user", message);
         form.reset();
+
+        // Simulate Arjun's reply
+        setTimeout(() => {
+            const reply = cannedResponses[Math.floor(Math.random() * cannedResponses.length)];
+            addMessage("bot", reply);
+        }, 800);
+    }
+    
+    const onSubmit = (values: z.infer<typeof chatSchema>) => {
+        handleMessageSubmit(values.message);
     };
 
     return (
@@ -98,24 +153,32 @@ export function AiCoachingModule({ onSetModule }: AiCoachingModuleProps) {
                         </div>
                     </CardHeader>
                     <CardContent className="flex-1 flex flex-col min-h-0">
-                        <ScrollArea className="flex-1 pr-4 -mr-4">
+                        <ScrollArea className="flex-1 pr-4 -mr-4" ref={scrollAreaRef}>
                             <div className="space-y-6">
-                                {/* Mock chat messages */}
-                                <div className="flex items-start gap-4">
-                                    <div className="p-2 rounded-full bg-primary/20 border border-primary/30"><Bot className="h-5 w-5 text-primary" /></div>
-                                    <div className="bg-muted p-4 rounded-lg rounded-tl-none max-w-xl">
-                                        <p className="text-sm">Welcome back. Let's review your last session. What's on your mind?</p>
+                                {messages.map((msg, index) => (
+                                    <div key={index} className={cn("flex items-start gap-4", msg.sender === 'user' && "flex-row-reverse")}>
+                                        <div className={cn("p-2 rounded-full border", msg.sender === 'bot' ? 'bg-primary/20 border-primary/30' : 'bg-background')}>
+                                            {msg.sender === 'bot' ? <Bot className="h-5 w-5 text-primary" /> : <User className="h-5 w-5 text-foreground" />}
+                                        </div>
+                                        <div className={cn(
+                                            "p-4 rounded-lg max-w-xl text-sm",
+                                            msg.sender === 'bot' ? "bg-muted rounded-tl-none" : "bg-primary text-primary-foreground rounded-tr-none"
+                                        )}>
+                                            <p>{msg.text}</p>
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="flex items-start gap-4 flex-row-reverse">
-                                     <div className="p-2 rounded-full bg-background border"><User className="h-5 w-5 text-foreground" /></div>
-                                    <div className="bg-primary text-primary-foreground p-4 rounded-lg rounded-tr-none max-w-xl">
-                                        <p className="text-sm">I got stopped out of my ETH short yesterday and it felt unfair. The market just seemed to be hunting stops.</p>
-                                    </div>
-                                </div>
+                                ))}
                             </div>
                         </ScrollArea>
                         <div className="mt-4 pt-4 border-t border-border/50">
+                             <div className="flex flex-wrap gap-2 mb-4">
+                                {presetQuestions.map((q, i) => (
+                                    <Button key={i} variant="outline" size="sm" className="text-xs h-8" onClick={() => handleMessageSubmit(q)}>
+                                        <Sparkles className="h-3 w-3 mr-2" />
+                                        {q}
+                                    </Button>
+                                ))}
+                            </div>
                              <Form {...form}>
                                 <form onSubmit={form.handleSubmit(onSubmit)} className="relative">
                                     <FormField
@@ -198,3 +261,4 @@ export function AiCoachingModule({ onSetModule }: AiCoachingModuleProps) {
         </div>
     );
 }
+

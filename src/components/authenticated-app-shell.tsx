@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useAuth } from '@/context/auth-provider';
-import { LayoutDashboard, Bot, FileText, Gauge, BarChart, Settings, HelpCircle, Bell, UserCircle, LogOut, Cpu, PanelLeft, Book, BrainCircuit, LineChart, Newspaper, Users } from 'lucide-react';
+import { LayoutDashboard, Bot, FileText, Gauge, BarChart, Settings, HelpCircle, Bell, UserCircle, LogOut, Cpu, PanelLeft, Book, BrainCircuit, LineChart, Newspaper, Users, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DashboardModule } from './dashboard-module';
 import {
@@ -108,13 +108,13 @@ const NavItemGroup: React.FC<{
 );
 
 
-function ModuleView({ currentModule, onSetModule }: { currentModule: Module; onSetModule: (module: Module) => void; }) {
+function ModuleView({ currentModule, onSetModule, aiCoachingInitialMessage }: { currentModule: Module; onSetModule: (module: Module, context?: any) => void; aiCoachingInitialMessage: string | null }) {
     if (currentModule === 'dashboard') {
         return <DashboardModule onSetModule={onSetModule} />;
     }
 
     if (currentModule === 'aiCoaching') {
-      return <AiCoachingModule onSetModule={onSetModule} />;
+      return <AiCoachingModule onSetModule={onSetModule} initialMessage={aiCoachingInitialMessage} />;
     }
 
     const allNavItems = [...mainNavItems, ...analyticsNavItems, ...marketNavItems, ...communityNavItems, ...settingsNavItems];
@@ -220,9 +220,16 @@ function AppHeader({ onToggleSidebar, onSetModule }: { onToggleSidebar: () => vo
 export function AuthenticatedAppShell() {
   const [currentModule, setCurrentModule] = useState<Module>('dashboard');
   const [isSidebarOpen, setSidebarOpen] = useState(true);
+  const [aiCoachingInitialMessage, setAiCoachingInitialMessage] = useState<string | null>(null);
 
-  const handleItemClick = (id: Module) => {
+
+  const handleSetModule = (id: Module, context?: any) => {
     setCurrentModule(id);
+    if (id === 'aiCoaching' && context?.initialMessage) {
+        setAiCoachingInitialMessage(context.initialMessage);
+    } else {
+        setAiCoachingInitialMessage(null); // Clear message when navigating away or to coach without context
+    }
   }
 
   return (
@@ -241,21 +248,21 @@ export function AuthenticatedAppShell() {
             
             <nav className="flex flex-1 flex-col gap-4 p-2">
                 <div className="flex flex-col gap-1">
-                    <NavItemGroup items={mainNavItems} currentModule={currentModule} isSidebarOpen={isSidebarOpen} onItemClick={handleItemClick} />
+                    <NavItemGroup items={mainNavItems} currentModule={currentModule} isSidebarOpen={isSidebarOpen} onItemClick={handleSetModule} />
                 </div>
                 <Separator className={cn('my-2', !isSidebarOpen && 'mx-auto w-1/2')} />
                 <div className="flex flex-col gap-1">
-                     <NavItemGroup items={analyticsNavItems} currentModule={currentModule} isSidebarOpen={isSidebarOpen} onItemClick={handleItemClick} />
+                     <NavItemGroup items={analyticsNavItems} currentModule={currentModule} isSidebarOpen={isSidebarOpen} onItemClick={handleSetModule} />
                 </div>
                 <Separator className={cn('my-2', !isSidebarOpen && 'mx-auto w-1/2')} />
                 <div className="flex flex-col gap-1">
-                     <NavItemGroup items={marketNavItems} currentModule={currentModule} isSidebarOpen={isSidebarOpen} onItemClick={handleItemClick} />
+                     <NavItemGroup items={marketNavItems} currentModule={currentModule} isSidebarOpen={isSidebarOpen} onItemClick={handleSetModule} />
                 </div>
                 
                 <div className="mt-auto flex flex-col gap-1">
                     <Separator className={cn('my-2', !isSidebarOpen && 'mx-auto w-1/2')} />
-                    <NavItemGroup items={communityNavItems} currentModule={currentModule} isSidebarOpen={isSidebarOpen} onItemClick={handleItemClick} />
-                    <NavItemGroup items={settingsNavItems} currentModule={currentModule} isSidebarOpen={isSidebarOpen} onItemClick={handleItemClick} />
+                    <NavItemGroup items={communityNavItems} currentModule={currentModule} isSidebarOpen={isSidebarOpen} onItemClick={handleSetModule} />
+                    <NavItemGroup items={settingsNavItems} currentModule={currentModule} isSidebarOpen={isSidebarOpen} onItemClick={handleSetModule} />
                 </div>
             </nav>
 
@@ -280,10 +287,14 @@ export function AuthenticatedAppShell() {
             "flex flex-1 flex-col transition-all",
             isSidebarOpen ? "md:pl-64" : "md:pl-20"
         )}>
-            <AppHeader onToggleSidebar={() => setSidebarOpen(!isSidebarOpen)} onSetModule={setCurrentModule} />
+            <AppHeader onToggleSidebar={() => setSidebarOpen(!isSidebarOpen)} onSetModule={handleSetModule} />
             <main className="flex-1 overflow-y-auto">
                 <div className="mx-auto max-w-6xl h-full p-4 sm:p-6 lg:p-8">
-                    <ModuleView currentModule={currentModule} onSetModule={setCurrentModule} />
+                    <ModuleView 
+                        currentModule={currentModule} 
+                        onSetModule={handleSetModule} 
+                        aiCoachingInitialMessage={aiCoachingInitialMessage} 
+                    />
                 </div>
             </main>
         </div>

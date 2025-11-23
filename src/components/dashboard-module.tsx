@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
-import { Bot, FileText, Gauge, BarChart, ArrowRight, TrendingUp, TrendingDown, BookOpen, Link, ArrowRightCircle, Lightbulb, Info, Newspaper, HelpCircle, CheckCircle } from "lucide-react";
+import { Bot, FileText, Gauge, BarChart, ArrowRight, TrendingUp, TrendingDown, BookOpen, Link, ArrowRightCircle, Lightbulb, Info, Newspaper, HelpCircle, CheckCircle, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
@@ -26,7 +26,7 @@ type DemoScenario = "normal" | "high_vol" | "drawdown" | "no_positions";
 const features = [
     { id: 'tradePlanning', icon: FileText, title: "Plan new trade" },
     { id: 'tradeJournal', icon: BookOpen, title: "Open Journal" },
-    { id: 'aiCoaching', icon: Bot, title: "Open AI Coaching" },
+    { id: 'aiCoaching', icon: Sparkles, title: "Open AI Coaching" },
 ];
 
 const openPositions = [
@@ -185,7 +185,7 @@ function TradeDecisionStrip({ vixZone, performanceState, disciplineScore, hasHis
 
 type TimeRange = 'today' | '7d' | '30d';
 
-function PerformanceSummary({ dailyPnl7d, dailyPnl30d, performanceState, hasHistory, onSetModule }: { dailyPnl7d: number[], dailyPnl30d: number[], performanceState: string, hasHistory: boolean, onSetModule: (module: any) => void; }) {
+function PerformanceSummary({ dailyPnl7d, dailyPnl30d, performanceState, hasHistory, onSetModule }: { dailyPnl7d: number[], dailyPnl30d: number[], performanceState: string, hasHistory: boolean, onSetModule: (module: any, context?: any) => void; }) {
     const [timeRange, setTimeRange] = useState<TimeRange>('7d');
 
     const getArjunPerformanceView = () => {
@@ -295,6 +295,14 @@ function PerformanceSummary({ dailyPnl7d, dailyPnl30d, performanceState, hasHist
                         </div>
                         <p className="text-xs text-muted-foreground mt-4">
                             <span className="font-semibold text-foreground">Arjun's view:</span> {getArjunPerformanceView()}
+                             <Button 
+                                variant="link" 
+                                size="sm" 
+                                className="text-xs h-auto p-0 ml-1 text-primary/80 hover:text-primary"
+                                onClick={() => onSetModule('aiCoaching', { initialMessage: "Let's review my performance over the last " + timeRange })}
+                            >
+                                Discuss with Arjun
+                            </Button>
                         </p>
                     </CardContent>
                 </Card>
@@ -366,7 +374,7 @@ function DemoScenarioSwitcher({ scenario, onScenarioChange }: { scenario: DemoSc
 }
 
 interface DashboardModuleProps {
-    onSetModule: (module: any) => void;
+    onSetModule: (module: any, context?: any) => void;
 }
 
 export function DashboardModule({ onSetModule }: DashboardModuleProps) {
@@ -664,9 +672,19 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
                                                 ))}
                                             </TableBody>
                                         </Table>
-                                         <Button variant="link" className="px-0 mt-4 text-primary/90 hover:text-primary" onClick={() => onSetModule('tradeJournal')}>
-                                            View all open positions <ArrowRight className="ml-1 h-4 w-4" />
-                                        </Button>
+                                        <div className="flex items-center justify-between mt-4">
+                                            <Button variant="link" className="px-0 text-primary/90 hover:text-primary" onClick={() => onSetModule('tradeJournal')}>
+                                                View all open positions <ArrowRight className="ml-1 h-4 w-4" />
+                                            </Button>
+                                            <Button 
+                                                variant="link" 
+                                                size="sm" 
+                                                className="text-xs h-auto p-0 text-primary/80 hover:text-primary"
+                                                onClick={() => onSetModule('aiCoaching', { initialMessage: "Let's discuss my open positions." })}
+                                            >
+                                                Discuss with Arjun
+                                            </Button>
+                                        </div>
                                     </>
                                 ) : (
                                     <div className="text-center p-8 border-2 border-dashed border-border/50 rounded-lg">
