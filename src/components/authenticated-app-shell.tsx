@@ -32,6 +32,7 @@ import { StrategyManagementModule } from './strategy-management-module';
 import { RiskCenterModule } from './risk-center-module';
 import { CryptoVixModule } from './crypto-vix-module';
 import { NewsModule } from './news-module';
+import { CommunityModule } from './community-module';
 
 type Module = 
   | 'dashboard' 
@@ -68,11 +69,11 @@ const analyticsNavItems: NavItem[] = [
 const marketNavItems: NavItem[] = [
   { id: 'riskCenter', label: 'Risk Center', icon: Gauge },
   { id: 'cryptoVix', label: 'Crypto VIX', icon: LineChart, comingSoon: false },
-  { id: 'news', label: 'News', icon: Newspaper, comingSoon: false }, // Enabled for navigation
+  { id: 'news', label: 'News', icon: Newspaper, comingSoon: false },
 ]
 
 const communityNavItems: NavItem[] = [
-    { id: 'community', label: 'Community', icon: Users, comingSoon: true },
+    { id: 'community', label: 'Community', icon: Users, comingSoon: false },
 ]
 
 const settingsNavItems: NavItem[] = [
@@ -150,6 +151,10 @@ function ModuleView({ currentModule, onSetModule, aiCoachingInitialMessage }: { 
 
     if (currentModule === 'news') {
         return <NewsModule onSetModule={onSetModule} />;
+    }
+
+    if (currentModule === 'community') {
+        return <CommunityModule onSetModule={onSetModule} />;
     }
 
     const allNavItems = [...mainNavItems, ...analyticsNavItems, ...marketNavItems, ...communityNavItems, ...settingsNavItems];
