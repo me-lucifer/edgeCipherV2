@@ -166,7 +166,7 @@ function TradeDecisionStrip({ vixZone, performanceState, disciplineScore}: { vix
 
 type TimeRange = 'today' | '7d' | '30d';
 
-function PerformanceSummary({ dailyPnl7d, dailyPnl30d, performanceState }: { dailyPnl7d: number[], dailyPnl30d: number[], performanceState: string }) {
+function PerformanceSummary({ dailyPnl7d, dailyPnl30d, performanceState, onSetModule }: { dailyPnl7d: number[], dailyPnl30d: number[], performanceState: string, onSetModule: (module: any) => void; }) {
     const [timeRange, setTimeRange] = useState<TimeRange>('7d');
 
     const getArjunPerformanceView = () => {
@@ -193,7 +193,12 @@ function PerformanceSummary({ dailyPnl7d, dailyPnl30d, performanceState }: { dai
     return (
         <Card className="bg-muted/30 border-border/50">
             <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Performance Summary</CardTitle>
+                <div>
+                    <CardTitle>Performance Summary</CardTitle>
+                    <Button variant="link" className="px-0 h-auto text-xs text-muted-foreground hover:text-primary" onClick={() => onSetModule('analytics')}>
+                        View details <ArrowRight className="ml-1 h-3 w-3" />
+                    </Button>
+                </div>
                  <div className="flex items-center gap-1 rounded-full bg-muted p-1">
                     {(['today', '7d', '30d'] as TimeRange[]).map(range => (
                         <Button
@@ -553,32 +558,37 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
                                     </div>
                                 </div>
                                 {positions.length > 0 ? (
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>Symbol</TableHead>
-                                                <TableHead>Direction</TableHead>
-                                                <TableHead>Size</TableHead>
-                                                <TableHead>PnL</TableHead>
-                                                <TableHead>Risk</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {positions.map((pos: any) => (
-                                                <TableRow key={pos.symbol}>
-                                                    <TableCell className="font-mono">{pos.symbol}</TableCell>
-                                                    <TableCell className={cn(pos.direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{pos.direction}</TableCell>
-                                                    <TableCell className="font-mono">{pos.size}</TableCell>
-                                                    <TableCell><PnlDisplay value={pos.pnl} /></TableCell>
-                                                    <TableCell><Badge variant={pos.risk === 'Low' ? 'secondary' : 'default'} className={cn(
-                                                        pos.risk === 'Medium' && 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-                                                        pos.risk === 'High' && 'bg-red-500/20 text-red-400 border-red-500/30',
-                                                        pos.risk === 'Low' && 'bg-green-500/20 text-green-400 border-green-500/30'
-                                                    )}>{pos.risk}</Badge></TableCell>
+                                    <>
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead>Symbol</TableHead>
+                                                    <TableHead>Direction</TableHead>
+                                                    <TableHead>Size</TableHead>
+                                                    <TableHead>PnL</TableHead>
+                                                    <TableHead>Risk</TableHead>
                                                 </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {positions.map((pos: any) => (
+                                                    <TableRow key={pos.symbol}>
+                                                        <TableCell className="font-mono">{pos.symbol}</TableCell>
+                                                        <TableCell className={cn(pos.direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{pos.direction}</TableCell>
+                                                        <TableCell className="font-mono">{pos.size}</TableCell>
+                                                        <TableCell><PnlDisplay value={pos.pnl} /></TableCell>
+                                                        <TableCell><Badge variant={pos.risk === 'Low' ? 'secondary' : 'default'} className={cn(
+                                                            pos.risk === 'Medium' && 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+                                                            pos.risk === 'High' && 'bg-red-500/20 text-red-400 border-red-500/30',
+                                                            pos.risk === 'Low' && 'bg-green-500/20 text-green-400 border-green-500/30'
+                                                        )}>{pos.risk}</Badge></TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                         <Button variant="link" className="px-0 mt-4 text-primary/90 hover:text-primary" onClick={() => onSetModule('tradeJournal')}>
+                                            View open positions <ArrowRight className="ml-1 h-4 w-4" />
+                                        </Button>
+                                    </>
                                 ) : (
                                     <div className="text-center p-8 border-2 border-dashed border-border/50 rounded-lg">
                                         <h3 className="text-lg font-semibold text-foreground">No open positions</h3>
@@ -602,6 +612,7 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
                     dailyPnl7d={performance.dailyPnl7d}
                     dailyPnl30d={performance.dailyPnl30d}
                     performanceState={performance.performanceState}
+                    onSetModule={onSetModule}
                 />
 
                  {/* Market Context & Risk */}
@@ -627,7 +638,9 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
                         <CardContent>
                              <p className="text-3xl font-bold font-mono">{market.vixValue} <span className="text-base font-normal text-muted-foreground">/ 100</span></p>
                              <p className="text-sm text-amber-400 font-semibold">{market.vixZone} Volatility Zone</p>
-                             <p className="text-xs text-muted-foreground mt-2">Expect larger swings. Consider reducing size.</p>
+                             <Button variant="link" className="px-0 h-auto text-xs text-muted-foreground hover:text-primary mt-2" onClick={() => onSetModule('riskCenter')}>
+                                Open Risk Center <ArrowRight className="ml-1 h-3 w-3" />
+                            </Button>
                         </CardContent>
                     </Card>
                     <NewsSnapshot onSetModule={onSetModule} />
@@ -666,7 +679,9 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
                                 </li>
                             ))}
                         </ul>
-                        <Button variant="link" className="px-0 mt-2">View full plan</Button>
+                        <Button variant="link" className="px-0 mt-2 text-primary/90 hover:text-primary" onClick={() => onSetModule('settings')}>
+                            View full plan <ArrowRight className="ml-1 h-4 w-4" />
+                        </Button>
                     </CardContent>
                 </Card>
             </div>
@@ -674,3 +689,5 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
     </div>
   );
 }
+
+    
