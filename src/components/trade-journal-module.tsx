@@ -21,6 +21,7 @@ import { format } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 interface TradeJournalModuleProps {
     onSetModule: (module: any, context?: any) => void;
@@ -53,6 +54,7 @@ const mockJournalEntries: JournalEntry[] = [
 ];
 
 const useJournal = () => {
+    const { toast } = useToast();
     const [entries, setEntries] = useState<JournalEntry[]>([]);
 
     useEffect(() => {
@@ -73,6 +75,10 @@ const useJournal = () => {
             if (typeof window !== "undefined") {
                 localStorage.setItem("ec_journal_entries", JSON.stringify(newEntries));
             }
+            toast({
+                title: "Journal Entry Saved",
+                description: "Your trade has been logged successfully.",
+            });
             return newEntries;
         });
     };

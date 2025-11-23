@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
+import { useToast } from "@/hooks/use-toast";
 
 interface RiskCenterModuleProps {
     onSetModule: (module: any, context?: any) => void;
@@ -46,6 +47,7 @@ const mockBreaches = [
 
 
 export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
+    const { toast } = useToast();
     const [rules, setRules] = useState<RiskRule[]>(defaultRules);
     const [editingRule, setEditingRule] = useState<RiskRule | null>(null);
     const [editValue, setEditValue] = useState<string>("");
@@ -67,6 +69,10 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
             localStorage.setItem("ec_risk_rules", JSON.stringify(newRules));
         }
         setEditingRule(null);
+        toast({
+            title: "Risk rule updated",
+            description: `Your ${editingRule.label} rule has been set to ${editValue}${editingRule.unit}.`,
+        });
     }
     
     const handleEditClick = (rule: RiskRule) => {
@@ -208,5 +214,3 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
         </div>
     );
 }
-
-    

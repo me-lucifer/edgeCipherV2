@@ -478,5 +478,3 @@ export function ProfileSettingsModule({ onSetModule }: ProfileSettingsModuleProp
     </div>
   );
 }
-
-    
