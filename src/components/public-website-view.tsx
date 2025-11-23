@@ -121,9 +121,18 @@ function Header({
             <Button onClick={() => onAuthOpen('signup')}>Start Free</Button>
           </>
         )}
-        <Button variant="link" onClick={onSwitchView} className="text-muted-foreground hover:text-foreground">
-          <View className="mr-2 h-4 w-4" />
-        </Button>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" size="icon" onClick={onSwitchView} className="text-muted-foreground hover:text-foreground">
+                <View className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Switch to Admin View</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
       <div className="md:hidden">
         <Sheet open={isOpen} onOpenChange={setIsOpen}>
@@ -1171,5 +1180,3 @@ export function PublicWebsiteView({ onSwitchView, onShowDashboard }: PublicWebsi
     </div>
   );
 }
-
-    

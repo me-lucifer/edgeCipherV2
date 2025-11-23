@@ -265,7 +265,7 @@ function PerformanceSummary({ dailyPnl7d, dailyPnl30d, performanceState, hasHist
                 </div>
             </CardHeader>
             <CardContent className="space-y-6">
-                <div className="grid grid-cols-2 md:grid-cols-2 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <Card className="bg-muted/30 border-border/50">
                         <CardHeader>
                             <CardTitle className="text-base">Realized PnL</CardTitle>
@@ -572,7 +572,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
 
   return (
     <div className="space-y-8">
-        <div className="flex justify-between items-start">
+        <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
             {/* User Header & Arjun Insight */}
             <Card className="w-full bg-muted/20 border-border/50">
                 <CardContent className="p-6 grid md:grid-cols-3 gap-6 items-center">
@@ -822,7 +822,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
             </div>
 
             {/* Right column */}
-            <div className="space-y-8">
+            <div className="lg:col-span-1 space-y-8">
                  {/* Quick Actions */}
                 <Card className="bg-muted/30 border-border/50">
                     <CardHeader>
@@ -830,7 +830,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                     </CardHeader>
                     <CardContent className="space-y-3">
                         {features.map(feature => (
-                            <Button key={feature.id} variant="outline" className="w-full justify-start" onClick={() => onSetModule(feature.id)}>
+                            <Button key={feature.id} variant="outline" className="w-full justify-start" onClick={() => onSetModule(feature.id as any)}>
                                 <feature.icon className="mr-2 h-4 w-4" />
                                 {feature.title}
                                 <ArrowRightCircle className="ml-auto h-4 w-4 text-muted-foreground" />

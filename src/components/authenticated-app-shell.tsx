@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useAuth } from '@/context/auth-provider';
-import { LayoutDashboard, Bot, FileText, Gauge, BarChart, Settings, HelpCircle, Bell, UserCircle, LogOut, Cpu, PanelLeft, Book, BrainCircuit, LineChart, Newspaper, Users, Sparkles } from 'lucide-react';
+import { LayoutDashboard, Bot, FileText, Gauge, BarChart, Settings, HelpCircle, Bell, UserCircle, LogOut, Cpu, PanelLeft, Book, BrainCircuit, LineChart, Newspaper, Users, Sparkles, Menu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DashboardModule } from './dashboard-module';
 import {
@@ -21,6 +21,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Separator } from './ui/separator';
 import { ThemeSwitcher } from './theme-switcher';
 import { AiCoachingModule } from './ai-coaching-module';
@@ -83,9 +84,9 @@ const settingsNavItems: NavItem[] = [
 const NavItemGroup: React.FC<{
   items: NavItem[];
   currentModule: Module;
-  isSidebarOpen: boolean;
+  isSidebarOpen?: boolean;
   onItemClick: (id: Module) => void;
-}> = ({ items, currentModule, isSidebarOpen, onItemClick }) => (
+}> = ({ items, currentModule, isSidebarOpen = true, onItemClick }) => (
     <>
         {items.map((item) => (
             <Tooltip key={item.id} delayDuration={0}>
@@ -186,7 +187,7 @@ function ModuleView({ currentModule, onSetModule, aiCoachingInitialMessage, isLo
     );
 }
 
-function AppHeader({ onToggleSidebar, onSetModule }: { onToggleSidebar: () => void; onSetModule: (module: Module) => void; }) {
+function AppHeader({ onSetModule }: { onSetModule: (module: Module) => void; }) {
   const { logout } = useAuth();
   const [persona, setPersona] = useState<{ primaryPersonaName?: string }>({});
   const [greeting, setGreeting] = useState("Welcome");
@@ -208,10 +209,6 @@ function AppHeader({ onToggleSidebar, onSetModule }: { onToggleSidebar: () => vo
   return (
     <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center justify-between border-b border-border/50 bg-muted/20 px-4 sm:px-6">
         <div className="flex items-center gap-4">
-             <Button variant="ghost" size="icon" onClick={onToggleSidebar} className="d-block md:hidden">
-                <PanelLeft className="h-5 w-5" />
-                <span className="sr-only">Toggle Sidebar</span>
-            </Button>
             <div>
                 <h1 className="text-lg font-semibold text-foreground">
                     {greeting}, {persona.primaryPersonaName?.split(' ')[0] || 'Trader'}
@@ -261,9 +258,34 @@ function AppHeader({ onToggleSidebar, onSetModule }: { onToggleSidebar: () => vo
   );
 }
 
+function SidebarNav({ currentModule, handleSetModule, isSidebarOpen }: { currentModule: Module, handleSetModule: (id: Module) => void, isSidebarOpen?: boolean }) {
+  return (
+    <nav className="flex flex-1 flex-col gap-4 p-2">
+      <div className="flex flex-col gap-1">
+          <NavItemGroup items={mainNavItems} currentModule={currentModule} isSidebarOpen={isSidebarOpen} onItemClick={handleSetModule} />
+      </div>
+      <Separator className={cn('my-2', !isSidebarOpen && 'mx-auto w-1/2')} />
+      <div className="flex flex-col gap-1">
+           <NavItemGroup items={analyticsNavItems} currentModule={currentModule} isSidebarOpen={isSidebarOpen} onItemClick={handleSetModule} />
+      </div>
+      <Separator className={cn('my-2', !isSidebarOpen && 'mx-auto w-1/2')} />
+      <div className="flex flex-col gap-1">
+           <NavItemGroup items={marketNavItems} currentModule={currentModule} isSidebarOpen={isSidebarOpen} onItemClick={handleSetModule} />
+      </div>
+      
+      <div className="mt-auto flex flex-col gap-1">
+          <Separator className={cn('my-2', !isSidebarOpen && 'mx-auto w-1/2')} />
+          <NavItemGroup items={communityNavItems} currentModule={currentModule} isSidebarOpen={isSidebarOpen} onItemClick={handleSetModule} />
+          <NavItemGroup items={settingsNavItems} currentModule={currentModule} isSidebarOpen={isSidebarOpen} onItemClick={handleSetModule} />
+      </div>
+    </nav>
+  )
+}
+
 export function AuthenticatedAppShell() {
   const [currentModule, setCurrentModule] = useState<Module>('dashboard');
   const [isSidebarOpen, setSidebarOpen] = useState(true);
+  const [isMobileNavOpen, setMobileNavOpen] = useState(false);
   const [aiCoachingInitialMessage, setAiCoachingInitialMessage] = useState<string | null>(null);
   const [isInitialLoading, setInitialLoading] = useState(true);
 
@@ -277,6 +299,7 @@ export function AuthenticatedAppShell() {
 
   const handleSetModule = (id: Module, context?: any) => {
     setCurrentModule(id);
+    setMobileNavOpen(false); // Close mobile nav on item click
     if (id === 'aiCoaching' && context?.initialMessage) {
         setAiCoachingInitialMessage(context.initialMessage);
     } else {
@@ -298,25 +321,7 @@ export function AuthenticatedAppShell() {
                 </a>
             </div>
             
-            <nav className="flex flex-1 flex-col gap-4 p-2">
-                <div className="flex flex-col gap-1">
-                    <NavItemGroup items={mainNavItems} currentModule={currentModule} isSidebarOpen={isSidebarOpen} onItemClick={handleSetModule} />
-                </div>
-                <Separator className={cn('my-2', !isSidebarOpen && 'mx-auto w-1/2')} />
-                <div className="flex flex-col gap-1">
-                     <NavItemGroup items={analyticsNavItems} currentModule={currentModule} isSidebarOpen={isSidebarOpen} onItemClick={handleSetModule} />
-                </div>
-                <Separator className={cn('my-2', !isSidebarOpen && 'mx-auto w-1/2')} />
-                <div className="flex flex-col gap-1">
-                     <NavItemGroup items={marketNavItems} currentModule={currentModule} isSidebarOpen={isSidebarOpen} onItemClick={handleSetModule} />
-                </div>
-                
-                <div className="mt-auto flex flex-col gap-1">
-                    <Separator className={cn('my-2', !isSidebarOpen && 'mx-auto w-1/2')} />
-                    <NavItemGroup items={communityNavItems} currentModule={currentModule} isSidebarOpen={isSidebarOpen} onItemClick={handleSetModule} />
-                    <NavItemGroup items={settingsNavItems} currentModule={currentModule} isSidebarOpen={isSidebarOpen} onItemClick={handleSetModule} />
-                </div>
-            </nav>
+            <SidebarNav currentModule={currentModule} handleSetModule={handleSetModule} isSidebarOpen={isSidebarOpen} />
 
              <div className="border-t border-border/50 p-2">
                  <Tooltip>
@@ -339,7 +344,29 @@ export function AuthenticatedAppShell() {
             "flex flex-1 flex-col transition-all",
             isSidebarOpen ? "md:pl-64" : "md:pl-20"
         )}>
-            <AppHeader onToggleSidebar={() => setSidebarOpen(!isSidebarOpen)} onSetModule={handleSetModule} />
+            <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center justify-between border-b border-border/50 bg-muted/20 px-4 sm:px-6">
+                <Sheet open={isMobileNavOpen} onOpenChange={setMobileNavOpen}>
+                    <SheetTrigger asChild>
+                         <Button variant="ghost" size="icon" className="md:hidden">
+                            <Menu className="h-6 w-6" />
+                            <span className="sr-only">Toggle Sidebar</span>
+                        </Button>
+                    </SheetTrigger>
+                     <SheetContent side="left" className="w-64 p-0">
+                        <div className="flex h-16 items-center border-b border-border/50 px-6">
+                            <a href="#" className="flex items-center gap-2 font-semibold text-foreground">
+                                <Cpu className="h-6 w-6 text-primary" />
+                                <span>EdgeCipher</span>
+                            </a>
+                        </div>
+                        <SidebarNav currentModule={currentModule} handleSetModule={handleSetModule} />
+                    </SheetContent>
+                </Sheet>
+                
+                <div className="flex-1">
+                    <AppHeader onSetModule={handleSetModule} />
+                </div>
+            </header>
             <main className="flex-1 overflow-y-auto">
                 <div className="mx-auto max-w-6xl h-full p-4 sm:p-6 lg:p-8">
                     <ModuleView 

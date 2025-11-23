@@ -22,7 +22,7 @@ type Message = {
 }
 
 interface AiCoachingModuleProps {
-    onSetModule: (module: any) => void;
+    onSetModule: (module: any, context?: any) => void;
     initialMessage?: string | null;
 }
 
@@ -64,7 +64,7 @@ function ScoreGauge({ label, value, colorClass }: { label: string; value: number
 
 export function AiCoachingModule({ onSetModule, initialMessage = null }: AiCoachingModuleProps) {
     const [persona, setPersona] = useState<Persona>({});
-    const [isContextPanelOpen, setContextPanelOpen] = useState(true);
+    const [isContextPanelOpen, setContextPanelOpen] = useState(false);
     const [messages, setMessages] = useState<Message[]>([
         { sender: 'bot', text: "Welcome back. Let's review your last session. What's on your mind?" },
         { sender: 'user', text: "I got stopped out of my ETH short yesterday and it felt unfair. The market just seemed to be hunting stops." },
@@ -261,4 +261,3 @@ export function AiCoachingModule({ onSetModule, initialMessage = null }: AiCoach
         </div>
     );
 }
-
