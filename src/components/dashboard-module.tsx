@@ -904,10 +904,11 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                 </div>
             </div>
 
-            <div id="demo-highlight-5" className="lg:col-span-1 space-y-8">
+            <div id="demo-highlight-5" className="lg:col-span-1 space-y-6">
                 <Card className="bg-muted/30 border-border/50">
                     <CardHeader>
                         <CardTitle>Quick Actions</CardTitle>
+                        <CardDescription>Step 1: Plan your session</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3">
                         {features.map(feature => (
@@ -922,7 +923,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                 <Card className="bg-muted/30 border-border/50">
                     <CardHeader>
                         <CardTitle>Today's Focus</CardTitle>
-                        <CardDescription>From your initial growth plan.</CardDescription>
+                        <CardDescription>Step 2: Follow your growth plan</CardDescription>
                     </CardHeader>
                     <CardContent key={animateKey} className="animate-metric-pulse">
                          <ul className="space-y-3">
@@ -941,7 +942,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                  <Card className="bg-muted/30 border-border/50">
                     <CardHeader>
                         <CardTitle>Equity curve (30 days)</CardTitle>
-                        <CardDescription>Visual view of your recent balance swings.</CardDescription>
+                        <CardDescription>Step 3: Review your progress</CardDescription>
                     </CardHeader>
                     <CardContent key={animateKey} className="animate-metric-pulse">
                         {performance.hasHistory ? (
@@ -980,5 +981,3 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
     </div>
   );
 }
-
-    
