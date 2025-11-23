@@ -45,23 +45,32 @@ function ProfileTab() {
   const { addLog } = useEventLog();
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(fullSettingsSchema),
-    defaultValues: () => {
-      if (typeof window !== "undefined") {
-        const profile = JSON.parse(localStorage.getItem("ec_profile") || "{}");
-        const prefs = JSON.parse(localStorage.getItem("ec_prefs") || "{}");
-        return {
-          firstName: profile.firstName || "John",
-          lastName: profile.lastName || "Doe",
-          displayName: profile.displayName || "The Determinist",
-          timezone: profile.timezone || "UTC-5 (EST)",
-          preferredSession: profile.preferredSession || "New York",
-          showAdvancedMetrics: prefs.showAdvancedMetrics || false,
-          enableBeginnerTooltips: prefs.enableBeginnerTooltips || true,
-        };
-      }
-      return { showAdvancedMetrics: false, enableBeginnerTooltips: true };
-    },
+    defaultValues: {
+      firstName: "",
+      lastName: "",
+      displayName: "",
+      timezone: "UTC-5 (EST)",
+      preferredSession: "New York",
+      showAdvancedMetrics: false,
+      enableBeginnerTooltips: true,
+    }
   });
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const profile = JSON.parse(localStorage.getItem("ec_profile") || "{}");
+      const prefs = JSON.parse(localStorage.getItem("ec_prefs") || "{}");
+      form.reset({
+        firstName: profile.firstName || "John",
+        lastName: profile.lastName || "Doe",
+        displayName: profile.displayName || "The Determinist",
+        timezone: profile.timezone || "UTC-5 (EST)",
+        preferredSession: profile.preferredSession || "New York",
+        showAdvancedMetrics: prefs.showAdvancedMetrics || false,
+        enableBeginnerTooltips: prefs.enableBeginnerTooltips !== false, // Default true
+      });
+    }
+  }, [form]);
 
   const onSubmit = (data: SettingsFormValues) => {
     const profileData = {
@@ -123,7 +132,7 @@ function ProfileTab() {
               <FormField control={form.control} name="timezone" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Timezone</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl><SelectTrigger><SelectValue placeholder="Select timezone" /></SelectTrigger></FormControl>
                     <SelectContent>{timezones.map(tz => <SelectItem key={tz} value={tz}>{tz}</SelectItem>)}</SelectContent>
                   </Select>
@@ -132,7 +141,7 @@ function ProfileTab() {
               <FormField control={form.control} name="preferredSession" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Preferred Trading Session</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl><SelectTrigger><SelectValue placeholder="Select session" /></SelectTrigger></FormControl>
                     <SelectContent>{sessions.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
                   </Select>
@@ -299,13 +308,23 @@ function NotificationsTab() {
   const { addLog } = useEventLog();
   const form = useForm<z.infer<typeof notificationsSchema>>({
     resolver: zodResolver(notificationsSchema),
-    defaultValues: () => {
-      if (typeof window !== "undefined") {
-        return JSON.parse(localStorage.getItem("ec_notifications_prefs") || "{}");
-      }
-      return {};
+    defaultValues: {
+      arjunAlerts: true,
+      dailySummary: true,
+      riskBreach: true,
+      communityMentions: false,
+      maxEmails: "3",
     },
   });
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedPrefs = localStorage.getItem("ec_notifications_prefs");
+      if (savedPrefs) {
+        form.reset(JSON.parse(savedPrefs));
+      }
+    }
+  }, [form]);
 
   const onSubmit = (data: z.infer<typeof notificationsSchema>) => {
     localStorage.setItem("ec_notifications_prefs", JSON.stringify(data));
@@ -469,7 +488,7 @@ export function ProfileSettingsModule({ onSetModule }: ProfileSettingsModuleProp
       </div>
 
       <Tabs defaultValue="profile" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-2 md:grid-cols-5">
           <TabsTrigger value="profile"><User className="mr-2 h-4 w-4" />Profile</TabsTrigger>
           <TabsTrigger value="broker"><Link2 className="mr-2 h-4 w-4" />Broker</TabsTrigger>
           <TabsTrigger value="notifications"><Bell className="mr-2 h-4 w-4" />Notifications</TabsTrigger>
@@ -488,3 +507,5 @@ export function ProfileSettingsModule({ onSetModule }: ProfileSettingsModuleProp
     </div>
   );
 }
+
+    
