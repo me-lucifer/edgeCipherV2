@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,8 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Link2, Lock, Trash2 } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 
 interface ProfileSettingsModuleProps {
     onSetModule: (module: any, context?: any) => void;
@@ -164,6 +165,122 @@ function ProfileTab() {
   );
 }
 
+const brokerSchema = z.object({
+    apiKey: z.string().min(1, "API Key is required."),
+    apiSecret: z.string().min(1, "API Secret is required."),
+});
+
+function BrokerTab() {
+    const { toast } = useToast();
+    const [connectionStatus, setConnectionStatus] = useState({
+        isConnected: false,
+        brokerName: "",
+        apiKey: "",
+    });
+
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            updateConnectionStatus();
+        }
+    }, []);
+
+    const updateConnectionStatus = () => {
+        const isConnected = localStorage.getItem('ec_broker_connected') === 'true';
+        const brokerName = localStorage.getItem('ec_broker_name') || "";
+        const apiKey = localStorage.getItem('ec_api_key') || "";
+        setConnectionStatus({ isConnected, brokerName, apiKey });
+    };
+
+    const form = useForm<z.infer<typeof brokerSchema>>({
+        resolver: zodResolver(brokerSchema),
+        defaultValues: { apiKey: "", apiSecret: "" },
+    });
+
+    const handleConnect = (values: z.infer<typeof brokerSchema>) => {
+        localStorage.setItem("ec_broker_connected", "true");
+        localStorage.setItem("ec_broker_name", "Delta");
+        localStorage.setItem("ec_api_key", values.apiKey);
+        localStorage.setItem("ec_api_secret", values.apiSecret);
+        updateConnectionStatus();
+        toast({ title: "Broker Connected", description: "Delta Exchange has been successfully connected." });
+        form.reset();
+    };
+
+    const handleDisconnect = () => {
+        localStorage.setItem("ec_broker_connected", "false");
+        localStorage.removeItem("ec_broker_name");
+        localStorage.removeItem("ec_api_key");
+        localStorage.removeItem("ec_api_secret");
+        updateConnectionStatus();
+        toast({ title: "Broker Disconnected", variant: "destructive" });
+    };
+    
+    if (connectionStatus.isConnected) {
+        return (
+            <Card className="bg-muted/30 border-border/50">
+                <CardHeader>
+                    <CardTitle>Broker Connection</CardTitle>
+                    <CardDescription>Your account is currently connected to {connectionStatus.brokerName}.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                     <Alert variant="default" className="bg-green-500/10 border-green-500/20 text-green-300">
+                        <AlertTitle>Connected to {connectionStatus.brokerName}</AlertTitle>
+                        <AlertDescription>
+                            API Key: {connectionStatus.apiKey.slice(0, 4)}...{connectionStatus.apiKey.slice(-4)}
+                        </AlertDescription>
+                    </Alert>
+                    <div className="flex gap-2 pt-4">
+                        <Button variant="destructive" onClick={handleDisconnect}><Trash2 className="mr-2 h-4 w-4" /> Disconnect</Button>
+                        <Button variant="outline" disabled>Update Keys (Prototype)</Button>
+                    </div>
+                </CardContent>
+            </Card>
+        )
+    }
+
+    return (
+        <div className="space-y-6">
+            <Card className="bg-muted/30 border-border/50">
+                <CardHeader>
+                    <CardTitle>Connect a Broker</CardTitle>
+                    <CardDescription>Connect your broker to automatically sync your trades and positions.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Form {...form}>
+                        <form onSubmit={form.handleSubmit(handleConnect)} className="space-y-4">
+                            <FormField control={form.control} name="apiKey" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>API Key</FormLabel>
+                                    <FormControl><Input placeholder="Your read-only API Key" {...field} /></FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )} />
+                            <FormField control={form.control} name="apiSecret" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>API Secret</FormLabel>
+                                    <FormControl><Input type="password" placeholder="••••••••••••••••" {...field} /></FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )} />
+                            <Button type="submit" className="w-full">
+                                <Link2 className="mr-2 h-4 w-4" /> Connect Delta (Prototype)
+                            </Button>
+                        </form>
+                    </Form>
+                </CardContent>
+            </Card>
+            <Alert>
+                <Lock className="h-4 w-4" />
+                <AlertTitle>Your Security is Critical</AlertTitle>
+                <AlertDescription>
+                    EdgeCipher only requires <strong>read-only</strong> API keys and will never have access to your funds or the ability to trade on your behalf.
+                </AlertDescription>
+            </Alert>
+        </div>
+    );
+}
+
+
 function PlaceholderTab({ title }: { title: string }) {
     return (
         <div className="text-center py-12 border-2 border-dashed border-border/50 rounded-lg">
@@ -195,7 +312,7 @@ export function ProfileSettingsModule({ onSetModule }: ProfileSettingsModuleProp
 
         <div className="mt-6">
           <TabsContent value="profile"><ProfileTab /></TabsContent>
-          <TabsContent value="broker"><PlaceholderTab title="Broker Connections" /></TabsContent>
+          <TabsContent value="broker"><BrokerTab /></TabsContent>
           <TabsContent value="notifications"><PlaceholderTab title="Notifications" /></TabsContent>
           <TabsContent value="security"><PlaceholderTab title="Security" /></TabsContent>
           <TabsContent value="billing"><PlaceholderTab title="Billing" /></TabsContent>
