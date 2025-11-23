@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useAuth } from "@/context/auth-provider";
@@ -349,19 +348,21 @@ function NewsSnapshot({ onSetModule }: { onSetModule: (module: any) => void }) {
                 <CardTitle className="flex items-center gap-2 text-base">
                     <Newspaper className="h-5 w-5" />
                     News Snapshot
-                    <TooltipProvider>
+                </CardTitle>
+                 <CardDescription>
+                     <TooltipProvider>
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-6 w-6" aria-label="News snapshot info">
-                                  <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                                </Button>
+                               <span className="flex items-center gap-1 cursor-help">
+                                    Headlines can trigger sharp moves. Use them as context.
+                                </span>
                             </TooltipTrigger>
                             <TooltipContent>
-                                <p className="max-w-xs">Headlines can trigger sharp moves. Use them as context, but don’t chase every story.</p>
+                                <p className="max-w-xs">Don’t chase every story. Use news as additional context for your planned trades.</p>
                             </TooltipContent>
                         </Tooltip>
                     </TooltipProvider>
-                </CardTitle>
+                </CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="space-y-4">
@@ -835,21 +836,22 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                         <CardHeader>
                              <CardTitle className="text-base flex items-center gap-2">
                                 <Gauge className="h-5 w-5" />
+                                Crypto VIX
+                            </CardTitle>
+                             <CardDescription>
                                 <TooltipProvider>
                                     <Tooltip>
                                         <TooltipTrigger asChild>
-                                           <Button variant="ghost" size="icon" className="h-6 w-6" aria-label="Crypto VIX info">
-                                             <span className="flex items-center gap-1 cursor-help">
-                                                Crypto VIX <Info className="h-3 w-3" />
+                                           <span className="flex items-center gap-1 cursor-help">
+                                                An index showing current market volatility (0-100).
                                             </span>
-                                          </Button>
                                         </TooltipTrigger>
                                         <TooltipContent>
-                                            <p>An index showing current crypto market volatility (0-100).</p>
+                                            <p>Higher VIX means larger price swings and more risk.</p>
                                         </TooltipContent>
                                     </Tooltip>
                                 </TooltipProvider>
-                            </CardTitle>
+                            </CardDescription>
                         </CardHeader>
                         <CardContent>
                              <p className="text-3xl font-bold font-mono">{market.vixValue} <span className="text-base font-normal text-muted-foreground">/ 100</span></p>
@@ -939,3 +941,5 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
     </div>
   );
 }
+
+    
