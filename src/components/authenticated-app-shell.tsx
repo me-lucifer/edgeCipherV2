@@ -30,6 +30,7 @@ import { TradeJournalModule } from './trade-journal-module';
 import { PerformanceAnalyticsModule } from './performance-analytics-module';
 import { StrategyManagementModule } from './strategy-management-module';
 import { RiskCenterModule } from './risk-center-module';
+import { CryptoVixModule } from './crypto-vix-module';
 
 type Module = 
   | 'dashboard' 
@@ -65,7 +66,7 @@ const analyticsNavItems: NavItem[] = [
 
 const marketNavItems: NavItem[] = [
   { id: 'riskCenter', label: 'Risk Center', icon: Gauge },
-  { id: 'cryptoVix', label: 'Crypto VIX', icon: LineChart, comingSoon: true },
+  { id: 'cryptoVix', label: 'Crypto VIX', icon: LineChart, comingSoon: false },
   { id: 'news', label: 'News', icon: Newspaper, comingSoon: false }, // Enabled for navigation
 ]
 
@@ -140,6 +141,10 @@ function ModuleView({ currentModule, onSetModule, aiCoachingInitialMessage }: { 
 
     if (currentModule === 'riskCenter') {
       return <RiskCenterModule onSetModule={onSetModule} />;
+    }
+    
+    if (currentModule === 'cryptoVix') {
+      return <CryptoVixModule onSetModule={onSetModule} />;
     }
 
     const allNavItems = [...mainNavItems, ...analyticsNavItems, ...marketNavItems, ...communityNavItems, ...settingsNavItems];
