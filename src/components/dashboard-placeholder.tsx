@@ -1,14 +1,10 @@
 
 "use client";
 
+import { useAuth } from "@/context/auth-provider";
 import { useEffect, useState } from "react";
-import { Button } from "./ui/button";
-import { ArrowLeft, Bot, FileText, Gauge, BarChart } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
-
-interface DashboardPlaceholderProps {
-  onBack: () => void;
-}
+import { Bot, FileText, Gauge, BarChart } from "lucide-react";
 
 interface Persona {
     primaryPersonaName?: string;
@@ -21,8 +17,9 @@ const features = [
     { icon: BarChart, title: "Performance Analytics", description: "Go beyond P&L to understand your true trading performance." }
 ];
 
-export function DashboardPlaceholder({ onBack }: DashboardPlaceholderProps) {
+export function DashboardPlaceholder() {
     const [persona, setPersona] = useState<Persona>({});
+    const { logout } = useAuth();
 
     useEffect(() => {
         if (typeof window !== "undefined") {
@@ -35,8 +32,7 @@ export function DashboardPlaceholder({ onBack }: DashboardPlaceholderProps) {
 
 
   return (
-    <div className="flex min-h-screen w-full flex-col items-center justify-center bg-background p-4 sm:p-6 lg:p-8">
-      <div className="max-w-4xl w-full">
+    <div className="flex w-full flex-col p-4 sm:p-6 lg:p-8">
         <Card className="w-full bg-muted/20 border-border/50 text-center">
             <CardHeader>
                 <CardTitle className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
@@ -48,7 +44,7 @@ export function DashboardPlaceholder({ onBack }: DashboardPlaceholderProps) {
             </CardHeader>
             <CardContent className="space-y-8">
                 <p className="text-muted-foreground max-w-2xl mx-auto">
-                    Here you would see a snapshot of your balance and P&L, Arjun’s message of the day, and quick links to the core features of EdgeCipher.
+                    Here you would see a snapshot of your balance and P&L, Arjun’s message of the day, and quick links to the core features of EdgeCipher. This is a placeholder for the main dashboard view.
                 </p>
                 <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 text-left">
                     {features.map(feature => (
@@ -60,13 +56,8 @@ export function DashboardPlaceholder({ onBack }: DashboardPlaceholderProps) {
                         </Card>
                     ))}
                 </div>
-                 <Button onClick={onBack} className="mt-8">
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Exit to Landing Page (Prototype)
-                </Button>
             </CardContent>
         </Card>
-      </div>
     </div>
   );
 }

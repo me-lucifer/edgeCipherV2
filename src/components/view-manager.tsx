@@ -6,11 +6,11 @@ import { ViewSelector } from '@/components/view-selector';
 import { PublicWebsiteView } from '@/components/public-website-view';
 import { AdminAppView } from '@/components/admin-app-view';
 import { useAuth } from '@/context/auth-provider';
-import { DashboardPlaceholder } from './dashboard-placeholder';
 import { OnboardingView } from './onboarding-view';
+import { AuthenticatedAppShell } from './authenticated-app-shell';
 
 export type DevView = 'selector' | 'website' | 'admin';
-type AppView = 'publicLanding' | 'onboarding' | 'dashboardPlaceholder';
+type AppView = 'publicLanding' | 'onboarding' | 'authenticatedApp';
 
 export function ViewManager() {
   const [devView, setDevView] = useState<DevView | null>(null);
@@ -48,7 +48,7 @@ export function ViewManager() {
     if (!isOnboardingComplete) {
       return 'onboarding';
     }
-    return 'dashboardPlaceholder';
+    return 'authenticatedApp';
   }
 
   const appView = getAppView();
@@ -80,11 +80,8 @@ export function ViewManager() {
         }}/>;
       case 'onboarding':
         return <OnboardingView />;
-      case 'dashboardPlaceholder':
-        return <DashboardPlaceholder onBack={() => {
-            // For the prototype, we'll log out to reset and return to the landing page.
-            logout();
-        }} />;
+      case 'authenticatedApp':
+        return <AuthenticatedAppShell />;
     }
   }
 
