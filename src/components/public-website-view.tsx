@@ -31,6 +31,15 @@ import { AuthModal, type AuthModalTab } from './auth-modal';
 import { LoggedInDropdown } from './logged-in-dropdown';
 import { TopBanner } from './top-banner';
 import { DashboardPlaceholder } from './dashboard-placeholder';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 interface PublicWebsiteViewProps {
   onSwitchView: () => void;
@@ -444,35 +453,40 @@ function HowItWorksSection() {
     );
 }
 
-function ProductSection() {
+function ProductSection({ onVideoModalOpen }: { onVideoModalOpen: () => void }) {
     const videoThumbnail = PlaceHolderImages.find(p => p.id === 'video-thumbnail');
     const smallVideos = [
         {
             title: "Why most traders fail without a journal",
             tag: "Psychology",
-            href: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+            href: "#",
         },
         {
             title: "How Arjun analyzes your trades",
             tag: "Journaling",
-            href: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+            href: "#",
         },
         {
             title: "Using Risk Center to protect your account",
             tag: "Risk",
-            href: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+            href: "#",
         },
         {
             title: "Turning emotions into data",
             tag: "Psychology",
-            href: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+            href: "#",
         },
         {
             title: "Advanced: Setting up trade plans",
             tag: "Discipline",
-            href: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+            href: "#",
         }
     ];
+
+    const handleSmallVideoClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+        e.preventDefault();
+        onVideoModalOpen();
+    };
 
     return (
         <div className="text-center">
@@ -480,16 +494,21 @@ function ProductSection() {
             <p className="mt-4 text-lg text-muted-foreground">Short videos on discipline, journaling, and how Arjun helps you grow.</p>
             
             <div className="mt-16 max-w-4xl mx-auto">
-                <div className="aspect-w-16 aspect-h-9 rounded-lg overflow-hidden border-2 border-primary/30 shadow-2xl shadow-primary/10">
-                     <iframe
-                        src="https://www.youtube.com/embed/j1Y-y3_gsgI?si=q8x5v1e7v3y7m1z0"
-                        title="YouTube video player"
-                        frameBorder="0"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                        allowFullScreen
-                        className="w-full h-full"
-                    ></iframe>
-                </div>
+                <Card 
+                    onClick={onVideoModalOpen}
+                    className="group cursor-pointer aspect-video rounded-lg overflow-hidden border-2 border-primary/30 shadow-2xl shadow-primary/10 relative flex flex-col items-center justify-center text-center p-8 bg-muted/30 transition-all hover:border-primary/50"
+                >
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-black/20" />
+                    <div className="relative z-10">
+                         <div className="w-16 h-16 rounded-full border-2 border-primary flex items-center justify-center mb-4 transition-transform group-hover:scale-110">
+                            <PlayCircle className="h-8 w-8 text-primary" />
+                        </div>
+                        <h3 className="text-2xl font-bold text-foreground">Product explainer coming soon</h3>
+                        <p className="text-muted-foreground mt-2 max-w-md mx-auto">
+                            In the full product, this will walk you through Arjun, journaling, analytics, and Risk Center in under 3 minutes.
+                        </p>
+                    </div>
+                </Card>
             </div>
 
             <div className="mt-16">
@@ -503,7 +522,7 @@ function ProductSection() {
                     <CarouselContent className="-ml-4">
                         {smallVideos.map((video, index) => (
                              <CarouselItem key={index} className="pl-4 md:basis-1/2 lg:basis-1/3">
-                                <a href={video.href} target="_blank" rel="noopener noreferrer" className="block group">
+                                <a href={video.href} onClick={handleSmallVideoClick} className="block group">
                                     <Card className="h-full bg-muted/30 border-border/50 overflow-hidden transform-gpu transition-all hover:bg-muted/50 hover:border-primary/30 hover:-translate-y-1">
                                         <div className="relative aspect-video">
                                             {videoThumbnail && (
@@ -534,7 +553,7 @@ function ProductSection() {
                 </Carousel>
             </div>
              <p className="mt-12 text-sm text-muted-foreground/80">
-                These are public YouTube videos from the EdgeCipher channel. In the real product, they’ll be curated and updated automatically.
+                These are placeholders for videos from the EdgeCipher channel. In the real product, they’ll be curated and updated automatically.
             </p>
         </div>
     );
@@ -1054,6 +1073,7 @@ export function PublicWebsiteView({ onSwitchView }: PublicWebsiteViewProps) {
   const [authModalTab, setAuthModalTab] = useState<AuthModalTab>('signup');
   const [showBanner, setShowBanner] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
+  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -1108,7 +1128,7 @@ export function PublicWebsiteView({ onSwitchView }: PublicWebsiteViewProps) {
              <HowItWorksSection />
         </Section>
         <Section id="product">
-             <ProductSection />
+             <ProductSection onVideoModalOpen={() => setIsVideoModalOpen(true)} />
         </Section>
         <Section id="credibility" className="bg-muted/20">
             <CredibilitySection />
@@ -1131,6 +1151,19 @@ export function PublicWebsiteView({ onSwitchView }: PublicWebsiteViewProps) {
         defaultTab={authModalTab}
         onAuthSuccess={handleAuthSuccess}
       />
+      <AlertDialog open={isVideoModalOpen} onOpenChange={setIsVideoModalOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Prototype Video</AlertDialogTitle>
+            <AlertDialogDescription>
+              This is a prototype. In the live product, this would play the real explainer video.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setIsVideoModalOpen(false)}>Close</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
