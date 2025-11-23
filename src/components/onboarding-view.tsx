@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { Checkbox } from "./ui/checkbox";
 import { Label } from "./ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { OnboardingQuestionnaire } from "./onboarding-questionnaire";
 
 const steps: { id: OnboardingStep; title: string; icon: React.ElementType }[] = [
     { id: "welcome", title: "Welcome", icon: User },
@@ -84,10 +85,7 @@ function OnboardingStepContent({ currentStep, onNext, onBack }: { currentStep: O
             <WelcomeStep onContinue={onNext} />
         ),
         questionnaire: (
-            <div>
-                <h2 className="text-2xl font-semibold text-foreground">Your Trading Style</h2>
-                <p className="mt-2 text-muted-foreground">Tell us a bit about how you trade. (Content for this step will be added next).</p>
-            </div>
+            <OnboardingQuestionnaire onComplete={onNext} onBack={onBack} />
         ),
         broker: (
              <div>
@@ -110,13 +108,14 @@ function OnboardingStepContent({ currentStep, onNext, onBack }: { currentStep: O
     };
 
     const isWelcomeStep = currentStep === 'welcome';
+    const isQuestionnaireStep = currentStep === 'questionnaire';
 
     return (
         <div className="flex flex-col h-full">
             <div className="flex-1">
                 {content[currentStep]}
             </div>
-            {!isWelcomeStep && (
+            {!isWelcomeStep && !isQuestionnaireStep && (
                 <div className="flex justify-between items-center pt-8 mt-auto">
                     <div>
                         <Button variant="ghost" onClick={onBack}>Back</Button>
@@ -213,5 +212,3 @@ export function OnboardingView() {
         </div>
     );
 }
-
-    
