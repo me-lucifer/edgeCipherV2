@@ -16,6 +16,7 @@ import { Label } from "./ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "./ui/dialog";
 import { Skeleton } from "./ui/skeleton";
 import { useEventLog } from "@/context/event-log-provider";
+import { ScrollArea } from "./ui/scroll-area";
 
 interface Persona {
     primaryPersonaName?: string;
@@ -67,7 +68,6 @@ function PnlDisplay({ value }: { value: number }) {
     );
 }
 
-// Mock data and helper for Arjun's message
 const getArjunMessage = ({ disciplineScore = 50, performanceState = 'stable' }: { disciplineScore?: number, performanceState?: string }) => {
     if (performanceState === 'drawdown' && disciplineScore < 50) {
         return {
@@ -87,7 +87,6 @@ const getArjunMessage = ({ disciplineScore = 50, performanceState = 'stable' }: 
     };
 };
 
-// New helper function for the decision strip
 const getTradeDecision = ({
   vixZone,
   performanceState,
@@ -99,7 +98,6 @@ const getTradeDecision = ({
   disciplineScore: number;
   hasHistory: boolean;
 }) => {
-   // ZERO STATE condition
   if (!hasHistory) {
      return {
       status: "Focus",
@@ -109,7 +107,6 @@ const getTradeDecision = ({
     };
   }
 
-  // RED conditions
   if (vixZone === "Extreme" && disciplineScore < 50) {
     return {
       status: "Red",
@@ -127,7 +124,6 @@ const getTradeDecision = ({
     };
   }
 
-  // AMBER conditions
   if (vixZone === "Elevated" || performanceState === "drawdown") {
     return {
       status: "Amber",
@@ -145,7 +141,6 @@ const getTradeDecision = ({
     };
   }
 
-  // GREEN condition
   return {
     status: "Green",
     message: "Market is normal and your discipline is solid. Follow your plan.",
@@ -361,7 +356,7 @@ function NewsSnapshot({ onSetModule }: { onSetModule: (module: any) => void }) {
 function DemoScenarioSwitcher({ scenario, onScenarioChange }: { scenario: DemoScenario, onScenarioChange: (scenario: DemoScenario) => void }) {
     return (
         <div className="flex items-center gap-2">
-            <Label htmlFor="scenario-select" className="text-sm text-muted-foreground">Demo Scenario:</Label>
+            <Label htmlFor="scenario-select" className="text-sm text-muted-foreground hidden md:block">Demo Scenario:</Label>
             <Select value={scenario} onValueChange={onScenarioChange}>
                 <SelectTrigger id="scenario-select" className="w-[180px] h-9">
                     <SelectValue placeholder="Select scenario" />
@@ -472,24 +467,20 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
         addLog(`Demo scenario switched to: ${newScenario}`);
     };
 
-    // This is not a real hook, just a helper to centralize data logic for the prototype
     const useDashboardMockData = (currentScenario: DemoScenario) => {
         const [data, setData] = useState<any>(null);
 
         useEffect(() => {
             if (typeof window !== "undefined") {
-                // Persona data
                 const personaData = localStorage.getItem("ec_persona_final") || localStorage.getItem("ec_persona_base");
                 const loadedPersona = personaData ? JSON.parse(personaData) : {};
 
-                // Connection data
                 let brokerConnected = localStorage.getItem('ec_broker_connected') === 'true';
                 if (currentScenario === 'no_positions') {
                     brokerConnected = false;
                 }
                 const brokerName = localStorage.getItem('ec_broker_name') || "";
 
-                // Market data
                 let vixValue = 45;
                 if (currentScenario === 'high_vol') vixValue = 82;
 
@@ -500,7 +491,6 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                     return "Calm";
                 }
 
-                // Performance data
                 let dailyPnl7d = [120, -80, 250, -40, 0, 180, -60];
                 if (currentScenario === 'drawdown') {
                     dailyPnl7d = [50, -150, -280, 80, -90, -400, -210];
@@ -565,7 +555,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
     }
 
     if (!data) {
-        return null; // or a loading skeleton
+        return null;
     }
 
     const { persona: personaData, connection, market, performance, positions, growthPlanToday } = data;
@@ -578,13 +568,12 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
   return (
     <div className="space-y-8">
         <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
-            {/* User Header & Arjun Insight */}
             <Card id="demo-highlight-1" className="w-full bg-muted/20 border-border/50">
                 <CardContent className="p-6 grid md:grid-cols-3 gap-6 items-center">
                     <div className="md:col-span-2">
-                        <h1 className="text-2xl font-bold tracking-tight text-foreground">
+                        <h2 className="text-2xl font-bold tracking-tight text-foreground">
                             Welcome, {personaData.primaryPersonaName?.split(' ')[0] || 'Trader'}.
-                        </h1>
+                        </h2>
                         <p className="text-muted-foreground mt-1">
                             Persona: <span className="font-semibold text-primary">{personaData.primaryPersonaName || 'The Determined Trader'}</span>
                         </p>
@@ -605,7 +594,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                     </div>
                 </CardContent>
             </Card>
-            <div className="pl-4 pt-1 flex-shrink-0">
+            <div className="pl-4 pt-1 flex-shrink-0 w-full sm:w-auto">
                  <DemoScenarioSwitcher scenario={scenario} onScenarioChange={handleScenarioChange} />
             </div>
         </div>
@@ -652,9 +641,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
         />
         
         <div className="grid lg:grid-cols-3 gap-8">
-            {/* Left column */}
             <div className="lg:col-span-2 space-y-8">
-                {/* Account & Positions Snapshot */}
                 <Card id="demo-highlight-2" className="bg-muted/30 border-border/50">
                     <CardHeader className="flex flex-row items-center justify-between">
                          <CardTitle>Account Snapshot</CardTitle>
@@ -724,35 +711,37 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                                 </div>
                                 {positions.length > 0 ? (
                                     <>
-                                        <Table>
-                                            <TableHeader>
-                                                <TableRow>
-                                                    <TableHead>Symbol</TableHead>
-                                                    <TableHead>Direction</TableHead>
-                                                    <TableHead>Size</TableHead>
-                                                    <TableHead>Entry</TableHead>
-                                                    <TableHead>PnL</TableHead>
-                                                    <TableHead>Risk</TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {positions.map((pos: any) => (
-                                                    <TableRow key={pos.symbol}>
-                                                        <TableCell className="font-mono">{pos.symbol}</TableCell>
-                                                        <TableCell className={cn(pos.direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{pos.direction}</TableCell>
-                                                        <TableCell className="font-mono">{pos.size}</TableCell>
-                                                         <TableCell className="font-mono">{pos.entry.toFixed(2)}</TableCell>
-                                                        <TableCell><PnlDisplay value={pos.pnl} /></TableCell>
-                                                        <TableCell><Badge variant={pos.risk === 'Low' ? 'secondary' : 'default'} className={cn(
-                                                            'text-xs',
-                                                            pos.risk === 'Medium' && 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-                                                            pos.risk === 'High' && 'bg-red-500/20 text-red-400 border-red-500/30',
-                                                            pos.risk === 'Low' && 'bg-green-500/20 text-green-400 border-green-500/30'
-                                                        )}>{pos.risk}</Badge></TableCell>
+                                        <ScrollArea className="w-full whitespace-nowrap">
+                                            <Table>
+                                                <TableHeader>
+                                                    <TableRow>
+                                                        <TableHead>Symbol</TableHead>
+                                                        <TableHead>Direction</TableHead>
+                                                        <TableHead>Size</TableHead>
+                                                        <TableHead>Entry</TableHead>
+                                                        <TableHead>PnL</TableHead>
+                                                        <TableHead>Risk</TableHead>
                                                     </TableRow>
-                                                ))}
-                                            </TableBody>
-                                        </Table>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {positions.map((pos: any) => (
+                                                        <TableRow key={pos.symbol}>
+                                                            <TableCell className="font-mono">{pos.symbol}</TableCell>
+                                                            <TableCell className={cn(pos.direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{pos.direction}</TableCell>
+                                                            <TableCell className="font-mono">{pos.size}</TableCell>
+                                                            <TableCell className="font-mono">{pos.entry.toFixed(2)}</TableCell>
+                                                            <TableCell><PnlDisplay value={pos.pnl} /></TableCell>
+                                                            <TableCell><Badge variant={pos.risk === 'Low' ? 'secondary' : 'default'} className={cn(
+                                                                'text-xs',
+                                                                pos.risk === 'Medium' && 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+                                                                pos.risk === 'High' && 'bg-red-500/20 text-red-400 border-red-500/30',
+                                                                pos.risk === 'Low' && 'bg-green-500/20 text-green-400 border-green-500/30'
+                                                            )}>{pos.risk}</Badge></TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        </ScrollArea>
                                         <div className="flex items-center justify-between mt-4">
                                             <Button variant="link" className="px-0 text-primary/90 hover:text-primary" onClick={() => onSetModule('tradeJournal')}>
                                                 View all open positions <ArrowRight className="ml-1 h-4 w-4" />
@@ -785,7 +774,6 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                     </CardContent>
                 </Card>
 
-                {/* Performance Summary */}
                 <PerformanceSummary 
                     dailyPnl7d={performance.dailyPnl7d}
                     dailyPnl30d={performance.dailyPnl30d}
@@ -794,7 +782,6 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                     onSetModule={onSetModule}
                 />
 
-                 {/* Market Context & Risk */}
                 <div id="demo-highlight-4" className="grid md:grid-cols-2 gap-8">
                      <Card className="bg-muted/30 border-border/50">
                         <CardHeader>
@@ -828,9 +815,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                 </div>
             </div>
 
-            {/* Right column */}
             <div id="demo-highlight-5" className="lg:col-span-1 space-y-8">
-                 {/* Quick Actions */}
                 <Card className="bg-muted/30 border-border/50">
                     <CardHeader>
                         <CardTitle>Quick Actions</CardTitle>
@@ -845,7 +830,6 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                         ))}
                     </CardContent>
                 </Card>
-                {/* Growth Plan */}
                 <Card className="bg-muted/30 border-border/50">
                     <CardHeader>
                         <CardTitle>Today's Focus</CardTitle>

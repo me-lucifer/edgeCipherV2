@@ -13,8 +13,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Bot, Calendar, Filter, Sparkles, AlertCircle } from "lucide-react";
+import { Bot, Calendar, Filter, AlertCircle } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Calendar as CalendarComponent } from "./ui/calendar";
 import { format } from "date-fns";
@@ -23,6 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useEventLog } from "@/context/event-log-provider";
+import { ScrollArea } from "./ui/scroll-area";
 
 interface TradeJournalModuleProps {
     onSetModule: (module: any, context?: any) => void;
@@ -46,7 +46,6 @@ const journalEntrySchema = z.object({
 type JournalEntry = z.infer<typeof journalEntrySchema>;
 
 const setupTags = ["Breakout", "Mean Reversion", "Trend Continuation", "Range Play", "Other"];
-const emotionTags = ["Calm", "Confident", "Greedy", "Fearful", "FOMO", "Anxious", "Neutral"];
 
 const mockJournalEntries: JournalEntry[] = [
     { id: '1', datetime: new Date(new Date().setDate(new Date().getDate() - 1)), instrument: 'BTC-PERP', direction: 'Long', entryPrice: 68500, exitPrice: 68969.5, size: 0.5, pnl: 234.75, rMultiple: 2.1, setup: "Breakout", emotions: "Confident, Calm", notes: "Clean breakout above resistance. Good follow-through." },
@@ -183,31 +182,33 @@ function JournalTab({ entries, addOrUpdateEntry, onSetModule }: { entries: Journ
                     <CardTitle>Recent Journal Entries</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Date</TableHead><TableHead>Instrument</TableHead><TableHead>Direction</TableHead>
-                                <TableHead>PnL ($)</TableHead><TableHead>Setup</TableHead><TableHead>Actions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {entries.slice(0, 10).map((entry) => (
-                                <TableRow key={entry.id}>
-                                    <TableCell>{format(entry.datetime, "yyyy-MM-dd")}</TableCell>
-                                    <TableCell>{entry.instrument}</TableCell>
-                                    <TableCell className={cn(entry.direction === "Long" ? "text-green-400" : "text-red-400")}>{entry.direction}</TableCell>
-                                    <TableCell className={cn(entry.pnl >= 0 ? "text-green-400" : "text-red-400")}>{entry.pnl.toFixed(2)}</TableCell>
-                                    <TableCell><Badge variant="secondary">{entry.setup}</Badge></TableCell>
-                                    <TableCell className="space-x-2">
-                                        <Button variant="outline" size="sm" onClick={() => setEditingEntry(entry)}>Edit</Button>
-                                        <Button variant="link" size="sm" className="px-1 h-auto" onClick={() => discussWithArjun(entry)}>
-                                            <Bot className="mr-1 h-4 w-4" /> Discuss
-                                        </Button>
-                                    </TableCell>
+                    <ScrollArea className="w-full whitespace-nowrap">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Date</TableHead><TableHead>Instrument</TableHead><TableHead>Direction</TableHead>
+                                    <TableHead>PnL ($)</TableHead><TableHead>Setup</TableHead><TableHead>Actions</TableHead>
                                 </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
+                            </TableHeader>
+                            <TableBody>
+                                {entries.slice(0, 10).map((entry) => (
+                                    <TableRow key={entry.id}>
+                                        <TableCell>{format(entry.datetime, "yyyy-MM-dd")}</TableCell>
+                                        <TableCell>{entry.instrument}</TableCell>
+                                        <TableCell className={cn(entry.direction === "Long" ? "text-green-400" : "text-red-400")}>{entry.direction}</TableCell>
+                                        <TableCell className={cn(entry.pnl >= 0 ? "text-green-400" : "text-red-400")}>{entry.pnl.toFixed(2)}</TableCell>
+                                        <TableCell><Badge variant="secondary">{entry.setup}</Badge></TableCell>
+                                        <TableCell className="space-x-2">
+                                            <Button variant="outline" size="sm" onClick={() => setEditingEntry(entry)}>Edit</Button>
+                                            <Button variant="link" size="sm" className="px-1 h-auto" onClick={() => discussWithArjun(entry)}>
+                                                <Bot className="mr-1 h-4 w-4" /> Discuss
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </ScrollArea>
                 </CardContent>
             </Card>
         </div>

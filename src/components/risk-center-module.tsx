@@ -21,6 +21,7 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useEventLog } from "@/context/event-log-provider";
+import { ScrollArea } from "./ui/scroll-area";
 
 interface RiskCenterModuleProps {
     onSetModule: (module: any, context?: any) => void;
@@ -93,7 +94,6 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
             </div>
             
             <div className="grid lg:grid-cols-3 gap-8">
-                {/* Left: Rules & Breaches */}
                 <div className="lg:col-span-2 space-y-8">
                     <Card className="bg-muted/30 border-border/50">
                         <CardHeader>
@@ -101,29 +101,31 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                             <CardDescription>These are your personal limits. Arjun uses them to know when you're off track.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Rule</TableHead>
-                                        <TableHead>Value</TableHead>
-                                        <TableHead className="text-right">Action</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {rules.map(rule => (
-                                        <TableRow key={rule.id}>
-                                            <TableCell className="font-medium">{rule.label}</TableCell>
-                                            <TableCell>{rule.value} {rule.unit}</TableCell>
-                                            <TableCell className="text-right">
-                                                <Button variant="ghost" size="sm" onClick={() => handleEditClick(rule)}>
-                                                    <Pencil className="mr-2 h-3 w-3" />
-                                                    Edit
-                                                </Button>
-                                            </TableCell>
+                            <ScrollArea className="w-full whitespace-nowrap">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Rule</TableHead>
+                                            <TableHead>Value</TableHead>
+                                            <TableHead className="text-right">Action</TableHead>
                                         </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {rules.map(rule => (
+                                            <TableRow key={rule.id}>
+                                                <TableCell className="font-medium">{rule.label}</TableCell>
+                                                <TableCell>{rule.value} {rule.unit}</TableCell>
+                                                <TableCell className="text-right">
+                                                    <Button variant="ghost" size="sm" onClick={() => handleEditClick(rule)}>
+                                                        <Pencil className="mr-2 h-3 w-3" />
+                                                        Edit
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </ScrollArea>
                         </CardContent>
                     </Card>
 
@@ -133,29 +135,30 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                             <CardDescription>A log of when your actions didn't match your rules.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                             <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Date</TableHead>
-                                        <TableHead>Rule Breached</TableHead>
-                                        <TableHead>Context</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {mockBreaches.map((breach, index) => (
-                                        <TableRow key={index}>
-                                            <TableCell>{breach.date}</TableCell>
-                                            <TableCell><Badge variant="destructive">{breach.rule}</Badge></TableCell>
-                                            <TableCell>{breach.context}</TableCell>
+                             <ScrollArea className="w-full whitespace-nowrap">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Date</TableHead>
+                                            <TableHead>Rule Breached</TableHead>
+                                            <TableHead>Context</TableHead>
                                         </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {mockBreaches.map((breach, index) => (
+                                            <TableRow key={index}>
+                                                <TableCell>{breach.date}</TableCell>
+                                                <TableCell><Badge variant="destructive">{breach.rule}</Badge></TableCell>
+                                                <TableCell>{breach.context}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </ScrollArea>
                         </CardContent>
                     </Card>
                 </div>
 
-                {/* Right: Summary */}
                 <div className="lg:col-span-1 space-y-8">
                     <Card className="bg-muted/30 border-primary/20 sticky top-24">
                          <CardHeader>

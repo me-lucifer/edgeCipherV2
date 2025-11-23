@@ -190,7 +190,7 @@ function ModuleView({ currentModule, onSetModule, aiCoachingInitialMessage, isLo
     );
 }
 
-function AppHeader({ onSetModule }: { onSetModule: (module: Module) => void; }) {
+function AppHeader({ onSetModule, onOpenMobileNav }: { onSetModule: (module: Module) => void; onOpenMobileNav: () => void; }) {
   const { logout } = useAuth();
   const [persona, setPersona] = useState<{ primaryPersonaName?: string }>({});
   const [greeting, setGreeting] = useState("Welcome");
@@ -213,6 +213,9 @@ function AppHeader({ onSetModule }: { onSetModule: (module: Module) => void; }) 
   return (
     <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center justify-between border-b border-border/50 bg-muted/20 px-4 sm:px-6">
         <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" className="md:hidden -ml-2" onClick={onOpenMobileNav} aria-label="Open sidebar menu">
+                <Menu className="h-6 w-6" />
+            </Button>
             <div>
                 <h1 className="text-lg font-semibold text-foreground">
                     {greeting}, {persona.primaryPersonaName?.split(' ')[0] || 'Trader'}
@@ -344,7 +347,6 @@ export function AuthenticatedAppShell() {
             setDemoHelperOpen(prev => !prev);
         }
         
-        // Handle navigation shortcuts
         if (document.activeElement && ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
             return;
         }
@@ -352,7 +354,7 @@ export function AuthenticatedAppShell() {
         if (e.key === 'g' && !sequenceTimeoutRef.current) {
             sequenceTimeoutRef.current = setTimeout(() => {
                 sequenceTimeoutRef.current = null;
-            }, 1500); // 1.5 second window
+            }, 1500);
         } else if (sequenceTimeoutRef.current) {
             const navMap: Record<string, Module> = {
                 'd': 'dashboard',
@@ -387,11 +389,11 @@ export function AuthenticatedAppShell() {
 
   const handleSetModule = (id: Module, context?: any) => {
     setCurrentModule(id);
-    setMobileNavOpen(false); // Close mobile nav on item click
+    setMobileNavOpen(false);
     if (id === 'aiCoaching' && context?.initialMessage) {
         setAiCoachingInitialMessage(context.initialMessage);
     } else {
-        setAiCoachingInitialMessage(null); // Clear message when navigating away or to coach without context
+        setAiCoachingInitialMessage(null);
     }
   }
 
@@ -429,33 +431,25 @@ export function AuthenticatedAppShell() {
         </aside>
         
         <div className={cn(
-            "flex flex-1 flex-col transition-all",
+            "flex flex-1 flex-col transition-all duration-300",
             isSidebarOpen ? "md:pl-64" : "md:pl-20"
         )}>
-            <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center justify-between border-b border-border/50 bg-muted/20 px-4 sm:px-6">
-                <Sheet open={isMobileNavOpen} onOpenChange={setMobileNavOpen}>
-                    <SheetTrigger asChild>
-                         <Button variant="ghost" size="icon" className="md:hidden" aria-label="Open sidebar menu">
-                            <Menu className="h-6 w-6" />
-                        </Button>
-                    </SheetTrigger>
-                     <SheetContent side="left" className="w-64 p-0">
-                        <div className="flex h-16 items-center border-b border-border/50 px-6">
-                            <a href="#" className="flex items-center gap-2 font-semibold text-foreground">
-                                <Cpu className="h-6 w-6 text-primary" />
-                                <span>EdgeCipher</span>
-                            </a>
-                        </div>
-                        <SidebarNav currentModule={currentModule} handleSetModule={handleSetModule} />
-                    </SheetContent>
-                </Sheet>
-                
-                <div className="flex-1">
-                    <AppHeader onSetModule={handleSetModule} />
-                </div>
-            </header>
+            <AppHeader onSetModule={handleSetModule} onOpenMobileNav={() => setMobileNavOpen(true)} />
+            
+            <Sheet open={isMobileNavOpen} onOpenChange={setMobileNavOpen}>
+                <SheetContent side="left" className="w-64 p-0">
+                    <div className="flex h-16 items-center border-b border-border/50 px-6">
+                        <a href="#" className="flex items-center gap-2 font-semibold text-foreground">
+                            <Cpu className="h-6 w-6 text-primary" />
+                            <span>EdgeCipher</span>
+                        </a>
+                    </div>
+                    <SidebarNav currentModule={currentModule} handleSetModule={handleSetModule} />
+                </SheetContent>
+            </Sheet>
+
             <main className="flex-1 overflow-y-auto">
-                <div className="mx-auto max-w-6xl h-full p-4 sm:p-6 lg:p-8">
+                <div className="mx-auto max-w-7xl h-full p-4 sm:p-6 lg:p-8">
                     <ModuleView 
                         currentModule={currentModule} 
                         onSetModule={handleSetModule} 
