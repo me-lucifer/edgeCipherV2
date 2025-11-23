@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -26,6 +26,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { AuthModal, type AuthModalTab } from './auth-modal';
+import { LoggedInDropdown } from './logged-in-dropdown';
+import { TopBanner } from './top-banner';
+import { DashboardPlaceholder } from './dashboard-placeholder';
 
 interface PublicWebsiteViewProps {
   onSwitchView: () => void;
@@ -56,7 +60,19 @@ function handleScrollTo(e: React.MouseEvent<HTMLAnchorElement>, href: string) {
     }
 };
 
-function Header({ onSwitchView }: { onSwitchView: () => void }) {
+function Header({ 
+  onSwitchView, 
+  isLoggedIn, 
+  onLogout, 
+  onShowDashboard, 
+  onAuthOpen 
+}: { 
+  onSwitchView: () => void;
+  isLoggedIn: boolean;
+  onLogout: () => void;
+  onShowDashboard: () => void;
+  onAuthOpen: (tab: AuthModalTab) => void;
+}) {
   const [isOpen, setIsOpen] = useState(false);
 
   const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
@@ -83,8 +99,14 @@ function Header({ onSwitchView }: { onSwitchView: () => void }) {
         ))}
       </nav>
       <div className="hidden md:flex items-center gap-4">
-        <Button variant="ghost">Login</Button>
-        <Button>Start Free</Button>
+        {isLoggedIn ? (
+          <LoggedInDropdown onLogout={onLogout} onShowDashboard={onShowDashboard} />
+        ) : (
+          <>
+            <Button variant="ghost" onClick={() => onAuthOpen('login')}>Login</Button>
+            <Button onClick={() => onAuthOpen('signup')}>Start Free</Button>
+          </>
+        )}
         <Button variant="link" onClick={onSwitchView} className="text-muted-foreground hover:text-foreground">
           <View className="mr-2 h-4 w-4" />
         </Button>
@@ -116,8 +138,17 @@ function Header({ onSwitchView }: { onSwitchView: () => void }) {
                 ))}
                 </nav>
                 <div className="mt-auto flex flex-col gap-4">
-                    <Button variant="ghost" size="lg">Login</Button>
-                    <Button size="lg">Start Free</Button>
+                  {isLoggedIn ? (
+                    <>
+                      <Button size="lg" variant="outline" onClick={() => { onShowDashboard(); setIsOpen(false); }}>Dashboard</Button>
+                      <Button size="lg" onClick={() => { onLogout(); setIsOpen(false); }}>Logout</Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button variant="ghost" size="lg" onClick={() => { onAuthOpen('login'); setIsOpen(false); }}>Login</Button>
+                      <Button size="lg" onClick={() => { onAuthOpen('signup'); setIsOpen(false); }}>Start Free</Button>
+                    </>
+                  )}
                 </div>
                  <div className="mt-8">
                     <Button variant="link" onClick={onSwitchView} className="w-full justify-center text-muted-foreground hover:text-foreground">
@@ -161,7 +192,7 @@ function InfoTooltip({ text, children }: { text: string, children: React.ReactNo
   );
 }
 
-function Hero() {
+function Hero({ onAuthOpen }: { onAuthOpen: (tab: AuthModalTab) => void }) {
   const mentorCardImage = PlaceHolderImages.find(p => p.id === 'mentor-card');
 
   return (
@@ -179,7 +210,7 @@ function Hero() {
                     EdgeCipher introduces Arjun, an <InfoTooltip text="A virtual coach that reviews your trades and behaviour to give you feedback and suggestions.">AI mentor</InfoTooltip> that analyzes your trades, psychology, and risk to help you become a disciplined, consistent <InfoTooltip text="Contracts that let you speculate on the future price of a cryptocurrency, often with leverage.">crypto futures</InfoTooltip> trader.
                 </p>
                 <div className="mt-8 flex flex-wrap gap-4">
-                    <Button size="lg">Start Free</Button>
+                    <Button size="lg" onClick={() => onAuthOpen('signup')}>Start Free</Button>
                     <Button size="lg" variant="ghost">
                         <Video className="mr-2 h-5 w-5" />
                         Watch Explainer Video
@@ -513,7 +544,7 @@ const PricingCard = ({
     ctaText: string,
     ctaVariant?: "default" | "outline",
     highlighted?: boolean,
-    onClickCta: (e: React.MouseEvent<HTMLAnchorElement>) => void;
+    onClickCta: (e: React.MouseEvent<HTMLButtonElement>) => void;
 }) => (
     <Card className={cn(
         "flex flex-col",
@@ -545,17 +576,14 @@ const PricingCard = ({
             </ul>
         </CardContent>
         <div className="p-6 pt-0">
-            <a href="#contact" onClick={onClickCta} className={cn(
-                "block w-full text-center",
-                buttonVariants({ variant: highlighted ? 'default' : 'outline', size: 'lg' })
-            )}>
+            <Button onClick={onClickCta} className="w-full" variant={highlighted ? 'default' : 'outline'} size="lg">
                 {ctaText}
-            </a>
+            </Button>
         </div>
     </Card>
 );
 
-function PricingSection() {
+function PricingSection({ onAuthOpen }: { onAuthOpen: (tab: AuthModalTab) => void }) {
     const plans = [
         {
             badge: "Best for beginners",
@@ -568,7 +596,8 @@ function PricingSection() {
                 "Access to public community",
             ],
             ctaText: "Start Free",
-            ctaVariant: "outline"
+            ctaVariant: "outline",
+            action: () => onAuthOpen('signup')
         },
         {
             badge: "Most popular",
@@ -582,6 +611,7 @@ function PricingSection() {
             ],
             ctaText: "Get Pro",
             highlighted: true,
+            action: () => onAuthOpen('signup')
         },
         {
             badge: "Coming soon",
@@ -593,13 +623,15 @@ function PricingSection() {
                 "Custom onboarding & support"
             ],
             ctaText: "Contact Sales",
-            ctaVariant: "outline"
+            ctaVariant: "outline",
+            action: (e: React.MouseEvent<HTMLButtonElement>) => {
+              const el = e.target as HTMLElement;
+              const anchor = document.createElement('a');
+              anchor.href = "#contact";
+              handleScrollTo(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }) as unknown as React.MouseEvent<HTMLAnchorElement>, '#contact');
+            }
         }
     ];
-
-    const onClickCta = (e: React.MouseEvent<HTMLAnchorElement>) => {
-        handleScrollTo(e, '#contact');
-    };
 
     return (
         <div className="text-center">
@@ -609,8 +641,13 @@ function PricingSection() {
                 {plans.map((plan, i) => (
                     <PricingCard 
                         key={i} 
-                        {...plan}
-                        onClickCta={onClickCta}
+                        badge={plan.badge}
+                        title={plan.title}
+                        price={plan.price}
+                        features={plan.features}
+                        ctaText={plan.ctaText}
+                        highlighted={plan.highlighted}
+                        onClickCta={plan.action}
                     />
                 ))}
             </div>
@@ -945,12 +982,57 @@ function Footer() {
 }
 
 export function PublicWebsiteView({ onSwitchView }: PublicWebsiteViewProps) {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authModalTab, setAuthModalTab] = useState<AuthModalTab>('signup');
+  const [showBanner, setShowBanner] = useState(false);
+  const [showDashboard, setShowDashboard] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('ec_auth');
+      if (token) {
+        setIsLoggedIn(true);
+      }
+    }
+  }, []);
+
+  const handleAuthOpen = (tab: AuthModalTab) => {
+    setAuthModalTab(tab);
+    setIsAuthModalOpen(true);
+  };
+
+  const handleAuthSuccess = () => {
+    setIsAuthModalOpen(false);
+    setIsLoggedIn(true);
+    setShowBanner(true);
+  };
+
+  const handleLogout = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('ec_auth');
+    }
+    setIsLoggedIn(false);
+    setShowBanner(false);
+  };
+
+  if (showDashboard) {
+    return <DashboardPlaceholder onBack={() => setShowDashboard(false)} />;
+  }
+
   return (
     <div className="relative flex min-h-screen w-full flex-col bg-background text-foreground">
-      <Header onSwitchView={onSwitchView} />
+      {showBanner && <TopBanner />}
+      <Header 
+        onSwitchView={onSwitchView}
+        isLoggedIn={isLoggedIn}
+        onLogout={handleLogout}
+        onShowDashboard={() => setShowDashboard(true)}
+        onAuthOpen={handleAuthOpen}
+      />
       <main>
         <Section id="home" className="pt-0 lg:-mt-20">
-          <Hero />
+          <Hero onAuthOpen={handleAuthOpen} />
         </Section>
         <Section id="about">
             <AboutSection />
@@ -962,7 +1044,7 @@ export function PublicWebsiteView({ onSwitchView }: PublicWebsiteViewProps) {
              <ProductSection />
         </Section>
         <Section id="pricing" className="bg-muted/20">
-             <PricingSection />
+             <PricingSection onAuthOpen={handleAuthOpen} />
         </Section>
         <Section id="faq">
              <FaqSection />
@@ -973,6 +1055,12 @@ export function PublicWebsiteView({ onSwitchView }: PublicWebsiteViewProps) {
       </main>
       <Footer />
       <ThemeSwitcher />
+      <AuthModal 
+        isOpen={isAuthModalOpen}
+        onOpenChange={setIsAuthModalOpen}
+        defaultTab={authModalTab}
+        onAuthSuccess={handleAuthSuccess}
+      />
     </div>
   );
 }
