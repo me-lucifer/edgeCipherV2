@@ -44,7 +44,7 @@ function PnlDisplay({ value }: { value: number }) {
     const isPositive = value >= 0;
     return (
         <div className={cn(
-            "flex items-center font-semibold",
+            "flex items-center font-semibold font-mono",
             isPositive ? 'text-green-400' : 'text-red-400'
         )}>
             {isPositive ? <TrendingUp className="mr-2 h-4 w-4" /> : <TrendingDown className="mr-2 h-4 w-4" />}
@@ -167,6 +167,70 @@ function TradeDecisionStrip() {
     );
 }
 
+function PerformanceSummary() {
+    const mockDailyPnl = [120, -80, 250, -40, 0, 180, -60];
+    const todayPnl = mockDailyPnl[mockDailyPnl.length - 1];
+    const total7dPnl = mockDailyPnl.reduce((acc, pnl) => acc + pnl, 0);
+    const wins = mockDailyPnl.filter(pnl => pnl > 0).length;
+    const losses = mockDailyPnl.filter(pnl => pnl < 0).length;
+
+    const getArjunPerformanceView = () => {
+        const consecutiveLosses = mockDailyPnl.slice(-3).every(pnl => pnl < 0);
+        if (consecutiveLosses && total7dPnl < 0) {
+            return "You’re in a drawdown, reduce size and focus on A+ setups.";
+        }
+        if (total7dPnl > 500) {
+            return "Excellent work this week. Stay focused.";
+        }
+        return "Stable performance recently.";
+    }
+
+    return (
+        <>
+            <div className="grid md:grid-cols-3 gap-8">
+                <Card className="bg-muted/30 border-border/50">
+                    <CardHeader>
+                        <CardTitle className="text-base">Today's Realized PnL</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <PnlDisplay value={todayPnl} />
+                    </CardContent>
+                </Card>
+                <Card className="bg-muted/30 border-border/50">
+                    <CardHeader>
+                        <CardTitle className="text-base">Today's Win/Loss</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-lg font-semibold font-mono">{wins > 0 || losses > 0 ? `${wins}W / ${losses}L` : '0W / 0L'}</p>
+                        <p className="text-xs text-muted-foreground">(Based on last 7 days)</p>
+                    </CardContent>
+                </Card>
+                <Card className="bg-muted/30 border-border/50">
+                    <CardHeader>
+                        <CardTitle className="text-base">Last 7 Days PnL</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <PnlDisplay value={total7dPnl} />
+                    </CardContent>
+                </Card>
+            </div>
+            <Card className="bg-muted/30 border-border/50">
+                <CardHeader>
+                    <CardTitle className="text-base">7-Day PnL Sparkline</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="h-20 w-full bg-muted rounded-md flex items-center justify-center border-2 border-dashed border-border/50">
+                        <p className="text-sm text-muted-foreground">[Sparkline chart placeholder]</p>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-4">
+                        <span className="font-semibold text-foreground">Arjun's view:</span> {getArjunPerformanceView()}
+                    </p>
+                </CardContent>
+            </Card>
+        </>
+    );
+}
+
 interface DashboardModuleProps {
     onSetModule: (module: 'settings') => void;
 }
@@ -240,11 +304,11 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
                                     </div>
                                     <div>
                                         <p className="text-sm text-muted-foreground">Balance</p>
-                                        <p className="font-semibold text-foreground">$12,345.67</p>
+                                        <p className="font-semibold text-foreground font-mono">$12,345.67</p>
                                     </div>
                                     <div>
                                         <p className="text-sm text-muted-foreground">Margin Used</p>
-                                        <p className="font-semibold text-foreground">15.2%</p>
+                                        <p className="font-semibold text-foreground font-mono">15.2%</p>
                                     </div>
                                     <div>
                                         <p className="text-sm text-muted-foreground">Unrealized P&L</p>
@@ -264,9 +328,9 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
                                     <TableBody>
                                         {openPositions.map(pos => (
                                             <TableRow key={pos.symbol}>
-                                                <TableCell>{pos.symbol}</TableCell>
+                                                <TableCell className="font-mono">{pos.symbol}</TableCell>
                                                 <TableCell className={cn(pos.direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{pos.direction}</TableCell>
-                                                <TableCell>{pos.size}</TableCell>
+                                                <TableCell className="font-mono">{pos.size}</TableCell>
                                                 <TableCell><PnlDisplay value={pos.pnl} /></TableCell>
                                                 <TableCell><Badge variant={pos.risk === 'Low' ? 'secondary' : 'default'} className={cn(
                                                     pos.risk === 'Medium' && 'bg-amber-500/20 text-amber-400 border-amber-500/30',
@@ -290,34 +354,8 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
                 </Card>
 
                 {/* Performance Summary */}
-                <div className="grid md:grid-cols-3 gap-8">
-                     <Card className="bg-muted/30 border-border/50">
-                        <CardHeader>
-                            <CardTitle className="text-base">Today's PnL</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                             <PnlDisplay value={-55.40} />
-                        </CardContent>
-                    </Card>
-                     <Card className="bg-muted/30 border-border/50">
-                        <CardHeader>
-                            <CardTitle className="text-base">Today's Win/Loss</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                             <p className="text-lg font-semibold">1 / 2</p>
-                        </CardContent>
-                    </Card>
-                    <Card className="bg-muted/30 border-border/50">
-                        <CardHeader>
-                            <CardTitle className="text-base">7-Day PnL</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                             <div className="h-10 w-full bg-muted rounded-md flex items-center justify-center">
-                                <p className="text-xs text-muted-foreground">[Sparkline chart]</p>
-                             </div>
-                        </CardContent>
-                    </Card>
-                </div>
+                <PerformanceSummary />
+
                  {/* Market Context & Risk */}
                 <div className="grid md:grid-cols-2 gap-8">
                      <Card className="bg-muted/30 border-border/50">
@@ -325,7 +363,7 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
                             <CardTitle className="text-base">Crypto VIX</CardTitle>
                         </CardHeader>
                         <CardContent>
-                             <p className="text-3xl font-bold">78 <span className="text-base font-normal text-muted-foreground">/ 100</span></p>
+                             <p className="text-3xl font-bold font-mono">78 <span className="text-base font-normal text-muted-foreground">/ 100</span></p>
                              <p className="text-sm text-amber-400 font-semibold">High Volatility Zone</p>
                              <p className="text-xs text-muted-foreground mt-2">Expect larger swings. Consider reducing size.</p>
                         </CardContent>
@@ -391,3 +429,5 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
         </div>
     </div>
   );
+
+    
