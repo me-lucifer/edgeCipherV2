@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -76,13 +76,15 @@ function Header({
   isLoggedIn, 
   onLogout, 
   onShowDashboard, 
-  onAuthOpen 
+  onAuthOpen,
+  activeLink
 }: { 
   onSwitchView: () => void;
   isLoggedIn: boolean;
   onLogout: () => void;
   onShowDashboard: () => void;
   onAuthOpen: (tab: AuthModalTab) => void;
+  activeLink: string;
 }) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -103,7 +105,10 @@ function Header({
             key={link.href}
             href={link.href}
             onClick={(e) => handleLinkClick(e, link.href)}
-            className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+            className={cn(
+                "text-sm font-medium transition-colors",
+                activeLink === link.href ? "text-primary" : "text-muted-foreground hover:text-foreground"
+            )}
           >
             {link.label}
           </a>
@@ -142,7 +147,10 @@ function Header({
                     key={link.href}
                     href={link.href}
                     onClick={(e) => handleLinkClick(e, link.href)}
-                    className="text-lg font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    className={cn(
+                        "text-lg font-medium transition-colors",
+                        activeLink === link.href ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                    )}
                     >
                     {link.label}
                     </a>
@@ -1074,6 +1082,7 @@ export function PublicWebsiteView({ onSwitchView }: PublicWebsiteViewProps) {
   const [showBanner, setShowBanner] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
+  const [activeLink, setActiveLink] = useState('#home');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -1082,6 +1091,24 @@ export function PublicWebsiteView({ onSwitchView }: PublicWebsiteViewProps) {
         setIsLoggedIn(true);
       }
     }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setActiveLink(`#${entry.target.id}`);
+          }
+        });
+      },
+      { rootMargin: '-30% 0px -70% 0px' }
+    );
+
+    const sections = document.querySelectorAll('section[id]');
+    sections.forEach((section) => observer.observe(section));
+
+    return () => {
+      sections.forEach((section) => observer.unobserve(section));
+    };
   }, []);
 
   const handleAuthOpen = (tab: AuthModalTab) => {
@@ -1116,6 +1143,7 @@ export function PublicWebsiteView({ onSwitchView }: PublicWebsiteViewProps) {
         onLogout={handleLogout}
         onShowDashboard={() => setShowDashboard(true)}
         onAuthOpen={handleAuthOpen}
+        activeLink={activeLink}
       />
       <main>
         <Section id="home" className="pt-0 lg:-mt-20">
@@ -1167,3 +1195,5 @@ export function PublicWebsiteView({ onSwitchView }: PublicWebsiteViewProps) {
     </div>
   );
 }
+
+    
