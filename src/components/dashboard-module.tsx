@@ -290,7 +290,7 @@ function PerformanceSummary({ dailyPnl7d, dailyPnl30d, performanceState, hasHist
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="h-20 w-full bg-muted rounded-md flex items-center justify-center border-2 border-dashed border-border/50">
+                        <div className="h-20 w-full bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-border/50">
                             <p className="text-sm text-muted-foreground">[Sparkline for {timeRange} placeholder]</p>
                         </div>
                         <p className="text-xs text-muted-foreground mt-4">
@@ -421,7 +421,7 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
                     dailyPnl7d = [50, -150, -280, 80, -90, -400, -210];
                 }
                 
-                const hasHistory = currentScenario !== 'no_positions';
+                let hasHistory = currentScenario !== 'no_positions';
 
                 if (currentScenario === 'no_positions') {
                     dailyPnl7d = [0, 0, 0, 0, 0, 0, 0];
@@ -530,15 +530,15 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4 text-sm">
-                    <div className="p-3 rounded-md bg-muted border border-border/50">
+                    <div className="p-3 rounded-lg bg-muted border border-border/50">
                         <p className="font-semibold text-foreground">Your Persona</p>
                         <p className="text-muted-foreground">Your <span className="text-primary font-medium">{personaData.primaryPersonaName}</span> persona has a discipline score of <span className="text-foreground font-medium">{personaData.disciplineScore}</span>, making you prone to certain biases.</p>
                     </div>
-                    <div className="p-3 rounded-md bg-muted border border-border/50">
+                    <div className="p-3 rounded-lg bg-muted border border-border/50">
                         <p className="font-semibold text-foreground">Your Recent Performance</p>
                         <p className="text-muted-foreground">You are currently in a <span className="text-primary font-medium">{performance.performanceState}</span> state, which affects your likely mindset today.</p>
                     </div>
-                     <div className="p-3 rounded-md bg-muted border border-border/50">
+                     <div className="p-3 rounded-lg bg-muted border border-border/50">
                         <p className="font-semibold text-foreground">Market Volatility</p>
                         <p className="text-muted-foreground">The Crypto VIX is in the <span className="text-primary font-medium">{market.vixZone}</span> zone, indicating current market risk.</p>
                     </div>
@@ -769,7 +769,3 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
     </div>
   );
 }
-
-    
-
-    
