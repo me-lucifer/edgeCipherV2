@@ -41,6 +41,7 @@ const navLinks = [
   { href: '#about', label: 'About' },
   { href: '#how-it-works', label: 'How it works' },
   { href: '#product', label: 'Product' },
+  { href: '#credibility', label: 'Testimonials' },
   { href: '#pricing', label: 'Pricing' },
   { href: '#faq', label: 'FAQ' },
   { href: '#contact', label: 'Contact' },
@@ -535,6 +536,58 @@ function ProductSection() {
              <p className="mt-12 text-sm text-muted-foreground/80">
                 These are public YouTube videos from the EdgeCipher channel. In the real product, they’ll be curated and updated automatically.
             </p>
+        </div>
+    );
+}
+
+function CredibilitySection() {
+    const testimonials = [
+        {
+            quote: "I finally understood why my worst days kept repeating. The journaling + AI review combo is a game changer.",
+            author: "Alex, crypto futures trader"
+        },
+        {
+            quote: "Instead of more indicators, I got clearer rules. My trading became boring – in a good way.",
+            author: "Maya, part-time swing trader"
+        }
+    ];
+
+    const trustSignals = [
+        "You keep full control of your capital",
+        "No auto-trading. No signals. Coaching only.",
+        "Designed with risk management and psychology in mind"
+    ];
+
+    return (
+        <div className="text-center">
+            <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">Built for traders who care about discipline</h2>
+            <p className="mt-4 text-lg text-muted-foreground max-w-3xl mx-auto">From struggling beginners to coaching-focused mentors, EdgeCipher is designed for people who want to take trading seriously.</p>
+
+            <div className="mt-16 grid lg:grid-cols-3 gap-8 text-left">
+                {testimonials.map((testimonial, i) => (
+                    <Card key={i} className="bg-muted/30 border-border/50 transform-gpu transition-all hover:shadow-xl hover:shadow-primary/5 hover:border-primary/20 hover:-translate-y-1">
+                        <CardContent className="p-6">
+                            <blockquote className="italic text-foreground">“{testimonial.quote}”</blockquote>
+                            <p className="mt-4 text-sm text-muted-foreground">– {testimonial.author}</p>
+                        </CardContent>
+                    </Card>
+                ))}
+                 <Card className="bg-muted/30 border-border/50">
+                    <CardHeader>
+                        <CardTitle>Trust & Safety</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <ul className="space-y-4">
+                            {trustSignals.map((signal, i) => (
+                                <li key={i} className="flex items-start">
+                                    <ShieldCheck className="h-5 w-5 text-primary mr-3 mt-1 flex-shrink-0" />
+                                    <span className="text-sm text-muted-foreground">{signal}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    </CardContent>
+                </Card>
+            </div>
         </div>
     );
 }
@@ -1057,13 +1110,16 @@ export function PublicWebsiteView({ onSwitchView }: PublicWebsiteViewProps) {
         <Section id="product">
              <ProductSection />
         </Section>
-        <Section id="pricing" className="bg-muted/20">
+        <Section id="credibility" className="bg-muted/20">
+            <CredibilitySection />
+        </Section>
+        <Section id="pricing">
              <PricingSection onAuthOpen={handleAuthOpen} />
         </Section>
-        <Section id="faq">
+        <Section id="faq" className="bg-muted/20">
              <FaqSection />
         </Section>
-        <Section id="contact" className="bg-muted/20">
+        <Section id="contact">
              <ContactSection />
         </Section>
       </main>
