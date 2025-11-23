@@ -314,7 +314,7 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
                     </p>
                 </div>
                  <div className="bg-muted/50 p-4 rounded-lg border border-dashed border-primary/20 relative">
-                    <p className="text-sm text-muted-foreground">
+                    <div className="text-sm text-muted-foreground">
                         <span className="font-semibold text-foreground flex items-center gap-2">
                              <Bot className="h-4 w-4 text-primary" />
                              Arjun's Daily Insight
@@ -322,7 +322,7 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
                         <blockquote className="mt-2 italic">
                            "{arjunMessage}"
                         </blockquote>
-                    </p>
+                    </div>
                 </div>
             </CardContent>
         </Card>
@@ -462,3 +462,6 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
 
     
 
+
+
+    
