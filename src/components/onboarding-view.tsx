@@ -20,6 +20,7 @@ import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "./ui/form";
 import { Input } from "./ui/input";
 import { Alert, AlertDescription } from "./ui/alert";
+import { HistoryAnalysisStep } from "./history-analysis-step";
 
 const steps: { id: OnboardingStep; title: string; icon: React.ElementType }[] = [
     { id: "welcome", title: "Welcome", icon: User },
@@ -246,10 +247,7 @@ function OnboardingStepContent({ currentStep, onNext, onBack, onSkipToPersona }:
              <BrokerConnectionStep onContinue={onNext} onSkip={onSkipToPersona} />
         ),
         history: (
-             <div>
-                <h2 className="text-2xl font-semibold text-foreground">Analyze Your History</h2>
-                <p className="mt-2 text-muted-foreground">Arjun is now analyzing your past performance to find patterns. (Content for this step will be added next).</p>
-            </div>
+             <HistoryAnalysisStep onComplete={onNext} />
         ),
         persona: (
              <div>
@@ -259,7 +257,7 @@ function OnboardingStepContent({ currentStep, onNext, onBack, onSkipToPersona }:
         ),
     };
 
-    const isComplexStep = ['welcome', 'questionnaire', 'broker'].includes(currentStep);
+    const isComplexStep = ['welcome', 'questionnaire', 'broker', 'history'].includes(currentStep);
 
     return (
         <div className="flex flex-col h-full">
@@ -283,13 +281,27 @@ function OnboardingStepContent({ currentStep, onNext, onBack, onSkipToPersona }:
 
 export function OnboardingView() {
     const { onboardingStep, setOnboardingStep, completeOnboarding, logout } = useAuth();
+    const [isBrokerConnected, setIsBrokerConnected] = useState(false);
     
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            setIsBrokerConnected(localStorage.getItem('ec_broker_connected') === 'true');
+        }
+    }, [onboardingStep]);
+
+
     const currentStepIndex = steps.findIndex(step => step.id === onboardingStep);
     const progress = ((currentStepIndex + 1) / steps.length) * 100;
 
     const handleNext = () => {
         if (currentStepIndex < steps.length - 1) {
-            setOnboardingStep(steps[currentStepIndex + 1].id);
+            let nextStep = steps[currentStepIndex + 1];
+            // Skip history step if broker is not connected
+            if (nextStep.id === 'history' && !isBrokerConnected) {
+                setOnboardingStep(steps[currentStepIndex + 2].id);
+            } else {
+                 setOnboardingStep(nextStep.id);
+            }
         } else {
             completeOnboarding();
         }
@@ -297,7 +309,13 @@ export function OnboardingView() {
 
     const handleBack = () => {
         if (currentStepIndex > 0) {
-            setOnboardingStep(steps[currentStepIndex - 1].id);
+            let prevStep = steps[currentStepIndex - 1];
+             // Skip history step if broker is not connected
+            if (prevStep.id === 'history' && !isBrokerConnected) {
+                setOnboardingStep(steps[currentStepIndex - 2].id);
+            } else {
+                setOnboardingStep(prevStep.id);
+            }
         }
     };
     
@@ -328,6 +346,10 @@ export function OnboardingView() {
                             {steps.map((step, index) => {
                                 const isCompleted = index < currentStepIndex;
                                 const isCurrent = index === currentStepIndex;
+                                const isSkipped = step.id === 'history' && !isBrokerConnected;
+                                
+                                if (isSkipped) return null;
+
                                 return (
                                     <button
                                         key={step.id}
