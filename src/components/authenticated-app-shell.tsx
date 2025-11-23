@@ -28,6 +28,7 @@ import { AiCoachingModule } from './ai-coaching-module';
 import { TradePlanningModule } from './trade-planning-module';
 import { TradeJournalModule } from './trade-journal-module';
 import { PerformanceAnalyticsModule } from './performance-analytics-module';
+import { StrategyManagementModule } from './strategy-management-module';
 
 type Module = 
   | 'dashboard' 
@@ -58,7 +59,7 @@ const mainNavItems: NavItem[] = [
 
 const analyticsNavItems: NavItem[] = [
   { id: 'analytics', label: 'Analytics', icon: BarChart },
-  { id: 'strategyManagement', label: 'Strategy Mgmt', icon: BrainCircuit, comingSoon: true },
+  { id: 'strategyManagement', label: 'Strategy Mgmt', icon: BrainCircuit, comingSoon: false },
 ];
 
 const marketNavItems: NavItem[] = [
@@ -130,6 +131,10 @@ function ModuleView({ currentModule, onSetModule, aiCoachingInitialMessage }: { 
     
     if (currentModule === 'analytics') {
       return <PerformanceAnalyticsModule onSetModule={onSetModule} />;
+    }
+    
+    if (currentModule === 'strategyManagement') {
+      return <StrategyManagementModule onSetModule={onSetModule} />;
     }
 
     const allNavItems = [...mainNavItems, ...analyticsNavItems, ...marketNavItems, ...communityNavItems, ...settingsNavItems];
@@ -318,3 +323,5 @@ export function AuthenticatedAppShell() {
     </TooltipProvider>
   );
 }
+
+    
