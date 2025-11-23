@@ -124,7 +124,7 @@ function Header({
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="outline" size="icon" onClick={onSwitchView} className="text-muted-foreground hover:text-foreground">
+              <Button variant="outline" size="icon" onClick={onSwitchView} className="text-muted-foreground hover:text-foreground" aria-label="Switch to Admin View">
                 <View className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
@@ -137,9 +137,8 @@ function Header({
       <div className="md:hidden">
         <Sheet open={isOpen} onOpenChange={setIsOpen}>
           <SheetTrigger asChild>
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" aria-label="Open menu">
               <Menu className="h-6 w-6" />
-              <span className="sr-only">Open menu</span>
             </Button>
           </SheetTrigger>
           <SheetContent side="right" className="bg-background/95 w-[280px]">

@@ -218,17 +218,26 @@ function AppHeader({ onSetModule }: { onSetModule: (module: Module) => void; }) 
             </div>
         </div>
         <div className="flex items-center gap-2 sm:gap-4">
-            <Button variant="ghost" size="icon" className="relative">
-                <Bell className="h-5 w-5" />
-                <span className="absolute top-1.5 right-1.5 flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
-                </span>
-                <span className="sr-only">Notifications</span>
-            </Button>
+            <TooltipProvider>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                         <Button variant="ghost" size="icon" className="relative" aria-label="Notifications">
+                            <Bell className="h-5 w-5" />
+                            <span className="absolute top-1.5 right-1.5 flex h-2 w-2">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+                            </span>
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p>View notifications (prototype)</p>
+                    </TooltipContent>
+                </Tooltip>
+            </TooltipProvider>
+
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="relative h-9 w-9 rounded-full">
+                    <Button variant="ghost" className="relative h-9 w-9 rounded-full" aria-label="User menu">
                         <UserCircle className="h-9 w-9" />
                     </Button>
                 </DropdownMenuTrigger>
@@ -378,7 +387,7 @@ export function AuthenticatedAppShell() {
              <div className="border-t border-border/50 p-2">
                  <Tooltip>
                     <TooltipTrigger asChild>
-                         <Button variant="ghost" onClick={() => setSidebarOpen(!isSidebarOpen)} className={cn("w-full justify-start gap-3 px-3", !isSidebarOpen && "h-10 w-10 justify-center p-0")}>
+                         <Button variant="ghost" onClick={() => setSidebarOpen(!isSidebarOpen)} className={cn("w-full justify-start gap-3 px-3", !isSidebarOpen && "h-10 w-10 justify-center p-0")} aria-label={isSidebarOpen ? "Collapse sidebar" : "Expand sidebar"}>
                             <PanelLeft className={cn("h-5 w-5 transition-transform", !isSidebarOpen && "rotate-180")} />
                             {isSidebarOpen && <span className="text-sm">Collapse</span>}
                         </Button>
@@ -399,9 +408,8 @@ export function AuthenticatedAppShell() {
             <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center justify-between border-b border-border/50 bg-muted/20 px-4 sm:px-6">
                 <Sheet open={isMobileNavOpen} onOpenChange={setMobileNavOpen}>
                     <SheetTrigger asChild>
-                         <Button variant="ghost" size="icon" className="md:hidden">
+                         <Button variant="ghost" size="icon" className="md:hidden" aria-label="Open sidebar menu">
                             <Menu className="h-6 w-6" />
-                            <span className="sr-only">Toggle Sidebar</span>
                         </Button>
                     </SheetTrigger>
                      <SheetContent side="left" className="w-64 p-0">

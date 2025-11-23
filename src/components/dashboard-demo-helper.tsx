@@ -15,6 +15,7 @@ import {
   DrawerTrigger,
 } from "@/components/ui/drawer"
 import { Separator } from './ui/separator';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 
 
 interface HighlightBoxProps {
@@ -87,9 +88,18 @@ export function DashboardDemoHelper({ isOpen, onOpenChange }: { isOpen: boolean,
     if (!isOpen) {
         return (
             <div className="fixed bottom-4 left-4 z-50">
-                <Button onClick={() => onOpenChange(true)} variant="outline" size="icon">
-                    <HelpCircle className="h-5 w-5" />
-                </Button>
+                <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button onClick={() => onOpenChange(true)} variant="outline" size="icon" aria-label="Open Demo Helper">
+                                <HelpCircle className="h-5 w-5" />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>Show Dashboard Tour (Shift + ?)</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
             </div>
         );
     }
@@ -117,7 +127,7 @@ export function DashboardDemoHelper({ isOpen, onOpenChange }: { isOpen: boolean,
                 <CardHeader>
                     <CardTitle className="flex items-center justify-between">
                         <span>Dashboard Tour</span>
-                         <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} className="-mr-2">
+                         <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} className="-mr-2" aria-label="Close demo helper">
                             <X className="h-4 w-4" />
                         </Button>
                     </CardTitle>
