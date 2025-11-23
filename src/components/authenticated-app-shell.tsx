@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useAuth } from '@/context/auth-provider';
-import { LayoutDashboard, Bot, FileText, Gauge, BarChart, Settings, HelpCircle, Bell, UserCircle, LogOut, Cpu, PanelLeft, Book, BrainCircuit, LineChart, Newspaper, Users, Sparkles, Menu } from 'lucide-react';
+import { LayoutDashboard, Bot, FileText, Gauge, BarChart, Settings, HelpCircle, Bell, UserCircle, LogOut, Cpu, PanelLeft, Book, BrainCircuit, LineChart, Newspaper, Users, Sparkles, Menu, Terminal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DashboardModule } from './dashboard-module';
 import {
@@ -36,6 +36,7 @@ import { CommunityModule } from './community-module';
 import { ProfileSettingsModule } from './profile-settings-module';
 import { DashboardDemoHelper } from './dashboard-demo-helper';
 import { Badge } from './ui/badge';
+import { useEventLog } from '@/context/event-log-provider';
 
 type Module = 
   | 'dashboard' 
@@ -193,6 +194,7 @@ function AppHeader({ onSetModule }: { onSetModule: (module: Module) => void; }) 
   const { logout } = useAuth();
   const [persona, setPersona] = useState<{ primaryPersonaName?: string }>({});
   const [greeting, setGreeting] = useState("Welcome");
+  const { toggleEventLog } = useEventLog();
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -226,6 +228,19 @@ function AppHeader({ onSetModule }: { onSetModule: (module: Module) => void; }) 
                     </TooltipTrigger>
                     <TooltipContent side="bottom" className="max-w-xs">
                         <p>This is a non-production prototype. Data is mocked or stored only in your browser. No real trading or live API calls happen here.</p>
+                    </TooltipContent>
+                </Tooltip>
+            </TooltipProvider>
+
+            <TooltipProvider>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button variant="ghost" size="icon" onClick={toggleEventLog} aria-label="Toggle Event Log">
+                            <Terminal className="h-5 w-5" />
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p>Toggle Event Log (Ctrl + L)</p>
                     </TooltipContent>
                 </Tooltip>
             </TooltipProvider>

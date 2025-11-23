@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { AlertCircle, Link2, Lock, Trash2, Shield, CreditCard, Mail, Bot, User, Bell } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
+import { useEventLog } from "@/context/event-log-provider";
 
 interface ProfileSettingsModuleProps {
     onSetModule: (module: any, context?: any) => void;
@@ -41,6 +42,7 @@ const sessions = ["London", "New York", "Asia", "All"];
 
 function ProfileTab() {
   const { toast } = useToast();
+  const { addLog } = useEventLog();
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(fullSettingsSchema),
     defaultValues: () => {
@@ -76,6 +78,7 @@ function ProfileTab() {
 
     localStorage.setItem("ec_profile", JSON.stringify(profileData));
     localStorage.setItem("ec_prefs", JSON.stringify(prefsData));
+    addLog("Profile settings saved.");
 
     toast({
       title: "Settings saved",
@@ -172,6 +175,7 @@ const brokerSchema = z.object({
 
 function BrokerTab() {
     const { toast } = useToast();
+    const { addLog } = useEventLog();
     const [connectionStatus, setConnectionStatus] = useState({
         isConnected: false,
         brokerName: "",
@@ -202,6 +206,7 @@ function BrokerTab() {
         localStorage.setItem("ec_api_key", values.apiKey);
         localStorage.setItem("ec_api_secret", values.apiSecret);
         updateConnectionStatus();
+        addLog("Broker connected: Delta Exchange.");
         toast({ title: "Broker Connected", description: "Delta Exchange has been successfully connected." });
         form.reset();
     };
@@ -212,6 +217,7 @@ function BrokerTab() {
         localStorage.removeItem("ec_api_key");
         localStorage.removeItem("ec_api_secret");
         updateConnectionStatus();
+        addLog("Broker disconnected.");
         toast({ title: "Broker Disconnected", variant: "destructive" });
     };
     
@@ -290,6 +296,7 @@ const notificationsSchema = z.object({
 
 function NotificationsTab() {
   const { toast } = useToast();
+  const { addLog } = useEventLog();
   const form = useForm<z.infer<typeof notificationsSchema>>({
     resolver: zodResolver(notificationsSchema),
     defaultValues: () => {
@@ -302,6 +309,7 @@ function NotificationsTab() {
 
   const onSubmit = (data: z.infer<typeof notificationsSchema>) => {
     localStorage.setItem("ec_notifications_prefs", JSON.stringify(data));
+    addLog("Notification settings saved.");
     toast({ title: "Notification settings saved." });
   };
 
@@ -367,12 +375,14 @@ const passwordSchema = z.object({
 
 function SecurityTab() {
   const { toast } = useToast();
+  const { addLog } = useEventLog();
   const form = useForm<z.infer<typeof passwordSchema>>({
     resolver: zodResolver(passwordSchema),
     defaultValues: { oldPassword: "", newPassword: "", confirmPassword: "" },
   });
 
   const onSubmit = (data: z.infer<typeof passwordSchema>) => {
+    addLog("Password change attempted (prototype).");
     toast({ title: "Password changed (prototype)", description: "In a real app, your password would be updated." });
     form.reset();
   };

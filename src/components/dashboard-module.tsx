@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Label } from "./ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "./ui/dialog";
 import { Skeleton } from "./ui/skeleton";
+import { useEventLog } from "@/context/event-log-provider";
 
 interface Persona {
     primaryPersonaName?: string;
@@ -322,7 +323,7 @@ function NewsSnapshot({ onSetModule }: { onSetModule: (module: any) => void }) {
                     <TooltipProvider>
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-6 w-6">
+                                <Button variant="ghost" size="icon" className="h-6 w-6" aria-label="News snapshot info">
                                   <Info className="h-4 w-4 text-muted-foreground cursor-help" />
                                 </Button>
                             </TooltipTrigger>
@@ -452,6 +453,7 @@ interface DashboardModuleProps {
 }
 
 export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps) {
+    const { addLog } = useEventLog();
     const [scenario, setScenario] = useState<DemoScenario>('normal');
     const [isWhyModalOpen, setWhyModalOpen] = useState(false);
     
@@ -467,6 +469,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
     const handleScenarioChange = (newScenario: DemoScenario) => {
         localStorage.setItem('ec_demo_scenario', newScenario);
         setScenario(newScenario);
+        addLog(`Demo scenario switched to: ${newScenario}`);
     };
 
     // This is not a real hook, just a helper to centralize data logic for the prototype
@@ -800,7 +803,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                                 <TooltipProvider>
                                     <Tooltip>
                                         <TooltipTrigger asChild>
-                                           <Button variant="ghost" size="icon" className="h-6 w-6">
+                                           <Button variant="ghost" size="icon" className="h-6 w-6" aria-label="Crypto VIX info">
                                              <span className="flex items-center gap-1 cursor-help">
                                                 Crypto VIX <Info className="h-3 w-3" />
                                             </span>
