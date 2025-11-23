@@ -7,7 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
-import { Bot, FileText, Gauge, BarChart, ArrowRight, TrendingUp, TrendingDown, BookOpen, Link, ArrowRightCircle } from "lucide-react";
+import { Bot, FileText, Gauge, BarChart, ArrowRight, TrendingUp, TrendingDown, BookOpen, Link, ArrowRightCircle, Lightbulb } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface Persona {
     primaryPersonaName?: string;
@@ -59,6 +60,108 @@ const getArjunMessage = ({ disciplineScore = 50, performanceState = 'stable' }: 
     return "Your performance has been stable recently. Keep following the plan and avoid unnecessary experimentation.";
 };
 
+// New helper function for the decision strip
+const getTradeDecision = ({
+  vixZone,
+  performanceState,
+  disciplineScore,
+}: {
+  vixZone: string;
+  performanceState: string;
+  disciplineScore: number;
+}) => {
+  // RED conditions
+  if (vixZone === "Extreme" && disciplineScore < 50) {
+    return {
+      status: "Red",
+      message: "Volatility is extreme and your discipline score is low. Consider reviewing instead of trading.",
+      chipColor: "bg-red-500/20 text-red-400",
+      glowColor: "shadow-[0_0_10px_rgba(239,68,68,0.3)]",
+    };
+  }
+  if (performanceState === "drawdown" && disciplineScore < 40) {
+    return {
+      status: "Red",
+      message: "You're in a deep drawdown with low discipline. Today is a high-risk day for you.",
+      chipColor: "bg-red-500/20 text-red-400",
+      glowColor: "shadow-[0_0_10px_rgba(239,68,68,0.3)]",
+    };
+  }
+
+  // AMBER conditions
+  if (vixZone === "Elevated" || performanceState === "drawdown") {
+    return {
+      status: "Amber",
+      message: "Conditions are tricky. Keep risk small and stick strictly to your A+ setups.",
+      chipColor: "bg-amber-500/20 text-amber-400",
+      glowColor: "shadow-[0_0_10px_rgba(245,158,11,0.3)]",
+    };
+  }
+  if (performanceState === "hot_streak" && disciplineScore > 70) {
+     return {
+      status: "Amber",
+      message: "You're on a hot streak, which can lead to overconfidence. Protect your capital.",
+      chipColor: "bg-amber-500/20 text-amber-400",
+      glowColor: "shadow-[0_0_10px_rgba(245,158,11,0.3)]",
+    };
+  }
+
+  // GREEN condition
+  return {
+    status: "Green",
+    message: "Market is normal and your discipline is solid. Follow your plan.",
+    chipColor: "bg-green-500/20 text-green-400",
+    glowColor: "shadow-[0_0_10px_rgba(34,197,94,0.3)]",
+  };
+};
+
+function TradeDecisionStrip() {
+    // Mock data for the decision logic
+    const mockVix = 75; // Elevated
+    const getVixZone = (vix: number) => {
+        if (vix > 80) return "Extreme";
+        if (vix > 60) return "Elevated";
+        if (vix > 30) return "Normal";
+        return "Calm";
+    }
+
+    const [persona, setPersona] = useState<Persona>({});
+     useEffect(() => {
+        if (typeof window !== "undefined") {
+            const personaData = localStorage.getItem("ec_persona_final") || localStorage.getItem("ec_persona_base");
+            if (personaData) {
+                setPersona(JSON.parse(personaData));
+            }
+        }
+    }, []);
+
+    const decision = getTradeDecision({
+        vixZone: getVixZone(mockVix),
+        performanceState: "drawdown", // Mock state
+        disciplineScore: persona.disciplineScore || 50,
+    });
+
+    return (
+        <Card className="bg-muted/30 border-border/50">
+            <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                    <Lightbulb className="h-5 w-5 text-primary" />
+                    <h3 className="font-semibold text-foreground">Should I trade today?</h3>
+                </div>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 w-full sm:w-auto">
+                    <div className={cn(
+                        "inline-flex items-center justify-center whitespace-nowrap rounded-full px-3 py-1 text-sm font-bold transition-all",
+                        decision.chipColor,
+                        decision.glowColor
+                    )}>
+                        {decision.status} – Trade with caution
+                    </div>
+                    <p className="text-sm text-muted-foreground">{decision.message}</p>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
 
 export function DashboardModule() {
     const [persona, setPersona] = useState<Persona>({});
@@ -75,7 +178,6 @@ export function DashboardModule() {
         }
     }, []);
     
-    // Mock performance state for Arjun's message
     const mockPerformanceState = 'drawdown';
     const arjunMessage = getArjunMessage({
         disciplineScore: persona.disciplineScore,
@@ -109,6 +211,8 @@ export function DashboardModule() {
                 </div>
             </CardContent>
         </Card>
+
+        <TradeDecisionStrip />
         
         <div className="grid lg:grid-cols-3 gap-8">
             {/* Left column */}
@@ -271,4 +375,5 @@ export function DashboardModule() {
         </div>
     </div>
   );
-}
+
+    
