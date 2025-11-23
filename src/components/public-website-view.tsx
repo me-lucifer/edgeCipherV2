@@ -211,11 +211,11 @@ function Hero({ onAuthOpen }: { onAuthOpen: (tab: AuthModalTab) => void }) {
                     EdgeCipher introduces Arjun, an <InfoTooltip text="A virtual coach that reviews your trades and behaviour to give you feedback and suggestions.">AI mentor</InfoTooltip> that analyzes your trades, psychology, and risk to help you become a disciplined, consistent <InfoTooltip text="Contracts that let you speculate on the future price of a cryptocurrency, often using leverage. They can amplify both gains and losses.">crypto futures</InfoTooltip> trader.
                 </p>
                 <div className="mt-8 flex flex-wrap gap-4">
-                    <Button size="lg" onClick={() => onAuthOpen('signup')}>Start Free</Button>
-                    <Button size="lg" variant="ghost">
+                    <Button size="lg" onClick={() => onAuthOpen('signup')} className="transition-transform hover:scale-105">Start Free</Button>
+                    <a href="#product" onClick={(e) => handleScrollTo(e, '#product')} className={cn(buttonVariants({ variant: 'ghost', size: 'lg' }), "transition-transform hover:scale-105")}>
                         <Video className="mr-2 h-5 w-5" />
                         Watch Explainer Video
-                    </Button>
+                    </a>
                 </div>
                  <div className="mt-8 flex items-center gap-x-6 gap-y-4 text-sm text-muted-foreground">
                     <div className="flex items-center gap-2">
@@ -277,7 +277,7 @@ function Hero({ onAuthOpen }: { onAuthOpen: (tab: AuthModalTab) => void }) {
 }
 
 const ValueCard = ({ icon: Icon, title, description, tooltip, learnMore }: { icon: React.ElementType, title: string, description: string, tooltip?: string, learnMore?: boolean }) => (
-    <Card className="bg-muted/30 border-border/50 transform-gpu transition-all hover:bg-muted/50 hover:border-primary/30">
+    <Card className="bg-muted/30 border-border/50 transform-gpu transition-all hover:bg-muted/50 hover:border-primary/30 hover:scale-105">
         <CardContent className="p-6">
             <div className="flex items-start gap-4">
                 <div className="bg-primary/10 text-primary p-2 rounded-lg">
@@ -409,7 +409,7 @@ function HowItWorksSection() {
 
                 {steps.map((item, index) => (
                     <div key={index} className="relative z-10">
-                        <Card className="h-full bg-muted/30 border-border/50 text-left">
+                        <Card className="h-full bg-muted/30 border-border/50 text-left transition-transform hover:scale-105">
                             <CardContent className="p-6">
                                 <div className="flex items-start gap-4">
                                     <div className="bg-primary text-primary-foreground rounded-full h-8 w-8 flex-shrink-0 flex items-center justify-center text-sm font-bold">
@@ -557,7 +557,7 @@ const PricingCard = ({
     onClickCta: (e: React.MouseEvent<HTMLButtonElement | HTMLAnchorElement>) => void;
 }) => (
     <Card className={cn(
-        "flex flex-col",
+        "flex flex-col transition-transform hover:scale-105",
         highlighted ? "border-primary/50 shadow-xl shadow-primary/10" : "border-border/50 bg-muted/30"
     )}>
         <CardHeader className="relative">
@@ -588,13 +588,13 @@ const PricingCard = ({
         <div className="p-6 pt-0">
              {title === "Team / Mentor" ? (
                 <a href="#contact" onClick={onClickCta} className={cn(
-                    "block w-full text-center",
+                    "block w-full text-center transition-transform hover:scale-105",
                     buttonVariants({ variant: highlighted ? 'default' : 'outline', size: 'lg' })
                 )}>
                     {ctaText}
                 </a>
             ) : (
-                <Button onClick={onClickCta} className="w-full" variant={highlighted ? 'default' : 'outline'} size="lg">
+                <Button onClick={onClickCta} className="w-full transition-transform hover:scale-105" variant={highlighted ? 'default' : 'outline'} size="lg">
                     {ctaText}
                 </Button>
             )}
@@ -642,8 +642,6 @@ function PricingSection({ onAuthOpen }: { onAuthOpen: (tab: AuthModalTab) => voi
             ],
             ctaText: "Contact Sales",
             action: (e: React.MouseEvent<HTMLButtonElement | HTMLAnchorElement>) => {
-              const anchor = document.createElement('a');
-              anchor.href = "#contact";
               handleScrollTo(e as React.MouseEvent<HTMLAnchorElement>, '#contact');
             }
         }
@@ -663,7 +661,7 @@ function PricingSection({ onAuthOpen }: { onAuthOpen: (tab: AuthModalTab) => voi
                         features={plan.features}
                         ctaText={plan.ctaText}
                         highlighted={plan.highlighted}
-                        onClickCta={plan.action}
+                        onClickCta={plan.action as (e: React.MouseEvent<HTMLButtonElement | HTMLAnchorElement>) => void}
                     />
                 ))}
             </div>
@@ -918,8 +916,8 @@ function Footer() {
     ];
 
     const legalLinks = [
-        { href: '#terms', label: 'Terms of Use' },
-        { href: '#privacy', label: 'Privacy Policy' },
+        { href: '#', label: 'Terms of Use' },
+        { href: '#', label: 'Privacy Policy' },
     ];
     
     return (
@@ -973,8 +971,8 @@ function Footer() {
                     <div className="space-y-4">
                         <h4 className="font-semibold text-foreground">Legal</h4>
                         <ul className="space-y-2">
-                            {legalLinks.map(link => (
-                                <li key={link.href}>
+                            {legalLinks.map((link, i) => (
+                                <li key={`${link.href}-${i}`}>
                                     <a href={link.href} className="text-sm text-muted-foreground hover:text-primary transition-colors">
                                         {link.label}
                                     </a>
@@ -1080,3 +1078,5 @@ export function PublicWebsiteView({ onSwitchView }: PublicWebsiteViewProps) {
     </div>
   );
 }
+
+    
