@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
-import { Bot, FileText, Gauge, BarChart, ArrowRight, TrendingUp, TrendingDown, BookOpen, Link, ArrowRightCircle, Lightbulb, Info, Newspaper, HelpCircle, CheckCircle, Sparkles, LineChart } from "lucide-react";
+import { Bot, FileText, Gauge, BarChart as BarChartIcon, ArrowRight, TrendingUp, TrendingDown, BookOpen, Link, ArrowRightCircle, Lightbulb, Info, Newspaper, HelpCircle, CheckCircle, Sparkles, LineChart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
@@ -17,6 +17,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Skeleton } from "./ui/skeleton";
 import { useEventLog } from "@/context/event-log-provider";
 import { ScrollArea } from "./ui/scroll-area";
+import { BarChart, CartesianGrid, XAxis, YAxis, Bar, Line, ResponsiveContainer } from "recharts";
+import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "./ui/chart";
 
 interface Persona {
     primaryPersonaName?: string;
@@ -237,6 +239,26 @@ function PerformanceSummary({ dailyPnl7d, dailyPnl30d, performanceState, hasHist
     const losses = dataForRange.filter(pnl => pnl < 0).length;
     const winLossLabel = timeRange === 'today' ? (totalPnl > 0 ? '1W / 0L' : (totalPnl < 0 ? '0W / 1L' : '0W / 0L')) : `${wins}W / ${losses}L`;
 
+    const pnlChartData = dataForRange.map((pnl, i) => ({
+      day: `Day ${i + 1}`,
+      pnl: pnl,
+      fill: pnl >= 0 ? "var(--color-positive)" : "var(--color-negative)",
+    }));
+    
+    const pnlChartConfig = {
+      pnl: {
+        label: "PnL",
+      },
+      positive: {
+        label: "Positive",
+        color: "hsl(var(--chart-2))",
+      },
+      negative: {
+        label: "Negative",
+        color: "hsl(var(--chart-5))",
+      },
+    } satisfies ChartConfig
+
     return (
         <Card id="demo-highlight-3" className="bg-muted/30 border-border/50">
             <CardHeader className="flex flex-row items-center justify-between">
@@ -283,13 +305,25 @@ function PerformanceSummary({ dailyPnl7d, dailyPnl30d, performanceState, hasHist
                  <Card className="bg-muted/30 border-border/50">
                     <CardHeader>
                         <CardTitle className="text-base">
-                            {timeRange === 'today' ? 'Today\'s' : timeRange === '7d' ? '7-Day' : '30-Day'} PnL Sparkline
+                            {timeRange === 'today' ? 'Today\'s' : timeRange === '7d' ? '7-Day' : '30-Day'} PnL
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="h-20 w-full bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-border/50">
-                            <p className="text-sm text-muted-foreground">[Sparkline for {timeRange} placeholder]</p>
-                        </div>
+                        <ChartContainer config={pnlChartConfig} className="h-20 w-full">
+                            <BarChart accessibilityLayer data={pnlChartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                                <XAxis dataKey="day" hide />
+                                <YAxis domain={['dataMin', 'dataMax']} hide />
+                                <ChartTooltip
+                                    cursor={false}
+                                    content={<ChartTooltipContent 
+                                        hideIndicator 
+                                        labelFormatter={(value, payload) => payload?.[0]?.payload.day}
+                                        formatter={(value) => `$${Number(value).toFixed(2)}`} 
+                                    />}
+                                />
+                                <Bar dataKey="pnl" radius={2} />
+                            </BarChart>
+                        </ChartContainer>
                         <p className="text-xs text-muted-foreground mt-4">
                             <span className="font-semibold text-foreground">Arjun's view:</span> {getArjunPerformanceView()}
                              <Button 
@@ -472,9 +506,8 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
 
         useEffect(() => {
             if (typeof window !== "undefined") {
-                const personaData = localStorage.getItem("ec_persona_final") || localStorage.getItem("ec_persona_base");
-                const loadedPersona = personaData ? JSON.parse(personaData) : {};
-
+                const personaData = JSON.parse(localStorage.getItem("ec_persona_final") || localStorage.getItem("ec_persona_base") || "{}");
+                
                 let brokerConnected = localStorage.getItem('ec_broker_connected') === 'true';
                 if (currentScenario === 'no_positions') {
                     brokerConnected = false;
@@ -518,12 +551,19 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                     }
                 }
                 
+                const startingEquity = 10000;
+                const equityCurve = dailyPnl30d.reduce((acc: any[], pnl, i) => {
+                    const prevEquity = i > 0 ? acc[i - 1].equity : startingEquity;
+                    acc.push({ day: `Day ${i + 1}`, equity: prevEquity + pnl });
+                    return acc;
+                }, []);
+                
                 setData({
                     persona: {
-                        primaryPersonaName: loadedPersona.primaryPersonaName || 'Trader',
-                        riskScore: loadedPersona.riskScore || 50,
-                        disciplineScore: currentScenario === 'drawdown' ? 35 : (loadedPersona.disciplineScore || 65),
-                        emotionScore: loadedPersona.emotionScore || 50,
+                        primaryPersonaName: personaData.primaryPersonaName || 'Trader',
+                        riskScore: personaData.riskScore || 50,
+                        disciplineScore: currentScenario === 'drawdown' ? 35 : (personaData.disciplineScore || 65),
+                        emotionScore: personaData.emotionScore || 50,
                     },
                     connection: {
                         brokerConnected,
@@ -538,6 +578,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                         dailyPnl30d,
                         performanceState,
                         hasHistory,
+                        equityCurve,
                     },
                     positions: brokerConnected && hasHistory ? openPositions : [],
                     growthPlanToday: hasHistory ? growthPlanItems : newUserGrowthPlanItems,
@@ -564,6 +605,13 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
         disciplineScore: personaData.disciplineScore,
         performanceState: performance.performanceState
     });
+
+    const equityChartConfig = {
+      equity: {
+        label: "Equity",
+        color: "hsl(var(--primary))",
+      },
+    } satisfies ChartConfig;
 
   return (
     <div className="space-y-8">
@@ -855,10 +903,32 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                         <CardDescription>Visual view of your recent balance swings.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="h-40 w-full bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-border/50">
-                            <LineChart className="h-12 w-12 text-muted-foreground/50" />
-                            <p className="text-sm text-muted-foreground ml-4">[Chart placeholder]</p>
-                        </div>
+                        {performance.hasHistory ? (
+                          <ChartContainer config={equityChartConfig} className="h-40 w-full">
+                            <ResponsiveContainer>
+                              <LineChart data={performance.equityCurve} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                                <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50" />
+                                <XAxis dataKey="day" hide />
+                                <YAxis 
+                                  domain={['dataMin', 'dataMax']}
+                                  tickFormatter={(value) => `$${Number(value/1000).toFixed(0)}k`}
+                                />
+                                <ChartTooltip 
+                                    cursor={{strokeDasharray: '3 3'}}
+                                    content={<ChartTooltipContent 
+                                        formatter={(value) => `$${Number(value).toFixed(2)}`}
+                                    />} 
+                                />
+                                <Line type="monotone" dataKey="equity" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+                              </LineChart>
+                            </ResponsiveContainer>
+                          </ChartContainer>
+                        ) : (
+                          <div className="h-40 w-full bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-border/50">
+                              <LineChart className="h-12 w-12 text-muted-foreground/50" />
+                              <p className="text-sm text-muted-foreground ml-4">No data yet</p>
+                          </div>
+                        )}
                         <p className="text-xs text-muted-foreground mt-4">
                             Green slopes mean your equity is growing. Flat or choppy zones are where discipline matters most.
                         </p>
