@@ -13,7 +13,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { Badge } from '@/components/ui/badge';
 import { ThemeSwitcher } from './theme-switcher';
@@ -32,10 +32,7 @@ const navLinks = [
   { href: '#contact', label: 'Contact' },
 ];
 
-function Header({ onSwitchView }: { onSwitchView: () => void }) {
-  const [isOpen, setIsOpen] = useState(false);
-
-  const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+function handleScrollTo(e: React.MouseEvent<HTMLAnchorElement>, href: string) {
     e.preventDefault();
     const targetElement = document.querySelector(href);
     if (targetElement) {
@@ -48,6 +45,13 @@ function Header({ onSwitchView }: { onSwitchView: () => void }) {
          behavior: "smooth"
       });
     }
+};
+
+function Header({ onSwitchView }: { onSwitchView: () => void }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    handleScrollTo(e, href);
     setIsOpen(false);
   };
 
@@ -483,6 +487,131 @@ function ProductSection() {
     );
 }
 
+const PricingCard = ({
+    badge,
+    title,
+    price,
+    features,
+    ctaText,
+    ctaVariant = "default",
+    highlighted = false,
+    onClickCta
+}: {
+    badge?: string,
+    title: string,
+    price: string,
+    features: string[],
+    ctaText: string,
+    ctaVariant?: "default" | "outline",
+    highlighted?: boolean,
+    onClickCta: (e: React.MouseEvent<HTMLAnchorElement>) => void;
+}) => (
+    <Card className={cn(
+        "flex flex-col",
+        highlighted ? "border-primary/50 shadow-xl shadow-primary/10" : "border-border/50 bg-muted/30"
+    )}>
+        <CardHeader className="relative">
+            {badge && (
+                <Badge 
+                    variant={highlighted ? "default" : "secondary"}
+                    className={cn(
+                        "absolute top-0 -translate-y-1/2 left-6",
+                         highlighted ? "bg-primary text-primary-foreground" : "bg-muted-foreground/20 text-foreground"
+                    )}
+                >
+                    {badge}
+                </Badge>
+            )}
+            <CardTitle>{title}</CardTitle>
+            <p className="text-3xl font-bold pt-2">{price}</p>
+        </CardHeader>
+        <CardContent className="flex-1 flex flex-col">
+            <ul className="space-y-3 flex-1">
+                {features.map((feature, i) => (
+                    <li key={i} className="flex items-start">
+                        <CheckCircle2 className="h-5 w-5 text-primary mr-3 mt-1 flex-shrink-0" />
+                        <span className="text-muted-foreground text-sm">{feature}</span>
+                    </li>
+                ))}
+            </ul>
+        </CardContent>
+        <div className="p-6 pt-0">
+            <a href="#contact" onClick={onClickCta} className={cn(
+                "block w-full text-center",
+                buttonVariants({ variant: highlighted ? 'default' : 'outline', size: 'lg' })
+            )}>
+                {ctaText}
+            </a>
+        </div>
+    </Card>
+);
+
+function PricingSection() {
+    const plans = [
+        {
+            badge: "Best for beginners",
+            title: "Starter",
+            price: "$0 / month",
+            features: [
+                "AI coaching on limited recent trades",
+                "Manual trade journaling",
+                "Basic performance analytics",
+                "Access to public community",
+            ],
+            ctaText: "Start Free",
+            ctaVariant: "outline"
+        },
+        {
+            badge: "Most popular",
+            title: "Pro Trader",
+            price: "$39 / month",
+            features: [
+                "Full performance analytics & filters",
+                "Deeper psychology insights from Arjun",
+                "Risk Center with custom rules & alerts",
+                "Priority updates & new features"
+            ],
+            ctaText: "Get Pro",
+            highlighted: true,
+        },
+        {
+            badge: "Coming soon",
+            title: "Team / Mentor",
+            price: "Let's talk",
+            features: [
+                "For trading groups, mentors, and communities",
+                "Multiple accounts under one view",
+                "Custom onboarding & support"
+            ],
+            ctaText: "Contact Sales",
+            ctaVariant: "outline"
+        }
+    ];
+
+    const onClickCta = (e: React.MouseEvent<HTMLAnchorElement>) => {
+        handleScrollTo(e, '#contact');
+    };
+
+    return (
+        <div className="text-center">
+            <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">Pricing</h2>
+            <p className="mt-4 text-lg text-muted-foreground">Start free. Upgrade when you’re ready to go deeper.</p>
+            <div className="mt-16 grid gap-8 md:grid-cols-2 lg:grid-cols-3 max-w-5xl mx-auto items-stretch">
+                {plans.map((plan, i) => (
+                    <PricingCard 
+                        key={i} 
+                        {...plan}
+                        onClickCta={onClickCta}
+                    />
+                ))}
+            </div>
+            <p className="mt-12 text-sm text-muted-foreground/80">
+                No auto-trading. EdgeCipher never touches your capital — it only coaches you.
+            </p>
+        </div>
+    );
+}
+
 function Footer() {
     return (
         <footer className="border-t border-border/50 py-8">
@@ -511,7 +640,7 @@ export function PublicWebsiteView({ onSwitchView }: PublicWebsiteViewProps) {
              <ProductSection />
         </Section>
         <Section id="pricing" className="bg-muted/20">
-             <h2 className="text-3xl font-bold text-center">Pricing</h2>
+             <PricingSection />
         </Section>
         <Section id="faq">
              <h2 className="text-3xl font-bold text-center">FAQ</h2>
