@@ -183,7 +183,38 @@ function TradeDecisionStrip({ vixZone, performanceState, disciplineScore, hasHis
 
 type TimeRange = 'today' | '7d' | '30d';
 
-function PerformanceSummary({ dailyPnl7d, dailyPnl30d, performanceState, hasHistory, onSetModule }: { dailyPnl7d: number[], dailyPnl30d: number[], performanceState: string, hasHistory: boolean, onSetModule: (module: any, context?: any) => void; }) {
+function StreakStatus({ streak, onSetModule }: { streak: { winning: number, losing: number }, onSetModule: (module: any, context?: any) => void; }) {
+    if (streak.winning > 0) {
+        const message = `Arjun, I'm on a ${streak.winning}-day winning streak. How do I avoid overconfidence?`;
+        return (
+            <Badge 
+                onClick={() => onSetModule('aiCoaching', { initialMessage: message })}
+                className="cursor-pointer bg-green-500/20 text-green-300 border-green-500/30 hover:bg-green-500/30"
+            >
+                Winning streak: {streak.winning} day(s)
+            </Badge>
+        );
+    }
+    if (streak.losing > 0) {
+        const message = `Arjun, I'm on a ${streak.losing}-day losing streak. How should I adjust?`;
+        return (
+            <Badge 
+                onClick={() => onSetModule('aiCoaching', { initialMessage: message })}
+                className="cursor-pointer bg-red-500/20 text-red-300 border-red-500/30 hover:bg-red-500/30"
+            >
+                Losing streak: {streak.losing} day(s)
+            </Badge>
+        );
+    }
+    return (
+        <Badge variant="secondary">
+            No active streak.
+        </Badge>
+    );
+}
+
+
+function PerformanceSummary({ dailyPnl7d, dailyPnl30d, performanceState, hasHistory, streak, onSetModule }: { dailyPnl7d: number[], dailyPnl30d: number[], performanceState: string, hasHistory: boolean, streak: { winning: number, losing: number }, onSetModule: (module: any, context?: any) => void; }) {
     const [timeRange, setTimeRange] = useState<TimeRange>('7d');
 
     const getArjunPerformanceView = () => {
@@ -323,17 +354,20 @@ function PerformanceSummary({ dailyPnl7d, dailyPnl30d, performanceState, hasHist
                                 <Bar dataKey="pnl" radius={2} />
                             </BarChart>
                         </ChartContainer>
-                        <p className="text-xs text-muted-foreground mt-4">
-                            <span className="font-semibold text-foreground">Arjun's view:</span> {getArjunPerformanceView()}
-                             <Button 
-                                variant="link" 
-                                size="sm" 
-                                className="text-xs h-auto p-0 ml-1 text-primary/80 hover:text-primary"
-                                onClick={() => onSetModule('aiCoaching', { initialMessage: "Let's review my performance over the last " + timeRange })}
-                            >
-                                Discuss with Arjun
-                            </Button>
-                        </p>
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground mt-4">
+                            <p>
+                                <span className="font-semibold text-foreground">Arjun's view:</span> {getArjunPerformanceView()}
+                                <Button 
+                                    variant="link" 
+                                    size="sm" 
+                                    className="text-xs h-auto p-0 ml-1 text-primary/80 hover:text-primary"
+                                    onClick={() => onSetModule('aiCoaching', { initialMessage: "Let's review my performance over the last " + timeRange })}
+                                >
+                                    Discuss
+                                </Button>
+                            </p>
+                             <StreakStatus streak={streak} onSetModule={onSetModule} />
+                        </div>
                     </CardContent>
                 </Card>
             </CardContent>
@@ -345,7 +379,7 @@ function NewsSnapshot({ onSetModule }: { onSetModule: (module: any) => void }) {
     return (
          <Card className="bg-muted/30 border-border/50">
             <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
+                <CardTitle className="text-base flex items-center gap-2">
                     <Newspaper className="h-5 w-5" />
                     News Snapshot
                 </CardTitle>
@@ -552,6 +586,27 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                     }
                 }
                 
+                const calculateStreak = (pnl: number[]) => {
+                    let winning = 0;
+                    let losing = 0;
+                    if (pnl.length === 0) return { winning, losing };
+
+                    if (pnl[pnl.length - 1] > 0) {
+                        for (let i = pnl.length - 1; i >= 0; i--) {
+                            if (pnl[i] > 0) winning++;
+                            else break;
+                        }
+                    } else if (pnl[pnl.length - 1] < 0) {
+                        for (let i = pnl.length - 1; i >= 0; i--) {
+                            if (pnl[i] < 0) losing++;
+                            else break;
+                        }
+                    }
+                    return { winning, losing };
+                }
+
+                const streak = calculateStreak(dailyPnl7d.filter(p => p !== 0));
+
                 const startingEquity = 10000;
                 const equityCurve = dailyPnl30d.reduce((acc: any[], pnl, i) => {
                     const prevEquity = i > 0 ? acc[i - 1].equity : startingEquity;
@@ -580,6 +635,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                         performanceState,
                         hasHistory,
                         equityCurve,
+                        streak,
                     },
                     positions: brokerConnected && hasHistory ? openPositions : [],
                     growthPlanToday: hasHistory ? growthPlanItems : newUserGrowthPlanItems,
@@ -828,6 +884,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                     dailyPnl30d={performance.dailyPnl30d}
                     performanceState={performance.performanceState}
                     hasHistory={performance.hasHistory}
+                    streak={performance.streak}
                     onSetModule={onSetModule}
                 />
 
