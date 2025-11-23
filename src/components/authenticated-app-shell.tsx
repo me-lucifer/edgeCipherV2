@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -290,6 +290,7 @@ export function AuthenticatedAppShell() {
   const [aiCoachingInitialMessage, setAiCoachingInitialMessage] = useState<string | null>(null);
   const [isInitialLoading, setInitialLoading] = useState(true);
   const [isDemoHelperOpen, setDemoHelperOpen] = useState(false);
+  const sequenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -306,12 +307,44 @@ export function AuthenticatedAppShell() {
         if (e.key === '?' && e.shiftKey) {
             setDemoHelperOpen(prev => !prev);
         }
+        
+        // Handle navigation shortcuts
+        if (document.activeElement && ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+            return;
+        }
+        
+        if (e.key === 'g' && !sequenceTimeoutRef.current) {
+            sequenceTimeoutRef.current = setTimeout(() => {
+                sequenceTimeoutRef.current = null;
+            }, 1500); // 1.5 second window
+        } else if (sequenceTimeoutRef.current) {
+            const navMap: Record<string, Module> = {
+                'd': 'dashboard',
+                'a': 'aiCoaching',
+                'p': 'tradePlanning',
+                'j': 'tradeJournal',
+                'r': 'riskCenter',
+                'c': 'community',
+                's': 'settings',
+            };
+            if (navMap[e.key]) {
+                handleSetModule(navMap[e.key]);
+                console.log(`Shortcut: Navigated to ${navMap[e.key]}`);
+            }
+            if (sequenceTimeoutRef.current) {
+                clearTimeout(sequenceTimeoutRef.current);
+                sequenceTimeoutRef.current = null;
+            }
+        }
     };
 
     window.addEventListener('keydown', handleKeyDown);
 
     return () => {
         clearTimeout(timer);
+        if (sequenceTimeoutRef.current) {
+            clearTimeout(sequenceTimeoutRef.current);
+        }
         window.removeEventListener('keydown', handleKeyDown);
     };
   }, []);

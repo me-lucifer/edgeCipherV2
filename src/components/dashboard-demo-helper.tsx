@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { HelpCircle, X, ArrowRight, Lightbulb, User, AreaChart, BarChart, BookOpen, UserCircle } from 'lucide-react';
+import { HelpCircle, X, ArrowRight, Lightbulb, User, AreaChart, BarChart, BookOpen, UserCircle, Tv } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   Drawer,
@@ -14,6 +14,7 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer"
+import { Separator } from './ui/separator';
 
 
 interface HighlightBoxProps {
@@ -69,6 +70,16 @@ const helpSections = [
   { id: 'demo-highlight-3', number: 3, title: 'Performance Summary' },
   { id: 'demo-highlight-4', number: 4, title: 'Market Context' },
   { id: 'demo-highlight-5', number: 5, title: 'Quick Actions & Today\'s Focus' },
+];
+
+const shortcuts = [
+    { keys: ['G', 'D'], label: 'Go to Dashboard' },
+    { keys: ['G', 'A'], label: 'Go to AI Coaching' },
+    { keys: ['G', 'P'], label: 'Go to Trade Planning' },
+    { keys: ['G', 'J'], label: 'Go to Trade Journal' },
+    { keys: ['G', 'R'], label: 'Go to Risk Center' },
+    { keys: ['G', 'C'], label: 'Go to Community' },
+    { keys: ['Shift', '?'], label: 'Toggle this help view' },
 ];
 
 export function DashboardDemoHelper({ isOpen, onOpenChange }: { isOpen: boolean, onOpenChange: (isOpen: boolean) => void }) {
@@ -137,6 +148,24 @@ export function DashboardDemoHelper({ isOpen, onOpenChange }: { isOpen: boolean,
                                 <span>Use <strong>Quick Actions</strong> and your <strong>Growth Plan</strong> to guide your session.</span>
                             </li>
                         </ol>
+                    </div>
+
+                    <Separator />
+                    
+                    <div>
+                        <h4 className="font-semibold text-foreground mb-3">Demo Shortcuts</h4>
+                        <div className="space-y-2 text-sm text-muted-foreground">
+                        {shortcuts.map((shortcut, index) => (
+                            <div key={index} className="flex justify-between items-center">
+                                <span>{shortcut.label}</span>
+                                <div className="flex items-center gap-1">
+                                    {shortcut.keys.map(key => (
+                                        <kbd key={key} className="px-2 py-0.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-md">{key}</kbd>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                        </div>
                     </div>
                      <p className="text-xs text-muted-foreground/80 pt-4 text-center">
                         Press <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Shift</kbd> + <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">?</kbd> to toggle this view.
