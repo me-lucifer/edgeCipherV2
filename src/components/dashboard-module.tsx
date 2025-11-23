@@ -8,11 +8,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
-import { Bot, FileText, Gauge, BarChart, ArrowRight, TrendingUp, TrendingDown, BookOpen, Link, ArrowRightCircle, Lightbulb, Info, Newspaper } from "lucide-react";
+import { Bot, FileText, Gauge, BarChart, ArrowRight, TrendingUp, TrendingDown, BookOpen, Link, ArrowRightCircle, Lightbulb, Info, Newspaper, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Label } from "./ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "./ui/dialog";
 
 interface Persona {
     primaryPersonaName?: string;
@@ -61,12 +62,21 @@ function PnlDisplay({ value }: { value: number }) {
 // Mock data and helper for Arjun's message
 const getArjunMessage = ({ disciplineScore = 50, performanceState = 'stable' }: { disciplineScore?: number, performanceState?: string }) => {
     if (performanceState === 'drawdown' && disciplineScore < 50) {
-        return "You’re in a drawdown and discipline has been slipping. Today, focus on following your rules, not making back losses.";
+        return {
+            message: "You’re in a drawdown and discipline has been slipping. Today, focus on following your rules, not making back losses.",
+            reason: "This insight combines your recent negative performance ('drawdown') with your 'Impulsive Sprinter' persona's lower discipline score, suggesting a high risk of revenge trading."
+        };
     }
     if (performanceState === 'hot_streak') {
-        return "You're on a hot streak. Protect your capital and don't get overconfident. Stick to the plan.";
+        return {
+            message: "You're on a hot streak. Protect your capital and don't get overconfident. Stick to the plan.",
+            reason: "A winning streak can often lead to overconfidence (a common trait for your persona). Arjun is reminding you to protect your recent gains by sticking to your strategy."
+        };
     }
-    return "Your performance has been stable recently. Keep following the plan and avoid unnecessary experimentation.";
+    return {
+        message: "Your performance has been stable recently. Keep following the plan and avoid unnecessary experimentation.",
+        reason: "With stable performance and normal market conditions, the focus is on consistency. Arjun is encouraging you to continue executing your plan without deviation."
+    };
 };
 
 // New helper function for the decision strip
@@ -283,6 +293,7 @@ interface DashboardModuleProps {
 
 export function DashboardModule({ onSetModule }: DashboardModuleProps) {
     const [scenario, setScenario] = useState<DemoScenario>('normal');
+    const [isWhyModalOpen, setWhyModalOpen] = useState(false);
     
     useEffect(() => {
         if (typeof window !== "undefined") {
@@ -381,11 +392,10 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
 
     const { persona: personaData, connection, market, performance, positions, growthPlanToday } = data;
 
-    const arjunMessage = getArjunMessage({
+    const arjunInsight = getArjunMessage({
         disciplineScore: personaData.disciplineScore,
         performanceState: performance.performanceState
     });
-
 
   return (
     <div className="space-y-8">
@@ -408,8 +418,11 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
                                 Arjun's Daily Insight
                             </div>
                             <div className="mt-2 italic">
-                            "{arjunMessage}"
+                                "{arjunInsight.message}"
                             </div>
+                            <Button variant="link" size="sm" className="text-xs h-auto p-0 mt-2 text-muted-foreground hover:text-primary" onClick={() => setWhyModalOpen(true)}>
+                                Why?
+                            </Button>
                         </div>
                     </div>
                 </CardContent>
@@ -418,6 +431,40 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
                  <DemoScenarioSwitcher scenario={scenario} onScenarioChange={handleScenarioChange} />
             </div>
         </div>
+
+        <Dialog open={isWhyModalOpen} onOpenChange={setWhyModalOpen}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2"><HelpCircle /> How Arjun generates insights</DialogTitle>
+                    <DialogDescription>
+                        Arjun's daily message is created by combining three key data points about you and the market.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4 text-sm">
+                    <div className="p-3 rounded-md bg-muted border border-border/50">
+                        <p className="font-semibold text-foreground">Your Persona</p>
+                        <p className="text-muted-foreground">Your <span className="text-primary font-medium">{personaData.primaryPersonaName}</span> persona has a discipline score of <span className="text-foreground font-medium">{personaData.disciplineScore}</span>, making you prone to certain biases.</p>
+                    </div>
+                    <div className="p-3 rounded-md bg-muted border border-border/50">
+                        <p className="font-semibold text-foreground">Your Recent Performance</p>
+                        <p className="text-muted-foreground">You are currently in a <span className="text-primary font-medium">{performance.performanceState}</span> state, which affects your likely mindset today.</p>
+                    </div>
+                     <div className="p-3 rounded-md bg-muted border border-border/50">
+                        <p className="font-semibold text-foreground">Market Volatility</p>
+                        <p className="text-muted-foreground">The Crypto VIX is in the <span className="text-primary font-medium">{market.vixZone}</span> zone, indicating current market risk.</p>
+                    </div>
+                    <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
+                         <p className="font-semibold text-foreground">Today's Conclusion</p>
+                         <p className="text-primary/90">{arjunInsight.reason}</p>
+                    </div>
+                </div>
+                <DialogFooter>
+                    <DialogClose asChild>
+                        <Button>Got it</Button>
+                    </DialogClose>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
 
         <TradeDecisionStrip 
             vixZone={market.vixZone} 
@@ -598,5 +645,3 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
     </div>
   );
 }
-
-    
