@@ -370,21 +370,10 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
                     </Card>
                     <Card className="bg-muted/30 border-border/50">
                         <CardHeader>
-                            <CardTitle className="text-base">News Snapshot</CardTitle>
+                            <CardTitle>News Snapshot</CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-3">
-                            {newsItems.map((item, index) => (
-                                <div key={index} className="text-sm">
-                                    <p className="text-foreground truncate">{item.headline}</p>
-                                    <Badge variant={item.sentiment === 'Bullish' ? 'default' : item.sentiment === 'Bearish' ? 'destructive' : 'secondary'} className={cn(
-                                        item.sentiment === 'Bullish' && 'bg-green-500/20 text-green-400 border-green-500/30',
-                                        item.sentiment === 'Bearish' && 'bg-red-500/20 text-red-400 border-red-500/30',
-                                        item.sentiment === 'Neutral' && 'bg-gray-500/20 text-gray-400 border-gray-500/30'
-                                    )}>
-                                        {item.sentiment}
-                                    </Badge>
-                                </div>
-                            ))}
+                        <CardContent>
+                            [News items placeholder]
                         </CardContent>
                     </Card>
                 </div>
@@ -429,5 +418,7 @@ export function DashboardModule({ onSetModule }: DashboardModuleProps) {
         </div>
     </div>
   );
+
+    
 
     
