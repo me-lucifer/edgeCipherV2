@@ -24,16 +24,20 @@ export const EventLogProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isOpen, setIsOpen] = useState(false);
 
+  const toggleEventLog = useCallback(() => {
+    setIsOpen(prev => !prev);
+  }, []);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-        if (e.key.toLowerCase() === 'l' && (e.ctrlKey || e.metaKey)) {
+        if (e.key && e.key.toLowerCase() === 'l' && (e.ctrlKey || e.metaKey)) {
             e.preventDefault();
             toggleEventLog();
         }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [toggleEventLog]);
 
   const addLog = useCallback((message: string) => {
     setLogs(prevLogs => {
@@ -45,10 +49,6 @@ export const EventLogProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       // Keep only the last 100 logs
       return [newLog, ...prevLogs].slice(0, 100);
     });
-  }, []);
-
-  const toggleEventLog = useCallback(() => {
-    setIsOpen(prev => !prev);
   }, []);
   
   const value = { logs, isOpen, addLog, setIsOpen, toggleEventLog };
