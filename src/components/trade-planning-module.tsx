@@ -585,26 +585,94 @@ function PlanStep({ form, onSetModule, setPlanStatus, planStatus }: { form: any,
     );
 }
 
-function ReviewStep({ form, onSetModule }: { form: any, onSetModule: any }) {
+function PlanSnapshot({ form, onSetStep, summary, ruleChecks }: { form: any, onSetStep: (step: TradePlanStep) => void; summary: any; ruleChecks: RuleCheck[] }) {
+    const values = form.getValues();
+    const { instrument, direction, entryPrice, stopLoss, takeProfit, leverage, riskPercent } = values;
+
+    const SummaryRow = ({ label, value, className }: { label: string, value: React.ReactNode, className?: string }) => (
+        <div className="flex justify-between items-center text-sm">
+            <p className="text-muted-foreground">{label}</p>
+            <p className={cn("font-semibold font-mono text-foreground", className)}>{value}</p>
+        </div>
+    );
+    
+     const RuleCheckRow = ({ check }: { check: RuleCheck }) => {
+        const Icon = {
+            PASS: CheckCircle,
+            WARN: AlertTriangle,
+            FAIL: XCircle,
+            "N/A": Circle
+        }[check.status];
+
+        const color = {
+            PASS: 'text-green-400',
+            WARN: 'text-amber-400',
+            FAIL: 'text-red-400',
+            "N/A": 'text-muted-foreground'
+        }[check.status];
+
+        return (
+            <div className="flex items-center gap-2 text-sm">
+                <Icon className={cn("h-4 w-4", color)} />
+                <span className={cn(check.status === 'FAIL' && 'text-red-400', check.status === 'WARN' && 'text-amber-400')}>{check.label}</span>
+            </div>
+        );
+    }
+
+    return (
+        <Card className="bg-muted/30 border-border/50">
+            <CardHeader>
+                <CardTitle>Planned Trade Snapshot</CardTitle>
+                <CardDescription>A read-only summary of your trade plan.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                <div>
+                    <h2 className={cn("text-xl font-bold", direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{instrument} &ndash; {direction}</h2>
+                </div>
+                <div className="space-y-2">
+                    <SummaryRow label="Entry Price" value={entryPrice.toFixed(4)} />
+                    <SummaryRow label="Stop Loss" value={stopLoss.toFixed(4)} />
+                    <SummaryRow label="Take Profit" value={takeProfit ? takeProfit.toFixed(4) : 'Not Set'} />
+                    <SummaryRow label="Leverage" value={`${leverage}x`} />
+                </div>
+                <Separator />
+                <div className="space-y-2">
+                    <SummaryRow label="Position Size" value={`${summary.positionSize.toFixed(4)}`} />
+                    <SummaryRow label="R:R Ratio" value={summary.rrr > 0 ? `${summary.rrr.toFixed(2)} : 1` : '-'} className={summary.rrr > 0 ? (summary.rrr < 1.5 ? 'text-amber-400' : 'text-green-400') : ''} />
+                    <SummaryRow label="Risk %" value={`${riskPercent}%`} className={riskPercent > 2 ? 'text-red-400' : ''} />
+                </div>
+                <Separator />
+                <div>
+                    <h3 className="text-sm font-semibold text-foreground mb-3">Rule Checklist</h3>
+                    <div className="space-y-3">
+                        {ruleChecks.map((check, i) => (
+                            <RuleCheckRow key={i} check={check} />
+                        ))}
+                    </div>
+                </div>
+
+                <div className="pt-4">
+                     <Button variant="link" className="p-0 h-auto text-primary" onClick={() => onSetStep('plan')}>
+                        Edit Plan (Step 1)
+                    </Button>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
+function ReviewStep({ form, onSetModule, onSetStep, summary, ruleChecks }: { form: any, onSetModule: any, onSetStep: (step: TradePlanStep) => void; summary: any; ruleChecks: RuleCheck[] }) {
     const values = form.getValues();
     return (
         <div className="grid lg:grid-cols-2 gap-8 items-start">
-             <Card className="bg-muted/30 border-border/50">
-                <CardHeader>
-                    <CardTitle>Plan Snapshot</CardTitle>
-                    <CardDescription>A read-only summary of your trade plan.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                     <p className="text-center text-muted-foreground p-8">Read-only plan summary placeholder.</p>
-                </CardContent>
-            </Card>
-             <Card className="bg-muted/30 border-border/50">
+             <PlanSnapshot form={form} onSetStep={onSetStep} summary={summary} ruleChecks={ruleChecks} />
+             <Card className="bg-muted/30 border-border/50 sticky top-24">
                 <CardHeader>
                     <CardTitle>Review with Arjun</CardTitle>
                     <CardDescription>AI feedback and psychological checks.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <p className="text-center text-muted-foreground p-8">Arjun's review will appear here.</p>
+                    <p className="text-center text-muted-foreground p-8">Arjun's review will appear here. (Coming soon)</p>
                 </CardContent>
             </Card>
         </div>
@@ -661,6 +729,11 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
             takeProfit: undefined,
         },
     });
+    
+    // This is a bit of a hack to pass summary data to the review step without re-calculating
+    // In a real app, this might be managed by a more robust state manager
+    const [planSummaryData, setPlanSummaryData] = useState<any>({});
+    const [ruleChecksData, setRuleChecksData] = useState<RuleCheck[]>([]);
 
     useEffect(() => {
         if (typeof window !== "undefined") {
@@ -796,7 +869,7 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
 
                     {currentStep === "plan" && <PlanStep form={form} onSetModule={onSetModule} setPlanStatus={setPlanStatus} planStatus={planStatus} />}
-                    {currentStep === "review" && <ReviewStep form={form} onSetModule={onSetModule} />}
+                    {currentStep === "review" && <ReviewStep form={form} onSetModule={onSetModule} onSetStep={setCurrentStep} summary={planSummaryData} ruleChecks={ruleChecksData} />}
                     {currentStep === "execute" && <ExecuteStep form={form} onSetModule={onSetModule} />}
 
                      <div className="mt-8 p-4 bg-muted/20 border-t border-border/50 flex flex-col sm:flex-row items-center justify-between gap-4">
