@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -13,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Info, CheckCircle, Circle, AlertTriangle, FileText, BarChart, ArrowRight, Gauge, ShieldCheck, XCircle, X, Lock, Loader2 } from "lucide-react";
+import { Bot, Info, CheckCircle, Circle, AlertTriangle, FileText, ArrowRight, Gauge, ShieldCheck, XCircle, X, Lock, Loader2, Bookmark } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
@@ -24,6 +23,7 @@ import type { DemoScenario } from "./dashboard-module";
 import { Checkbox } from "./ui/checkbox";
 import { Label } from "./ui/label";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "./ui/alert-dialog";
+import { useEventLog } from "@/context/event-log-provider";
 
 
 interface TradePlanningModuleProps {
@@ -677,13 +677,15 @@ function ReviewStep({ form, onSetModule, onSetStep, arjunFeedbackAccepted, setAr
     );
 }
 
-function ExecutionOptions({ form }: { form: any }) {
+function ExecutionOptions({ form, onSetModule }: { form: any, onSetModule: (module: any, context?: any) => void }) {
     const [executionType, setExecutionType] = useState<"Market" | "Limit">("Market");
     const [isExecuting, setIsExecuting] = useState(false);
-    const [executionResult, setExecutionResult] = useState<{ tradeId: string } | null>(null);
+    const [executionResult, setExecutionResult] = useState<{ tradeId: string, draftId: string } | null>(null);
+    const { addLog } = useEventLog();
+    const { toast } = useToast();
 
     const values = form.getValues() as PlanFormValues;
-    const { entryPrice, stopLoss, riskPercent, accountCapital } = values;
+    const { entryPrice, stopLoss, riskPercent, accountCapital, instrument } = values;
 
     const riskPerUnit = (entryPrice && stopLoss) ? Math.abs(entryPrice - stopLoss) : 0;
     const potentialLoss = (accountCapital && riskPercent) ? (accountCapital * riskPercent) / 100 : 0;
@@ -691,29 +693,101 @@ function ExecutionOptions({ form }: { form: any }) {
     
     const handleExecute = () => {
         setIsExecuting(true);
+        addLog("Executing trade plan (prototype)...");
+
         setTimeout(() => {
             const tradeId = `DELTA-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-            setExecutionResult({ tradeId });
+            const draftId = `draft-${Date.now()}`;
+            
+            // --- Auto-Journaling Logic ---
+            const rrr = (() => {
+                const rewardPerUnit = (values.takeProfit && values.entryPrice) ? Math.abs(values.takeProfit - values.entryPrice) : 0;
+                return (riskPerUnit > 0 && rewardPerUnit > 0) ? rewardPerUnit / rewardPerUnit : 0;
+            })();
+            const strategyName = mockStrategies.find(s => s.id === values.strategyId)?.name || "Unknown";
+
+            const journalDraft = {
+                id: draftId,
+                datetime: new Date(),
+                instrument: values.instrument,
+                direction: values.direction,
+                entryPrice: values.entryPrice,
+                exitPrice: 0, // Not known at execution
+                size: positionSize,
+                pnl: 0, // Not known at execution
+                rMultiple: rrr,
+                setup: strategyName,
+                emotions: values.mindset, // From review step
+                notes: `Trade executed via plan. Rationale: ${values.notes}`,
+                // --- New fields for full context ---
+                plan: {
+                    ...values,
+                    takeProfit: values.takeProfit || 0,
+                    notes: values.notes || "",
+                    justification: values.justification || "",
+                    mindset: values.mindset || ""
+                },
+                execution: {
+                    tradeId: tradeId,
+                    timestamp: new Date().toISOString(),
+                    type: executionType
+                }
+            };
+            
+            const existingDrafts = JSON.parse(localStorage.getItem("ec_journal_drafts") || "[]");
+            localStorage.setItem("ec_journal_drafts", JSON.stringify([journalDraft, ...existingDrafts]));
+            
+            addLog(`Trade executed with mock ID: ${tradeId}. Journal draft created: ${draftId}`);
+            setExecutionResult({ tradeId, draftId });
             setIsExecuting(false);
         }, 800);
     }
     
     if (executionResult) {
         return (
-            <Card className="bg-muted/30 border-border/50">
+            <Card className="bg-muted/30 border-green-500/20">
                 <CardHeader>
-                    <CardTitle>Execution Result</CardTitle>
+                     <CardTitle className="flex items-center gap-2">
+                        <CheckCircle className="h-5 w-5 text-green-500" />
+                        Execution Successful
+                    </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4 text-center">
-                    <CheckCircle className="h-12 w-12 text-green-500 mx-auto" />
-                    <h3 className="text-lg font-semibold text-foreground">Trade executed (Prototype)</h3>
                     <p className="text-sm text-muted-foreground">
-                        Your trade has been logged with ID: <span className="font-mono text-primary">{executionResult.tradeId}</span>
+                        Your trade has been logged with mock ID: <br/>
+                        <span className="font-mono text-primary">{executionResult.tradeId}</span>
                     </p>
                     <Separator />
-                    <p className="text-sm text-muted-foreground">
-                        A draft journal entry has been created with this plan and your mindset notes.
-                    </p>
+                    <div className="space-y-3 pt-2">
+                        <p className="text-sm font-semibold text-foreground">
+                            A draft journal entry has been created.
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                            Update it now with screenshots and final thoughts, or come back to it later from the Journal module.
+                        </p>
+                        <div className="flex flex-col sm:flex-row gap-2 pt-2">
+                             <Button 
+                                className="w-full"
+                                onClick={() => onSetModule('tradeJournal', { draftId: executionResult.draftId })}
+                            >
+                                Open in Journal
+                            </Button>
+                             <Button 
+                                variant="outline" 
+                                className="w-full"
+                                onClick={() => {
+                                    onSetModule('dashboard');
+                                    toast({ title: "Execution saved", description: "Check your Performance stats later." });
+                                }}
+                            >
+                                Back to Dashboard
+                            </Button>
+                        </div>
+                         <Button variant="link" size="sm" className="text-xs text-muted-foreground h-auto p-0" onClick={() => onSetModule('tradeJournal')}>
+                            <Bookmark className="mr-1 h-3 w-3" />
+                            View all journal entries
+                        </Button>
+                    </div>
                 </CardContent>
             </Card>
         )
@@ -795,7 +869,7 @@ function ExecuteStep({ form, onSetModule, onSetStep, planStatus }: { form: any, 
                      </AlertDialog>
                 </CardContent>
             </Card>
-            <ExecutionOptions form={form} />
+            <ExecutionOptions form={form} onSetModule={onSetModule} />
         </div>
     );
 }
@@ -931,11 +1005,7 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
         } else if (currentStep === 'review') {
             setCurrentStep('execute');
         } else {
-             console.log("Executing trade (prototype):", values);
-             toast({
-                title: "Trade Executed (Prototype)",
-                description: "In a real app, this would place the order on your broker.",
-            });
+             // Execution logic is now inside ExecutionOptions
         }
     };
 
@@ -1043,26 +1113,28 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
                         <div className="flex items-center gap-4">
                             <Button variant="outline" type="button" onClick={handleSaveDraft}>Save as draft (Prototype)</Button>
                             
-                            <TooltipProvider>
-                                <Tooltip open={isProceedDisabled && (planStatus === 'blocked' || currentStep === 'review' && !arjunFeedbackAccepted) ? undefined : false}>
-                                    <TooltipTrigger asChild>
-                                        <div tabIndex={0}>
-                                            <Button type="submit" disabled={isProceedDisabled}>
-                                                {stepConfig[currentStep].buttonText}
-                                            </Button>
-                                        </div>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        <p className="flex items-center gap-2">
-                                            <AlertTriangle className="h-4 w-4 text-amber-500" />
-                                            {currentStep === 'plan' 
-                                                ? "Add a justification to override your rules."
-                                                : "Acknowledge Arjun's feedback to proceed."
-                                            }
-                                        </p>
-                                    </TooltipContent>
-                                </Tooltip>
-                            </TooltipProvider>
+                           {currentStep !== 'execute' && (
+                                <TooltipProvider>
+                                    <Tooltip open={isProceedDisabled && (planStatus === 'blocked' || currentStep === 'review' && !arjunFeedbackAccepted) ? undefined : false}>
+                                        <TooltipTrigger asChild>
+                                            <div tabIndex={0}>
+                                                <Button type="submit" disabled={isProceedDisabled}>
+                                                    {stepConfig[currentStep].buttonText}
+                                                </Button>
+                                            </div>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p className="flex items-center gap-2">
+                                                <AlertTriangle className="h-4 w-4 text-amber-500" />
+                                                {currentStep === 'plan' 
+                                                    ? "Add a justification to override your rules."
+                                                    : "Acknowledge Arjun's feedback to proceed."
+                                                }
+                                            </p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                           )}
                         </div>
                     </div>
                 </form>
@@ -1070,5 +1142,3 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
         </div>
     );
 }
-
-    

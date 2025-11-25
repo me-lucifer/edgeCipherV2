@@ -13,7 +13,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Calendar, Filter, AlertCircle } from "lucide-react";
+import { Bot, Calendar, Filter, AlertCircle, Bookmark } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Calendar as CalendarComponent } from "./ui/calendar";
 import { format } from "date-fns";
@@ -26,6 +26,7 @@ import { ScrollArea } from "./ui/scroll-area";
 
 interface TradeJournalModuleProps {
     onSetModule: (module: any, context?: any) => void;
+    draftId?: string;
 }
 
 const journalEntrySchema = z.object({
@@ -34,13 +35,15 @@ const journalEntrySchema = z.object({
   instrument: z.string().min(1, "Required"),
   direction: z.enum(["Long", "Short"]),
   entryPrice: z.coerce.number().positive(),
-  exitPrice: z.coerce.number().positive(),
+  exitPrice: z.coerce.number(),
   size: z.coerce.number().positive(),
   pnl: z.coerce.number(),
   rMultiple: z.coerce.number().optional(),
   setup: z.string().optional(),
   emotions: z.string().optional(),
   notes: z.string().optional(),
+  plan: z.any().optional(),
+  execution: z.any().optional(),
 });
 
 type JournalEntry = z.infer<typeof journalEntrySchema>;
@@ -61,7 +64,11 @@ const useJournal = () => {
     useEffect(() => {
         if (typeof window !== "undefined") {
             const saved = localStorage.getItem("ec_journal_entries");
-            setEntries(saved ? JSON.parse(saved) : mockJournalEntries);
+            const drafts = localStorage.getItem("ec_journal_drafts");
+            const parsedEntries = saved ? JSON.parse(saved) : mockJournalEntries;
+            const parsedDrafts = drafts ? JSON.parse(drafts) : [];
+            // Simple merge: drafts are just prepended. A real app would need smarter merging.
+            setEntries([...parsedDrafts, ...parsedEntries]);
         }
     }, []);
 
@@ -73,9 +80,16 @@ const useJournal = () => {
             } else {
                 newEntries = [{ ...entry, id: new Date().toISOString() }, ...prev];
             }
-            if (typeof window !== "undefined") {
-                localStorage.setItem("ec_journal_entries", JSON.stringify(newEntries));
-            }
+            
+            // Remove from drafts if it was one
+            const drafts = JSON.parse(localStorage.getItem("ec_journal_drafts") || "[]");
+            const newDrafts = drafts.filter((d: any) => d.id !== entry.id);
+            localStorage.setItem("ec_journal_drafts", JSON.stringify(newDrafts));
+
+            // Separate drafts from real entries for saving
+            const finalEntriesToSave = newEntries.filter(e => !e.id?.startsWith('draft-'));
+            localStorage.setItem("ec_journal_entries", JSON.stringify(finalEntriesToSave));
+            
             addLog(`Journal entry saved: ${entry.instrument} ${entry.direction}`);
             toast({
                 title: "Journal Entry Saved",
@@ -88,7 +102,7 @@ const useJournal = () => {
     return { entries, addOrUpdateEntry };
 }
 
-function JournalTab({ entries, addOrUpdateEntry, onSetModule }: { entries: JournalEntry[], addOrUpdateEntry: (entry: JournalEntry) => void, onSetModule: TradeJournalModuleProps['onSetModule'] }) {
+function JournalTab({ entries, addOrUpdateEntry, onSetModule, initialDraftId }: { entries: JournalEntry[], addOrUpdateEntry: (entry: JournalEntry) => void, onSetModule: TradeJournalModuleProps['onSetModule'], initialDraftId?: string }) {
     const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);
 
     const form = useForm<JournalEntry>({
@@ -96,8 +110,20 @@ function JournalTab({ entries, addOrUpdateEntry, onSetModule }: { entries: Journ
     });
 
     useEffect(() => {
+        const entryToEdit = entries.find(e => e.id === initialDraftId);
+        if (entryToEdit) {
+            setEditingEntry(entryToEdit);
+        }
+    }, [initialDraftId, entries]);
+
+    useEffect(() => {
         if (editingEntry) {
-            form.reset(editingEntry);
+            // Need to convert datetime string back to Date object if it's a string
+            const entryWithDateObject = {
+                ...editingEntry,
+                datetime: new Date(editingEntry.datetime),
+            };
+            form.reset(entryWithDateObject);
         } else {
             form.reset({
                 datetime: new Date(),
@@ -120,7 +146,7 @@ function JournalTab({ entries, addOrUpdateEntry, onSetModule }: { entries: Journ
     };
 
     const discussWithArjun = (entry: JournalEntry) => {
-        const question = `Arjun, can we review this trade? ${entry.direction} ${entry.instrument} on ${format(entry.datetime, "PPP")}. The result was a ${entry.pnl > 0 ? 'win' : 'loss'} of $${Math.abs(entry.pnl)}. My notes say: "${entry.notes}". What can I learn from this?`;
+        const question = `Arjun, can we review this trade? ${entry.direction} ${entry.instrument} on ${format(new Date(entry.datetime), "PPP")}. The result was a ${entry.pnl > 0 ? 'win' : 'loss'} of $${Math.abs(entry.pnl)}. My notes say: "${entry.notes}". What can I learn from this?`;
         onSetModule('aiCoaching', { initialMessage: question });
     }
 
@@ -129,7 +155,11 @@ function JournalTab({ entries, addOrUpdateEntry, onSetModule }: { entries: Journ
             <Card className="bg-muted/30 border-border/50">
                 <CardHeader>
                     <CardTitle>{editingEntry ? 'Edit Trade' : 'Add New Trade'}</CardTitle>
-                    <CardDescription>Log your trades to build a rich history for Arjun to analyze.</CardDescription>
+                    <CardDescription>
+                        {editingEntry && editingEntry.id?.startsWith('draft-') 
+                            ? "Finalizing draft created from your trade plan."
+                            : "Log your trades to build a rich history for Arjun to analyze."}
+                    </CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Form {...form}>
@@ -193,11 +223,11 @@ function JournalTab({ entries, addOrUpdateEntry, onSetModule }: { entries: Journ
                             <TableBody>
                                 {entries.slice(0, 10).map((entry) => (
                                     <TableRow key={entry.id}>
-                                        <TableCell>{format(entry.datetime, "yyyy-MM-dd")}</TableCell>
+                                        <TableCell>{format(new Date(entry.datetime), "yyyy-MM-dd")}</TableCell>
                                         <TableCell>{entry.instrument}</TableCell>
                                         <TableCell className={cn(entry.direction === "Long" ? "text-green-400" : "text-red-400")}>{entry.direction}</TableCell>
                                         <TableCell className={cn(entry.pnl >= 0 ? "text-green-400" : "text-red-400")}>{entry.pnl.toFixed(2)}</TableCell>
-                                        <TableCell><Badge variant="secondary">{entry.setup}</Badge></TableCell>
+                                        <TableCell><Badge variant={entry.id?.startsWith('draft-') ? 'outline' : 'secondary'}>{entry.id?.startsWith('draft-') ? 'Draft' : entry.setup}</Badge></TableCell>
                                         <TableCell className="space-x-2">
                                             <Button variant="outline" size="sm" onClick={() => setEditingEntry(entry)}>Edit</Button>
                                             <Button variant="link" size="sm" className="px-1 h-auto" onClick={() => discussWithArjun(entry)}>
@@ -261,7 +291,7 @@ function HistoricalTradesTab() {
     )
 }
 
-export function TradeJournalModule({ onSetModule }: TradeJournalModuleProps) {
+export function TradeJournalModule({ onSetModule, draftId }: TradeJournalModuleProps) {
     const { entries, addOrUpdateEntry } = useJournal();
 
     return (
@@ -276,7 +306,7 @@ export function TradeJournalModule({ onSetModule }: TradeJournalModuleProps) {
                     <TabsTrigger value="history">Historical Trades</TabsTrigger>
                 </TabsList>
                 <TabsContent value="journal" className="pt-6">
-                    <JournalTab entries={entries} addOrUpdateEntry={addOrUpdateEntry as any} onSetModule={onSetModule} />
+                    <JournalTab entries={entries} addOrUpdateEntry={addOrUpdateEntry as any} onSetModule={onSetModule} initialDraftId={draftId} />
                 </TabsContent>
                 <TabsContent value="history" className="pt-6">
                     <HistoricalTradesTab />

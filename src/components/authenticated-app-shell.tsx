@@ -51,6 +51,11 @@ type Module =
   | 'community'
   | 'settings';
 
+interface ModuleContext {
+    initialMessage?: string;
+    draftId?: string;
+}
+
 interface NavItem {
   id: Module;
   label: string;
@@ -120,13 +125,13 @@ const NavItemGroup: React.FC<{
 );
 
 
-function ModuleView({ currentModule, onSetModule, aiCoachingInitialMessage, isLoading }: { currentModule: Module; onSetModule: (module: Module, context?: any) => void; aiCoachingInitialMessage: string | null; isLoading: boolean }) {
+function ModuleView({ currentModule, onSetModule, moduleContext, isLoading }: { currentModule: Module; onSetModule: (module: Module, context?: ModuleContext) => void; moduleContext: ModuleContext | null; isLoading: boolean }) {
     if (currentModule === 'dashboard') {
         return <DashboardModule onSetModule={onSetModule} isLoading={isLoading} />;
     }
 
     if (currentModule === 'aiCoaching') {
-      return <AiCoachingModule onSetModule={onSetModule} initialMessage={aiCoachingInitialMessage} />;
+      return <AiCoachingModule onSetModule={onSetModule} initialMessage={moduleContext?.initialMessage || null} />;
     }
 
     if (currentModule === 'tradePlanning') {
@@ -134,7 +139,7 @@ function ModuleView({ currentModule, onSetModule, aiCoachingInitialMessage, isLo
     }
 
     if (currentModule === 'tradeJournal') {
-      return <TradeJournalModule onSetModule={onSetModule} />;
+      return <TradeJournalModule onSetModule={onSetModule} draftId={moduleContext?.draftId} />;
     }
     
     if (currentModule === 'analytics') {
@@ -326,7 +331,7 @@ export function AuthenticatedAppShell() {
   const [currentModule, setCurrentModule] = useState<Module>('dashboard');
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const [isMobileNavOpen, setMobileNavOpen] = useState(false);
-  const [aiCoachingInitialMessage, setAiCoachingInitialMessage] = useState<string | null>(null);
+  const [moduleContext, setModuleContext] = useState<ModuleContext | null>(null);
   const [isInitialLoading, setInitialLoading] = useState(true);
   const [isDemoHelperOpen, setDemoHelperOpen] = useState(false);
   const sequenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -387,14 +392,10 @@ export function AuthenticatedAppShell() {
     };
   }, []);
 
-  const handleSetModule = (id: Module, context?: any) => {
+  const handleSetModule = (id: Module, context?: ModuleContext) => {
     setCurrentModule(id);
     setMobileNavOpen(false);
-    if (id === 'aiCoaching' && context?.initialMessage) {
-        setAiCoachingInitialMessage(context.initialMessage);
-    } else {
-        setAiCoachingInitialMessage(null);
-    }
+    setModuleContext(context || null);
   }
 
   return (
@@ -453,7 +454,7 @@ export function AuthenticatedAppShell() {
                     <ModuleView 
                         currentModule={currentModule} 
                         onSetModule={handleSetModule} 
-                        aiCoachingInitialMessage={aiCoachingInitialMessage}
+                        moduleContext={moduleContext}
                         isLoading={isInitialLoading && currentModule === 'dashboard'} 
                     />
                 </div>
