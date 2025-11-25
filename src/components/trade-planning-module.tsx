@@ -37,7 +37,7 @@ const planSchema = z.object({
     accountCapital: z.coerce.number().positive("Must be > 0."),
     riskPercent: z.coerce.number().min(0.1).max(100),
     strategyId: z.string().min(1, "Required."),
-    notes: z.string().min(10, "Your reasoning is required."),
+    notes: z.string().optional(),
     justification: z.string().optional(),
 }).refine(data => {
     if (data.direction === 'Long' && data.entryPrice > 0 && data.stopLoss > 0) return data.stopLoss < data.entryPrice;
@@ -223,7 +223,7 @@ const StatusBadge = ({ status }: { status: RuleStatus }) => {
     return <Badge variant="secondary" className={cn("text-xs font-mono", config[status])}>{status}</Badge>;
 }
 
-function RuleChecks({ checks, onJustify }: { checks: RuleCheck[], onJustify?: () => void }) {
+function RuleChecks({ checks }: { checks: RuleCheck[] }) {
     return (
         <div>
             <h3 className="text-sm font-semibold text-foreground mb-3">Strategy Rule Checks</h3>
@@ -249,7 +249,64 @@ function RuleChecks({ checks, onJustify }: { checks: RuleCheck[], onJustify?: ()
     )
 }
 
-function PlanSummary({ control, setPlanStatus, planStatus }: { control: any, setPlanStatus: (status: PlanStatusType) => void, planStatus: PlanStatusType }) {
+function DisciplineAlerts({ onSetModule }: { onSetModule: TradePlanningModuleProps['onSetModule'] }) {
+  const [alerts, setAlerts] = useState<string[]>([]);
+  const [initialPrompt, setInitialPrompt] = useState<string>("");
+
+  useEffect(() => {
+    const scenario = localStorage.getItem('ec_demo_scenario') as DemoScenario | null;
+    const personaData = JSON.parse(localStorage.getItem("ec_persona_final") || localStorage.getItem("ec_persona_base") || "{}");
+    const personaName = personaData.primaryPersonaName || "The Determined Trader";
+    const newAlerts = [];
+
+    let prompt = "Arjun, let's talk about my current mindset. ";
+    
+    if (scenario === 'high_vol' && personaName.includes("Impulsive")) {
+      newAlerts.push("Your persona tends to <span class='text-amber-400'>overtrade</span> in high volatility. Focus on A+ setups only.");
+      prompt += "I'm in a high volatility market and I tend to be impulsive. How can I stay focused?";
+    }
+
+    if (scenario === 'drawdown') {
+      newAlerts.push("You’re in a <span class='text-amber-400'>drawdown</span>. This trade should be part of a structured recovery plan, not a quick fix.");
+       prompt += "I'm in a drawdown. How can I ensure this next trade is part of a recovery plan and not just chasing losses?";
+    }
+    
+    // In a real app, a 'hot_streak' state would be derived from performance data
+    // For now, we can add a placeholder if no other alerts are present.
+    if (newAlerts.length === 0) {
+        newAlerts.push("Performance is <span class='text-green-400'>stable</span>. This is the time to focus on consistent execution of your plan.");
+        prompt += "My performance has been stable. How do I maintain this consistency and avoid complacency?";
+    }
+
+    setAlerts(newAlerts);
+    setInitialPrompt(prompt);
+  }, []);
+
+  if (alerts.length === 0) return null;
+
+  return (
+    <div>
+        <h3 className="text-sm font-semibold text-foreground mb-3">Discipline & History Alerts</h3>
+        <div className="p-4 rounded-lg bg-muted/50 border border-border/50 space-y-3">
+             <ul className="space-y-2 text-sm text-muted-foreground list-disc list-inside">
+                {alerts.map((alert, i) => (
+                    <li key={i} dangerouslySetInnerHTML={{ __html: alert }} />
+                ))}
+            </ul>
+             <Button 
+                variant="link" 
+                size="sm" 
+                className="px-0 h-auto text-xs text-primary/80 hover:text-primary"
+                onClick={() => onSetModule('aiCoaching', { initialMessage: initialPrompt })}
+            >
+                Discuss this with Arjun <ArrowRight className="ml-1 h-3 w-3" />
+            </Button>
+        </div>
+    </div>
+  )
+}
+
+function PlanSummary({ control, setPlanStatus, planStatus, onSetModule }: { control: any, setPlanStatus: (status: PlanStatusType) => void, planStatus: PlanStatusType, onSetModule: TradePlanningModuleProps['onSetModule'] }) {
     const values = useWatch({ control }) as Partial<PlanFormValues>;
     const { instrument, direction, entryPrice, stopLoss, takeProfit, riskPercent, accountCapital, strategyId, notes, justification } = values;
 
@@ -388,6 +445,10 @@ function PlanSummary({ control, setPlanStatus, planStatus }: { control: any, set
                 <Separator />
 
                 <RuleChecks checks={ruleChecks} />
+
+                <Separator />
+
+                <DisciplineAlerts onSetModule={onSetModule} />
 
                 {hasFails && (
                     <>
@@ -606,16 +667,7 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
                         </Card>
 
                         <div className="lg:col-span-1 space-y-6 sticky top-24">
-                            <PlanSummary control={form.control} setPlanStatus={setPlanStatus} planStatus={planStatus} />
-                            <Card className="bg-muted/30 border-border/50">
-                                <CardHeader>
-                                    <CardTitle className="flex items-center gap-2"><Bot className="h-5 w-5 text-primary" /> Arjun's Pre-Flight Check</CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                    <p className="text-sm text-muted-foreground">Arjun will review your plan against your historical performance, risk rules, and current market volatility.</p>
-                                    <p className="text-xs text-muted-foreground italic">In a real app, this step would involve a backend call to check against your data.</p>
-                                </CardContent>
-                            </Card>
+                            <PlanSummary control={form.control} setPlanStatus={setPlanStatus} planStatus={planStatus} onSetModule={onSetModule} />
                         </div>
                     </div>
                      <div className="mt-8 p-4 bg-muted/20 border-t border-border/50 flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -661,3 +713,6 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
         </div>
     );
 }
+
+
+    
