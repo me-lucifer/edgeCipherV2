@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Info, CheckCircle, Circle, AlertTriangle, FileText, BarChart, ArrowRight, Gauge, ShieldCheck, XCircle } from "lucide-react";
+import { Bot, Info, CheckCircle, Circle, AlertTriangle, FileText, BarChart, ArrowRight, Gauge, ShieldCheck, XCircle, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
@@ -488,6 +488,7 @@ function PlanSummary({ control, setPlanStatus, planStatus, onSetModule }: { cont
 export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
     const { toast } = useToast();
     const [planStatus, setPlanStatus] = useState<PlanStatusType>("incomplete");
+    const [showBanner, setShowBanner] = useState(true);
     
     const form = useForm<PlanFormValues>({
         resolver: zodResolver(planSchema),
@@ -549,7 +550,9 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
     };
 
     const isProceedDisabled = planStatus === 'incomplete' || (planStatus === 'blocked' && (!justificationValue || justificationValue.length < 1));
-
+    
+    const isBannerVisible = showBanner && (planStatus === 'blocked' || planStatus === 'overridden');
+    
     const proceedButton = (
          <Button type="submit" disabled={isProceedDisabled}>
             Proceed to Review (Step 2)
@@ -569,6 +572,27 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
                     <Badge variant="outline">Step 3 – Execute</Badge>
                 </div>
             </div>
+            
+            {isBannerVisible && (
+                 <Alert variant="destructive" className="bg-amber-950/60 border-amber-500/30 text-amber-300">
+                    <AlertTriangle className="h-4 w-4 text-amber-400" />
+                    <div className="flex items-center justify-between w-full">
+                        <div>
+                            <AlertTitle className="text-amber-400">
+                                {planStatus === 'overridden' ? "You are overriding your rules" : "Critical Rule Violation"}
+                            </AlertTitle>
+                            <AlertDescription>
+                               {planStatus === 'overridden' 
+                                 ? "This should be rare and done consciously. Your justification will be logged."
+                                 : "Fix the issues highlighted in the summary card, or add a justification to proceed."}
+                            </AlertDescription>
+                        </div>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setShowBanner(false)}>
+                            <X className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </Alert>
+            )}
 
             <Alert variant="default" className="bg-muted/30 border-border/50">
                 <FileText className="h-4 w-4" />
@@ -659,7 +683,7 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
                                         <FormItem><FormLabel>Strategy</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select from your playbook"/></SelectTrigger></FormControl><SelectContent>{mockStrategies.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
                                     )}/>
                                     <FormField control={form.control} name="notes" render={({ field }) => (
-                                        <FormItem><FormLabel>Trade Rationale</FormLabel><FormControl><Textarea placeholder="Why are you taking this trade? What conditions must be true?" {...field} /></FormControl><FormMessage /></FormItem>
+                                        <FormItem><FormLabel>Trade Rationale*</FormLabel><FormControl><Textarea placeholder="Why are you taking this trade? What conditions must be true?" {...field} /></FormControl><FormMessage /></FormItem>
                                     )}/>
                                 </div>
                             </CardContent>
