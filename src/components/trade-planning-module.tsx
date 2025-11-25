@@ -36,13 +36,13 @@ const planSchema = z.object({
     justification: z.string().min(10, "Min 10 characters."),
     notes: z.string().optional(),
 }).refine(data => {
-    if (data.direction === 'Long') return data.stopLoss < data.entryPrice && data.takeProfit > data.entryPrice;
+    if (data.direction === 'Long' && data.entryPrice > 0) return data.stopLoss < data.entryPrice && data.takeProfit > data.entryPrice;
     return true;
 }, {
     message: "For Longs, SL must be below Entry, and TP must be above.",
     path: ["stopLoss"],
 }).refine(data => {
-    if (data.direction === 'Short') return data.stopLoss > data.entryPrice && data.takeProfit < data.entryPrice;
+    if (data.direction === 'Short' && data.entryPrice > 0) return data.stopLoss > data.entryPrice && data.takeProfit < data.entryPrice;
     return true;
 }, {
     message: "For Shorts, SL must be above Entry, and TP must be below.",
@@ -61,7 +61,7 @@ function PlanSummary({ control }: { control: any }) {
     const values = useWatch({ control }) as Partial<PlanFormValues>;
     const { instrument, direction, entryPrice, stopLoss, takeProfit, riskPercent, accountCapital } = values;
 
-    const [summary, setSummary] = useState({ rrr: 0, positionSize: 0, potentialLoss: 0 });
+    const [summary, setSummary] = useState({ rrr: 0, positionSize: 0, potentialLoss: 0, potentialProfit: 0 });
 
     useEffect(() => {
         if (entryPrice && stopLoss && takeProfit && riskPercent && accountCapital) {
@@ -71,8 +71,11 @@ function PlanSummary({ control }: { control: any }) {
             
             const potentialLoss = (accountCapital * riskPercent) / 100;
             const positionSize = riskPerUnit > 0 ? potentialLoss / riskPerUnit : 0;
+            const potentialProfit = potentialLoss * rrr;
             
-            setSummary({ rrr, positionSize, potentialLoss });
+            setSummary({ rrr, positionSize, potentialLoss, potentialProfit });
+        } else {
+            setSummary({ rrr: 0, positionSize: 0, potentialLoss: 0, potentialProfit: 0 });
         }
     }, [entryPrice, stopLoss, takeProfit, riskPercent, accountCapital]);
 
@@ -108,7 +111,7 @@ function PlanSummary({ control }: { control: any }) {
                     </div>
                     <div className="space-y-1">
                         <p className="text-muted-foreground">Potential Profit</p>
-                        <p className="font-semibold text-green-400 font-mono">+${summary.potentialLoss > 0 ? (summary.potentialLoss * summary.rrr).toFixed(2) : '0.00'}</p>
+                        <p className="font-semibold text-green-400 font-mono">+${summary.potentialProfit > 0 ? summary.potentialProfit.toFixed(2) : '0.00'}</p>
                     </div>
                 </div>
                 <Alert className="mt-6">
@@ -133,7 +136,14 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
             accountCapital: 10000,
             riskPercent: 1,
             strategyId: '1',
+            instrument: "BTC-PERP",
+            justification: "",
         },
+    });
+    
+    const entryType = useWatch({
+        control: form.control,
+        name: 'entryType',
     });
 
     const onSubmit = (values: PlanFormValues) => {
@@ -169,39 +179,63 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
                             <CardTitle>Plan Details</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <FormField control={form.control} name="instrument" render={({ field }) => (
-                                    <FormItem><FormLabel>Instrument</FormLabel><FormControl><Input placeholder="e.g., BTC-PERP" {...field} /></FormControl><FormMessage /></FormItem>
-                                )}/>
-                                <FormField control={form.control} name="direction" render={({ field }) => (
-                                    <FormItem><FormLabel>Direction</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex pt-2 gap-4"><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Long" /></FormControl><FormLabel className="font-normal">Long</FormLabel></FormItem><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Short" /></FormControl><FormLabel className="font-normal">Short</FormLabel></FormItem></RadioGroup></FormControl><FormMessage /></FormItem>
-                                )}/>
+                            {/* Group A */}
+                            <div className="p-4 bg-muted/50 rounded-lg space-y-4">
+                                <h3 className="text-sm font-semibold text-muted-foreground">Market & Direction</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <FormField control={form.control} name="instrument" render={({ field }) => (
+                                        <FormItem><FormLabel>Trading Pair</FormLabel><FormControl><Input placeholder="e.g., BTC-PERP" {...field} /></FormControl><FormMessage /></FormItem>
+                                    )}/>
+                                    <FormField control={form.control} name="direction" render={({ field }) => (
+                                        <FormItem><FormLabel>Direction</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex pt-2 gap-4"><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Long" /></FormControl><FormLabel className="font-normal">Long</FormLabel></FormItem><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Short" /></FormControl><FormLabel className="font-normal">Short</FormLabel></FormItem></RadioGroup></FormControl><FormMessage /></FormItem>
+                                    )}/>
+                                    <FormField control={form.control} name="entryType" render={({ field }) => (
+                                        <FormItem><FormLabel>Entry Type</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex pt-2 gap-4"><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Limit" /></FormControl><FormLabel className="font-normal">Limit</FormLabel></FormItem><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Market" /></FormControl><FormLabel className="font-normal">Market</FormLabel></FormItem></RadioGroup></FormControl><FormMessage /></FormItem>
+                                    )}/>
+                                </div>
                             </div>
-                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                <FormField control={form.control} name="entryPrice" render={({ field }) => (
-                                    <FormItem><FormLabel>Entry Price</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                                )}/>
-                                <FormField control={form.control} name="stopLoss" render={({ field }) => (
-                                    <FormItem><FormLabel>Stop Loss</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                                )}/>
-                                <FormField control={form.control} name="takeProfit" render={({ field }) => (
-                                    <FormItem><FormLabel>Take Profit</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                                )}/>
-                                 <FormField control={form.control} name="entryType" render={({ field }) => (
-                                    <FormItem><FormLabel>Entry Type</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="Limit">Limit</SelectItem><SelectItem value="Market">Market</SelectItem></SelectContent></Select><FormMessage /></FormItem>
-                                )}/>
+
+                            {/* Group B */}
+                            <div className="p-4 bg-muted/50 rounded-lg space-y-4">
+                                <h3 className="text-sm font-semibold text-muted-foreground">Risk Anchors</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {entryType === 'Limit' ? (
+                                        <FormField control={form.control} name="entryPrice" render={({ field }) => (
+                                            <FormItem><FormLabel>Entry Price</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                        )}/>
+                                    ) : (
+                                        <FormItem>
+                                            <FormLabel>Current Price (from Delta)</FormLabel>
+                                            <FormControl><Input readOnly value="68543.21 (mock)" className="bg-muted" /></FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                    <div />
+                                    <FormField control={form.control} name="stopLoss" render={({ field }) => (
+                                        <FormItem><FormLabel>Stop Loss Price (SL)*</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                    )}/>
+                                    <FormField control={form.control} name="takeProfit" render={({ field }) => (
+                                        <FormItem><FormLabel>Take Profit Price (TP)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                    )}/>
+                                </div>
                             </div>
-                            <div className="p-4 bg-muted/50 rounded-lg grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <FormField control={form.control} name="accountCapital" render={({ field }) => (
-                                    <FormItem><FormLabel>Account Capital ($)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                                )}/>
-                                <FormField control={form.control} name="riskPercent" render={({ field }) => (
-                                    <FormItem><FormLabel>Risk Per Trade (%)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                                )}/>
-                                <FormField control={form.control} name="leverage" render={({ field }) => (
-                                    <FormItem><FormLabel>Leverage</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                                )}/>
+                            
+                            {/* Group C */}
+                            <div className="p-4 bg-muted/50 rounded-lg space-y-4">
+                                <h3 className="text-sm font-semibold text-muted-foreground">Account & Risk</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <FormField control={form.control} name="accountCapital" render={({ field }) => (
+                                        <FormItem><FormLabel>Account Capital ($)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                    )}/>
+                                    <FormField control={form.control} name="riskPercent" render={({ field }) => (
+                                        <FormItem><FormLabel>Risk Per Trade (%)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                    )}/>
+                                     <FormField control={form.control} name="leverage" render={({ field }) => (
+                                        <FormItem><FormLabel>Leverage</FormLabel><Select onValueChange={(v) => field.onChange(Number(v))} defaultValue={String(field.value)}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="5">5x</SelectItem><SelectItem value="10">10x</SelectItem><SelectItem value="20">20x</SelectItem><SelectItem value="50">50x</SelectItem></SelectContent></Select><FormMessage /></FormItem>
+                                    )}/>
+                                </div>
                             </div>
+
                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <FormField control={form.control} name="strategyId" render={({ field }) => (
                                     <FormItem><FormLabel>Strategy</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select from your playbook"/></SelectTrigger></FormControl><SelectContent>{mockStrategies.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
