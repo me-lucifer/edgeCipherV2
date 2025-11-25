@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -332,23 +333,23 @@ function PlanSummary({ control, setPlanStatus, onSetModule }: { control: any, se
     useEffect(() => {
         // --- Calculations ---
         const isLong = direction === "Long";
-        const riskPerUnit = (entryPrice && stopLoss) ? Math.abs(entryPrice - stopLoss) : 0;
-        const rewardPerUnit = (takeProfit && entryPrice) ? Math.abs(takeProfit - entryPrice) : 0;
+        const riskPerUnit = (entryPrice && stopLoss) ? Math.abs(Number(entryPrice) - Number(stopLoss)) : 0;
+        const rewardPerUnit = (takeProfit && entryPrice) ? Math.abs(Number(takeProfit) - Number(entryPrice)) : 0;
         const rrr = (riskPerUnit > 0 && rewardPerUnit > 0) ? rewardPerUnit / riskPerUnit : 0;
         
-        const potentialLoss = (accountCapital && riskPercent) ? (accountCapital * riskPercent) / 100 : 0;
+        const potentialLoss = (accountCapital && riskPercent) ? (Number(accountCapital) * Number(riskPercent)) / 100 : 0;
         const positionSize = riskPerUnit > 0 ? potentialLoss / riskPerUnit : 0;
         const potentialProfit = potentialLoss * rrr;
         
-        const distanceToSl = (entryPrice && stopLoss) ? Math.abs(entryPrice - stopLoss) : 0;
-        const distanceToSlPercent = entryPrice > 0 ? (distanceToSl / entryPrice) * 100 : 0;
-        const distanceToTp = (takeProfit && entryPrice) ? Math.abs(takeProfit - entryPrice) : 0;
-        const distanceToTpPercent = (entryPrice && takeProfit) ? (distanceToTp / entryPrice) * 100 : 0;
+        const distanceToSl = (entryPrice && stopLoss) ? Math.abs(Number(entryPrice) - Number(stopLoss)) : 0;
+        const distanceToSlPercent = entryPrice && Number(entryPrice) > 0 ? (distanceToSl / Number(entryPrice)) * 100 : 0;
+        const distanceToTp = (takeProfit && entryPrice) ? Math.abs(Number(takeProfit) - Number(entryPrice)) : 0;
+        const distanceToTpPercent = (entryPrice && takeProfit) ? (distanceToTp / Number(entryPrice)) * 100 : 0;
         
         setSummary({ rrr, positionSize, potentialLoss, potentialProfit, distanceToSl, distanceToSlPercent, distanceToTp, distanceToTpPercent });
         
         // --- Rule Checks & Status Logic ---
-        const currentChecks = getRuleChecks(rrr, riskPercent || 0);
+        const currentChecks = getRuleChecks(rrr, riskPercent ? Number(riskPercent) : 0);
         setRuleChecks(currentChecks);
 
         const requiredFieldsSet = instrument && direction && entryPrice && stopLoss && accountCapital && riskPercent && strategyId && notes && notes.length >= 10;
@@ -387,8 +388,8 @@ function PlanSummary({ control, setPlanStatus, onSetModule }: { control: any, se
     }, [instrument, direction, entryPrice, stopLoss, takeProfit, riskPercent, accountCapital, strategyId, notes, justification, setPlanStatus]);
 
     const isLong = direction === "Long";
-    const isSlSet = stopLoss && stopLoss > 0;
-    const isTpSet = takeProfit && takeProfit > 0;
+    const isSlSet = stopLoss && Number(stopLoss) > 0;
+    const isTpSet = takeProfit && Number(takeProfit) > 0;
     const canCalcRisk = entryPrice && stopLoss && riskPercent && accountCapital;
     const hasFails = ruleChecks.some(c => c.status === 'FAIL');
 
@@ -412,7 +413,7 @@ function PlanSummary({ control, setPlanStatus, onSetModule }: { control: any, se
                     <h3 className="text-sm font-semibold text-foreground mb-3">Numeric Summary</h3>
                     <div className="space-y-2">
                         <SummaryRow label="Pair / Direction" value={<span className={isLong ? 'text-green-400' : 'text-red-400'}>{instrument || '-'} {direction}</span>} />
-                        <SummaryRow label="Entry Price" value={entryPrice && entryPrice > 0 ? entryPrice.toFixed(4) : '-'} />
+                        <SummaryRow label="Entry Price" value={entryPrice && Number(entryPrice) > 0 ? Number(entryPrice).toFixed(4) : '-'} />
                         <SummaryRow label="Stop Loss" value={isSlSet ? stopLoss?.toFixed(4) : <span className="text-red-400">Not set</span>} />
                         {isSlSet && entryPrice && (
                              <p className="text-xs text-muted-foreground text-right -mt-1">
@@ -702,7 +703,7 @@ function ExecutionOptions({ form, onSetModule }: { form: any, onSetModule: (modu
             // --- Auto-Journaling Logic ---
             const rrr = (() => {
                 const rewardPerUnit = (values.takeProfit && values.entryPrice) ? Math.abs(values.takeProfit - values.entryPrice) : 0;
-                return (riskPerUnit > 0 && rewardPerUnit > 0) ? rewardPerUnit / rewardPerUnit : 0;
+                return (riskPerUnit > 0 && rewardPerUnit > 0) ? rewardPerUnit / riskPerUnit : 0;
             })();
             const strategyName = mockStrategies.find(s => s.id === values.strategyId)?.name || "Unknown";
 
