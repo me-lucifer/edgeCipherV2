@@ -325,6 +325,7 @@ function PlanSummary({ control, setPlanStatus, onSetModule }: { control: any, se
         distanceToTpPercent: 0
     });
     
+    const [planStatus, setLocalPlanStatus] = useState<PlanStatusType>("incomplete");
     const [statusMessage, setStatusMessage] = useState("Fill in all required values to continue.");
     const [ruleChecks, setRuleChecks] = useState<RuleCheck[]>([]);
 
@@ -351,36 +352,37 @@ function PlanSummary({ control, setPlanStatus, onSetModule }: { control: any, se
         setRuleChecks(currentChecks);
 
         const requiredFieldsSet = instrument && direction && entryPrice && stopLoss && accountCapital && riskPercent && strategyId && notes && notes.length >= 10;
+        let currentStatus: PlanStatusType = 'incomplete';
+        let currentMessage = "Fill in all required values to continue.";
 
         if (!requiredFieldsSet) {
-            setPlanStatus("incomplete");
-            setStatusMessage("Fill in all required values to continue.");
-            return;
-        }
+            currentStatus = 'incomplete';
+            currentMessage = "Fill in all required values to continue.";
+        } else {
+            const hasFails = currentChecks.some(c => c.status === 'FAIL');
+            const hasWarns = currentChecks.some(c => c.status === 'WARN');
+            const structuralWarning = rrr > 0 && rrr < 1.0;
 
-        const hasFails = currentChecks.some(c => c.status === 'FAIL');
-        const hasWarns = currentChecks.some(c => c.status === 'WARN');
-        const structuralWarning = rrr > 0 && rrr < 1.0;
-
-        if (hasFails) {
-            if (justification && justification.length >= 10) {
-                setPlanStatus("overridden");
-                setStatusMessage("Rules overridden with justification. Proceed with extreme caution.");
+            if (hasFails) {
+                if (justification && justification.length >= 10) {
+                    currentStatus = "overridden";
+                    currentMessage = "Rules overridden with justification. Proceed with extreme caution.";
+                } else {
+                    currentStatus = "blocked";
+                    currentMessage = "One or more critical rules are failing. Add justification to override.";
+                }
+            } else if (hasWarns || structuralWarning) {
+                currentStatus = "needs_attention";
+                currentMessage = "This plan has warnings. Review the rule checks before proceeding.";
             } else {
-                setPlanStatus("blocked");
-                setStatusMessage("One or more critical rules are failing. Add justification to override.");
+                currentStatus = "ok";
+                currentMessage = "This plan looks structurally sound. Review the checks before proceeding.";
             }
-            return;
         }
         
-        if (hasWarns || structuralWarning) {
-            setPlanStatus("needs_attention");
-            setStatusMessage("This plan has warnings. Review the rule checks before proceeding.");
-            return;
-        }
-
-        setPlanStatus("ok");
-        setStatusMessage("This plan looks structurally sound. Review the checks before proceeding.");
+        setPlanStatus(currentStatus);
+        setLocalPlanStatus(currentStatus);
+        setStatusMessage(currentMessage);
 
     }, [instrument, direction, entryPrice, stopLoss, takeProfit, riskPercent, accountCapital, strategyId, notes, justification, setPlanStatus]);
 
@@ -993,3 +995,5 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
         </div>
     );
 }
+
+    
