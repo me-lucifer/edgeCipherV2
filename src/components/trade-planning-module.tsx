@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Info, CheckCircle, Circle, AlertTriangle, FileText, BarChart, ArrowRight, Gauge, ShieldCheck } from "lucide-react";
+import { Bot, Info, CheckCircle, Circle, AlertTriangle, FileText, BarChart, ArrowRight, Gauge, ShieldCheck, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
@@ -73,7 +73,7 @@ const mockStrategies = [
     { id: '2', name: "BTC Trend Breakout" },
 ];
 
-type PlanStatusType = "incomplete" | "needs_attention" | "ok";
+type PlanStatusType = "incomplete" | "blocked" | "needs_attention" | "ok";
 
 const PlanStatus = ({ status, message }: { status: PlanStatusType, message: string }) => {
     const statusConfig = {
@@ -81,6 +81,11 @@ const PlanStatus = ({ status, message }: { status: PlanStatusType, message: stri
             label: "Incomplete",
             className: "bg-muted text-muted-foreground border-border",
             icon: Circle
+        },
+        blocked: {
+            label: "Blocked by Rules",
+            className: "bg-red-500/20 text-red-400 border-red-500/30",
+            icon: XCircle,
         },
         needs_attention: {
             label: "Needs Attention",
@@ -123,7 +128,7 @@ function MarketContext() {
             return "Calm";
         }
         setMarket({ vixValue, vixZone: getVixZone(vixValue) });
-    }, []); // Runs once on mount for simplicity. Could be triggered by storage event.
+    }, []);
     
     const isHighVol = market.vixZone === 'Extreme' || market.vixZone === 'Elevated';
 
@@ -172,24 +177,14 @@ function MarketContext() {
 }
 
 type RuleStatus = "PASS" | "WARN" | "FAIL" | "N/A";
+type RuleCheck = { label: string; status: RuleStatus, note: string };
 
-const StatusBadge = ({ status }: { status: RuleStatus }) => {
-    const config = {
-        "PASS": "bg-green-500/20 text-green-400 border-green-500/30",
-        "WARN": "bg-amber-500/20 text-amber-400 border-amber-500/30",
-        "FAIL": "bg-red-500/20 text-red-400 border-red-500/30",
-        "N/A": "bg-muted text-muted-foreground border-border",
-    };
-    return <Badge variant="secondary" className={cn("text-xs font-mono", config[status])}>{status}</Badge>;
-}
-
-function RuleChecks({ rrr, riskPercent }: { rrr: number, riskPercent: number }) {
-    
+const getRuleChecks = (rrr: number, riskPercent: number): RuleCheck[] => {
     // In a real app, this data would come from context/props
     const vixZone = (localStorage.getItem('ec_demo_scenario') === 'high_vol') ? 'Elevated' : 'Normal';
     const performanceState = (localStorage.getItem('ec_demo_scenario') === 'drawdown') ? 'drawdown' : 'stable';
 
-    const checks: { label: string; status: RuleStatus, note: string }[] = [
+    return [
         {
             label: "R:R Ratio must be >= 1.5",
             status: !rrr || rrr <= 0 ? "FAIL" : rrr < 1.5 ? "WARN" : "PASS",
@@ -211,7 +206,19 @@ function RuleChecks({ rrr, riskPercent }: { rrr: number, riskPercent: number }) 
             note: performanceState === 'drawdown' ? "You're in a drawdown, trade with caution." : "Performance is stable."
         }
     ];
+};
 
+const StatusBadge = ({ status }: { status: RuleStatus }) => {
+    const config = {
+        "PASS": "bg-green-500/20 text-green-400 border-green-500/30",
+        "WARN": "bg-amber-500/20 text-amber-400 border-amber-500/30",
+        "FAIL": "bg-red-500/20 text-red-400 border-red-500/30",
+        "N/A": "bg-muted text-muted-foreground border-border",
+    };
+    return <Badge variant="secondary" className={cn("text-xs font-mono", config[status])}>{status}</Badge>;
+}
+
+function RuleChecks({ checks }: { checks: RuleCheck[] }) {
     return (
         <div>
             <h3 className="text-sm font-semibold text-foreground mb-3">Strategy Rule Checks</h3>
@@ -253,6 +260,7 @@ function PlanSummary({ control, setPlanStatus, planStatus }: { control: any, set
     });
     
     const [statusMessage, setStatusMessage] = useState("Fill in all required values to continue.");
+    const [ruleChecks, setRuleChecks] = useState<RuleCheck[]>([]);
 
     useEffect(() => {
         // --- Calculations ---
@@ -272,7 +280,10 @@ function PlanSummary({ control, setPlanStatus, planStatus }: { control: any, set
         
         setSummary({ rrr, positionSize, potentialLoss, potentialProfit, distanceToSl, distanceToSlPercent, distanceToTp, distanceToTpPercent });
         
-        // --- Status Logic ---
+        // --- Rule Checks & Status Logic ---
+        const currentChecks = getRuleChecks(rrr, riskPercent || 0);
+        setRuleChecks(currentChecks);
+
         const requiredFieldsSet = instrument && direction && entryPrice && stopLoss && accountCapital && riskPercent && strategyId && justification && justification.length >= 10;
 
         if (!requiredFieldsSet) {
@@ -281,19 +292,24 @@ function PlanSummary({ control, setPlanStatus, planStatus }: { control: any, set
             return;
         }
 
-        const attentionChecks = [];
-        if (rrr > 0 && rrr < 1.0) attentionChecks.push("Risk/Reward is below 1:1.");
-        if (riskPercent && riskPercent > 3) attentionChecks.push("Risk per trade is over 3%.");
-        if (entryPrice === stopLoss) attentionChecks.push("Stop Loss cannot be the same as entry.");
+        const hasFails = currentChecks.some(c => c.status === 'FAIL');
+        const hasWarns = currentChecks.some(c => c.status === 'WARN');
+        const structuralWarning = rrr > 0 && rrr < 1.0;
 
-        if (attentionChecks.length > 0) {
+        if (hasFails) {
+            setPlanStatus("blocked");
+            setStatusMessage("One or more critical rules are failing. This plan cannot be executed.");
+            return;
+        }
+        
+        if (hasWarns || structuralWarning) {
             setPlanStatus("needs_attention");
-            setStatusMessage(attentionChecks.join(" "));
+            setStatusMessage("This plan has warnings. Review the rule checks before proceeding.");
             return;
         }
 
         setPlanStatus("ok");
-        setStatusMessage("This plan looks structurally sound. Rule checks come next.");
+        setStatusMessage("This plan looks structurally sound. Review the checks before proceeding.");
 
     }, [instrument, direction, entryPrice, stopLoss, takeProfit, riskPercent, accountCapital, strategyId, justification, setPlanStatus]);
 
@@ -301,7 +317,6 @@ function PlanSummary({ control, setPlanStatus, planStatus }: { control: any, set
     const isSlSet = stopLoss && stopLoss > 0;
     const isTpSet = takeProfit && takeProfit > 0;
     const canCalcRisk = entryPrice && stopLoss && riskPercent && accountCapital;
-    const isValidRrr = summary.rrr >= 1.5;
 
     const SummaryRow = ({ label, value, className }: { label: string, value: React.ReactNode, className?: string }) => (
         <div className="flex justify-between items-center text-sm">
@@ -361,7 +376,7 @@ function PlanSummary({ control, setPlanStatus, planStatus }: { control: any, set
                 
                 <Separator />
 
-                <RuleChecks rrr={summary.rrr} riskPercent={riskPercent || 0} />
+                <RuleChecks checks={ruleChecks} />
                 
                 {!isSlSet && (
                     <Alert variant="destructive">
@@ -421,7 +436,6 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
 
     const onSubmit = (values: PlanFormValues) => {
         console.log("Proceeding to review step (prototype):", values);
-        // Here you would set an internal substep to 'review'
     };
 
     const handleSaveDraft = () => {
@@ -434,7 +448,7 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
     };
 
     const proceedButton = (
-         <Button type="submit" disabled={planStatus === 'incomplete'}>
+         <Button type="submit" disabled={planStatus === 'incomplete' || planStatus === 'blocked'}>
             Proceed to Review (Step 2)
         </Button>
     );
@@ -573,12 +587,12 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
                                 <TooltipProvider>
                                     <Tooltip>
                                         <TooltipTrigger asChild>
-                                            {proceedButton}
+                                            <div tabIndex={0}>{proceedButton}</div>
                                         </TooltipTrigger>
                                         <TooltipContent>
                                             <p className="flex items-center gap-2">
                                                 <AlertTriangle className="h-4 w-4 text-amber-500" />
-                                                This plan violates basic risk hygiene.
+                                                This plan has warnings. You can proceed, but with caution.
                                             </p>
                                         </TooltipContent>
                                     </Tooltip>
@@ -593,3 +607,4 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
         </div>
     );
 }
+
