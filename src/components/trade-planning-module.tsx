@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Info, CheckCircle, Circle, AlertTriangle, FileText, BarChart, ArrowRight, Gauge, ShieldCheck, XCircle, X } from "lucide-react";
+import { Bot, Info, CheckCircle, Circle, AlertTriangle, FileText, BarChart, ArrowRight, Gauge, ShieldCheck, XCircle, X, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
@@ -23,6 +23,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { DemoScenario } from "./dashboard-module";
 import { Checkbox } from "./ui/checkbox";
 import { Label } from "./ui/label";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "./ui/alert-dialog";
 
 
 interface TradePlanningModuleProps {
@@ -489,7 +490,7 @@ function PlanSummary({ control, setPlanStatus, onSetModule }: { control: any, se
     );
 }
 
-function PlanStep({ form, onSetModule, setPlanStatus, planStatus }: { form: any, onSetModule: any, setPlanStatus: any, planStatus: PlanStatusType }) {
+function PlanStep({ form, onSetModule, setPlanStatus }: { form: any, onSetModule: any, setPlanStatus: any }) {
      const entryType = useWatch({
         control: form.control,
         name: 'entryType',
@@ -588,94 +589,21 @@ function PlanStep({ form, onSetModule, setPlanStatus, planStatus }: { form: any,
     );
 }
 
-function PlanSnapshot({ form, onSetStep, summary, ruleChecks }: { form: any, onSetStep: (step: TradePlanStep) => void; summary: any; ruleChecks: RuleCheck[] }) {
-    const values = form.getValues();
-    const { instrument, direction, entryPrice, stopLoss, takeProfit, leverage, riskPercent } = values;
-
-    const SummaryRow = ({ label, value, className }: { label: string, value: React.ReactNode, className?: string }) => (
-        <div className="flex justify-between items-center text-sm">
-            <p className="text-muted-foreground">{label}</p>
-            <p className={cn("font-semibold font-mono text-foreground", className)}>{value}</p>
-        </div>
-    );
-    
-     const RuleCheckRow = ({ check }: { check: RuleCheck }) => {
-        const Icon = {
-            PASS: CheckCircle,
-            WARN: AlertTriangle,
-            FAIL: XCircle,
-            "N/A": Circle
-        }[check.status];
-
-        const color = {
-            PASS: 'text-green-400',
-            WARN: 'text-amber-400',
-            FAIL: 'text-red-400',
-            "N/A": 'text-muted-foreground'
-        }[check.status];
-
-        return (
-            <div className="flex items-center gap-2 text-sm">
-                <Icon className={cn("h-4 w-4", color)} />
-                <span className={cn(check.status === 'FAIL' && 'text-red-400', check.status === 'WARN' && 'text-amber-400')}>{check.label}</span>
-            </div>
-        );
-    }
-
-    return (
-        <Card className="bg-muted/30 border-border/50">
-            <CardHeader>
-                <CardTitle>Planned Trade Snapshot</CardTitle>
-                <CardDescription>A read-only summary of your trade plan.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-                <div>
-                    <h2 className={cn("text-xl font-bold", direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{instrument} &ndash; {direction}</h2>
-                </div>
-                <div className="space-y-2">
-                    <SummaryRow label="Entry Price" value={entryPrice.toFixed(4)} />
-                    <SummaryRow label="Stop Loss" value={stopLoss.toFixed(4)} />
-                    <SummaryRow label="Take Profit" value={takeProfit ? takeProfit.toFixed(4) : 'Not Set'} />
-                    <SummaryRow label="Leverage" value={`${leverage}x`} />
-                </div>
-                <Separator />
-                <div className="space-y-2">
-                    <SummaryRow label="Position Size" value={`${summary.positionSize.toFixed(4)}`} />
-                    <SummaryRow label="R:R Ratio" value={summary.rrr > 0 ? `${summary.rrr.toFixed(2)} : 1` : '-'} className={summary.rrr > 0 ? (summary.rrr < 1.5 ? 'text-amber-400' : 'text-green-400') : ''} />
-                    <SummaryRow label="Risk %" value={`${riskPercent}%`} className={riskPercent > 2 ? 'text-red-400' : ''} />
-                </div>
-                <Separator />
-                <div>
-                    <h3 className="text-sm font-semibold text-foreground mb-3">Rule Checklist</h3>
-                    <div className="space-y-3">
-                        {ruleChecks.map((check, i) => (
-                            <RuleCheckRow key={i} check={check} />
-                        ))}
-                    </div>
-                </div>
-
-                <div className="pt-4">
-                     <Button variant="link" className="p-0 h-auto text-primary" onClick={() => onSetStep('plan')}>
-                        Edit Plan (Step 1)
-                    </Button>
-                </div>
-            </CardContent>
-        </Card>
-    );
-}
-
-function ReviewStep({ form, onSetModule, onSetStep, arjunFeedbackAccepted, setArjunFeedbackAccepted }: { form: any, onSetModule: any, onSetStep: (step: TradePlanStep) => void; arjunFeedbackAccepted: boolean, setArjunFeedbackAccepted: (accepted: boolean) => void }) {
+function ReviewStep({ form, onSetModule, onSetStep, arjunFeedbackAccepted, setArjunFeedbackAccepted, planStatus }: { form: any, onSetModule: any, onSetStep: (step: TradePlanStep) => void; arjunFeedbackAccepted: boolean, setArjunFeedbackAccepted: (accepted: boolean) => void, planStatus: PlanStatusType }) {
     const values = form.getValues();
     const personaData = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem("ec_persona_final") || localStorage.getItem("ec_persona_base") || "{}") : {};
     const market = typeof window !== 'undefined' ? { vixValue: localStorage.getItem('ec_demo_scenario') === 'high_vol' ? 82 : 45, vixZone: localStorage.getItem('ec_demo_scenario') === 'high_vol' ? 'Elevated' : 'Normal' } : { vixValue: 45, vixZone: 'Normal' };
 
-    // Placeholder data, will be replaced with real data from props later
-    const summary = { rrr: 1.4 };
-    const ruleChecks: RuleCheck[] = [];
+    const { rrr } = useWatch({ control: form.control });
+
+    const summary = {
+      rrr: rrr || 0,
+      // other calculations would go here
+    };
 
     return (
         <div className="grid lg:grid-cols-2 gap-8 items-start">
-             <PlanSnapshot form={form} onSetStep={onSetStep} summary={summary} ruleChecks={ruleChecks} />
+             <PlanSnapshot form={form} onSetStep={onSetStep} />
              <Card className="bg-muted/30 border-primary/20 sticky top-24">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2"><Bot className="h-5 w-5 text-primary" />Review with Arjun</CardTitle>
@@ -748,23 +676,38 @@ function ReviewStep({ form, onSetModule, onSetStep, arjunFeedbackAccepted, setAr
     );
 }
 
-function ExecuteStep({ form, onSetModule }: { form: any, onSetModule: any }) {
-    const values = form.getValues();
+function ExecuteStep({ form, onSetModule, onSetStep, planStatus }: { form: any, onSetModule: any, onSetStep: (step: TradePlanStep) => void; planStatus: PlanStatusType }) {
     return (
          <div className="grid lg:grid-cols-2 gap-8 items-start">
              <Card className="bg-muted/30 border-border/50">
                 <CardHeader>
-                    <CardTitle>Locked Plan</CardTitle>
-                    <CardDescription>Your final, locked-in trade plan.</CardDescription>
+                    <CardTitle className="flex items-center gap-2"><Lock className="h-4 w-4" /> Locked trade plan</CardTitle>
+                    <CardDescription>Entry, SL and leverage are now locked for this execution step.</CardDescription>
                 </CardHeader>
                 <CardContent>
                      <p className="text-center text-muted-foreground p-8">Locked plan preview placeholder.</p>
+                     <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="link" className="text-xs text-muted-foreground p-0 h-auto">Cancel and return to planning</Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Unlock Plan?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    This will unlock the plan and discard this execution attempt (prototype). Are you sure?
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Stay</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => onSetStep('plan')}>Yes, unlock</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                     </AlertDialog>
                 </CardContent>
             </Card>
              <Card className="bg-muted/30 border-border/50">
                 <CardHeader>
-                    <CardTitle>Execute & Journal</CardTitle>
-                    <CardDescription>Execute on your broker and auto-journal.</CardDescription>
+                    <CardTitle>Execution options</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <p className="text-center text-muted-foreground p-8">Execution options will appear here.</p>
@@ -774,6 +717,87 @@ function ExecuteStep({ form, onSetModule }: { form: any, onSetModule: any }) {
     );
 }
 
+const SummaryRow = ({ label, value, className }: { label: string, value: React.ReactNode, className?: string }) => (
+    <div className="flex justify-between items-center text-sm">
+        <p className="text-muted-foreground">{label}</p>
+        <p className={cn("font-semibold font-mono text-foreground", className)}>{value}</p>
+    </div>
+);
+
+const RuleCheckRow = ({ check }: { check: RuleCheck }) => {
+    const Icon = {
+        PASS: CheckCircle,
+        WARN: AlertTriangle,
+        FAIL: XCircle,
+        "N/A": Circle
+    }[check.status];
+
+    const color = {
+        PASS: 'text-green-400',
+        WARN: 'text-amber-400',
+        FAIL: 'text-red-400',
+        "N/A": 'text-muted-foreground'
+    }[check.status];
+
+    return (
+        <div className="flex items-center gap-2 text-sm">
+            <Icon className={cn("h-4 w-4", color)} />
+            <span className={cn(check.status === 'FAIL' && 'text-red-400', check.status === 'WARN' && 'text-amber-400')}>{check.label}</span>
+        </div>
+    );
+};
+
+function PlanSnapshot({ form, onSetStep }: { form: any; onSetStep: (step: TradePlanStep) => void }) {
+    const values = form.getValues();
+    const { instrument, direction, entryPrice, stopLoss, takeProfit, leverage, riskPercent } = values;
+
+    // Recalculate summary for snapshot
+    const riskPerUnit = (entryPrice && stopLoss) ? Math.abs(entryPrice - stopLoss) : 0;
+    const rewardPerUnit = (takeProfit && entryPrice) ? Math.abs(takeProfit - entryPrice) : 0;
+    const rrr = (riskPerUnit > 0 && rewardPerUnit > 0) ? rewardPerUnit / riskPerUnit : 0;
+    
+    const ruleChecks = getRuleChecks(rrr, riskPercent);
+
+    return (
+        <Card className="bg-muted/30 border-border/50">
+            <CardHeader>
+                <CardTitle>Planned Trade Snapshot</CardTitle>
+                <CardDescription>A read-only summary of your trade plan.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                <div>
+                    <h2 className={cn("text-xl font-bold", direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{instrument} &ndash; {direction}</h2>
+                </div>
+                <div className="space-y-2">
+                    <SummaryRow label="Entry Price" value={entryPrice?.toFixed(4)} />
+                    <SummaryRow label="Stop Loss" value={stopLoss?.toFixed(4)} />
+                    <SummaryRow label="Take Profit" value={takeProfit ? takeProfit.toFixed(4) : 'Not Set'} />
+                    <SummaryRow label="Leverage" value={`${leverage}x`} />
+                </div>
+                <Separator />
+                <div className="space-y-2">
+                    <SummaryRow label="R:R Ratio" value={rrr > 0 ? `${rrr.toFixed(2)} : 1` : '-'} className={rrr > 0 ? (rrr < 1.5 ? 'text-amber-400' : 'text-green-400') : ''} />
+                    <SummaryRow label="Risk %" value={`${riskPercent}%`} className={riskPercent > 2 ? 'text-red-400' : ''} />
+                </div>
+                <Separator />
+                <div>
+                    <h3 className="text-sm font-semibold text-foreground mb-3">Rule Checklist</h3>
+                    <div className="space-y-3">
+                        {ruleChecks.map((check, i) => (
+                            <RuleCheckRow key={i} check={check} />
+                        ))}
+                    </div>
+                </div>
+
+                <div className="pt-4">
+                     <Button variant="link" className="p-0 h-auto text-primary" onClick={() => onSetStep('plan')}>
+                        Edit Plan (Step 1)
+                    </Button>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
 
 export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
     const { toast } = useToast();
@@ -801,11 +825,6 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
         },
     });
     
-    // This is a bit of a hack to pass summary data to the review step without re-calculating
-    // In a real app, this might be managed by a more robust state manager
-    const [planSummaryData, setPlanSummaryData] = useState<any>({});
-    const [ruleChecksData, setRuleChecksData] = useState<RuleCheck[]>([]);
-
     useEffect(() => {
         if (typeof window !== "undefined") {
             const draft = localStorage.getItem("ec_trade_plan_draft");
@@ -938,9 +957,9 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
 
-                    {currentStep === "plan" && <PlanStep form={form} onSetModule={onSetModule} setPlanStatus={setPlanStatus} planStatus={planStatus} />}
-                    {currentStep === "review" && <ReviewStep form={form} onSetModule={onSetModule} onSetStep={setCurrentStep} arjunFeedbackAccepted={arjunFeedbackAccepted} setArjunFeedbackAccepted={setArjunFeedbackAccepted} />}
-                    {currentStep === "execute" && <ExecuteStep form={form} onSetModule={onSetModule} />}
+                    {currentStep === "plan" && <PlanStep form={form} onSetModule={onSetModule} setPlanStatus={setPlanStatus} />}
+                    {currentStep === "review" && <ReviewStep form={form} onSetModule={onSetModule} onSetStep={setCurrentStep} arjunFeedbackAccepted={arjunFeedbackAccepted} setArjunFeedbackAccepted={setArjunFeedbackAccepted} planStatus={planStatus} />}
+                    {currentStep === "execute" && <ExecuteStep form={form} onSetModule={onSetModule} onSetStep={setCurrentStep} planStatus={planStatus} />}
 
                      <div className="mt-8 p-4 bg-muted/20 border-t border-border/50 flex flex-col sm:flex-row items-center justify-between gap-4">
                         <p className="text-sm text-muted-foreground">Step {Object.keys(stepConfig).indexOf(currentStep) + 1} of 3: {stepConfig[currentStep].label} your trade.</p>
