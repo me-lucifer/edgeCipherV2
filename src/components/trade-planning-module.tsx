@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Info, CheckCircle, Circle, AlertTriangle, FileText, BarChart, ArrowRight, Gauge } from "lucide-react";
+import { Bot, Info, CheckCircle, Circle, AlertTriangle, FileText, BarChart, ArrowRight, Gauge, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
@@ -32,7 +32,7 @@ const planSchema = z.object({
     entryType: z.enum(["Market", "Limit"]),
     entryPrice: z.coerce.number().positive("Must be > 0."),
     stopLoss: z.coerce.number().positive("Must be > 0."),
-    takeProfit: z.coerce.number().positive("Must be > 0.").optional(),
+    takeProfit: z.coerce.number().optional(),
     leverage: z.coerce.number().min(1).max(100),
     accountCapital: z.coerce.number().positive("Must be > 0."),
     riskPercent: z.coerce.number().min(0.1).max(100),
@@ -171,9 +171,75 @@ function MarketContext() {
     )
 }
 
+type RuleStatus = "PASS" | "WARN" | "FAIL" | "N/A";
+
+const StatusBadge = ({ status }: { status: RuleStatus }) => {
+    const config = {
+        "PASS": "bg-green-500/20 text-green-400 border-green-500/30",
+        "WARN": "bg-amber-500/20 text-amber-400 border-amber-500/30",
+        "FAIL": "bg-red-500/20 text-red-400 border-red-500/30",
+        "N/A": "bg-muted text-muted-foreground border-border",
+    };
+    return <Badge variant="secondary" className={cn("text-xs font-mono", config[status])}>{status}</Badge>;
+}
+
+function RuleChecks({ rrr, riskPercent }: { rrr: number, riskPercent: number }) {
+    
+    // In a real app, this data would come from context/props
+    const vixZone = (localStorage.getItem('ec_demo_scenario') === 'high_vol') ? 'Elevated' : 'Normal';
+    const performanceState = (localStorage.getItem('ec_demo_scenario') === 'drawdown') ? 'drawdown' : 'stable';
+
+    const checks: { label: string; status: RuleStatus, note: string }[] = [
+        {
+            label: "R:R Ratio must be >= 1.5",
+            status: !rrr || rrr <= 0 ? "FAIL" : rrr < 1.5 ? "WARN" : "PASS",
+            note: !rrr || rrr <= 0 ? "TP not set or invalid." : rrr < 1.5 ? "Low reward for the risk." : "Good risk/reward."
+        },
+        {
+            label: "Risk per trade <= 2%",
+            status: !riskPercent ? "N/A" : riskPercent > 3 ? "FAIL" : riskPercent > 2 ? "WARN" : "PASS",
+            note: !riskPercent ? "Risk % not set." : riskPercent > 3 ? "Risk exceeds max safety limit." : riskPercent > 2 ? "Above recommended risk." : "Within risk parameters."
+        },
+        {
+            label: "Trade only in Calm/Normal VIX",
+            status: vixZone === "Extreme" ? "FAIL" : vixZone === "Elevated" ? "WARN" : "PASS",
+            note: vixZone === "Elevated" ? "Market is volatile." : vixZone === "Extreme" ? "Extreme volatility." : "Market is stable."
+        },
+        {
+            label: "Avoid trading in a drawdown",
+            status: performanceState === 'drawdown' ? "WARN" : "PASS",
+            note: performanceState === 'drawdown' ? "You're in a drawdown, trade with caution." : "Performance is stable."
+        }
+    ];
+
+    return (
+        <div>
+            <h3 className="text-sm font-semibold text-foreground mb-3">Strategy Rule Checks</h3>
+            <div className="p-4 rounded-lg bg-muted/50 border border-border/50 space-y-4">
+                 <p className="text-xs text-muted-foreground">Your plan is checked against your saved rules and best practices.</p>
+                {checks.map((check, i) => (
+                     <TooltipProvider key={i}>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <div className="flex justify-between items-center text-sm">
+                                    <p className="text-muted-foreground">{check.label}</p>
+                                    <StatusBadge status={check.status} />
+                                </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>{check.note}</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                ))}
+            </div>
+        </div>
+    )
+}
+
 function PlanSummary({ control, setPlanStatus, planStatus }: { control: any, setPlanStatus: (status: PlanStatusType) => void, planStatus: PlanStatusType }) {
     const values = useWatch({ control }) as Partial<PlanFormValues>;
-    const { instrument, direction, entryType, entryPrice, stopLoss, takeProfit, riskPercent, accountCapital, strategyId, justification } = values;
+    const { instrument, direction, entryPrice, stopLoss, takeProfit, riskPercent, accountCapital, strategyId, justification } = values;
 
     const [summary, setSummary] = useState({
         rrr: 0,
@@ -279,7 +345,7 @@ function PlanSummary({ control, setPlanStatus, planStatus }: { control: any, set
                      <h3 className="text-sm font-semibold text-foreground mb-3">Risk & Sizing</h3>
                     {canCalcRisk ? (
                         <div className="space-y-2">
-                             <SummaryRow label="R:R Ratio" value={summary.rrr > 0 ? `${summary.rrr.toFixed(2)} : 1` : '-'} className={summary.rrr > 0 ? (isValidRrr ? 'text-green-400' : 'text-amber-400') : ''} />
+                             <SummaryRow label="R:R Ratio" value={summary.rrr > 0 ? `${summary.rrr.toFixed(2)} : 1` : '-'} className={summary.rrr > 0 ? (summary.rrr < 1.5 ? 'text-amber-400' : 'text-green-400') : ''} />
                              <SummaryRow label="Position Size" value={summary.positionSize > 0 ? `${summary.positionSize.toFixed(4)} ${instrument?.replace('-PERP','').replace('USDT','')} ` : '-'} />
                              <SummaryRow label="Potential Loss" value={`-$${summary.potentialLoss > 0 ? summary.potentialLoss.toFixed(2) : '0.00'}`} className="text-red-400" />
                              <SummaryRow label="Potential Profit" value={`+$${summary.potentialProfit > 0 ? summary.potentialProfit.toFixed(2) : '0.00'}`} className="text-green-400" />
@@ -292,6 +358,10 @@ function PlanSummary({ control, setPlanStatus, planStatus }: { control: any, set
                  <Separator />
 
                 <MarketContext />
+                
+                <Separator />
+
+                <RuleChecks rrr={summary.rrr} riskPercent={riskPercent || 0} />
                 
                 {!isSlSet && (
                     <Alert variant="destructive">
@@ -523,5 +593,3 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
         </div>
     );
 }
-
-    
