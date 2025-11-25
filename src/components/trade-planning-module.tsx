@@ -414,13 +414,13 @@ function PlanSummary({ control, setPlanStatus, onSetModule }: { control: any, se
                     <div className="space-y-2">
                         <SummaryRow label="Pair / Direction" value={<span className={isLong ? 'text-green-400' : 'text-red-400'}>{instrument || '-'} {direction}</span>} />
                         <SummaryRow label="Entry Price" value={entryPrice && Number(entryPrice) > 0 ? Number(entryPrice).toFixed(4) : '-'} />
-                        <SummaryRow label="Stop Loss" value={isSlSet ? stopLoss?.toFixed(4) : <span className="text-red-400">Not set</span>} />
+                        <SummaryRow label="Stop Loss" value={isSlSet ? Number(stopLoss).toFixed(4) : <span className="text-red-400">Not set</span>} />
                         {isSlSet && entryPrice && (
                              <p className="text-xs text-muted-foreground text-right -mt-1">
                                 Distance: ${summary.distanceToSl.toFixed(4)} ({summary.distanceToSlPercent.toFixed(2)}%)
                             </p>
                         )}
-                        <SummaryRow label="Take Profit" value={isTpSet ? takeProfit?.toFixed(4) : 'Not set'} />
+                        <SummaryRow label="Take Profit" value={isTpSet ? Number(takeProfit).toFixed(4) : 'Not set'} />
                          {isTpSet && entryPrice && (
                              <p className="text-xs text-muted-foreground text-right -mt-1">
                                 Distance: ${summary.distanceToTp.toFixed(4)} ({summary.distanceToTpPercent.toFixed(2)}%)
@@ -970,9 +970,9 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
             instrument: "",
             notes: "",
             justification: "",
-            entryPrice: undefined,
-            stopLoss: undefined,
-            takeProfit: undefined,
+            entryPrice: '',
+            stopLoss: '',
+            takeProfit: '',
             mindset: "",
         },
     });
