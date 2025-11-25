@@ -29,7 +29,7 @@ const planSchema = z.object({
     entryType: z.enum(["Market", "Limit"]),
     entryPrice: z.coerce.number().positive("Must be > 0."),
     stopLoss: z.coerce.number().positive("Must be > 0."),
-    takeProfit: z.coerce.number().positive("Must be > 0."),
+    takeProfit: z.coerce.number().positive("Must be > 0.").optional(),
     leverage: z.coerce.number().min(1).max(100),
     accountCapital: z.coerce.number().positive("Must be > 0."),
     riskPercent: z.coerce.number().min(0.1).max(100),
@@ -37,17 +37,29 @@ const planSchema = z.object({
     justification: z.string().min(10, "Justification must be at least 10 characters."),
     notes: z.string().optional(),
 }).refine(data => {
-    if (data.direction === 'Long' && data.entryPrice > 0) return data.stopLoss < data.entryPrice && data.takeProfit > data.entryPrice;
+    if (data.direction === 'Long' && data.entryPrice > 0 && data.stopLoss > 0) return data.stopLoss < data.entryPrice;
     return true;
 }, {
-    message: "For Longs, SL must be below Entry, and TP must be above.",
+    message: "For Longs, SL must be below Entry.",
     path: ["stopLoss"],
 }).refine(data => {
-    if (data.direction === 'Short' && data.entryPrice > 0) return data.stopLoss > data.entryPrice && data.takeProfit < data.entryPrice;
+    if (data.direction === 'Long' && data.entryPrice > 0 && data.takeProfit && data.takeProfit > 0) return data.takeProfit > data.entryPrice;
     return true;
 }, {
-    message: "For Shorts, SL must be above Entry, and TP must be below.",
+    message: "For Longs, TP must be above Entry.",
+    path: ["takeProfit"],
+}).refine(data => {
+    if (data.direction === 'Short' && data.entryPrice > 0 && data.stopLoss > 0) return data.stopLoss > data.entryPrice;
+    return true;
+}, {
+    message: "For Shorts, SL must be above Entry.",
     path: ["stopLoss"],
+}).refine(data => {
+    if (data.direction === 'Short' && data.entryPrice > 0 && data.takeProfit && data.takeProfit > 0) return data.takeProfit < data.entryPrice;
+    return true;
+}, {
+    message: "For Shorts, TP must be below Entry.",
+    path: ["takeProfit"],
 });
 
 
@@ -74,10 +86,10 @@ function PlanSummary({ control }: { control: any }) {
     });
 
     useEffect(() => {
-        if (entryPrice && stopLoss && takeProfit && riskPercent && accountCapital) {
+        if (entryPrice && stopLoss && riskPercent && accountCapital) {
             const riskPerUnit = Math.abs(entryPrice - stopLoss);
-            const rewardPerUnit = Math.abs(takeProfit - entryPrice);
-            const rrr = riskPerUnit > 0 ? rewardPerUnit / riskPerUnit : 0;
+            const rewardPerUnit = takeProfit ? Math.abs(takeProfit - entryPrice) : 0;
+            const rrr = (riskPerUnit > 0 && rewardPerUnit > 0) ? rewardPerUnit / riskPerUnit : 0;
             
             const potentialLoss = (accountCapital * riskPercent) / 100;
             const positionSize = riskPerUnit > 0 ? potentialLoss / riskPerUnit : 0;
@@ -85,8 +97,8 @@ function PlanSummary({ control }: { control: any }) {
             
             const distanceToSl = Math.abs(entryPrice - stopLoss);
             const distanceToSlPercent = entryPrice > 0 ? (distanceToSl / entryPrice) * 100 : 0;
-            const distanceToTp = Math.abs(takeProfit - entryPrice);
-            const distanceToTpPercent = entryPrice > 0 ? (distanceToTp / entryPrice) * 100 : 0;
+            const distanceToTp = takeProfit ? Math.abs(takeProfit - entryPrice) : 0;
+            const distanceToTpPercent = (entryPrice && takeProfit && entryPrice > 0) ? (distanceToTp / entryPrice) * 100 : 0;
 
             setSummary({ rrr, positionSize, potentialLoss, potentialProfit, distanceToSl, distanceToSlPercent, distanceToTp, distanceToTpPercent });
         } else {
@@ -98,6 +110,7 @@ function PlanSummary({ control }: { control: any }) {
     const isValidRrr = summary.rrr >= 1.5;
     const isSlSet = stopLoss && stopLoss > 0;
     const isTpSet = takeProfit && takeProfit > 0;
+    const canCalcRisk = entryPrice && stopLoss && riskPercent && accountCapital;
 
     const SummaryRow = ({ label, value, className }: { label: string, value: React.ReactNode, className?: string }) => (
         <div className="flex justify-between items-center text-sm">
@@ -117,17 +130,17 @@ function PlanSummary({ control }: { control: any }) {
                     <h3 className="text-sm font-semibold text-foreground mb-3">Numeric Summary</h3>
                     <div className="space-y-2">
                         <SummaryRow label="Pair / Direction" value={<span className={isLong ? 'text-green-400' : 'text-red-400'}>{instrument || '-'} {direction}</span>} />
-                        <SummaryRow label="Entry Price" value={entryPrice > 0 ? entryPrice.toFixed(2) : '-'} />
-                        <SummaryRow label="Stop Loss" value={isSlSet ? stopLoss?.toFixed(2) : <span className="text-red-400">Not set</span>} />
+                        <SummaryRow label="Entry Price" value={entryPrice > 0 ? entryPrice.toFixed(4) : '-'} />
+                        <SummaryRow label="Stop Loss" value={isSlSet ? stopLoss?.toFixed(4) : <span className="text-red-400">Not set</span>} />
                         {isSlSet && entryPrice && (
                              <p className="text-xs text-muted-foreground text-right -mt-1">
-                                Distance: ${summary.distanceToSl.toFixed(2)} ({summary.distanceToSlPercent.toFixed(2)}%)
+                                Distance: ${summary.distanceToSl.toFixed(4)} ({summary.distanceToSlPercent.toFixed(2)}%)
                             </p>
                         )}
-                        <SummaryRow label="Take Profit" value={isTpSet ? takeProfit?.toFixed(2) : '-'} />
+                        <SummaryRow label="Take Profit" value={isTpSet ? takeProfit?.toFixed(4) : 'Not set'} />
                          {isTpSet && entryPrice && (
                              <p className="text-xs text-muted-foreground text-right -mt-1">
-                                Distance: ${summary.distanceToTp.toFixed(2)} ({summary.distanceToTpPercent.toFixed(2)}%)
+                                Distance: ${summary.distanceToTp.toFixed(4)} ({summary.distanceToTpPercent.toFixed(2)}%)
                             </p>
                         )}
                     </div>
@@ -137,12 +150,16 @@ function PlanSummary({ control }: { control: any }) {
                 
                 <div>
                      <h3 className="text-sm font-semibold text-foreground mb-3">Risk & Sizing</h3>
-                    <div className="space-y-2">
-                         <SummaryRow label="Risk/Reward Ratio" value={summary.rrr > 0 ? `${summary.rrr.toFixed(2)} : 1` : '-'} className={summary.rrr > 0 && !isValidRrr ? 'text-amber-400' : 'text-green-400'} />
-                         <SummaryRow label="Position Size" value={summary.positionSize > 0 ? summary.positionSize.toFixed(4) : '-'} />
-                         <SummaryRow label="Potential Loss" value={`-$${summary.potentialLoss > 0 ? summary.potentialLoss.toFixed(2) : '0.00'}`} className="text-red-400" />
-                         <SummaryRow label="Potential Profit" value={`+$${summary.potentialProfit > 0 ? summary.potentialProfit.toFixed(2) : '0.00'}`} className="text-green-400" />
-                    </div>
+                    {canCalcRisk ? (
+                        <div className="space-y-2">
+                             <SummaryRow label="Risk/Reward Ratio" value={summary.rrr > 0 ? `${summary.rrr.toFixed(2)} : 1` : '-'} className={summary.rrr > 0 ? (isValidRrr ? 'text-green-400' : 'text-amber-400') : ''} />
+                             <SummaryRow label="Position Size" value={summary.positionSize > 0 ? summary.positionSize.toFixed(4) : '-'} />
+                             <SummaryRow label="Potential Loss" value={`-$${summary.potentialLoss > 0 ? summary.potentialLoss.toFixed(2) : '0.00'}`} className="text-red-400" />
+                             <SummaryRow label="Potential Profit" value={`+$${summary.potentialProfit > 0 ? summary.potentialProfit.toFixed(2) : '0.00'}`} className="text-green-400" />
+                        </div>
+                    ) : (
+                        <p className="text-sm text-muted-foreground text-center">Enter Entry, SL & account details to calculate risk.</p>
+                    )}
                 </div>
                 
                 {!isSlSet && (
@@ -170,9 +187,9 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
             strategyId: '',
             instrument: "",
             justification: "",
-            entryPrice: 0,
-            stopLoss: 0,
-            takeProfit: 0,
+            entryPrice: undefined,
+            stopLoss: undefined,
+            takeProfit: undefined,
         },
     });
     
@@ -222,10 +239,10 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
                                         <FormItem><FormLabel>Trading Pair</FormLabel><FormControl><Input placeholder="e.g., BTC-PERP" {...field} /></FormControl><FormMessage /></FormItem>
                                     )}/>
                                     <FormField control={form.control} name="direction" render={({ field }) => (
-                                        <FormItem><FormLabel>Direction</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex pt-2 gap-4"><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Long" /></FormControl><FormLabel className="font-normal">Long</FormLabel></FormItem><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Short" /></FormControl><FormLabel className="font-normal">Short</FormLabel></FormItem></RadioGroup></FormControl><FormMessage /></FormItem>
+                                        <FormItem><FormLabel>Direction</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} value={field.value} className="flex pt-2 gap-4"><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Long" /></FormControl><FormLabel className="font-normal">Long</FormLabel></FormItem><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Short" /></FormControl><FormLabel className="font-normal">Short</FormLabel></FormItem></RadioGroup></FormControl><FormMessage /></FormItem>
                                     )}/>
                                     <FormField control={form.control} name="entryType" render={({ field }) => (
-                                        <FormItem><FormLabel>Entry Type</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex pt-2 gap-4"><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Limit" /></FormControl><FormLabel className="font-normal">Limit</FormLabel></FormItem><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Market" /></FormControl><FormLabel className="font-normal">Market</FormLabel></FormItem></RadioGroup></FormControl><FormMessage /></FormItem>
+                                        <FormItem><FormLabel>Entry Type</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} value={field.value} className="flex pt-2 gap-4"><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Limit" /></FormControl><FormLabel className="font-normal">Limit</FormLabel></FormItem><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Market" /></FormControl><FormLabel className="font-normal">Market</FormLabel></FormItem></RadioGroup></FormControl><FormMessage /></FormItem>
                                     )}/>
                                 </div>
                             </div>
@@ -285,7 +302,7 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
                              <div className="p-4 bg-muted/50 rounded-lg space-y-4">
                                 <h3 className="text-sm font-semibold text-muted-foreground">Strategy & Reasoning</h3>
                                 <FormField control={form.control} name="strategyId" render={({ field }) => (
-                                    <FormItem><FormLabel>Strategy</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select from your playbook"/></SelectTrigger></FormControl><SelectContent>{mockStrategies.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
+                                    <FormItem><FormLabel>Strategy</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select from your playbook"/></SelectTrigger></FormControl><SelectContent>{mockStrategies.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
                                 )}/>
                                 <FormField control={form.control} name="justification" render={({ field }) => (
                                     <FormItem><FormLabel>Justification</FormLabel><FormControl><Textarea placeholder="Why are you taking this trade? What conditions must be true?" {...field} /></FormControl><FormMessage /></FormItem>
@@ -316,3 +333,5 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
         </div>
     );
 }
+
+    
