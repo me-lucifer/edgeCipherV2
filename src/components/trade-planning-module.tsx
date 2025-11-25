@@ -37,8 +37,8 @@ const planSchema = z.object({
     accountCapital: z.coerce.number().positive("Must be > 0."),
     riskPercent: z.coerce.number().min(0.1).max(100),
     strategyId: z.string().min(1, "Required."),
-    justification: z.string().min(10, "Justification must be at least 10 characters."),
-    notes: z.string().optional(),
+    notes: z.string().min(10, "Your reasoning is required."),
+    justification: z.string().optional(),
 }).refine(data => {
     if (data.direction === 'Long' && data.entryPrice > 0 && data.stopLoss > 0) return data.stopLoss < data.entryPrice;
     return true;
@@ -73,7 +73,7 @@ const mockStrategies = [
     { id: '2', name: "BTC Trend Breakout" },
 ];
 
-type PlanStatusType = "incomplete" | "blocked" | "needs_attention" | "ok";
+type PlanStatusType = "incomplete" | "blocked" | "needs_attention" | "ok" | "overridden";
 
 const PlanStatus = ({ status, message }: { status: PlanStatusType, message: string }) => {
     const statusConfig = {
@@ -96,6 +96,11 @@ const PlanStatus = ({ status, message }: { status: PlanStatusType, message: stri
             label: "Structurally OK",
             className: "bg-green-500/20 text-green-400 border-green-500/30",
             icon: CheckCircle
+        },
+        overridden: {
+            label: "Rules Overridden",
+            className: "bg-orange-600/20 text-orange-400 border-orange-600/30",
+            icon: AlertTriangle,
         }
     };
     
@@ -218,7 +223,7 @@ const StatusBadge = ({ status }: { status: RuleStatus }) => {
     return <Badge variant="secondary" className={cn("text-xs font-mono", config[status])}>{status}</Badge>;
 }
 
-function RuleChecks({ checks }: { checks: RuleCheck[] }) {
+function RuleChecks({ checks, onJustify }: { checks: RuleCheck[], onJustify?: () => void }) {
     return (
         <div>
             <h3 className="text-sm font-semibold text-foreground mb-3">Strategy Rule Checks</h3>
@@ -246,7 +251,7 @@ function RuleChecks({ checks }: { checks: RuleCheck[] }) {
 
 function PlanSummary({ control, setPlanStatus, planStatus }: { control: any, setPlanStatus: (status: PlanStatusType) => void, planStatus: PlanStatusType }) {
     const values = useWatch({ control }) as Partial<PlanFormValues>;
-    const { instrument, direction, entryPrice, stopLoss, takeProfit, riskPercent, accountCapital, strategyId, justification } = values;
+    const { instrument, direction, entryPrice, stopLoss, takeProfit, riskPercent, accountCapital, strategyId, notes, justification } = values;
 
     const [summary, setSummary] = useState({
         rrr: 0,
@@ -284,7 +289,7 @@ function PlanSummary({ control, setPlanStatus, planStatus }: { control: any, set
         const currentChecks = getRuleChecks(rrr, riskPercent || 0);
         setRuleChecks(currentChecks);
 
-        const requiredFieldsSet = instrument && direction && entryPrice && stopLoss && accountCapital && riskPercent && strategyId && justification && justification.length >= 10;
+        const requiredFieldsSet = instrument && direction && entryPrice && stopLoss && accountCapital && riskPercent && strategyId && notes && notes.length >= 10;
 
         if (!requiredFieldsSet) {
             setPlanStatus("incomplete");
@@ -297,8 +302,13 @@ function PlanSummary({ control, setPlanStatus, planStatus }: { control: any, set
         const structuralWarning = rrr > 0 && rrr < 1.0;
 
         if (hasFails) {
-            setPlanStatus("blocked");
-            setStatusMessage("One or more critical rules are failing. This plan cannot be executed.");
+            if (justification && justification.length >= 10) {
+                setPlanStatus("overridden");
+                setStatusMessage("Rules overridden with justification. Proceed with extreme caution.");
+            } else {
+                setPlanStatus("blocked");
+                setStatusMessage("One or more critical rules are failing. Add justification to override.");
+            }
             return;
         }
         
@@ -311,12 +321,13 @@ function PlanSummary({ control, setPlanStatus, planStatus }: { control: any, set
         setPlanStatus("ok");
         setStatusMessage("This plan looks structurally sound. Review the checks before proceeding.");
 
-    }, [instrument, direction, entryPrice, stopLoss, takeProfit, riskPercent, accountCapital, strategyId, justification, setPlanStatus]);
+    }, [instrument, direction, entryPrice, stopLoss, takeProfit, riskPercent, accountCapital, strategyId, notes, justification, setPlanStatus]);
 
     const isLong = direction === "Long";
     const isSlSet = stopLoss && stopLoss > 0;
     const isTpSet = takeProfit && takeProfit > 0;
     const canCalcRisk = entryPrice && stopLoss && riskPercent && accountCapital;
+    const hasFails = ruleChecks.some(c => c.status === 'FAIL');
 
     const SummaryRow = ({ label, value, className }: { label: string, value: React.ReactNode, className?: string }) => (
         <div className="flex justify-between items-center text-sm">
@@ -377,6 +388,30 @@ function PlanSummary({ control, setPlanStatus, planStatus }: { control: any, set
                 <Separator />
 
                 <RuleChecks checks={ruleChecks} />
+
+                {hasFails && (
+                    <>
+                    <Separator />
+                    <FormField
+                        control={control}
+                        name="justification"
+                        render={({ field }) => (
+                            <FormItem className="p-4 bg-red-950/50 border border-red-500/20 rounded-lg">
+                                <FormLabel className="text-red-400">Justification to Override Rules</FormLabel>
+                                <FormControl>
+                                    <Textarea
+                                        placeholder="Why is this trade worth making despite rule violations? This will be logged."
+                                        className="bg-background/50 border-red-500/30 focus-visible:ring-red-500"
+                                        {...field}
+                                    />
+                                </FormControl>
+                                <p className="text-xs text-red-400/80">You are breaking your own rules. Explain why you want to proceed.</p>
+                                <FormMessage className="text-red-400" />
+                            </FormItem>
+                        )}
+                    />
+                    </>
+                )}
                 
                 {!isSlSet && (
                     <Alert variant="destructive">
@@ -404,6 +439,7 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
             riskPercent: 1,
             strategyId: '',
             instrument: "",
+            notes: "",
             justification: "",
             entryPrice: undefined,
             stopLoss: undefined,
@@ -434,6 +470,11 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
         name: 'entryType',
     });
 
+    const justificationValue = useWatch({
+        control: form.control,
+        name: 'justification'
+    })
+
     const onSubmit = (values: PlanFormValues) => {
         console.log("Proceeding to review step (prototype):", values);
     };
@@ -447,8 +488,10 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
         });
     };
 
+    const isProceedDisabled = planStatus === 'incomplete' || (planStatus === 'blocked' && (!justificationValue || justificationValue.length < 1));
+
     const proceedButton = (
-         <Button type="submit" disabled={planStatus === 'incomplete' || planStatus === 'blocked'}>
+         <Button type="submit" disabled={isProceedDisabled}>
             Proceed to Review (Step 2)
         </Button>
     );
@@ -555,11 +598,8 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
                                     <FormField control={form.control} name="strategyId" render={({ field }) => (
                                         <FormItem><FormLabel>Strategy</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select from your playbook"/></SelectTrigger></FormControl><SelectContent>{mockStrategies.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
                                     )}/>
-                                    <FormField control={form.control} name="justification" render={({ field }) => (
-                                        <FormItem><FormLabel>Justification</FormLabel><FormControl><Textarea placeholder="Why are you taking this trade? What conditions must be true?" {...field} /></FormControl><FormMessage /></FormItem>
-                                    )}/>
                                     <FormField control={form.control} name="notes" render={({ field }) => (
-                                        <FormItem><FormLabel>Extra Notes (Optional)</FormLabel><FormControl><Textarea placeholder="Any extra details, context, or things to watch out for." {...field} /></FormControl><FormMessage /></FormItem>
+                                        <FormItem><FormLabel>Trade Rationale</FormLabel><FormControl><Textarea placeholder="Why are you taking this trade? What conditions must be true?" {...field} /></FormControl><FormMessage /></FormItem>
                                     )}/>
                                 </div>
                             </CardContent>
@@ -583,7 +623,21 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
                         <div className="flex items-center gap-4">
                             <Button variant="outline" type="button" onClick={handleSaveDraft}>Save as draft (Prototype)</Button>
                             
-                            {planStatus === 'needs_attention' ? (
+                            {isProceedDisabled && planStatus === 'blocked' ? (
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <div tabIndex={0}>{proceedButton}</div>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p className="flex items-center gap-2">
+                                                <AlertTriangle className="h-4 w-4 text-amber-500" />
+                                                Add a justification to override your rules.
+                                            </p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            ) : planStatus === 'needs_attention' ? (
                                 <TooltipProvider>
                                     <Tooltip>
                                         <TooltipTrigger asChild>
@@ -607,4 +661,3 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
         </div>
     );
 }
-
