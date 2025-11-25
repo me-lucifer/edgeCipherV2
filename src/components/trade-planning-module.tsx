@@ -70,9 +70,44 @@ const mockStrategies = [
     { id: '2', name: "BTC Trend Breakout" },
 ];
 
+type PlanStatusType = "incomplete" | "needs_attention" | "ok";
+
+const PlanStatus = ({ status, message }: { status: PlanStatusType, message: string }) => {
+    const statusConfig = {
+        incomplete: {
+            label: "Incomplete",
+            className: "bg-muted text-muted-foreground border-border",
+            icon: Circle
+        },
+        needs_attention: {
+            label: "Needs Attention",
+            className: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+            icon: AlertTriangle
+        },
+        ok: {
+            label: "Structurally OK",
+            className: "bg-green-500/20 text-green-400 border-green-500/30",
+            icon: CheckCircle
+        }
+    };
+    
+    const config = statusConfig[status];
+    const Icon = config.icon;
+
+    return (
+        <div className="p-4 rounded-lg bg-muted/50 border border-border/50">
+            <div className="flex items-center gap-2">
+                <Icon className={cn("h-4 w-4", config.className.split(' ').filter(c => c.startsWith('text-'))[0])} />
+                <Badge variant="secondary" className={cn("text-xs", config.className)}>{config.label}</Badge>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">{message}</p>
+        </div>
+    )
+}
+
 function PlanSummary({ control }: { control: any }) {
     const values = useWatch({ control }) as Partial<PlanFormValues>;
-    const { instrument, direction, entryPrice, stopLoss, takeProfit, riskPercent, accountCapital } = values;
+    const { instrument, direction, entryType, entryPrice, stopLoss, takeProfit, riskPercent, accountCapital, strategyId, justification } = values;
 
     const [summary, setSummary] = useState({
         rrr: 0,
@@ -84,33 +119,58 @@ function PlanSummary({ control }: { control: any }) {
         distanceToTp: 0,
         distanceToTpPercent: 0
     });
+    
+    const [planStatus, setPlanStatus] = useState<PlanStatusType>("incomplete");
+    const [statusMessage, setStatusMessage] = useState("Fill in all required values to continue.");
 
     useEffect(() => {
-        if (entryPrice && stopLoss && riskPercent && accountCapital) {
-            const riskPerUnit = Math.abs(entryPrice - stopLoss);
-            const rewardPerUnit = takeProfit ? Math.abs(takeProfit - entryPrice) : 0;
-            const rrr = (riskPerUnit > 0 && rewardPerUnit > 0) ? rewardPerUnit / riskPerUnit : 0;
-            
-            const potentialLoss = (accountCapital * riskPercent) / 100;
-            const positionSize = riskPerUnit > 0 ? potentialLoss / riskPerUnit : 0;
-            const potentialProfit = potentialLoss * rrr;
-            
-            const distanceToSl = Math.abs(entryPrice - stopLoss);
-            const distanceToSlPercent = entryPrice > 0 ? (distanceToSl / entryPrice) * 100 : 0;
-            const distanceToTp = takeProfit ? Math.abs(takeProfit - entryPrice) : 0;
-            const distanceToTpPercent = (entryPrice && takeProfit && entryPrice > 0) ? (distanceToTp / entryPrice) * 100 : 0;
+        // --- Calculations ---
+        const isLong = direction === "Long";
+        const riskPerUnit = (entryPrice && stopLoss) ? Math.abs(entryPrice - stopLoss) : 0;
+        const rewardPerUnit = (takeProfit && entryPrice) ? Math.abs(takeProfit - entryPrice) : 0;
+        const rrr = (riskPerUnit > 0 && rewardPerUnit > 0) ? rewardPerUnit / riskPerUnit : 0;
+        
+        const potentialLoss = (accountCapital && riskPercent) ? (accountCapital * riskPercent) / 100 : 0;
+        const positionSize = riskPerUnit > 0 ? potentialLoss / riskPerUnit : 0;
+        const potentialProfit = potentialLoss * rrr;
+        
+        const distanceToSl = (entryPrice && stopLoss) ? Math.abs(entryPrice - stopLoss) : 0;
+        const distanceToSlPercent = entryPrice > 0 ? (distanceToSl / entryPrice) * 100 : 0;
+        const distanceToTp = (takeProfit && entryPrice) ? Math.abs(takeProfit - entryPrice) : 0;
+        const distanceToTpPercent = (entryPrice && takeProfit) ? (distanceToTp / entryPrice) * 100 : 0;
+        
+        setSummary({ rrr, positionSize, potentialLoss, potentialProfit, distanceToSl, distanceToSlPercent, distanceToTp, distanceToTpPercent });
+        
+        // --- Status Logic ---
+        const requiredFieldsSet = instrument && direction && entryPrice && stopLoss && accountCapital && riskPercent && strategyId && justification;
 
-            setSummary({ rrr, positionSize, potentialLoss, potentialProfit, distanceToSl, distanceToSlPercent, distanceToTp, distanceToTpPercent });
-        } else {
-            setSummary({ rrr: 0, positionSize: 0, potentialLoss: 0, potentialProfit: 0, distanceToSl: 0, distanceToSlPercent: 0, distanceToTp: 0, distanceToTpPercent: 0 });
+        if (!requiredFieldsSet) {
+            setPlanStatus("incomplete");
+            setStatusMessage("Fill in all required values to continue.");
+            return;
         }
-    }, [entryPrice, stopLoss, takeProfit, riskPercent, accountCapital, direction]);
+
+        const attentionChecks = [];
+        if (rrr > 0 && rrr < 1.0) attentionChecks.push("Risk/Reward is below 1:1.");
+        if (riskPercent && riskPercent > 3) attentionChecks.push("Risk per trade is over 3%.");
+        if (entryPrice === stopLoss) attentionChecks.push("Stop Loss cannot be the same as entry.");
+
+        if (attentionChecks.length > 0) {
+            setPlanStatus("needs_attention");
+            setStatusMessage(attentionChecks.join(" "));
+            return;
+        }
+
+        setPlanStatus("ok");
+        setStatusMessage("This plan looks structurally sound. Rule checks come next.");
+
+    }, [instrument, direction, entryPrice, stopLoss, takeProfit, riskPercent, accountCapital, strategyId, justification]);
 
     const isLong = direction === "Long";
-    const isValidRrr = summary.rrr >= 1.5;
     const isSlSet = stopLoss && stopLoss > 0;
     const isTpSet = takeProfit && takeProfit > 0;
     const canCalcRisk = entryPrice && stopLoss && riskPercent && accountCapital;
+    const isValidRrr = summary.rrr >= 1.5;
 
     const SummaryRow = ({ label, value, className }: { label: string, value: React.ReactNode, className?: string }) => (
         <div className="flex justify-between items-center text-sm">
@@ -126,11 +186,13 @@ function PlanSummary({ control }: { control: any }) {
                 <CardDescription>Live calculation based on your inputs.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+                <PlanStatus status={planStatus} message={statusMessage} />
+                
                 <div>
                     <h3 className="text-sm font-semibold text-foreground mb-3">Numeric Summary</h3>
                     <div className="space-y-2">
                         <SummaryRow label="Pair / Direction" value={<span className={isLong ? 'text-green-400' : 'text-red-400'}>{instrument || '-'} {direction}</span>} />
-                        <SummaryRow label="Entry Price" value={entryPrice > 0 ? entryPrice.toFixed(4) : '-'} />
+                        <SummaryRow label="Entry Price" value={entryPrice && entryPrice > 0 ? entryPrice.toFixed(4) : '-'} />
                         <SummaryRow label="Stop Loss" value={isSlSet ? stopLoss?.toFixed(4) : <span className="text-red-400">Not set</span>} />
                         {isSlSet && entryPrice && (
                              <p className="text-xs text-muted-foreground text-right -mt-1">
@@ -152,7 +214,7 @@ function PlanSummary({ control }: { control: any }) {
                      <h3 className="text-sm font-semibold text-foreground mb-3">Risk & Sizing</h3>
                     {canCalcRisk ? (
                         <div className="space-y-2">
-                             <SummaryRow label="Risk/Reward Ratio" value={summary.rrr > 0 ? `${summary.rrr.toFixed(2)} : 1` : '-'} className={summary.rrr > 0 ? (isValidRrr ? 'text-green-400' : 'text-amber-400') : ''} />
+                             <SummaryRow label="R:R Ratio" value={summary.rrr > 0 ? `${summary.rrr.toFixed(2)} : 1` : '-'} className={summary.rrr > 0 ? (isValidRrr ? 'text-green-400' : 'text-amber-400') : ''} />
                              <SummaryRow label="Position Size" value={summary.positionSize > 0 ? summary.positionSize.toFixed(4) : '-'} />
                              <SummaryRow label="Potential Loss" value={`-$${summary.potentialLoss > 0 ? summary.potentialLoss.toFixed(2) : '0.00'}`} className="text-red-400" />
                              <SummaryRow label="Potential Profit" value={`+$${summary.potentialProfit > 0 ? summary.potentialProfit.toFixed(2) : '0.00'}`} className="text-green-400" />
@@ -169,7 +231,6 @@ function PlanSummary({ control }: { control: any }) {
                         <AlertDescription>The plan is invalid until a stop loss is defined.</AlertDescription>
                     </Alert>
                 )}
-
             </CardContent>
         </Card>
     );
