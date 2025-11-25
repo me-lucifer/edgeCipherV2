@@ -62,7 +62,16 @@ function PlanSummary({ control }: { control: any }) {
     const values = useWatch({ control }) as Partial<PlanFormValues>;
     const { instrument, direction, entryPrice, stopLoss, takeProfit, riskPercent, accountCapital } = values;
 
-    const [summary, setSummary] = useState({ rrr: 0, positionSize: 0, potentialLoss: 0, potentialProfit: 0 });
+    const [summary, setSummary] = useState({
+        rrr: 0,
+        positionSize: 0,
+        potentialLoss: 0,
+        potentialProfit: 0,
+        distanceToSl: 0,
+        distanceToSlPercent: 0,
+        distanceToTp: 0,
+        distanceToTpPercent: 0
+    });
 
     useEffect(() => {
         if (entryPrice && stopLoss && takeProfit && riskPercent && accountCapital) {
@@ -74,14 +83,28 @@ function PlanSummary({ control }: { control: any }) {
             const positionSize = riskPerUnit > 0 ? potentialLoss / riskPerUnit : 0;
             const potentialProfit = potentialLoss * rrr;
             
-            setSummary({ rrr, positionSize, potentialLoss, potentialProfit });
+            const distanceToSl = Math.abs(entryPrice - stopLoss);
+            const distanceToSlPercent = entryPrice > 0 ? (distanceToSl / entryPrice) * 100 : 0;
+            const distanceToTp = Math.abs(takeProfit - entryPrice);
+            const distanceToTpPercent = entryPrice > 0 ? (distanceToTp / entryPrice) * 100 : 0;
+
+            setSummary({ rrr, positionSize, potentialLoss, potentialProfit, distanceToSl, distanceToSlPercent, distanceToTp, distanceToTpPercent });
         } else {
-            setSummary({ rrr: 0, positionSize: 0, potentialLoss: 0, potentialProfit: 0 });
+            setSummary({ rrr: 0, positionSize: 0, potentialLoss: 0, potentialProfit: 0, distanceToSl: 0, distanceToSlPercent: 0, distanceToTp: 0, distanceToTpPercent: 0 });
         }
-    }, [entryPrice, stopLoss, takeProfit, riskPercent, accountCapital]);
+    }, [entryPrice, stopLoss, takeProfit, riskPercent, accountCapital, direction]);
 
     const isLong = direction === "Long";
     const isValidRrr = summary.rrr >= 1.5;
+    const isSlSet = stopLoss && stopLoss > 0;
+    const isTpSet = takeProfit && takeProfit > 0;
+
+    const SummaryRow = ({ label, value, className }: { label: string, value: React.ReactNode, className?: string }) => (
+        <div className="flex justify-between items-center text-sm">
+            <p className="text-muted-foreground">{label}</p>
+            <p className={cn("font-semibold font-mono text-foreground", className)}>{value}</p>
+        </div>
+    );
 
     return (
         <Card className="bg-muted/30 border-primary/20">
@@ -89,39 +112,47 @@ function PlanSummary({ control }: { control: any }) {
                 <CardTitle>Plan summary & checks</CardTitle>
                 <CardDescription>Live calculation based on your inputs.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div className="space-y-1"><p className="text-muted-foreground">Instrument</p><p className="font-semibold text-foreground font-mono">{instrument || '-'}</p></div>
-                    <div className="space-y-1"><p className="text-muted-foreground">Direction</p><p className={cn("font-semibold font-mono", isLong ? 'text-green-400' : 'text-red-400')}>{direction || '-'}</p></div>
-                </div>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div className="space-y-1">
-                        <p className="text-muted-foreground">Risk/Reward</p>
-                        <p className={cn("font-semibold font-mono", isValidRrr ? 'text-green-400' : 'text-amber-400')}>{summary.rrr > 0 ? `${summary.rrr.toFixed(2)} : 1` : '-'}</p>
-                        {!isValidRrr && summary.rrr > 0 && <p className="text-xs text-amber-500">R:R is below the recommended 1.5:1</p>}
-                    </div>
-                    <div className="space-y-1">
-                        <p className="text-muted-foreground">Position Size</p>
-                        <p className="font-semibold text-foreground font-mono">{summary.positionSize > 0 ? summary.positionSize.toFixed(4) : '-'}</p>
-                    </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div className="space-y-1">
-                        <p className="text-muted-foreground">Potential Loss</p>
-                        <p className="font-semibold text-red-400 font-mono">-${summary.potentialLoss > 0 ? summary.potentialLoss.toFixed(2) : '0.00'}</p>
-                    </div>
-                    <div className="space-y-1">
-                        <p className="text-muted-foreground">Potential Profit</p>
-                        <p className="font-semibold text-green-400 font-mono">+${summary.potentialProfit > 0 ? summary.potentialProfit.toFixed(2) : '0.00'}</p>
+            <CardContent className="space-y-6">
+                <div>
+                    <h3 className="text-sm font-semibold text-foreground mb-3">Numeric Summary</h3>
+                    <div className="space-y-2">
+                        <SummaryRow label="Pair / Direction" value={<span className={isLong ? 'text-green-400' : 'text-red-400'}>{instrument || '-'} {direction}</span>} />
+                        <SummaryRow label="Entry Price" value={entryPrice > 0 ? entryPrice.toFixed(2) : '-'} />
+                        <SummaryRow label="Stop Loss" value={isSlSet ? stopLoss?.toFixed(2) : <span className="text-red-400">Not set</span>} />
+                        {isSlSet && entryPrice && (
+                             <p className="text-xs text-muted-foreground text-right -mt-1">
+                                Distance: ${summary.distanceToSl.toFixed(2)} ({summary.distanceToSlPercent.toFixed(2)}%)
+                            </p>
+                        )}
+                        <SummaryRow label="Take Profit" value={isTpSet ? takeProfit?.toFixed(2) : '-'} />
+                         {isTpSet && entryPrice && (
+                             <p className="text-xs text-muted-foreground text-right -mt-1">
+                                Distance: ${summary.distanceToTp.toFixed(2)} ({summary.distanceToTpPercent.toFixed(2)}%)
+                            </p>
+                        )}
                     </div>
                 </div>
-                <Alert className="mt-6">
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertTitle>Prototype Calculation</AlertTitle>
-                    <AlertDescription>
-                        This is a simplified calculation. The final version will account for fees and slippage.
-                    </AlertDescription>
-                </Alert>
+                
+                <Separator />
+                
+                <div>
+                     <h3 className="text-sm font-semibold text-foreground mb-3">Risk & Sizing</h3>
+                    <div className="space-y-2">
+                         <SummaryRow label="Risk/Reward Ratio" value={summary.rrr > 0 ? `${summary.rrr.toFixed(2)} : 1` : '-'} className={summary.rrr > 0 && !isValidRrr ? 'text-amber-400' : 'text-green-400'} />
+                         <SummaryRow label="Position Size" value={summary.positionSize > 0 ? summary.positionSize.toFixed(4) : '-'} />
+                         <SummaryRow label="Potential Loss" value={`-$${summary.potentialLoss > 0 ? summary.potentialLoss.toFixed(2) : '0.00'}`} className="text-red-400" />
+                         <SummaryRow label="Potential Profit" value={`+$${summary.potentialProfit > 0 ? summary.potentialProfit.toFixed(2) : '0.00'}`} className="text-green-400" />
+                    </div>
+                </div>
+                
+                {!isSlSet && (
+                    <Alert variant="destructive">
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertTitle>Stop Loss Required</AlertTitle>
+                        <AlertDescription>The plan is invalid until a stop loss is defined.</AlertDescription>
+                    </Alert>
+                )}
+
             </CardContent>
         </Card>
     );
@@ -136,9 +167,12 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
             leverage: 10,
             accountCapital: 10000,
             riskPercent: 1,
-            strategyId: '1',
-            instrument: "BTC-PERP",
+            strategyId: '',
+            instrument: "",
             justification: "",
+            entryPrice: 0,
+            stopLoss: 0,
+            takeProfit: 0,
         },
     });
     
@@ -202,7 +236,7 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {entryType === 'Limit' ? (
                                         <FormField control={form.control} name="entryPrice" render={({ field }) => (
-                                            <FormItem><FormLabel>Entry Price</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                            <FormItem><FormLabel>Entry Price</FormLabel><FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl><FormMessage /></FormItem>
                                         )}/>
                                     ) : (
                                         <FormItem>
@@ -213,10 +247,18 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
                                     )}
                                     <div />
                                     <FormField control={form.control} name="stopLoss" render={({ field }) => (
-                                        <FormItem><FormLabel>Stop Loss Price (SL)*</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                        <FormItem>
+                                            <FormLabel>Stop Loss Price (SL)*</FormLabel>
+                                            <FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl>
+                                            <FormMessage />
+                                        </FormItem>
                                     )}/>
                                     <FormField control={form.control} name="takeProfit" render={({ field }) => (
-                                        <FormItem><FormLabel>Take Profit Price (TP)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                        <FormItem>
+                                            <FormLabel>Take Profit Price (TP)</FormLabel>
+                                            <FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl>
+                                            <FormMessage />
+                                        </FormItem>
                                     )}/>
                                 </div>
                             </div>
@@ -226,10 +268,10 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
                                 <h3 className="text-sm font-semibold text-muted-foreground">Account & Risk</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <FormField control={form.control} name="accountCapital" render={({ field }) => (
-                                        <FormItem><FormLabel>Account Capital ($)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                        <FormItem><FormLabel>Account Capital ($)</FormLabel><FormControl><Input type="number" placeholder="10000" {...field} /></FormControl><FormMessage /></FormItem>
                                     )}/>
                                     <FormField control={form.control} name="riskPercent" render={({ field }) => (
-                                        <FormItem><FormLabel>Risk Per Trade (%)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                        <FormItem><FormLabel>Risk Per Trade (%)</FormLabel><FormControl><Input type="number" placeholder="1" {...field} /></FormControl><FormMessage /></FormItem>
                                     )}/>
                                      <FormField control={form.control} name="leverage" render={({ field }) => (
                                         <FormItem><FormLabel>Leverage</FormLabel><Select onValueChange={(v) => field.onChange(Number(v))} defaultValue={String(field.value)}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="5">5x</SelectItem><SelectItem value="10">10x</SelectItem><SelectItem value="20">20x</SelectItem><SelectItem value="50">50x</SelectItem></SelectContent></Select><FormMessage /></FormItem>
@@ -274,5 +316,3 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
         </div>
     );
 }
-
-    
