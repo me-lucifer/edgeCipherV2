@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Info, CheckCircle, Circle, AlertTriangle, FileText, BarChart, ArrowRight, Gauge, ShieldCheck, XCircle, X, Lock } from "lucide-react";
+import { Bot, Info, CheckCircle, Circle, AlertTriangle, FileText, BarChart, ArrowRight, Gauge, ShieldCheck, XCircle, X, Lock, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
@@ -325,7 +325,7 @@ function PlanSummary({ control, setPlanStatus, onSetModule }: { control: any, se
         distanceToTpPercent: 0
     });
     
-    const [planStatus, setLocalPlanStatus] = useState<PlanStatusType>("incomplete");
+    const [localPlanStatus, setLocalPlanStatus] = useState<PlanStatusType>("incomplete");
     const [statusMessage, setStatusMessage] = useState("Fill in all required values to continue.");
     const [ruleChecks, setRuleChecks] = useState<RuleCheck[]>([]);
 
@@ -406,7 +406,7 @@ function PlanSummary({ control, setPlanStatus, onSetModule }: { control: any, se
                 <CardDescription>Live calculation based on your inputs.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-                <PlanStatus status={planStatus} message={statusMessage} />
+                <PlanStatus status={localPlanStatus} message={statusMessage} />
                 
                 <div>
                     <h3 className="text-sm font-semibold text-foreground mb-3">Numeric Summary</h3>
@@ -596,12 +596,11 @@ function ReviewStep({ form, onSetModule, onSetStep, arjunFeedbackAccepted, setAr
     const personaData = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem("ec_persona_final") || localStorage.getItem("ec_persona_base") || "{}") : {};
     const market = typeof window !== 'undefined' ? { vixValue: localStorage.getItem('ec_demo_scenario') === 'high_vol' ? 82 : 45, vixZone: localStorage.getItem('ec_demo_scenario') === 'high_vol' ? 'Elevated' : 'Normal' } : { vixValue: 45, vixZone: 'Normal' };
 
-    const { rrr } = useWatch({ control: form.control });
+    const { entryPrice, stopLoss, takeProfit } = useWatch({ control: form.control });
 
-    const summary = {
-      rrr: rrr || 0,
-      // other calculations would go here
-    };
+    const riskPerUnit = (entryPrice && stopLoss) ? Math.abs(entryPrice - stopLoss) : 0;
+    const rewardPerUnit = (takeProfit && entryPrice) ? Math.abs(takeProfit - entryPrice) : 0;
+    const rrr = (riskPerUnit > 0 && rewardPerUnit > 0) ? rewardPerUnit / riskPerUnit : 0;
 
     return (
         <div className="grid lg:grid-cols-2 gap-8 items-start">
@@ -614,7 +613,7 @@ function ReviewStep({ form, onSetModule, onSetStep, arjunFeedbackAccepted, setAr
                 <CardContent className="space-y-6">
                      <div>
                         <p className="text-sm text-muted-foreground">
-                            Based on your persona (<span className="font-semibold text-primary">{personaData.primaryPersonaName || 'The Determined Trader'}</span>), current market volatility (<span className="font-semibold text-primary">{market.vixZone}</span>), and this trade’s R:R of <span className="font-semibold text-primary">{summary.rrr.toFixed(2)}</span>, here’s Arjun’s assessment.
+                            Based on your persona (<span className="font-semibold text-primary">{personaData.primaryPersonaName || 'The Determined Trader'}</span>), current market volatility (<span className="font-semibold text-primary">{market.vixZone}</span>), and this trade’s R:R of <span className="font-semibold text-primary">{rrr.toFixed(2)}</span>, here’s Arjun’s assessment.
                         </p>
                     </div>
 
@@ -629,7 +628,7 @@ function ReviewStep({ form, onSetModule, onSetStep, arjunFeedbackAccepted, setAr
                             </li>
                             <li className="flex items-start gap-3 text-sm">
                                 <Info className="h-4 w-4 text-blue-400 mt-0.5 flex-shrink-0" />
-                                <span className="text-muted-foreground">Your R:R of {summary.rrr.toFixed(2)} is slightly below your preferred 1.5 target. This requires a higher win rate to be profitable.</span>
+                                <span className="text-muted-foreground">Your R:R of {rrr.toFixed(2)} is slightly below your preferred 1.5 target. This requires a higher win rate to be profitable.</span>
                             </li>
                             <li className="flex items-start gap-3 text-sm">
                                 <CheckCircle className="h-4 w-4 text-green-400 mt-0.5 flex-shrink-0" />
@@ -678,6 +677,95 @@ function ReviewStep({ form, onSetModule, onSetStep, arjunFeedbackAccepted, setAr
     );
 }
 
+function ExecutionOptions({ form }: { form: any }) {
+    const [executionType, setExecutionType] = useState<"Market" | "Limit">("Market");
+    const [isExecuting, setIsExecuting] = useState(false);
+    const [executionResult, setExecutionResult] = useState<{ tradeId: string } | null>(null);
+
+    const values = form.getValues() as PlanFormValues;
+    const { entryPrice, stopLoss, riskPercent, accountCapital } = values;
+
+    const riskPerUnit = (entryPrice && stopLoss) ? Math.abs(entryPrice - stopLoss) : 0;
+    const potentialLoss = (accountCapital && riskPercent) ? (accountCapital * riskPercent) / 100 : 0;
+    const positionSize = riskPerUnit > 0 ? potentialLoss / riskPerUnit : 0;
+    
+    const handleExecute = () => {
+        setIsExecuting(true);
+        setTimeout(() => {
+            const tradeId = `DELTA-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+            setExecutionResult({ tradeId });
+            setIsExecuting(false);
+        }, 800);
+    }
+    
+    if (executionResult) {
+        return (
+            <Card className="bg-muted/30 border-border/50">
+                <CardHeader>
+                    <CardTitle>Execution Result</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4 text-center">
+                    <CheckCircle className="h-12 w-12 text-green-500 mx-auto" />
+                    <h3 className="text-lg font-semibold text-foreground">Trade executed (Prototype)</h3>
+                    <p className="text-sm text-muted-foreground">
+                        Your trade has been logged with ID: <span className="font-mono text-primary">{executionResult.tradeId}</span>
+                    </p>
+                    <Separator />
+                    <p className="text-sm text-muted-foreground">
+                        A draft journal entry has been created with this plan and your mindset notes.
+                    </p>
+                </CardContent>
+            </Card>
+        )
+    }
+
+    return (
+        <Card className="bg-muted/30 border-border/50">
+            <CardHeader>
+                <CardTitle>Execution options</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                <div>
+                    <h3 className="text-sm font-semibold text-foreground mb-2">1. Execution Type</h3>
+                    <RadioGroup value={executionType} onValueChange={(v) => setExecutionType(v as "Market" | "Limit")} className="space-y-2">
+                        <Label className="flex items-center gap-2 p-3 rounded-md border bg-muted/50 has-[:checked]:bg-primary/10 has-[:checked]:border-primary/30">
+                            <RadioGroupItem value="Market" />
+                            <span>Execute now (Market order)</span>
+                        </Label>
+                         <Label className="flex items-center gap-2 p-3 rounded-md border bg-muted/50 has-[:checked]:bg-primary/10 has-[:checked]:border-primary/30">
+                            <RadioGroupItem value="Limit" />
+                            <span>Execute as Limit order</span>
+                        </Label>
+                    </RadioGroup>
+                </div>
+                 <div>
+                    <h3 className="text-sm font-semibold text-foreground mb-2">2. Preview</h3>
+                    <div className="p-4 rounded-lg bg-muted/50 border border-border/50 space-y-2 text-sm">
+                        <div className="flex justify-between"><span className="text-muted-foreground">Order type:</span><span className="font-mono">{executionType}</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Quantity:</span><span className="font-mono">{positionSize.toFixed(4)}</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Exchange:</span><span className="font-mono">Delta (mock)</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Estimated risk:</span><span className="font-mono">${potentialLoss.toFixed(2)}</span></div>
+                    </div>
+                     <Alert variant="default" className="mt-4 bg-muted/50 border-border/50">
+                        <Info className="h-4 w-4" />
+                        <AlertDescription className="text-xs">
+                            In this prototype, no real orders are sent to any exchange.
+                        </AlertDescription>
+                    </Alert>
+                </div>
+                 <div>
+                    <h3 className="text-sm font-semibold text-foreground mb-2">3. Execute</h3>
+                    <Button className="w-full" size="lg" onClick={handleExecute} disabled={isExecuting}>
+                        {isExecuting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        {isExecuting ? 'Executing...' : 'Execute trade (Prototype)'}
+                    </Button>
+                </div>
+                 
+            </CardContent>
+        </Card>
+    );
+}
+
 function ExecuteStep({ form, onSetModule, onSetStep, planStatus }: { form: any, onSetModule: any, onSetStep: (step: TradePlanStep) => void; planStatus: PlanStatusType }) {
     return (
          <div className="grid lg:grid-cols-2 gap-8 items-start">
@@ -687,10 +775,10 @@ function ExecuteStep({ form, onSetModule, onSetStep, planStatus }: { form: any, 
                     <CardDescription>Entry, SL and leverage are now locked for this execution step.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                     <p className="text-center text-muted-foreground p-8">Locked plan preview placeholder.</p>
+                     <PlanSnapshot form={form} onSetStep={onSetStep} />
                      <AlertDialog>
                         <AlertDialogTrigger asChild>
-                            <Button variant="link" className="text-xs text-muted-foreground p-0 h-auto">Cancel and return to planning</Button>
+                            <Button variant="link" className="text-xs text-muted-foreground p-0 h-auto mt-4">Cancel and return to planning</Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                             <AlertDialogHeader>
@@ -707,14 +795,7 @@ function ExecuteStep({ form, onSetModule, onSetStep, planStatus }: { form: any, 
                      </AlertDialog>
                 </CardContent>
             </Card>
-             <Card className="bg-muted/30 border-border/50">
-                <CardHeader>
-                    <CardTitle>Execution options</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-center text-muted-foreground p-8">Execution options will appear here.</p>
-                </CardContent>
-            </Card>
+            <ExecutionOptions form={form} />
         </div>
     );
 }
@@ -761,43 +842,37 @@ function PlanSnapshot({ form, onSetStep }: { form: any; onSetStep: (step: TradeP
     const ruleChecks = getRuleChecks(rrr, riskPercent);
 
     return (
-        <Card className="bg-muted/30 border-border/50">
-            <CardHeader>
-                <CardTitle>Planned Trade Snapshot</CardTitle>
-                <CardDescription>A read-only summary of your trade plan.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-                <div>
-                    <h2 className={cn("text-xl font-bold", direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{instrument} &ndash; {direction}</h2>
+        <div className="space-y-6 p-4 border rounded-lg bg-muted/50">
+            <div>
+                <h2 className={cn("text-xl font-bold", direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{instrument} &ndash; {direction}</h2>
+            </div>
+            <div className="space-y-2">
+                <SummaryRow label="Entry Price" value={entryPrice?.toFixed(4)} />
+                <SummaryRow label="Stop Loss" value={stopLoss?.toFixed(4)} />
+                <SummaryRow label="Take Profit" value={takeProfit ? takeProfit.toFixed(4) : 'Not Set'} />
+                <SummaryRow label="Leverage" value={`${leverage}x`} />
+            </div>
+            <Separator />
+            <div className="space-y-2">
+                <SummaryRow label="R:R Ratio" value={rrr > 0 ? `${rrr.toFixed(2)} : 1` : '-'} className={rrr > 0 ? (rrr < 1.5 ? 'text-amber-400' : 'text-green-400') : ''} />
+                <SummaryRow label="Risk %" value={`${riskPercent}%`} className={riskPercent > 2 ? 'text-red-400' : ''} />
+            </div>
+            <Separator />
+            <div>
+                <h3 className="text-sm font-semibold text-foreground mb-3">Rule Checklist</h3>
+                <div className="space-y-3">
+                    {ruleChecks.map((check, i) => (
+                        <RuleCheckRow key={i} check={check} />
+                    ))}
                 </div>
-                <div className="space-y-2">
-                    <SummaryRow label="Entry Price" value={entryPrice?.toFixed(4)} />
-                    <SummaryRow label="Stop Loss" value={stopLoss?.toFixed(4)} />
-                    <SummaryRow label="Take Profit" value={takeProfit ? takeProfit.toFixed(4) : 'Not Set'} />
-                    <SummaryRow label="Leverage" value={`${leverage}x`} />
-                </div>
-                <Separator />
-                <div className="space-y-2">
-                    <SummaryRow label="R:R Ratio" value={rrr > 0 ? `${rrr.toFixed(2)} : 1` : '-'} className={rrr > 0 ? (rrr < 1.5 ? 'text-amber-400' : 'text-green-400') : ''} />
-                    <SummaryRow label="Risk %" value={`${riskPercent}%`} className={riskPercent > 2 ? 'text-red-400' : ''} />
-                </div>
-                <Separator />
-                <div>
-                    <h3 className="text-sm font-semibold text-foreground mb-3">Rule Checklist</h3>
-                    <div className="space-y-3">
-                        {ruleChecks.map((check, i) => (
-                            <RuleCheckRow key={i} check={check} />
-                        ))}
-                    </div>
-                </div>
+            </div>
 
-                <div className="pt-4">
-                     <Button variant="link" className="p-0 h-auto text-primary" onClick={() => onSetStep('plan')}>
-                        Edit Plan (Step 1)
-                    </Button>
-                </div>
-            </CardContent>
-        </Card>
+            <div className="pt-4">
+                 <Button variant="link" className="p-0 h-auto text-primary" onClick={() => onSetStep('plan')}>
+                    Edit Plan (Step 1)
+                </Button>
+            </div>
+        </div>
     );
 }
 
