@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -193,22 +194,22 @@ const getRuleChecks = (rrr: number, riskPercent: number): RuleCheck[] => {
         {
             label: "R:R Ratio must be >= 1.5",
             status: !rrr || rrr <= 0 ? "FAIL" : rrr < 1.5 ? "WARN" : "PASS",
-            note: !rrr || rrr <= 0 ? "TP not set or invalid." : rrr < 1.5 ? "Low reward for the risk." : "Good risk/reward."
+            note: "If your winners aren't meaningfully larger than your losers, you need a very high win rate just to break even. Aim for at least 1.5R."
         },
         {
             label: "Risk per trade <= 2%",
             status: !riskPercent ? "N/A" : riskPercent > 3 ? "FAIL" : riskPercent > 2 ? "WARN" : "PASS",
-            note: !riskPercent ? "Risk % not set." : riskPercent > 3 ? "Risk exceeds max safety limit." : riskPercent > 2 ? "Above recommended risk." : "Within risk parameters."
+            note: "Risking a small percentage of your capital on any single trade is the #1 rule for survival. Large risk makes it easy to blow up an account on a bad day."
         },
         {
             label: "Trade only in Calm/Normal VIX",
             status: vixZone === "Extreme" ? "FAIL" : vixZone === "Elevated" ? "WARN" : "PASS",
-            note: vixZone === "Elevated" ? "Market is volatile." : vixZone === "Extreme" ? "Extreme volatility." : "Market is stable."
+            note: "This rule is based on your strategy's ideal conditions. Trading outside of the optimal volatility regime often leads to poor performance."
         },
         {
             label: "Avoid trading in a drawdown",
             status: performanceState === 'drawdown' ? "WARN" : "PASS",
-            note: performanceState === 'drawdown' ? "You're in a drawdown, trade with caution." : "Performance is stable."
+            note: "When in a drawdown, your psychology is compromised. This rule recommends reducing size or taking a break to avoid revenge trading."
         }
     ];
 };
@@ -239,7 +240,7 @@ function RuleChecks({ checks }: { checks: RuleCheck[] }) {
                                 </div>
                             </TooltipTrigger>
                             <TooltipContent>
-                                <p>{check.note}</p>
+                                <p className="max-w-xs">{check.note}</p>
                             </TooltipContent>
                         </Tooltip>
                     </TooltipProvider>
@@ -271,8 +272,6 @@ function DisciplineAlerts({ onSetModule }: { onSetModule: TradePlanningModulePro
        prompt += "I'm in a drawdown. How can I ensure this next trade is part of a recovery plan and not just chasing losses?";
     }
     
-    // In a real app, a 'hot_streak' state would be derived from performance data
-    // For now, we can add a placeholder if no other alerts are present.
     if (newAlerts.length === 0) {
         newAlerts.push("Performance is <span class='text-green-400'>stable</span>. This is the time to focus on consistent execution of your plan.");
         prompt += "My performance has been stable. How do I maintain this consistency and avoid complacency?";
@@ -713,6 +712,3 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
         </div>
     );
 }
-
-
-    
