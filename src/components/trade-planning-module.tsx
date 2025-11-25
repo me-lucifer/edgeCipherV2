@@ -21,6 +21,8 @@ import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { Separator } from "./ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import type { DemoScenario } from "./dashboard-module";
+import { Checkbox } from "./ui/checkbox";
+import { Label } from "./ui/label";
 
 
 interface TradePlanningModuleProps {
@@ -662,10 +664,14 @@ function PlanSnapshot({ form, onSetStep, summary, ruleChecks }: { form: any, onS
     );
 }
 
-function ReviewStep({ form, onSetModule, onSetStep, summary, ruleChecks }: { form: any, onSetModule: any, onSetStep: (step: TradePlanStep) => void; summary: any; ruleChecks: RuleCheck[] }) {
+function ReviewStep({ form, onSetModule, onSetStep, arjunFeedbackAccepted, setArjunFeedbackAccepted }: { form: any, onSetModule: any, onSetStep: (step: TradePlanStep) => void; arjunFeedbackAccepted: boolean, setArjunFeedbackAccepted: (accepted: boolean) => void }) {
     const values = form.getValues();
     const personaData = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem("ec_persona_final") || localStorage.getItem("ec_persona_base") || "{}") : {};
     const market = typeof window !== 'undefined' ? { vixValue: localStorage.getItem('ec_demo_scenario') === 'high_vol' ? 82 : 45, vixZone: localStorage.getItem('ec_demo_scenario') === 'high_vol' ? 'Elevated' : 'Normal' } : { vixValue: 45, vixZone: 'Normal' };
+
+    // Placeholder data, will be replaced with real data from props later
+    const summary = { rrr: 1.4 };
+    const ruleChecks: RuleCheck[] = [];
 
     return (
         <div className="grid lg:grid-cols-2 gap-8 items-start">
@@ -721,6 +727,21 @@ function ReviewStep({ form, onSetModule, onSetStep, summary, ruleChecks }: { for
                             </FormItem>
                         )}
                     />
+
+                    <Separator />
+                    
+                    <div className="space-y-2">
+                        <div className="flex items-center space-x-2">
+                            <Checkbox id="accept-feedback" checked={arjunFeedbackAccepted} onCheckedChange={(checked) => setArjunFeedbackAccepted(checked as boolean)} />
+                            <Label htmlFor="accept-feedback" className="text-sm font-normal text-muted-foreground">
+                                I have read and accept Arjun’s feedback for this trade.
+                            </Label>
+                        </div>
+                        <p className="text-xs text-muted-foreground/80 pl-6">
+                            In the real app, this confirmation would be stored with your trade and journal entry.
+                        </p>
+                    </div>
+
                 </CardContent>
             </Card>
         </div>
@@ -759,6 +780,7 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
     const [planStatus, setPlanStatus] = useState<PlanStatusType>("incomplete");
     const [showBanner, setShowBanner] = useState(true);
     const [currentStep, setCurrentStep] = useState<TradePlanStep>("plan");
+    const [arjunFeedbackAccepted, setArjunFeedbackAccepted] = useState(false);
     
     const form = useForm<PlanFormValues>({
         resolver: zodResolver(planSchema),
@@ -850,8 +872,8 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
     }
 
     const canProceedToReview = planStatus !== 'incomplete' && (planStatus !== 'blocked' || (justificationValue && justificationValue.length > 0));
-    const canProceedToExecution = canProceedToReview && currentStep === 'review'; // Add real logic later
-
+    const canProceedToExecution = canProceedToReview && arjunFeedbackAccepted;
+    
     const isProceedDisabled = currentStep === 'plan' ? !canProceedToReview :
                               currentStep === 'review' ? !canProceedToExecution :
                               false;
@@ -917,7 +939,7 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
 
                     {currentStep === "plan" && <PlanStep form={form} onSetModule={onSetModule} setPlanStatus={setPlanStatus} planStatus={planStatus} />}
-                    {currentStep === "review" && <ReviewStep form={form} onSetModule={onSetModule} onSetStep={setCurrentStep} summary={planSummaryData} ruleChecks={ruleChecksData} />}
+                    {currentStep === "review" && <ReviewStep form={form} onSetModule={onSetModule} onSetStep={setCurrentStep} arjunFeedbackAccepted={arjunFeedbackAccepted} setArjunFeedbackAccepted={setArjunFeedbackAccepted} />}
                     {currentStep === "execute" && <ExecuteStep form={form} onSetModule={onSetModule} />}
 
                      <div className="mt-8 p-4 bg-muted/20 border-t border-border/50 flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -926,7 +948,7 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
                             <Button variant="outline" type="button" onClick={handleSaveDraft}>Save as draft (Prototype)</Button>
                             
                             <TooltipProvider>
-                                <Tooltip open={isProceedDisabled && planStatus === 'blocked' ? undefined : false}>
+                                <Tooltip open={isProceedDisabled && (planStatus === 'blocked' || currentStep === 'review' && !arjunFeedbackAccepted) ? undefined : false}>
                                     <TooltipTrigger asChild>
                                         <div tabIndex={0}>
                                             <Button type="submit" disabled={isProceedDisabled}>
@@ -937,7 +959,10 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
                                     <TooltipContent>
                                         <p className="flex items-center gap-2">
                                             <AlertTriangle className="h-4 w-4 text-amber-500" />
-                                            Add a justification to override your rules.
+                                            {currentStep === 'plan' 
+                                                ? "Add a justification to override your rules."
+                                                : "Acknowledge Arjun's feedback to proceed."
+                                            }
                                         </p>
                                     </TooltipContent>
                                 </Tooltip>
