@@ -12,13 +12,15 @@ import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Info, CheckCircle, Circle, AlertTriangle, FileText, BarChart, ArrowRight } from "lucide-react";
+import { Bot, Info, CheckCircle, Circle, AlertTriangle, FileText, BarChart, ArrowRight, Gauge } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { Separator } from "./ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import type { DemoScenario } from "./dashboard-module";
+
 
 interface TradePlanningModuleProps {
     onSetModule: (module: any, context?: any) => void;
@@ -106,7 +108,70 @@ const PlanStatus = ({ status, message }: { status: PlanStatusType, message: stri
     )
 }
 
-function PlanSummary({ control, setPlanStatus }: { control: any, setPlanStatus: (status: PlanStatusType) => void }) {
+function MarketContext() {
+    const [market, setMarket] = useState({ vixValue: 45, vixZone: 'Normal' });
+
+    useEffect(() => {
+        const scenario = localStorage.getItem('ec_demo_scenario') as DemoScenario | null;
+        let vixValue = 45;
+        if (scenario === 'high_vol') vixValue = 82;
+
+        const getVixZone = (vix: number) => {
+            if (vix > 75) return "Extreme";
+            if (vix > 50) return "Elevated";
+            if (vix > 25) return "Normal";
+            return "Calm";
+        }
+        setMarket({ vixValue, vixZone: getVixZone(vixValue) });
+    }, []); // Runs once on mount for simplicity. Could be triggered by storage event.
+    
+    const isHighVol = market.vixZone === 'Extreme' || market.vixZone === 'Elevated';
+
+    return (
+        <div>
+            <h3 className="text-sm font-semibold text-foreground mb-3">Market Context</h3>
+            <div className="p-4 rounded-lg bg-muted/50 border border-border/50 space-y-3">
+                <div className="flex justify-between items-center">
+                    <p className="text-sm text-muted-foreground flex items-center gap-2"><Gauge className="h-4 w-4" /> Crypto VIX</p>
+                    <div className="flex items-center gap-2">
+                        <span className="font-mono font-semibold">{market.vixValue}</span>
+                        <Badge variant="secondary" className={cn(
+                            'text-xs',
+                            isHighVol ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-green-500/20 text-green-400 border-green-500/30'
+                        )}>
+                            {market.vixZone}
+                        </Badge>
+                    </div>
+                </div>
+                <p className="text-xs text-muted-foreground italic">
+                    {isHighVol ? "Volatility is elevated – expect sharp swings." : "Volatility is normal – market is stable."}
+                </p>
+                
+                <Separator />
+
+                {isHighVol ? (
+                    <Alert variant="default" className="p-3 bg-amber-500/10 border-amber-500/20 text-amber-300">
+                        <AlertTriangle className="h-4 w-4 text-amber-400" />
+                        <AlertTitle className="text-xs font-semibold text-amber-400">Arjun's Note</AlertTitle>
+                        <AlertDescription className="text-xs text-amber-300/80">
+                            Consider smaller size & cleaner setups. High volatility makes it easier to get stopped out.
+                        </AlertDescription>
+                    </Alert>
+                ) : (
+                     <Alert variant="default" className="p-3 bg-green-500/10 border-green-500/20 text-green-300">
+                        <CheckCircle className="h-4 w-4 text-green-400" />
+                        <AlertTitle className="text-xs font-semibold text-green-400">Arjun's Note</AlertTitle>
+                        <AlertDescription className="text-xs text-green-300/80">
+                            Conditions seem stable. Follow your plan.
+                        </AlertDescription>
+                    </Alert>
+                )}
+            </div>
+        </div>
+    )
+}
+
+function PlanSummary({ control, setPlanStatus, planStatus }: { control: any, setPlanStatus: (status: PlanStatusType) => void, planStatus: PlanStatusType }) {
     const values = useWatch({ control }) as Partial<PlanFormValues>;
     const { instrument, direction, entryType, entryPrice, stopLoss, takeProfit, riskPercent, accountCapital, strategyId, justification } = values;
 
@@ -215,7 +280,7 @@ function PlanSummary({ control, setPlanStatus }: { control: any, setPlanStatus: 
                     {canCalcRisk ? (
                         <div className="space-y-2">
                              <SummaryRow label="R:R Ratio" value={summary.rrr > 0 ? `${summary.rrr.toFixed(2)} : 1` : '-'} className={summary.rrr > 0 ? (isValidRrr ? 'text-green-400' : 'text-amber-400') : ''} />
-                             <SummaryRow label="Position Size" value={summary.positionSize > 0 ? summary.positionSize.toFixed(4) : '-'} />
+                             <SummaryRow label="Position Size" value={summary.positionSize > 0 ? `${summary.positionSize.toFixed(4)} ${instrument?.replace('-PERP','').replace('USDT','')} ` : '-'} />
                              <SummaryRow label="Potential Loss" value={`-$${summary.potentialLoss > 0 ? summary.potentialLoss.toFixed(2) : '0.00'}`} className="text-red-400" />
                              <SummaryRow label="Potential Profit" value={`+$${summary.potentialProfit > 0 ? summary.potentialProfit.toFixed(2) : '0.00'}`} className="text-green-400" />
                         </div>
@@ -223,6 +288,10 @@ function PlanSummary({ control, setPlanStatus }: { control: any, setPlanStatus: 
                         <p className="text-sm text-muted-foreground text-center">Enter Entry, SL & account details to calculate risk.</p>
                     )}
                 </div>
+
+                 <Separator />
+
+                <MarketContext />
                 
                 {!isSlSet && (
                     <Alert variant="destructive">
@@ -413,7 +482,7 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
                         </Card>
 
                         <div className="lg:col-span-1 space-y-6 sticky top-24">
-                            <PlanSummary control={form.control} setPlanStatus={setPlanStatus} />
+                            <PlanSummary control={form.control} setPlanStatus={setPlanStatus} planStatus={planStatus} />
                             <Card className="bg-muted/30 border-border/50">
                                 <CardHeader>
                                     <CardTitle className="flex items-center gap-2"><Bot className="h-5 w-5 text-primary" /> Arjun's Pre-Flight Check</CardTitle>
@@ -454,3 +523,5 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
         </div>
     );
 }
+
+    
