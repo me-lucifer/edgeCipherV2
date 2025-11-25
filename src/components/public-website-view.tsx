@@ -221,7 +221,7 @@ function Hero({ onAuthOpen }: { onAuthOpen: (tab: AuthModalTab) => void }) {
   const mentorCardImage = PlaceHolderImages.find(p => p.id === 'mentor-card');
 
   return (
-    <div className="relative flex min-h-screen w-full flex-col items-center justify-center">
+    <div className="relative w-full">
         <div className="absolute inset-0 -z-10 h-full w-full bg-background bg-[radial-gradient(hsl(var(--border))_1px,transparent_1px)] [background-size:16px_16px]"></div>
         <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid lg:grid-cols-2 gap-12 items-center">
             <div className="text-left">
@@ -1131,7 +1131,7 @@ export function PublicWebsiteView({ onSwitchView, onShowDashboard }: PublicWebsi
         activeLink={activeLink}
       />
       <main>
-        <Section id="home" className="pt-0 lg:-mt-20">
+        <Section id="home" className="pt-32 pb-16 md:pt-40 md:pb-24 lg:pt-48 lg:pb-32">
           <Hero onAuthOpen={handleAuthOpen} />
         </Section>
         <Section id="about" className="pt-10 lg:pt-16">
