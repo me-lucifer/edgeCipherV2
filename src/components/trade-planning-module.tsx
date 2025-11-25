@@ -18,6 +18,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/t
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { Separator } from "./ui/separator";
+import { useToast } from "@/hooks/use-toast";
 
 interface TradePlanningModuleProps {
     onSetModule: (module: any, context?: any) => void;
@@ -105,7 +106,7 @@ const PlanStatus = ({ status, message }: { status: PlanStatusType, message: stri
     )
 }
 
-function PlanSummary({ control }: { control: any }) {
+function PlanSummary({ control, setPlanStatus }: { control: any, setPlanStatus: (status: PlanStatusType) => void }) {
     const values = useWatch({ control }) as Partial<PlanFormValues>;
     const { instrument, direction, entryType, entryPrice, stopLoss, takeProfit, riskPercent, accountCapital, strategyId, justification } = values;
 
@@ -120,7 +121,6 @@ function PlanSummary({ control }: { control: any }) {
         distanceToTpPercent: 0
     });
     
-    const [planStatus, setPlanStatus] = useState<PlanStatusType>("incomplete");
     const [statusMessage, setStatusMessage] = useState("Fill in all required values to continue.");
 
     useEffect(() => {
@@ -142,7 +142,7 @@ function PlanSummary({ control }: { control: any }) {
         setSummary({ rrr, positionSize, potentialLoss, potentialProfit, distanceToSl, distanceToSlPercent, distanceToTp, distanceToTpPercent });
         
         // --- Status Logic ---
-        const requiredFieldsSet = instrument && direction && entryPrice && stopLoss && accountCapital && riskPercent && strategyId && justification;
+        const requiredFieldsSet = instrument && direction && entryPrice && stopLoss && accountCapital && riskPercent && strategyId && justification && justification.length >= 10;
 
         if (!requiredFieldsSet) {
             setPlanStatus("incomplete");
@@ -164,7 +164,7 @@ function PlanSummary({ control }: { control: any }) {
         setPlanStatus("ok");
         setStatusMessage("This plan looks structurally sound. Rule checks come next.");
 
-    }, [instrument, direction, entryPrice, stopLoss, takeProfit, riskPercent, accountCapital, strategyId, justification]);
+    }, [instrument, direction, entryPrice, stopLoss, takeProfit, riskPercent, accountCapital, strategyId, justification, setPlanStatus]);
 
     const isLong = direction === "Long";
     const isSlSet = stopLoss && stopLoss > 0;
@@ -237,6 +237,9 @@ function PlanSummary({ control }: { control: any }) {
 }
 
 export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
+    const { toast } = useToast();
+    const [planStatus, setPlanStatus] = useState<PlanStatusType>("incomplete");
+    
     const form = useForm<PlanFormValues>({
         resolver: zodResolver(planSchema),
         defaultValues: {
@@ -253,6 +256,24 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
             takeProfit: undefined,
         },
     });
+
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            const draft = localStorage.getItem("ec_trade_plan_draft");
+            if (draft) {
+                try {
+                    const parsedDraft = JSON.parse(draft);
+                    form.reset(parsedDraft);
+                     toast({
+                        title: "Draft Loaded",
+                        description: "Your previous trade plan draft has been loaded.",
+                    });
+                } catch(e) {
+                    console.error("Could not parse trade plan draft:", e);
+                }
+            }
+        }
+    }, [form, toast]);
     
     const entryType = useWatch({
         control: form.control,
@@ -260,9 +281,24 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
     });
 
     const onSubmit = (values: PlanFormValues) => {
-        console.log("Plan submitted (prototype):", values);
-        // Here you would save the plan and move to step 2
+        console.log("Proceeding to review step (prototype):", values);
+        // Here you would set an internal substep to 'review'
     };
+
+    const handleSaveDraft = () => {
+        const values = form.getValues();
+        localStorage.setItem("ec_trade_plan_draft", JSON.stringify(values));
+        toast({
+            title: "Plan saved as draft",
+            description: "Your current trade plan has been saved locally.",
+        });
+    };
+
+    const proceedButton = (
+         <Button type="submit" disabled={planStatus === 'incomplete'}>
+            Proceed to Review (Step 2)
+        </Button>
+    );
 
     return (
         <div className="space-y-8">
@@ -286,113 +322,135 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
             </Alert>
             
             <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="grid lg:grid-cols-3 gap-8 items-start">
-                    <Card className="lg:col-span-2 bg-muted/30 border-border/50">
-                        <CardHeader>
-                            <CardTitle>Plan details</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-6">
-                            {/* Group A */}
-                            <div className="p-4 bg-muted/50 rounded-lg space-y-4">
-                                <h3 className="text-sm font-semibold text-muted-foreground">Market & Direction</h3>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <FormField control={form.control} name="instrument" render={({ field }) => (
-                                        <FormItem><FormLabel>Trading Pair</FormLabel><FormControl><Input placeholder="e.g., BTC-PERP" {...field} /></FormControl><FormMessage /></FormItem>
-                                    )}/>
-                                    <FormField control={form.control} name="direction" render={({ field }) => (
-                                        <FormItem><FormLabel>Direction</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} value={field.value} className="flex pt-2 gap-4"><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Long" /></FormControl><FormLabel className="font-normal">Long</FormLabel></FormItem><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Short" /></FormControl><FormLabel className="font-normal">Short</FormLabel></FormItem></RadioGroup></FormControl><FormMessage /></FormItem>
-                                    )}/>
-                                    <FormField control={form.control} name="entryType" render={({ field }) => (
-                                        <FormItem><FormLabel>Entry Type</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} value={field.value} className="flex pt-2 gap-4"><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Limit" /></FormControl><FormLabel className="font-normal">Limit</FormLabel></FormItem><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Market" /></FormControl><FormLabel className="font-normal">Market</FormLabel></FormItem></RadioGroup></FormControl><FormMessage /></FormItem>
-                                    )}/>
-                                </div>
-                            </div>
-
-                            {/* Group B */}
-                            <div className="p-4 bg-muted/50 rounded-lg space-y-4">
-                                <h3 className="text-sm font-semibold text-muted-foreground">Risk Anchors</h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {entryType === 'Limit' ? (
-                                        <FormField control={form.control} name="entryPrice" render={({ field }) => (
-                                            <FormItem><FormLabel>Entry Price</FormLabel><FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl><FormMessage /></FormItem>
-                                        )}/>
-                                    ) : (
-                                        <FormItem>
-                                            <FormLabel>Current Price (from Delta)</FormLabel>
-                                            <FormControl><Input readOnly value="68543.21 (mock)" className="bg-muted" /></FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                    <div />
-                                    <FormField control={form.control} name="stopLoss" render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Stop Loss Price (SL)*</FormLabel>
-                                            <FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}/>
-                                    <FormField control={form.control} name="takeProfit" render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Take Profit Price (TP)</FormLabel>
-                                            <FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}/>
-                                </div>
-                            </div>
-                            
-                            {/* Group C */}
-                            <div className="p-4 bg-muted/50 rounded-lg space-y-4">
-                                <h3 className="text-sm font-semibold text-muted-foreground">Account & Risk</h3>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <FormField control={form.control} name="accountCapital" render={({ field }) => (
-                                        <FormItem><FormLabel>Account Capital ($)</FormLabel><FormControl><Input type="number" placeholder="10000" {...field} /></FormControl><FormMessage /></FormItem>
-                                    )}/>
-                                    <FormField control={form.control} name="riskPercent" render={({ field }) => (
-                                        <FormItem><FormLabel>Risk Per Trade (%)</FormLabel><FormControl><Input type="number" placeholder="1" {...field} /></FormControl><FormMessage /></FormItem>
-                                    )}/>
-                                     <FormField control={form.control} name="leverage" render={({ field }) => (
-                                        <FormItem><FormLabel>Leverage</FormLabel><Select onValueChange={(v) => field.onChange(Number(v))} defaultValue={String(field.value)}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="5">5x</SelectItem><SelectItem value="10">10x</SelectItem><SelectItem value="20">20x</SelectItem><SelectItem value="50">50x</SelectItem></SelectContent></Select><FormMessage /></FormItem>
-                                    )}/>
-                                </div>
-                            </div>
-
-                            <Separator />
-                            
-                            {/* Group D */}
-                             <div className="p-4 bg-muted/50 rounded-lg space-y-4">
-                                <h3 className="text-sm font-semibold text-muted-foreground">Strategy & Reasoning</h3>
-                                <FormField control={form.control} name="strategyId" render={({ field }) => (
-                                    <FormItem><FormLabel>Strategy</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select from your playbook"/></SelectTrigger></FormControl><SelectContent>{mockStrategies.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
-                                )}/>
-                                <FormField control={form.control} name="justification" render={({ field }) => (
-                                    <FormItem><FormLabel>Justification</FormLabel><FormControl><Textarea placeholder="Why are you taking this trade? What conditions must be true?" {...field} /></FormControl><FormMessage /></FormItem>
-                                )}/>
-                                <FormField control={form.control} name="notes" render={({ field }) => (
-                                    <FormItem><FormLabel>Extra Notes (Optional)</FormLabel><FormControl><Textarea placeholder="Any extra details, context, or things to watch out for." {...field} /></FormControl><FormMessage /></FormItem>
-                                )}/>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <div className="lg:col-span-1 space-y-6 sticky top-24">
-                        <PlanSummary control={form.control} />
-                        <Card className="bg-muted/30 border-border/50">
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+                    <div className="grid lg:grid-cols-3 gap-8 items-start">
+                        <Card className="lg:col-span-2 bg-muted/30 border-border/50">
                             <CardHeader>
-                                <CardTitle className="flex items-center gap-2"><Bot className="h-5 w-5 text-primary" /> Arjun's Pre-Flight Check</CardTitle>
+                                <CardTitle>Plan details</CardTitle>
                             </CardHeader>
-                            <CardContent className="space-y-4">
-                                <p className="text-sm text-muted-foreground">Arjun will review your plan against your historical performance, risk rules, and current market volatility.</p>
-                                <Button className="w-full" type="submit">
-                                    Continue to Review <ArrowRight className="ml-2 h-4 w-4" />
-                                </Button>
+                            <CardContent className="space-y-6">
+                                {/* Group A */}
+                                <div className="p-4 bg-muted/50 rounded-lg space-y-4">
+                                    <h3 className="text-sm font-semibold text-muted-foreground">Market & Direction</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <FormField control={form.control} name="instrument" render={({ field }) => (
+                                            <FormItem><FormLabel>Trading Pair</FormLabel><FormControl><Input placeholder="e.g., BTC-PERP" {...field} /></FormControl><FormMessage /></FormItem>
+                                        )}/>
+                                        <FormField control={form.control} name="direction" render={({ field }) => (
+                                            <FormItem><FormLabel>Direction</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} value={field.value} className="flex pt-2 gap-4"><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Long" /></FormControl><FormLabel className="font-normal">Long</FormLabel></FormItem><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Short" /></FormControl><FormLabel className="font-normal">Short</FormLabel></FormItem></RadioGroup></FormControl><FormMessage /></FormItem>
+                                        )}/>
+                                        <FormField control={form.control} name="entryType" render={({ field }) => (
+                                            <FormItem><FormLabel>Entry Type</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} value={field.value} className="flex pt-2 gap-4"><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Limit" /></FormControl><FormLabel className="font-normal">Limit</FormLabel></FormItem><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Market" /></FormControl><FormLabel className="font-normal">Market</FormLabel></FormItem></RadioGroup></FormControl><FormMessage /></FormItem>
+                                        )}/>
+                                    </div>
+                                </div>
+
+                                {/* Group B */}
+                                <div className="p-4 bg-muted/50 rounded-lg space-y-4">
+                                    <h3 className="text-sm font-semibold text-muted-foreground">Risk Anchors</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {entryType === 'Limit' ? (
+                                            <FormField control={form.control} name="entryPrice" render={({ field }) => (
+                                                <FormItem><FormLabel>Entry Price</FormLabel><FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl><FormMessage /></FormItem>
+                                            )}/>
+                                        ) : (
+                                            <FormItem>
+                                                <FormLabel>Current Price (from Delta)</FormLabel>
+                                                <FormControl><Input readOnly value="68543.21 (mock)" className="bg-muted" /></FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                        <div />
+                                        <FormField control={form.control} name="stopLoss" render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Stop Loss Price (SL)*</FormLabel>
+                                                <FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}/>
+                                        <FormField control={form.control} name="takeProfit" render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Take Profit Price (TP)</FormLabel>
+                                                <FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}/>
+                                    </div>
+                                </div>
+                                
+                                {/* Group C */}
+                                <div className="p-4 bg-muted/50 rounded-lg space-y-4">
+                                    <h3 className="text-sm font-semibold text-muted-foreground">Account & Risk</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <FormField control={form.control} name="accountCapital" render={({ field }) => (
+                                            <FormItem><FormLabel>Account Capital ($)</FormLabel><FormControl><Input type="number" placeholder="10000" {...field} /></FormControl><FormMessage /></FormItem>
+                                        )}/>
+                                        <FormField control={form.control} name="riskPercent" render={({ field }) => (
+                                            <FormItem><FormLabel>Risk Per Trade (%)</FormLabel><FormControl><Input type="number" placeholder="1" {...field} /></FormControl><FormMessage /></FormItem>
+                                        )}/>
+                                        <FormField control={form.control} name="leverage" render={({ field }) => (
+                                            <FormItem><FormLabel>Leverage</FormLabel><Select onValueChange={(v) => field.onChange(Number(v))} defaultValue={String(field.value)}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="5">5x</SelectItem><SelectItem value="10">10x</SelectItem><SelectItem value="20">20x</SelectItem><SelectItem value="50">50x</SelectItem></SelectContent></Select><FormMessage /></FormItem>
+                                        )}/>
+                                    </div>
+                                </div>
+
+                                <Separator />
+                                
+                                {/* Group D */}
+                                <div className="p-4 bg-muted/50 rounded-lg space-y-4">
+                                    <h3 className="text-sm font-semibold text-muted-foreground">Strategy & Reasoning</h3>
+                                    <FormField control={form.control} name="strategyId" render={({ field }) => (
+                                        <FormItem><FormLabel>Strategy</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select from your playbook"/></SelectTrigger></FormControl><SelectContent>{mockStrategies.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
+                                    )}/>
+                                    <FormField control={form.control} name="justification" render={({ field }) => (
+                                        <FormItem><FormLabel>Justification</FormLabel><FormControl><Textarea placeholder="Why are you taking this trade? What conditions must be true?" {...field} /></FormControl><FormMessage /></FormItem>
+                                    )}/>
+                                    <FormField control={form.control} name="notes" render={({ field }) => (
+                                        <FormItem><FormLabel>Extra Notes (Optional)</FormLabel><FormControl><Textarea placeholder="Any extra details, context, or things to watch out for." {...field} /></FormControl><FormMessage /></FormItem>
+                                    )}/>
+                                </div>
                             </CardContent>
                         </Card>
+
+                        <div className="lg:col-span-1 space-y-6 sticky top-24">
+                            <PlanSummary control={form.control} setPlanStatus={setPlanStatus} />
+                            <Card className="bg-muted/30 border-border/50">
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2"><Bot className="h-5 w-5 text-primary" /> Arjun's Pre-Flight Check</CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    <p className="text-sm text-muted-foreground">Arjun will review your plan against your historical performance, risk rules, and current market volatility.</p>
+                                    <p className="text-xs text-muted-foreground italic">In a real app, this step would involve a backend call to check against your data.</p>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    </div>
+                     <div className="mt-8 p-4 bg-muted/20 border-t border-border/50 flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <p className="text-sm text-muted-foreground">Step 1 of 3: Plan your trade.</p>
+                        <div className="flex items-center gap-4">
+                            <Button variant="outline" type="button" onClick={handleSaveDraft}>Save as draft (Prototype)</Button>
+                            
+                            {planStatus === 'needs_attention' ? (
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            {proceedButton}
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p className="flex items-center gap-2">
+                                                <AlertTriangle className="h-4 w-4 text-amber-500" />
+                                                This plan violates basic risk hygiene.
+                                            </p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            ) : (
+                                proceedButton
+                            )}
+                        </div>
                     </div>
                 </form>
             </Form>
         </div>
     );
 }
-
-    
