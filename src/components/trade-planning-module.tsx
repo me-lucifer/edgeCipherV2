@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
+import { Separator } from "./ui/separator";
 
 interface TradePlanningModuleProps {
     onSetModule: (module: any, context?: any) => void;
@@ -33,7 +34,7 @@ const planSchema = z.object({
     accountCapital: z.coerce.number().positive("Must be > 0."),
     riskPercent: z.coerce.number().min(0.1).max(100),
     strategyId: z.string().min(1, "Required."),
-    justification: z.string().min(10, "Min 10 characters."),
+    justification: z.string().min(10, "Justification must be at least 10 characters."),
     notes: z.string().optional(),
 }).refine(data => {
     if (data.direction === 'Long' && data.entryPrice > 0) return data.stopLoss < data.entryPrice && data.takeProfit > data.entryPrice;
@@ -85,7 +86,7 @@ function PlanSummary({ control }: { control: any }) {
     return (
         <Card className="bg-muted/30 border-primary/20">
             <CardHeader>
-                <CardTitle>Plan Summary & Checks</CardTitle>
+                <CardTitle>Plan summary & checks</CardTitle>
                 <CardDescription>Live calculation based on your inputs.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -159,9 +160,9 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
                     <p className="text-muted-foreground">The heart of disciplined trading inside EdgeCipher.</p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <Badge className="border-primary/50 bg-primary/20 text-primary">Step 1 - Plan</Badge>
-                    <Badge variant="outline">Step 2 - Review</Badge>
-                    <Badge variant="outline">Step 3 - Execute</Badge>
+                    <Badge className="border-primary/50 bg-primary/20 text-primary">Step 1 – Plan</Badge>
+                    <Badge variant="outline">Step 2 – Review</Badge>
+                    <Badge variant="outline">Step 3 – Execute</Badge>
                 </div>
             </div>
 
@@ -176,7 +177,7 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
                 <form onSubmit={form.handleSubmit(onSubmit)} className="grid lg:grid-cols-3 gap-8 items-start">
                     <Card className="lg:col-span-2 bg-muted/30 border-border/50">
                         <CardHeader>
-                            <CardTitle>Plan Details</CardTitle>
+                            <CardTitle>Plan details</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-6">
                             {/* Group A */}
@@ -236,17 +237,21 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
                                 </div>
                             </div>
 
-                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <Separator />
+                            
+                            {/* Group D */}
+                             <div className="p-4 bg-muted/50 rounded-lg space-y-4">
+                                <h3 className="text-sm font-semibold text-muted-foreground">Strategy & Reasoning</h3>
                                 <FormField control={form.control} name="strategyId" render={({ field }) => (
                                     <FormItem><FormLabel>Strategy</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select from your playbook"/></SelectTrigger></FormControl><SelectContent>{mockStrategies.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
                                 )}/>
                                 <FormField control={form.control} name="justification" render={({ field }) => (
-                                    <FormItem><FormLabel>Justification</FormLabel><FormControl><Input placeholder="Why this trade, right now?" {...field} /></FormControl><FormMessage /></FormItem>
+                                    <FormItem><FormLabel>Justification</FormLabel><FormControl><Textarea placeholder="Why are you taking this trade? What conditions must be true?" {...field} /></FormControl><FormMessage /></FormItem>
+                                )}/>
+                                <FormField control={form.control} name="notes" render={({ field }) => (
+                                    <FormItem><FormLabel>Extra Notes (Optional)</FormLabel><FormControl><Textarea placeholder="Any extra details, context, or things to watch out for." {...field} /></FormControl><FormMessage /></FormItem>
                                 )}/>
                             </div>
-                            <FormField control={form.control} name="notes" render={({ field }) => (
-                                <FormItem><FormLabel>Notes (Optional)</FormLabel><FormControl><Textarea placeholder="Any extra details, context, or things to watch out for." {...field} /></FormControl><FormMessage /></FormItem>
-                            )}/>
                         </CardContent>
                     </Card>
 
