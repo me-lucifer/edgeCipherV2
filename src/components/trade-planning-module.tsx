@@ -39,7 +39,7 @@ const planSchema = z.object({
     riskPercent: z.coerce.number().min(0.1).max(100),
     strategyId: z.string().min(1, "Required."),
     notes: z.string().optional(),
-    justification: z.string().optional(),
+    justification: z.string().min(10, "Justification must be at least 10 characters.").optional(),
 }).refine(data => {
     if (data.direction === 'Long' && data.entryPrice > 0 && data.stopLoss > 0) return data.stopLoss < data.entryPrice;
     return true;
@@ -75,6 +75,7 @@ const mockStrategies = [
 ];
 
 type PlanStatusType = "incomplete" | "blocked" | "needs_attention" | "ok" | "overridden";
+type TradePlanStep = "plan" | "review" | "execute";
 
 const PlanStatus = ({ status, message }: { status: PlanStatusType, message: string }) => {
     const statusConfig = {
@@ -485,10 +486,163 @@ function PlanSummary({ control, setPlanStatus, planStatus, onSetModule }: { cont
     );
 }
 
+function PlanStep({ form, onSetModule, setPlanStatus, planStatus }: { form: any, onSetModule: any, setPlanStatus: any, planStatus: any }) {
+     const entryType = useWatch({
+        control: form.control,
+        name: 'entryType',
+    });
+    return (
+         <div className="grid lg:grid-cols-3 gap-8 items-start">
+            <Card className="lg:col-span-2 bg-muted/30 border-border/50">
+                <CardHeader>
+                    <CardTitle>Plan details</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    {/* Group A */}
+                    <div className="p-4 bg-muted/50 rounded-lg space-y-4">
+                        <h3 className="text-sm font-semibold text-muted-foreground">Market & Direction</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <FormField control={form.control} name="instrument" render={({ field }) => (
+                                <FormItem><FormLabel>Trading Pair</FormLabel><FormControl><Input placeholder="e.g., BTC-PERP" {...field} /></FormControl><FormMessage /></FormItem>
+                            )}/>
+                            <FormField control={form.control} name="direction" render={({ field }) => (
+                                <FormItem><FormLabel>Direction</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} value={field.value} className="flex pt-2 gap-4"><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Long" /></FormControl><FormLabel className="font-normal">Long</FormLabel></FormItem><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Short" /></FormControl><FormLabel className="font-normal">Short</FormLabel></FormItem></RadioGroup></FormControl><FormMessage /></FormItem>
+                            )}/>
+                            <FormField control={form.control} name="entryType" render={({ field }) => (
+                                <FormItem><FormLabel>Entry Type</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} value={field.value} className="flex pt-2 gap-4"><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Limit" /></FormControl><FormLabel className="font-normal">Limit</FormLabel></FormItem><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Market" /></FormControl><FormLabel className="font-normal">Market</FormLabel></FormItem></RadioGroup></FormControl><FormMessage /></FormItem>
+                            )}/>
+                        </div>
+                    </div>
+
+                    {/* Group B */}
+                    <div className="p-4 bg-muted/50 rounded-lg space-y-4">
+                        <h3 className="text-sm font-semibold text-muted-foreground">Risk Anchors</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {entryType === 'Limit' ? (
+                                <FormField control={form.control} name="entryPrice" render={({ field }) => (
+                                    <FormItem><FormLabel>Entry Price</FormLabel><FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl><FormMessage /></FormItem>
+                                )}/>
+                            ) : (
+                                <FormItem>
+                                    <FormLabel>Current Price (from Delta)</FormLabel>
+                                    <FormControl><Input readOnly value="68543.21 (mock)" className="bg-muted" /></FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                            <div />
+                            <FormField control={form.control} name="stopLoss" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Stop Loss Price (SL)*</FormLabel>
+                                    <FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}/>
+                            <FormField control={form.control} name="takeProfit" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Take Profit Price (TP)</FormLabel>
+                                    <FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}/>
+                        </div>
+                    </div>
+                    
+                    {/* Group C */}
+                    <div className="p-4 bg-muted/50 rounded-lg space-y-4">
+                        <h3 className="text-sm font-semibold text-muted-foreground">Account & Risk</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <FormField control={form.control} name="accountCapital" render={({ field }) => (
+                                <FormItem><FormLabel>Account Capital ($)</FormLabel><FormControl><Input type="number" placeholder="10000" {...field} /></FormControl><FormMessage /></FormItem>
+                            )}/>
+                            <FormField control={form.control} name="riskPercent" render={({ field }) => (
+                                <FormItem><FormLabel>Risk Per Trade (%)</FormLabel><FormControl><Input type="number" placeholder="1" {...field} /></FormControl><FormMessage /></FormItem>
+                            )}/>
+                            <FormField control={form.control} name="leverage" render={({ field }) => (
+                                <FormItem><FormLabel>Leverage</FormLabel><Select onValueChange={(v) => field.onChange(Number(v))} defaultValue={String(field.value)}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="5">5x</SelectItem><SelectItem value="10">10x</SelectItem><SelectItem value="20">20x</SelectItem><SelectItem value="50">50x</SelectItem></SelectContent></Select><FormMessage /></FormItem>
+                            )}/>
+                        </div>
+                    </div>
+
+                    <Separator />
+                    
+                    {/* Group D */}
+                    <div className="p-4 bg-muted/50 rounded-lg space-y-4">
+                        <h3 className="text-sm font-semibold text-muted-foreground">Strategy & Reasoning</h3>
+                        <FormField control={form.control} name="strategyId" render={({ field }) => (
+                            <FormItem><FormLabel>Strategy</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select from your playbook"/></SelectTrigger></FormControl><SelectContent>{mockStrategies.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
+                        )}/>
+                        <FormField control={form.control} name="notes" render={({ field }) => (
+                            <FormItem><FormLabel>Trade Rationale*</FormLabel><FormControl><Textarea placeholder="Why are you taking this trade? What conditions must be true?" {...field} /></FormControl><FormMessage /></FormItem>
+                        )}/>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <div className="lg:col-span-1 space-y-6 sticky top-24">
+                <PlanSummary control={form.control} setPlanStatus={setPlanStatus} planStatus={planStatus} onSetModule={onSetModule} />
+            </div>
+        </div>
+    );
+}
+
+function ReviewStep({ form, onSetModule }: { form: any, onSetModule: any }) {
+    const values = form.getValues();
+    return (
+        <div className="grid lg:grid-cols-2 gap-8 items-start">
+             <Card className="bg-muted/30 border-border/50">
+                <CardHeader>
+                    <CardTitle>Plan Snapshot</CardTitle>
+                    <CardDescription>A read-only summary of your trade plan.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                     <p className="text-center text-muted-foreground p-8">Read-only plan summary placeholder.</p>
+                </CardContent>
+            </Card>
+             <Card className="bg-muted/30 border-border/50">
+                <CardHeader>
+                    <CardTitle>Review with Arjun</CardTitle>
+                    <CardDescription>AI feedback and psychological checks.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-center text-muted-foreground p-8">Arjun's review will appear here.</p>
+                </CardContent>
+            </Card>
+        </div>
+    );
+}
+
+function ExecuteStep({ form, onSetModule }: { form: any, onSetModule: any }) {
+    const values = form.getValues();
+    return (
+         <div className="grid lg:grid-cols-2 gap-8 items-start">
+             <Card className="bg-muted/30 border-border/50">
+                <CardHeader>
+                    <CardTitle>Locked Plan</CardTitle>
+                    <CardDescription>Your final, locked-in trade plan.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                     <p className="text-center text-muted-foreground p-8">Locked plan preview placeholder.</p>
+                </CardContent>
+            </Card>
+             <Card className="bg-muted/30 border-border/50">
+                <CardHeader>
+                    <CardTitle>Execute & Journal</CardTitle>
+                    <CardDescription>Execute on your broker and auto-journal.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-center text-muted-foreground p-8">Execution options will appear here.</p>
+                </CardContent>
+            </Card>
+        </div>
+    );
+}
+
+
 export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
     const { toast } = useToast();
     const [planStatus, setPlanStatus] = useState<PlanStatusType>("incomplete");
     const [showBanner, setShowBanner] = useState(true);
+    const [currentStep, setCurrentStep] = useState<TradePlanStep>("plan");
     
     const form = useForm<PlanFormValues>({
         resolver: zodResolver(planSchema),
@@ -526,10 +680,6 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
         }
     }, [form, toast]);
     
-    const entryType = useWatch({
-        control: form.control,
-        name: 'entryType',
-    });
 
     const justificationValue = useWatch({
         control: form.control,
@@ -537,7 +687,17 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
     })
 
     const onSubmit = (values: PlanFormValues) => {
-        console.log("Proceeding to review step (prototype):", values);
+        if (currentStep === 'plan') {
+            setCurrentStep('review');
+        } else if (currentStep === 'review') {
+            setCurrentStep('execute');
+        } else {
+             console.log("Executing trade (prototype):", values);
+             toast({
+                title: "Trade Executed (Prototype)",
+                description: "In a real app, this would place the order on your broker.",
+            });
+        }
     };
 
     const handleSaveDraft = () => {
@@ -549,16 +709,40 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
         });
     };
 
-    const isProceedDisabled = planStatus === 'incomplete' || (planStatus === 'blocked' && (!justificationValue || justificationValue.length < 1));
+    const handleStepChange = (step: TradePlanStep) => {
+        const stepOrder = ["plan", "review", "execute"];
+        const currentIndex = stepOrder.indexOf(currentStep);
+        const newIndex = stepOrder.indexOf(step);
+
+        if (newIndex < currentIndex) {
+            setCurrentStep(step);
+            return;
+        }
+
+        if (step === 'review' && canProceedToReview) {
+            setCurrentStep('review');
+        }
+        
+        if (step === 'execute' && canProceedToExecution) {
+            setCurrentStep('execute');
+        }
+    }
+
+    const canProceedToReview = planStatus !== 'incomplete' && (planStatus !== 'blocked' || (justificationValue && justificationValue.length > 0));
+    const canProceedToExecution = canProceedToReview && currentStep === 'review'; // Add real logic later
+
+    const isProceedDisabled = currentStep === 'plan' ? !canProceedToReview :
+                              currentStep === 'review' ? !canProceedToExecution :
+                              false;
     
     const isBannerVisible = showBanner && (planStatus === 'blocked' || planStatus === 'overridden');
-    
-    const proceedButton = (
-         <Button type="submit" disabled={isProceedDisabled}>
-            Proceed to Review (Step 2)
-        </Button>
-    );
 
+    const stepConfig = {
+        plan: { label: "Plan", buttonText: "Proceed to Review (Step 2)", disabled: false },
+        review: { label: "Review", buttonText: "Proceed to Execution (Step 3)", disabled: !canProceedToReview },
+        execute: { label: "Execute", buttonText: "Execute (Prototype)", disabled: !canProceedToExecution },
+    }
+    
     return (
         <div className="space-y-8">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -567,9 +751,16 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
                     <p className="text-muted-foreground">The heart of disciplined trading inside EdgeCipher.</p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <Badge className="border-primary/50 bg-primary/20 text-primary">Step 1 – Plan</Badge>
-                    <Badge variant="outline">Step 2 – Review</Badge>
-                    <Badge variant="outline">Step 3 – Execute</Badge>
+                    {(Object.keys(stepConfig) as TradePlanStep[]).map((step, index) => (
+                        <Badge
+                            key={step}
+                            onClick={() => handleStepChange(step)}
+                            variant={currentStep === step ? "default" : "outline"}
+                            className={cn("cursor-pointer border-border/50", stepConfig[step as TradePlanStep].disabled && "opacity-50 cursor-not-allowed")}
+                        >
+                            Step {index + 1} &ndash; {stepConfig[step as TradePlanStep].label}
+                        </Badge>
+                    ))}
                 </div>
             </div>
             
@@ -603,132 +794,33 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
             
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-                    <div className="grid lg:grid-cols-3 gap-8 items-start">
-                        <Card className="lg:col-span-2 bg-muted/30 border-border/50">
-                            <CardHeader>
-                                <CardTitle>Plan details</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-6">
-                                {/* Group A */}
-                                <div className="p-4 bg-muted/50 rounded-lg space-y-4">
-                                    <h3 className="text-sm font-semibold text-muted-foreground">Market & Direction</h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                        <FormField control={form.control} name="instrument" render={({ field }) => (
-                                            <FormItem><FormLabel>Trading Pair</FormLabel><FormControl><Input placeholder="e.g., BTC-PERP" {...field} /></FormControl><FormMessage /></FormItem>
-                                        )}/>
-                                        <FormField control={form.control} name="direction" render={({ field }) => (
-                                            <FormItem><FormLabel>Direction</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} value={field.value} className="flex pt-2 gap-4"><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Long" /></FormControl><FormLabel className="font-normal">Long</FormLabel></FormItem><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Short" /></FormControl><FormLabel className="font-normal">Short</FormLabel></FormItem></RadioGroup></FormControl><FormMessage /></FormItem>
-                                        )}/>
-                                        <FormField control={form.control} name="entryType" render={({ field }) => (
-                                            <FormItem><FormLabel>Entry Type</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} value={field.value} className="flex pt-2 gap-4"><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Limit" /></FormControl><FormLabel className="font-normal">Limit</FormLabel></FormItem><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Market" /></FormControl><FormLabel className="font-normal">Market</FormLabel></FormItem></RadioGroup></FormControl><FormMessage /></FormItem>
-                                        )}/>
-                                    </div>
-                                </div>
 
-                                {/* Group B */}
-                                <div className="p-4 bg-muted/50 rounded-lg space-y-4">
-                                    <h3 className="text-sm font-semibold text-muted-foreground">Risk Anchors</h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {entryType === 'Limit' ? (
-                                            <FormField control={form.control} name="entryPrice" render={({ field }) => (
-                                                <FormItem><FormLabel>Entry Price</FormLabel><FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl><FormMessage /></FormItem>
-                                            )}/>
-                                        ) : (
-                                            <FormItem>
-                                                <FormLabel>Current Price (from Delta)</FormLabel>
-                                                <FormControl><Input readOnly value="68543.21 (mock)" className="bg-muted" /></FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                        <div />
-                                        <FormField control={form.control} name="stopLoss" render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Stop Loss Price (SL)*</FormLabel>
-                                                <FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}/>
-                                        <FormField control={form.control} name="takeProfit" render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Take Profit Price (TP)</FormLabel>
-                                                <FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}/>
-                                    </div>
-                                </div>
-                                
-                                {/* Group C */}
-                                <div className="p-4 bg-muted/50 rounded-lg space-y-4">
-                                    <h3 className="text-sm font-semibold text-muted-foreground">Account & Risk</h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                        <FormField control={form.control} name="accountCapital" render={({ field }) => (
-                                            <FormItem><FormLabel>Account Capital ($)</FormLabel><FormControl><Input type="number" placeholder="10000" {...field} /></FormControl><FormMessage /></FormItem>
-                                        )}/>
-                                        <FormField control={form.control} name="riskPercent" render={({ field }) => (
-                                            <FormItem><FormLabel>Risk Per Trade (%)</FormLabel><FormControl><Input type="number" placeholder="1" {...field} /></FormControl><FormMessage /></FormItem>
-                                        )}/>
-                                        <FormField control={form.control} name="leverage" render={({ field }) => (
-                                            <FormItem><FormLabel>Leverage</FormLabel><Select onValueChange={(v) => field.onChange(Number(v))} defaultValue={String(field.value)}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="5">5x</SelectItem><SelectItem value="10">10x</SelectItem><SelectItem value="20">20x</SelectItem><SelectItem value="50">50x</SelectItem></SelectContent></Select><FormMessage /></FormItem>
-                                        )}/>
-                                    </div>
-                                </div>
+                    {currentStep === "plan" && <PlanStep form={form} onSetModule={onSetModule} setPlanStatus={setPlanStatus} planStatus={planStatus} />}
+                    {currentStep === "review" && <ReviewStep form={form} onSetModule={onSetModule} />}
+                    {currentStep === "execute" && <ExecuteStep form={form} onSetModule={onSetModule} />}
 
-                                <Separator />
-                                
-                                {/* Group D */}
-                                <div className="p-4 bg-muted/50 rounded-lg space-y-4">
-                                    <h3 className="text-sm font-semibold text-muted-foreground">Strategy & Reasoning</h3>
-                                    <FormField control={form.control} name="strategyId" render={({ field }) => (
-                                        <FormItem><FormLabel>Strategy</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select from your playbook"/></SelectTrigger></FormControl><SelectContent>{mockStrategies.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
-                                    )}/>
-                                    <FormField control={form.control} name="notes" render={({ field }) => (
-                                        <FormItem><FormLabel>Trade Rationale*</FormLabel><FormControl><Textarea placeholder="Why are you taking this trade? What conditions must be true?" {...field} /></FormControl><FormMessage /></FormItem>
-                                    )}/>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        <div className="lg:col-span-1 space-y-6 sticky top-24">
-                            <PlanSummary control={form.control} setPlanStatus={setPlanStatus} planStatus={planStatus} onSetModule={onSetModule} />
-                        </div>
-                    </div>
                      <div className="mt-8 p-4 bg-muted/20 border-t border-border/50 flex flex-col sm:flex-row items-center justify-between gap-4">
-                        <p className="text-sm text-muted-foreground">Step 1 of 3: Plan your trade.</p>
+                        <p className="text-sm text-muted-foreground">Step {Object.keys(stepConfig).indexOf(currentStep) + 1} of 3: {stepConfig[currentStep].label} your trade.</p>
                         <div className="flex items-center gap-4">
                             <Button variant="outline" type="button" onClick={handleSaveDraft}>Save as draft (Prototype)</Button>
                             
-                            {isProceedDisabled && planStatus === 'blocked' ? (
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <div tabIndex={0}>{proceedButton}</div>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p className="flex items-center gap-2">
-                                                <AlertTriangle className="h-4 w-4 text-amber-500" />
-                                                Add a justification to override your rules.
-                                            </p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                            ) : planStatus === 'needs_attention' ? (
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <div tabIndex={0}>{proceedButton}</div>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p className="flex items-center gap-2">
-                                                <AlertTriangle className="h-4 w-4 text-amber-500" />
-                                                This plan has warnings. You can proceed, but with caution.
-                                            </p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                            ) : (
-                                proceedButton
-                            )}
+                            <TooltipProvider>
+                                <Tooltip open={isProceedDisabled && planStatus === 'blocked' ? undefined : false}>
+                                    <TooltipTrigger asChild>
+                                        <div tabIndex={0}>
+                                            <Button type="submit" disabled={isProceedDisabled}>
+                                                {stepConfig[currentStep].buttonText}
+                                            </Button>
+                                        </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p className="flex items-center gap-2">
+                                            <AlertTriangle className="h-4 w-4 text-amber-500" />
+                                            Add a justification to override your rules.
+                                        </p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
                         </div>
                     </div>
                 </form>
