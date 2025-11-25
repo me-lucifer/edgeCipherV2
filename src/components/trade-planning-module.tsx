@@ -40,6 +40,7 @@ const planSchema = z.object({
     strategyId: z.string().min(1, "Required."),
     notes: z.string().optional(),
     justification: z.string().min(10, "Justification must be at least 10 characters.").optional(),
+    mindset: z.string().optional(),
 }).refine(data => {
     if (data.direction === 'Long' && data.entryPrice > 0 && data.stopLoss > 0) return data.stopLoss < data.entryPrice;
     return true;
@@ -194,7 +195,7 @@ const getRuleChecks = (rrr: number, riskPercent: number): RuleCheck[] => {
     return [
         {
             label: "R:R Ratio must be >= 1.5",
-            status: !rrr || rrr <= 0 ? "FAIL" : rrr < 1.5 ? "WARN" : "PASS",
+            status: !rrr || rrr === 0 ? "N/A" : rrr < 1.5 ? "WARN" : "PASS",
             note: "If your winners aren't meaningfully larger than your losers, you need a very high win rate just to break even. Aim for at least 1.5R."
         },
         {
@@ -306,7 +307,7 @@ function DisciplineAlerts({ onSetModule }: { onSetModule: TradePlanningModulePro
   )
 }
 
-function PlanSummary({ control, setPlanStatus, planStatus, onSetModule }: { control: any, setPlanStatus: (status: PlanStatusType) => void, planStatus: PlanStatusType, onSetModule: TradePlanningModuleProps['onSetModule'] }) {
+function PlanSummary({ control, setPlanStatus, onSetModule }: { control: any, setPlanStatus: (status: PlanStatusType) => void, onSetModule: TradePlanningModuleProps['onSetModule'] }) {
     const values = useWatch({ control }) as Partial<PlanFormValues>;
     const { instrument, direction, entryPrice, stopLoss, takeProfit, riskPercent, accountCapital, strategyId, notes, justification } = values;
 
@@ -486,7 +487,7 @@ function PlanSummary({ control, setPlanStatus, planStatus, onSetModule }: { cont
     );
 }
 
-function PlanStep({ form, onSetModule, setPlanStatus, planStatus }: { form: any, onSetModule: any, setPlanStatus: any, planStatus: any }) {
+function PlanStep({ form, onSetModule, setPlanStatus, planStatus }: { form: any, onSetModule: any, setPlanStatus: any, planStatus: PlanStatusType }) {
      const entryType = useWatch({
         control: form.control,
         name: 'entryType',
@@ -566,7 +567,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, planStatus }: { form: any,
                     <Separator />
                     
                     {/* Group D */}
-                    <div className="p-4 bg-muted/50 rounded-lg space-y-4">
+                     <div className="p-4 bg-muted/50 rounded-lg space-y-4">
                         <h3 className="text-sm font-semibold text-muted-foreground">Strategy & Reasoning</h3>
                         <FormField control={form.control} name="strategyId" render={({ field }) => (
                             <FormItem><FormLabel>Strategy</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select from your playbook"/></SelectTrigger></FormControl><SelectContent>{mockStrategies.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
@@ -579,7 +580,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, planStatus }: { form: any,
             </Card>
 
             <div className="lg:col-span-1 space-y-6 sticky top-24">
-                <PlanSummary control={form.control} setPlanStatus={setPlanStatus} planStatus={planStatus} onSetModule={onSetModule} />
+                <PlanSummary control={form.control} setPlanStatus={setPlanStatus} onSetModule={onSetModule} />
             </div>
         </div>
     );
@@ -663,16 +664,63 @@ function PlanSnapshot({ form, onSetStep, summary, ruleChecks }: { form: any, onS
 
 function ReviewStep({ form, onSetModule, onSetStep, summary, ruleChecks }: { form: any, onSetModule: any, onSetStep: (step: TradePlanStep) => void; summary: any; ruleChecks: RuleCheck[] }) {
     const values = form.getValues();
+    const personaData = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem("ec_persona_final") || localStorage.getItem("ec_persona_base") || "{}") : {};
+    const market = typeof window !== 'undefined' ? { vixValue: localStorage.getItem('ec_demo_scenario') === 'high_vol' ? 82 : 45, vixZone: localStorage.getItem('ec_demo_scenario') === 'high_vol' ? 'Elevated' : 'Normal' } : { vixValue: 45, vixZone: 'Normal' };
+
     return (
         <div className="grid lg:grid-cols-2 gap-8 items-start">
              <PlanSnapshot form={form} onSetStep={onSetStep} summary={summary} ruleChecks={ruleChecks} />
-             <Card className="bg-muted/30 border-border/50 sticky top-24">
+             <Card className="bg-muted/30 border-primary/20 sticky top-24">
                 <CardHeader>
-                    <CardTitle>Review with Arjun</CardTitle>
+                    <CardTitle className="flex items-center gap-2"><Bot className="h-5 w-5 text-primary" />Review with Arjun</CardTitle>
                     <CardDescription>AI feedback and psychological checks.</CardDescription>
                 </CardHeader>
-                <CardContent>
-                    <p className="text-center text-muted-foreground p-8">Arjun's review will appear here. (Coming soon)</p>
+                <CardContent className="space-y-6">
+                     <div>
+                        <p className="text-sm text-muted-foreground">
+                            Based on your persona (<span className="font-semibold text-primary">{personaData.primaryPersonaName || 'The Determined Trader'}</span>), current market volatility (<span className="font-semibold text-primary">{market.vixZone}</span>), and this trade’s R:R of <span className="font-semibold text-primary">{summary.rrr.toFixed(2)}</span>, here’s Arjun’s assessment.
+                        </p>
+                    </div>
+
+                    <Separator />
+                    
+                    <div>
+                        <h3 className="font-semibold text-foreground mb-3">Feedback</h3>
+                        <ul className="space-y-3">
+                            <li className="flex items-start gap-3 text-sm">
+                                <AlertTriangle className="h-4 w-4 text-amber-400 mt-0.5 flex-shrink-0" />
+                                <span className="text-muted-foreground">Your SL is tighter than your average for this setup. In <span className="text-amber-400">elevated volatility</span>, this increases the chance of being stopped out on noise.</span>
+                            </li>
+                            <li className="flex items-start gap-3 text-sm">
+                                <Info className="h-4 w-4 text-blue-400 mt-0.5 flex-shrink-0" />
+                                <span className="text-muted-foreground">Your R:R of {summary.rrr.toFixed(2)} is slightly below your preferred 1.5 target. This requires a higher win rate to be profitable.</span>
+                            </li>
+                            <li className="flex items-start gap-3 text-sm">
+                                <CheckCircle className="h-4 w-4 text-green-400 mt-0.5 flex-shrink-0" />
+                                <span className="text-muted-foreground">This trade aligns with your defined <span className="text-green-400">"London Reversal"</span> strategy, which is a positive sign for disciplined execution.</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <Separator />
+
+                     <FormField
+                        control={form.control}
+                        name="mindset"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>What is your mindset right now?</FormLabel>
+                                <FormControl>
+                                    <Textarea
+                                        placeholder="Describe how you feel and what you’re worried about. e.g., 'Feeling a bit of FOMO, worried I'm late to this move...'"
+                                        className="min-h-[80px]"
+                                        {...field}
+                                    />
+                                </FormControl>
+                                <p className="text-xs text-muted-foreground">This will be saved with your journal entry for this trade.</p>
+                            </FormItem>
+                        )}
+                    />
                 </CardContent>
             </Card>
         </div>
@@ -727,6 +775,7 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
             entryPrice: undefined,
             stopLoss: undefined,
             takeProfit: undefined,
+            mindset: "",
         },
     });
     
@@ -752,7 +801,6 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
             }
         }
     }, [form, toast]);
-    
 
     const justificationValue = useWatch({
         control: form.control,
