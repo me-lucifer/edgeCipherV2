@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -49,7 +49,7 @@ const planSchema = z.object({
     takeProfit: z.coerce.number().optional(),
     leverage: z.coerce.number().min(1).max(100),
     accountCapital: z.coerce.number().positive("Account capital is required to calculate risk."),
-    riskPercent: z.coerce.number().min(0.1, "Risk must be at least 0.1%").max(100, "Risk cannot exceed 100%"),
+    riskPercent: z.coerce.number().min(0.1, "Risk per trade must be at least 0.1%").max(100, "Risk cannot exceed 100%"),
     strategyId: z.string().min(1, "You must select a strategy for this plan."),
     notes: z.string().optional(),
     justification: z.string().min(10, "Justification must be at least 10 characters.").optional(),
@@ -979,9 +979,9 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, planConte
             <Drawer open={isStrategyDrawerOpen} onOpenChange={setIsStrategyDrawerOpen}>
                 <DrawerContent>
                     {viewedStrategy && (
-                        <div className="mx-auto w-full max-w-2xl p-4 md:p-6">
+                        <div className="mx-auto w-full max-w-2xl p-4 md:p-6" role="dialog" aria-modal="true" aria-labelledby="strategy-drawer-title">
                             <DrawerHeader>
-                                <DrawerTitle className="text-2xl">{viewedStrategy.name}</DrawerTitle>
+                                <DrawerTitle className="text-2xl" id="strategy-drawer-title">{viewedStrategy.name}</DrawerTitle>
                                 <DrawerDescription>{viewedStrategy.description}</DrawerDescription>
                             </DrawerHeader>
                             <div className="px-4 py-6 space-y-6">
@@ -1024,7 +1024,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, planConte
     );
 }
 
-function ReviewStep({ form, onSetModule, onSetStep, arjunFeedbackAccepted, setArjunFeedbackAccepted, planStatus }: { form: any, onSetModule: any, onSetStep: (step: TradePlanStep) => void; arjunFeedbackAccepted: boolean, setArjunFeedbackAccepted: (accepted: boolean) => void, planStatus: PlanStatusType }) {
+function ReviewStep({ form, onSetModule, onSetStep, arjunFeedbackAccepted, setArjunFeedbackAccepted, planStatus, reviewHeadingRef }: { form: any, onSetModule: any, onSetStep: (step: TradePlanStep) => void; arjunFeedbackAccepted: boolean, setArjunFeedbackAccepted: (accepted: boolean) => void, planStatus: PlanStatusType, reviewHeadingRef: React.Ref<HTMLDivElement> }) {
     const values = form.getValues();
     const personaData = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem("ec_persona_final") || localStorage.getItem("ec_persona_base") || "{}") : {};
     const market = typeof window !== 'undefined' ? { vixValue: localStorage.getItem('ec_demo_scenario') === 'high_vol' ? 82 : 45, vixZone: localStorage.getItem('ec_demo_scenario') === 'high_vol' ? 'Elevated' : 'Normal' } : { vixValue: 45, vixZone: 'Normal' };
@@ -1040,7 +1040,7 @@ function ReviewStep({ form, onSetModule, onSetStep, arjunFeedbackAccepted, setAr
              <PlanSnapshot form={form} onSetStep={onSetStep} />
              <Card className="bg-muted/30 border-primary/20 sticky top-24">
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Bot className="h-5 w-5 text-primary" />Review with Arjun</CardTitle>
+                    <CardTitle ref={reviewHeadingRef} tabIndex={-1} className="flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-ring rounded-sm -ml-1 pl-1"><Bot className="h-5 w-5 text-primary" />Review with Arjun</CardTitle>
                     <CardDescription>AI feedback and psychological checks.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -1110,7 +1110,7 @@ function ReviewStep({ form, onSetModule, onSetStep, arjunFeedbackAccepted, setAr
     );
 }
 
-function ExecutionOptions({ form, onSetModule }: { form: any, onSetModule: (module: any, context?: any) => void }) {
+function ExecutionOptions({ form, onSetModule, executionHeadingRef }: { form: any, onSetModule: (module: any, context?: any) => void; executionHeadingRef: React.Ref<HTMLDivElement> }) {
     const [executionType, setExecutionType] = useState<"Market" | "Limit">("Market");
     const [isExecuting, setIsExecuting] = useState(false);
     const [executionResult, setExecutionResult] = useState<{ tradeId: string, draftId: string } | null>(null);
@@ -1229,7 +1229,7 @@ function ExecutionOptions({ form, onSetModule }: { form: any, onSetModule: (modu
     return (
         <Card className="bg-muted/30 border-border/50">
             <CardHeader>
-                <CardTitle>Execution options</CardTitle>
+                <CardTitle ref={executionHeadingRef} tabIndex={-1} className="focus:outline-none focus:ring-2 focus:ring-ring rounded-sm -ml-1 pl-1">Execution options</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
                 <div>
@@ -1276,7 +1276,7 @@ function ExecutionOptions({ form, onSetModule }: { form: any, onSetModule: (modu
     );
 }
 
-function ExecuteStep({ form, onSetModule, onSetStep, planStatus }: { form: any, onSetModule: any, onSetStep: (step: TradePlanStep) => void; planStatus: PlanStatusType }) {
+function ExecuteStep({ form, onSetModule, onSetStep, planStatus, executionHeadingRef }: { form: any, onSetModule: any, onSetStep: (step: TradePlanStep) => void; planStatus: PlanStatusType, executionHeadingRef: React.Ref<HTMLDivElement> }) {
     return (
          <div className="grid lg:grid-cols-2 gap-8 items-start">
              <Card className="bg-muted/30 border-border/50">
@@ -1305,7 +1305,7 @@ function ExecuteStep({ form, onSetModule, onSetStep, planStatus }: { form: any, 
                      </AlertDialog>
                 </CardContent>
             </Card>
-            <ExecutionOptions form={form} onSetModule={onSetModule} />
+            <ExecutionOptions form={form} onSetModule={onSetModule} executionHeadingRef={executionHeadingRef} />
         </div>
     );
 }
@@ -1468,7 +1468,7 @@ function ScenarioWalkthrough({ isOpen, onOpenChange, onDemoSelect }: { isOpen: b
                                 <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Alt</kbd> + <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">1/2/3</kbd> to switch steps.
                             </p>
                              <p className="text-sm text-muted-foreground mt-2">
-                                <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Ctrl</kbd> + <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Enter</kbd> to proceed.
+                                <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Ctrl</kbd> + <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Enter</kbd> to continue.
                             </p>
                         </div>
                     </div>
@@ -1491,6 +1491,9 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
     const [showValidationBanner, setShowValidationBanner] = useState(false);
     const [draftToResume, setDraftToResume] = useState<SavedDraft | null>(null);
     const [isWalkthroughOpen, setIsWalkthroughOpen] = useState(false);
+
+    const reviewHeadingRef = useRef<HTMLDivElement>(null);
+    const executionHeadingRef = useRef<HTMLDivElement>(null);
 
     const form = useForm<PlanFormValues>({
         resolver: zodResolver(planSchema),
@@ -1580,6 +1583,15 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
         };
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [toast, planContext, canProceedToReview, canProceedToExecution]);
+    
+    useEffect(() => {
+        if (currentStep === 'review' && reviewHeadingRef.current) {
+            reviewHeadingRef.current.focus();
+        }
+        if (currentStep === 'execute' && executionHeadingRef.current) {
+            executionHeadingRef.current.focus();
+        }
+    }, [currentStep]);
 
     const handleResumeDraft = () => {
         if (!draftToResume) return;
@@ -1846,8 +1858,8 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
                 <form onSubmit={form.handleSubmit(onValidSubmit, onInvalidSubmit)} className="space-y-8">
 
                     {currentStep === "plan" && <PlanStep form={form} onSetModule={onSetModule} setPlanStatus={setPlanStatus} onApplyTemplate={handleApplyTemplate} planContext={planContext} isNewUser={isNewUser} currentStep={currentStep} draftToResume={draftToResume} onResume={handleResumeDraft} onDiscard={handleDiscardDraft} />}
-                    {currentStep === "review" && <ReviewStep form={form} onSetModule={onSetModule} onSetStep={setCurrentStep} arjunFeedbackAccepted={arjunFeedbackAccepted} setArjunFeedbackAccepted={setArjunFeedbackAccepted} planStatus={planStatus} />}
-                    {currentStep === "execute" && <ExecuteStep form={form} onSetModule={onSetModule} onSetStep={setCurrentStep} planStatus={planStatus} />}
+                    {currentStep === "review" && <ReviewStep form={form} onSetModule={onSetModule} onSetStep={setCurrentStep} arjunFeedbackAccepted={arjunFeedbackAccepted} setArjunFeedbackAccepted={setArjunFeedbackAccepted} planStatus={planStatus} reviewHeadingRef={reviewHeadingRef} />}
+                    {currentStep === "execute" && <ExecuteStep form={form} onSetModule={onSetModule} onSetStep={setCurrentStep} planStatus={planStatus} executionHeadingRef={executionHeadingRef} />}
 
                      <div className="mt-8 p-4 bg-muted/20 border-t border-border/50 flex flex-col sm:flex-row items-center justify-between gap-4">
                         <p className="text-sm text-muted-foreground">Step {Object.keys(stepConfig).indexOf(currentStep) + 1} of 3: {stepConfig[currentStep].label} your trade.</p>
