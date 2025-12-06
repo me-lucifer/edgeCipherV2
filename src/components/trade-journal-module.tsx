@@ -106,7 +106,7 @@ const mockJournalEntries: JournalEntry[] = [
       timestamps: { plannedAt: new Date(Date.now() - 86400000).toISOString(), executedAt: new Date(Date.now() - 86400000).toISOString(), closedAt: new Date(Date.now() - 86400000).toISOString() },
       technical: { instrument: 'ETH-PERP', direction: 'Short', entryPrice: 3605, stopLoss: 3625, leverage: 50, positionSize: 12, riskPercent: 2, rrRatio: 1, strategy: "London Reversal" },
       planning: { planNotes: "Fading what looks like a sweep of the high.", mindset: "Anxious" },
-      review: { pnl: -240, exitPrice: 3625, emotionalNotes: "Market kept pushing, I felt like I was fighting a trend. Should have waited for more confirmation.", emotionsTags: "Anxious,Revenge", mistakesTags: "Forced Entry,Moved SL", learningNotes: "Don't fight a strong trend, even if it looks like a sweep.", newsContextTags: "" },
+      review: { pnl: -240, exitPrice: 3625, emotionalNotes: "Market kept pushing, I felt like I was fighting a trend. Should have waited for more confirmation.", emotionsTags: "Anxious,Revenge", mistakesTags: "Forced Entry,Moved SL", learningNotes: "Don't fight a strong trend, even if it looks like a sweep.", newsContextTags: "News-driven day" },
       meta: { journalingCompletedAt: new Date().toISOString() }
     },
 ];
@@ -163,6 +163,8 @@ const useJournal = () => {
 
 const presetEmotions = ["FOMO", "Fear", "Anxiety", "Overconfidence", "Revenge", "Boredom", "Calm", "Focused", "Curious"];
 const presetMistakes = ["Moved SL", "Exited early", "Exited late", "Oversized risk", "Skipped plan", "Took revenge trade", "Overtraded", "Ignored VIX / news", "None (disciplined)"];
+const presetContexts = ["News-driven day", "Major macro event", "Exchange outage/latency", "Low liquidity session", "Weekend trading", "No special context"];
+
 
 function JournalReviewForm({ entry, onSubmit }: { entry: JournalEntry; onSubmit: (values: JournalEntry) => void; }) {
     const form = useForm<JournalEntry>({
@@ -307,11 +309,53 @@ function JournalReviewForm({ entry, onSubmit }: { entry: JournalEntry; onSubmit:
                                         {...field}
                                     />
                                 </FormControl>
+                                <FormMessage />
                             </FormItem>
                         )} 
                     />
                 </div>
                 
+                 <Separator />
+
+                <div>
+                    <h4 className="font-semibold text-foreground mb-3">News &amp; Context</h4>
+                     <FormField
+                        control={form.control}
+                        name="review.newsContextTags"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormControl>
+                                    <div className="flex flex-wrap gap-2">
+                                        {presetContexts.map(context => {
+                                            const selected = (field.value || "").split(',').includes(context);
+                                            return (
+                                                <Button
+                                                    key={context}
+                                                    type="button"
+                                                    variant={selected ? "secondary" : "outline"}
+                                                    size="sm"
+                                                    className="h-8 text-xs rounded-full"
+                                                    onClick={() => {
+                                                        const currentTags = (field.value || "").split(',').filter(Boolean);
+                                                        const newTags = selected
+                                                            ? currentTags.filter(t => t !== context)
+                                                            : [...currentTags, context];
+                                                        field.onChange(newTags.join(','));
+                                                    }}
+                                                >
+                                                    {context}
+                                                </Button>
+                                            )
+                                        })}
+                                    </div>
+                                </FormControl>
+                            </FormItem>
+                        )}
+                    />
+                     <p className="text-xs text-muted-foreground mt-3">Tagging news and conditions helps separate bad decisions from bad environments.</p>
+                </div>
+
+
                  {isLosingTrade && !(form.watch('review.mistakesTags') || form.watch('review.learningNotes')) && (
                     <p className="text-xs text-amber-400">
                         Big losses rarely come from perfect execution. Consider tagging a mistake or adding a learning note if something felt off.
@@ -454,6 +498,12 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { e
                                     <div>
                                         <h4 className="font-semibold mb-2 text-sm">Learning Notes</h4>
                                         <p className="text-sm text-muted-foreground p-3 bg-muted rounded-lg border italic">"{editingEntry.review.learningNotes || "No learning notes."}"</p>
+                                    </div>
+                                     <div>
+                                        <h4 className="font-semibold mb-2 text-sm">Context Tags</h4>
+                                        <div className="flex flex-wrap gap-2">
+                                            {(editingEntry.review.newsContextTags || "None").split(',').filter(Boolean).map(tag => <Badge key={tag} variant="outline">{tag}</Badge>)}
+                                        </div>
                                     </div>
                                     <div className="pt-4">
                                         <Button className="w-full" onClick={() => discussWithArjun(editingEntry)}><Bot className="mr-2 h-4 w-4"/>Discuss with Arjun</Button>
