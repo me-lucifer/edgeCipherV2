@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Calendar, Bookmark, ArrowRight, Edit, AlertCircle, CheckCircle, Filter, X, XCircle, Circle } from "lucide-react";
+import { Bot, Calendar, Bookmark, ArrowRight, Edit, AlertCircle, CheckCircle, Filter, X, XCircle, Circle, BrainCircuit } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Calendar as CalendarComponent } from "./ui/calendar";
 import { format } from "date-fns";
@@ -406,7 +406,7 @@ function JournalReviewForm({ entry, onSubmit, onSetModule, onSaveDraft }: { entr
                         </p>
                     )}
                     <div className="flex justify-end pt-4 gap-2">
-                        <Button type="button" variant="ghost" onClick={() => onSaveDraft()}>Save and finish later</Button>
+                        <Button type="button" variant="ghost" onClick={onSaveDraft}>Save and finish later</Button>
                         <Button type="submit">Mark journal as completed</Button>
                     </div>
                      <div className="pt-4 border-t border-border/50">
@@ -467,6 +467,106 @@ function RuleAdherenceSummary({ entry }: { entry: JournalEntry }) {
     );
 }
 
+function JournalPatternsSidebar({ entries, onSetModule }: { entries: JournalEntry[]; onSetModule: TradeJournalModuleProps['onSetModule'] }) {
+    const { topEmotions, topMistakes, journalingHabits } = useMemo(() => {
+        const completed = entries.filter(e => e.status === 'completed');
+        
+        const emotionCounts = completed.flatMap(e => (e.review.emotionsTags || "").split(',').filter(Boolean))
+            .reduce((acc, tag) => ({ ...acc, [tag]: (acc[tag] || 0) + 1 }), {} as Record<string, number>);
+
+        const topEmotions = Object.entries(emotionCounts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 3)
+            .map(([tag, count]) => {
+                const wins = completed.filter(e => (e.review.emotionsTags || "").includes(tag) && e.review.pnl > 0).length;
+                const losses = completed.filter(e => (e.review.emotionsTags || "").includes(tag) && e.review.pnl < 0).length;
+                return { tag, count, wins, losses };
+            });
+
+        const mistakeCounts = completed.flatMap(e => (e.review.mistakesTags || "").split(',').filter(Boolean))
+            .reduce((acc, tag) => ({ ...acc, [tag]: (acc[tag] || 0) + 1 }), {} as Record<string, number>);
+        
+        const topMistakes = Object.entries(mistakeCounts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 3)
+            .map(([tag, count]) => ({ tag, count, avgPnl: -150 })); // Mock PnL
+
+        const totalTrades = entries.length;
+        const completedCount = completed.length;
+        const completionRate = totalTrades > 0 ? (completedCount / totalTrades) * 100 : 0;
+        
+        return { 
+            topEmotions, 
+            topMistakes, 
+            journalingHabits: {
+                completionRate: completionRate.toFixed(0),
+                total: totalTrades,
+                completed: completedCount,
+            }
+        };
+    }, [entries]);
+
+    const handleDiscussPatterns = () => {
+        const prompt = `Arjun, I notice some patterns in my trading. My most common emotions seem to be ${topEmotions.map(e => e.tag).join(', ')}, and my top mistakes are ${topMistakes.map(m => m.tag).join(', ')}. How should my Growth Plan adjust to address these?`;
+        onSetModule('aiCoaching', { initialMessage: prompt });
+    }
+
+    return (
+        <div className="lg:col-span-1 space-y-6 sticky top-24">
+            <Card className="bg-muted/30 border-border/50">
+                <CardHeader>
+                    <CardTitle className="text-base flex items-center gap-2"><BrainCircuit className="h-5 w-5" />Patterns Arjun is Watching</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <div>
+                        <h4 className="font-semibold text-foreground text-sm mb-3">Top Emotions</h4>
+                        <div className="space-y-3">
+                            {topEmotions.map(({ tag, count, wins, losses }) => (
+                                <div key={tag}>
+                                    <div className="flex justify-between items-center">
+                                        <Badge variant="outline" className="border-amber-500/30 text-amber-300">{tag}</Badge>
+                                        <span className="text-xs font-mono">{count} times</span>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground mt-1">Appears in {losses} losing and {wins} winning trades.</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    <Separator />
+                     <div>
+                        <h4 className="font-semibold text-foreground text-sm mb-3">Top Mistakes</h4>
+                        <div className="space-y-3">
+                           {topMistakes.map(({ tag, count, avgPnl }) => (
+                               <div key={tag}>
+                                    <div className="flex justify-between items-center">
+                                        <Badge variant="destructive" className="bg-red-500/20 border-red-500/30 text-red-300">{tag}</Badge>
+                                        <span className="text-xs font-mono">{count} times</span>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground mt-1">Avg result: <span className="font-mono text-red-400">${avgPnl.toFixed(2)}</span></p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    <Separator />
+                     <div>
+                        <h4 className="font-semibold text-foreground text-sm mb-3">Journaling Habits</h4>
+                         <div className="flex justify-between items-center">
+                            <p className="text-sm text-muted-foreground">Completion Rate (30d)</p>
+                            <p className="font-mono font-bold text-lg">{journalingHabits.completionRate}%</p>
+                        </div>
+                         <p className="text-xs text-muted-foreground mt-1">You've journaled {journalingHabits.completed} out of {journalingHabits.total} closed trades.</p>
+                    </div>
+
+                    <div className="pt-4">
+                        <Button variant="link" className="p-0 h-auto text-primary" onClick={handleDiscussPatterns}>
+                            Discuss these patterns with Arjun <ArrowRight className="ml-2 h-4 w-4" />
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
+    );
+}
 
 function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { entries: JournalEntry[], updateEntry: (entry: JournalEntry) => void, onSetModule: TradeJournalModuleProps['onSetModule'], initialDraftId?: string }) {
     const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);
@@ -628,117 +728,122 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { e
 
     return (
         <div className="space-y-8">
-            <Card className="bg-muted/30 border-border/50">
-                <CardHeader>
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                        <CardTitle className="flex items-center gap-2"><Filter /> Journal Filters</CardTitle>
-                        <Button variant="ghost" size="sm" onClick={clearFilters}><X className="mr-2 h-4 w-4"/>Clear Filters</Button>
-                    </div>
-                </CardHeader>
-                <CardContent className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-                     <div className="flex items-center gap-1 rounded-full bg-muted p-1">
-                        {(['today', '7d', '30d'] as const).map(range => (
-                            <Button
-                                key={range}
-                                size="sm"
-                                variant={filters.timeRange === range ? 'secondary' : 'ghost'}
-                                onClick={() => setFilters(f => ({ ...f, timeRange: range }))}
-                                className="rounded-full h-8 px-3 text-xs w-full"
-                            >
-                                {range === 'today' ? 'Today' : range.toUpperCase()}
-                            </Button>
-                        ))}
-                    </div>
-                     <div className="flex items-center gap-1 rounded-full bg-muted p-1">
-                        {(['all', 'win', 'loss'] as const).map(res => (
-                            <Button
-                                key={res}
-                                size="sm"
-                                variant={filters.result === res ? 'secondary' : 'ghost'}
-                                onClick={() => setFilters(f => ({ ...f, result: res }))}
-                                className="rounded-full h-8 px-3 text-xs w-full capitalize"
-                            >
-                                {res}
-                            </Button>
-                        ))}
-                    </div>
-                    <Select value={filters.strategy} onValueChange={(v) => setFilters(f => ({ ...f, strategy: v }))}>
-                        <SelectTrigger><SelectValue placeholder="Filter by strategy..." /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All Strategies</SelectItem>
-                            {uniqueStrats.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
-                     <Select value={filters.emotion} onValueChange={(v) => setFilters(f => ({ ...f, emotion: v }))}>
-                        <SelectTrigger><SelectValue placeholder="Filter by emotion..." /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All Emotions</SelectItem>
-                            {uniqueEmotions.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
-                     <Select value={filters.mistake} onValueChange={(v) => setFilters(f => ({ ...f, mistake: v }))}>
-                        <SelectTrigger><SelectValue placeholder="Filter by mistake..." /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All Mistakes</SelectItem>
-                            {uniqueMistakes.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
-                </CardContent>
-            </Card>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                 {filteredEntries.map(entry => (
-                    <Card key={entry.id} className="bg-muted/30 border-border/50 hover:border-primary/40 transition-colors flex flex-col">
+            <div className="grid lg:grid-cols-3 gap-8 items-start">
+                <div className="lg:col-span-2 space-y-6">
+                    <Card className="bg-muted/30 border-border/50">
                         <CardHeader>
-                            <div className="flex justify-between items-start">
-                                <div>
-                                    <h3 className={cn("font-bold text-lg", entry.status === 'completed' && (entry.review.pnl >= 0 ? 'text-green-400' : 'text-red-400'))}>
-                                        {entry.technical.instrument} &bull; {entry.status === 'completed' ? `${entry.review.pnl >= 0 ? '+' : ''}${entry.review.pnl.toFixed(2)}` : 'Pending'}
-                                    </h3>
-                                    <p className="text-sm text-muted-foreground">{entry.technical.direction}</p>
-                                </div>
-                                <Badge variant={entry.status === 'completed' ? 'secondary' : 'outline'} className={cn(
-                                    'text-xs',
-                                    entry.status === 'completed' ? 'bg-green-500/20 text-green-300 border-green-500/30' : 'border-amber-500/30 text-amber-300'
-                                )}>{entry.status}</Badge>
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                                <CardTitle className="flex items-center gap-2"><Filter /> Journal Filters</CardTitle>
+                                <Button variant="ghost" size="sm" onClick={clearFilters}><X className="mr-2 h-4 w-4"/>Clear Filters</Button>
                             </div>
-                            <CardDescription>{format(new Date(entry.timestamps.executedAt), "PPP 'at' p")}</CardDescription>
                         </CardHeader>
-                        <CardContent className="space-y-4 flex-1 flex flex-col">
-                             <div className="flex-1 space-y-2">
-                                <div className="flex flex-wrap gap-2">
-                                    {(entry.review.emotionsTags || "").split(',').filter(Boolean).map(tag => (
-                                        <Badge key={tag} variant="outline" className="text-xs border-amber-500/30 text-amber-300">{tag}</Badge>
-                                    ))}
-                                </div>
-                                 <div className="flex flex-wrap gap-2">
-                                    {(entry.review.mistakesTags || "").split(',').filter(Boolean).map(tag => (
-                                        <Badge key={tag} variant="outline" className="text-xs border-red-500/30 text-red-300">{tag}</Badge>
-                                    ))}
-                                </div>
-                            </div>
-                            <div className="flex gap-2">
-                                <Button className="w-full" variant="outline" size="sm" onClick={() => setEditingEntry(entry)}>
-                                    {entry.status === 'pending' ? 'Review' : 'View'}
-                                </Button>
-                                {entry.status === 'completed' && (
-                                    <Button className="w-full" variant="secondary" size="sm" onClick={() => discussWithArjun(entry)}>
-                                        <Bot className="mr-2 h-4 w-4" /> Discuss
+                        <CardContent className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+                            <div className="flex items-center gap-1 rounded-full bg-muted p-1">
+                                {(['today', '7d', '30d'] as const).map(range => (
+                                    <Button
+                                        key={range}
+                                        size="sm"
+                                        variant={filters.timeRange === range ? 'secondary' : 'ghost'}
+                                        onClick={() => setFilters(f => ({ ...f, timeRange: range }))}
+                                        className="rounded-full h-8 px-3 text-xs w-full"
+                                    >
+                                        {range === 'today' ? 'Today' : range.toUpperCase()}
                                     </Button>
-                                )}
+                                ))}
                             </div>
+                            <div className="flex items-center gap-1 rounded-full bg-muted p-1">
+                                {(['all', 'win', 'loss'] as const).map(res => (
+                                    <Button
+                                        key={res}
+                                        size="sm"
+                                        variant={filters.result === res ? 'secondary' : 'ghost'}
+                                        onClick={() => setFilters(f => ({ ...f, result: res }))}
+                                        className="rounded-full h-8 px-3 text-xs w-full capitalize"
+                                    >
+                                        {res}
+                                    </Button>
+                                ))}
+                            </div>
+                            <Select value={filters.strategy} onValueChange={(v) => setFilters(f => ({ ...f, strategy: v }))}>
+                                <SelectTrigger><SelectValue placeholder="Filter by strategy..." /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Strategies</SelectItem>
+                                    {uniqueStrats.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                            <Select value={filters.emotion} onValueChange={(v) => setFilters(f => ({ ...f, emotion: v }))}>
+                                <SelectTrigger><SelectValue placeholder="Filter by emotion..." /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Emotions</SelectItem>
+                                    {uniqueEmotions.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                            <Select value={filters.mistake} onValueChange={(v) => setFilters(f => ({ ...f, mistake: v }))}>
+                                <SelectTrigger><SelectValue placeholder="Filter by mistake..." /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Mistakes</SelectItem>
+                                    {uniqueMistakes.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
                         </CardContent>
                     </Card>
-                 ))}
-                 {filteredEntries.length === 0 && (
-                    <Card className="md:col-span-2 lg:col-span-3 bg-muted/30 border-border/50 text-center py-12">
-                        <CardHeader><CardTitle>No Entries Found</CardTitle></CardHeader>
-                        <CardContent>
-                            <p className="text-muted-foreground">No journal entries match your current filters.</p>
-                            <Button variant="secondary" className="mt-4" onClick={clearFilters}>Clear filters</Button>
-                        </CardContent>
-                    </Card>
-                )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                        {filteredEntries.map(entry => (
+                            <Card key={entry.id} className="bg-muted/30 border-border/50 hover:border-primary/40 transition-colors flex flex-col">
+                                <CardHeader>
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <h3 className={cn("font-bold text-lg", entry.status === 'completed' && (entry.review.pnl >= 0 ? 'text-green-400' : 'text-red-400'))}>
+                                                {entry.technical.instrument} &bull; {entry.status === 'completed' ? `${entry.review.pnl >= 0 ? '+' : ''}${entry.review.pnl.toFixed(2)}` : 'Pending'}
+                                            </h3>
+                                            <p className="text-sm text-muted-foreground">{entry.technical.direction}</p>
+                                        </div>
+                                        <Badge variant={entry.status === 'completed' ? 'secondary' : 'outline'} className={cn(
+                                            'text-xs',
+                                            entry.status === 'completed' ? 'bg-green-500/20 text-green-300 border-green-500/30' : 'border-amber-500/30 text-amber-300'
+                                        )}>{entry.status}</Badge>
+                                    </div>
+                                    <CardDescription>{format(new Date(entry.timestamps.executedAt), "PPP 'at' p")}</CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-4 flex-1 flex flex-col">
+                                    <div className="flex-1 space-y-2">
+                                        <div className="flex flex-wrap gap-2">
+                                            {(entry.review.emotionsTags || "").split(',').filter(Boolean).map(tag => (
+                                                <Badge key={tag} variant="outline" className="text-xs border-amber-500/30 text-amber-300">{tag}</Badge>
+                                            ))}
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {(entry.review.mistakesTags || "").split(',').filter(Boolean).map(tag => (
+                                                <Badge key={tag} variant="outline" className="text-xs border-red-500/30 text-red-300">{tag}</Badge>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Button className="w-full" variant="outline" size="sm" onClick={() => setEditingEntry(entry)}>
+                                            {entry.status === 'pending' ? 'Review' : 'View'}
+                                        </Button>
+                                        {entry.status === 'completed' && (
+                                            <Button className="w-full" variant="secondary" size="sm" onClick={() => discussWithArjun(entry)}>
+                                                <Bot className="mr-2 h-4 w-4" /> Discuss
+                                            </Button>
+                                        )}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ))}
+                        {filteredEntries.length === 0 && (
+                            <Card className="md:col-span-2 lg:col-span-3 bg-muted/30 border-border/50 text-center py-12">
+                                <CardHeader><CardTitle>No Entries Found</CardTitle></CardHeader>
+                                <CardContent>
+                                    <p className="text-muted-foreground">No journal entries match your current filters.</p>
+                                    <Button variant="secondary" className="mt-4" onClick={clearFilters}>Clear filters</Button>
+                                </CardContent>
+                            </Card>
+                        )}
+                    </div>
+                </div>
+                <JournalPatternsSidebar entries={entries} onSetModule={onSetModule} />
             </div>
         </div>
     )
