@@ -123,7 +123,7 @@ const mockJournalEntries: JournalEntry[] = [
     },
 ];
 
-const useJournal = () => {
+export const useJournal = () => {
     const { toast } = useToast();
     const { addLog } = useEventLog();
     const [entries, setEntries] = useState<JournalEntry[]>([]);

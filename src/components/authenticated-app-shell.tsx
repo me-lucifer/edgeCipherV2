@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useAuth } from '@/context/auth-provider';
-import { LayoutDashboard, Bot, FileText, Gauge, BarChart, Settings, HelpCircle, Bell, UserCircle, LogOut, Cpu, PanelLeft, Book, BrainCircuit, LineChart, Newspaper, Users, Sparkles, Menu, Terminal } from 'lucide-react';
+import { LayoutDashboard, Bot, FileText, Gauge, BarChart, Settings, HelpCircle, Bell, UserCircle, LogOut, Cpu, PanelLeft, Book, BrainCircuit, LineChart, Newspaper, Users, Sparkles, Menu, Terminal, AlertTriangle, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DashboardModule } from './dashboard-module';
 import {
@@ -25,7 +25,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Separator } from './ui/separator';
 import { AiCoachingModule } from './ai-coaching-module';
 import { TradePlanningModule } from './trade-planning-module';
-import { TradeJournalModule } from './trade-journal-module';
+import { TradeJournalModule, useJournal } from './trade-journal-module';
 import { PerformanceAnalyticsModule } from './performance-analytics-module';
 import { StrategyManagementModule } from './strategy-management-module';
 import { RiskCenterModule } from './risk-center-module';
@@ -332,6 +332,25 @@ function SidebarNav({ currentModule, handleSetModule, isSidebarOpen }: { current
   )
 }
 
+function PendingJournalBanner({ onOpenJournal }: { onOpenJournal: () => void }) {
+    return (
+        <div className="fixed bottom-0 left-0 right-0 z-40 bg-amber-900/90 backdrop-blur-sm border-t border-amber-500/30 text-amber-200 p-4 transform-gpu transition-all animate-in slide-in-from-bottom-12">
+            <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                    <AlertTriangle className="h-5 w-5 text-amber-400" />
+                    <div>
+                        <p className="font-semibold text-amber-300">You have unjournaled trades.</p>
+                        <p className="text-sm text-amber-300/80 hidden sm:block">Arjun recommends finishing your journal before taking new trades.</p>
+                    </div>
+                </div>
+                 <Button variant="outline" size="sm" onClick={onOpenJournal} className="bg-amber-500/20 border-amber-500/40 text-amber-200 hover:bg-amber-500/30 hover:text-amber-100">
+                    Open Trade Journal <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+            </div>
+        </div>
+    );
+}
+
 export function AuthenticatedAppShell() {
   const [currentModule, setCurrentModule] = useState<Module>('dashboard');
   const [isSidebarOpen, setSidebarOpen] = useState(true);
@@ -340,6 +359,9 @@ export function AuthenticatedAppShell() {
   const [isInitialLoading, setInitialLoading] = useState(true);
   const [isDemoHelperOpen, setDemoHelperOpen] = useState(false);
   const sequenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const { entries: journalEntries } = useJournal();
+  const hasPendingJournals = journalEntries.some(e => e.status === 'pending');
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -405,6 +427,10 @@ export function AuthenticatedAppShell() {
       // Clear context if not navigating to trade planning
       setModuleContext(current => current ? { ...current, planContext: undefined } : null);
     }
+  }
+
+  const handleOpenJournal = () => {
+    handleSetModule('tradeJournal');
   }
 
   return (
@@ -473,6 +499,7 @@ export function AuthenticatedAppShell() {
          {currentModule === 'dashboard' && !isInitialLoading && (
             <DashboardDemoHelper isOpen={isDemoHelperOpen} onOpenChange={setDemoHelperOpen} />
         )}
+        {hasPendingJournals && <PendingJournalBanner onOpenJournal={handleOpenJournal} />}
     </div>
     </TooltipProvider>
   );
