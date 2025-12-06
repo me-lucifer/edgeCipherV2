@@ -622,7 +622,6 @@ function WhatIfRiskSlider({ control, form }: { control: any; form: ReturnType<ty
     };
 
     const whatIfSizing = calculateSizing(whatIfRisk);
-    const planSizing = calculateSizing(riskPercent || 0);
     
     const handleApply = () => {
         form.setValue("riskPercent", whatIfRisk, { shouldValidate: true });
@@ -672,7 +671,7 @@ function WhatIfRiskSlider({ control, form }: { control: any; form: ReturnType<ty
     );
 }
 
-function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, planContext }: { form: any, onSetModule: any, setPlanStatus: any, onApplyTemplate: (templateId: string) => void, planContext?: TradePlanningModuleProps['planContext'] }) {
+function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, planContext, isNewUser }: { form: any, onSetModule: any, setPlanStatus: any, onApplyTemplate: (templateId: string) => void, planContext?: TradePlanningModuleProps['planContext'], isNewUser: boolean }) {
     const entryType = useWatch({ control: form.control, name: 'entryType' });
     const [selectedTemplate, setSelectedTemplate] = useState<string>(() => {
         if (typeof window !== 'undefined') {
@@ -786,7 +785,15 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, planConte
                                 <FormItem><FormLabel>Leverage</FormLabel><Select onValueChange={(v) => field.onChange(Number(v))} defaultValue={String(field.value)}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="5">5x</SelectItem><SelectItem value="10">10x</SelectItem><SelectItem value="20">20x</SelectItem><SelectItem value="50">50x</SelectItem></SelectContent></Select><FormMessage /></FormItem>
                             )}/>
                         </div>
-                         <Separator className="mt-4" />
+                        {isNewUser && (
+                             <Alert variant="default" className="mt-4 bg-muted/50 border-border/50">
+                                <Info className="h-4 w-4" />
+                                <AlertDescription className="text-xs">
+                                In the real product, this step would send orders to a testnet or paper trading account first, not a live one.
+                                </AlertDescription>
+                            </Alert>
+                        )}
+                        <Separator className="mt-4" />
                         <WhatIfRiskSlider control={form.control} form={form} />
                     </div>
 
@@ -1179,6 +1186,7 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
     const [arjunFeedbackAccepted, setArjunFeedbackAccepted] = useState(false);
     const [showTemplateOverwriteDialog, setShowTemplateOverwriteDialog] = useState(false);
     const [pendingTemplateId, setPendingTemplateId] = useState<string | null>(null);
+    const [isNewUser, setIsNewUser] = useState(false);
 
     const form = useForm<PlanFormValues>({
         resolver: zodResolver(planSchema),
@@ -1201,6 +1209,9 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
 
     useEffect(() => {
         if (typeof window !== "undefined") {
+            const scenario = localStorage.getItem('ec_demo_scenario') as DemoScenario | null;
+            setIsNewUser(scenario === 'no_positions');
+            
             const draft = localStorage.getItem("ec_trade_plan_draft");
             if (draft) {
                 try {
@@ -1312,7 +1323,7 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
     const isBannerVisible = showBanner && (planStatus === 'blocked' || planStatus === 'overridden');
 
     const stepConfig = {
-        plan: { label: "Plan", buttonText: "Proceed to Review (Step 2)", disabled: false },
+        plan: { label: "Plan", buttonText: isNewUser ? "Practice review (no real risk)" : "Proceed to Review (Step 2)", disabled: false },
         review: { label: "Review", buttonText: "Proceed to Execution (Step 3)", disabled: !canProceedToReview },
         execute: { label: "Execute", buttonText: "Execute (Prototype)", disabled: !canProceedToExecution },
     }
@@ -1359,12 +1370,22 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
                 </Alert>
             )}
 
-            <Alert variant="default" className="bg-muted/30 border-border/50">
-                <FileText className="h-4 w-4" />
-                <AlertDescription>
-                    Every trade must start here. No plan = no trade. This checklist ensures you have a reason for every action.
-                </AlertDescription>
-            </Alert>
+             {isNewUser ? (
+                <Alert variant="default" className="bg-blue-950/50 border-blue-500/30 text-blue-300">
+                    <Info className="h-4 w-4 text-blue-400" />
+                    <AlertTitle className="text-blue-400">You're in Practice Mode</AlertTitle>
+                    <AlertDescription>
+                       You have no trading history connected. Use this module to create practice plans before risking real capital.
+                    </AlertDescription>
+                </Alert>
+             ) : (
+                <Alert variant="default" className="bg-muted/30 border-border/50">
+                    <FileText className="h-4 w-4" />
+                    <AlertDescription>
+                        Every trade must start here. No plan = no trade. This checklist ensures you have a reason for every action.
+                    </AlertDescription>
+                </Alert>
+             )}
             
             <AlertDialog open={showTemplateOverwriteDialog} onOpenChange={setShowTemplateOverwriteDialog}>
                 <AlertDialogContent>
@@ -1384,7 +1405,7 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
 
-                    {currentStep === "plan" && <PlanStep form={form} onSetModule={onSetModule} setPlanStatus={setPlanStatus} onApplyTemplate={handleApplyTemplate} planContext={planContext} />}
+                    {currentStep === "plan" && <PlanStep form={form} onSetModule={onSetModule} setPlanStatus={setPlanStatus} onApplyTemplate={handleApplyTemplate} planContext={planContext} isNewUser={isNewUser} />}
                     {currentStep === "review" && <ReviewStep form={form} onSetModule={onSetModule} onSetStep={setCurrentStep} arjunFeedbackAccepted={arjunFeedbackAccepted} setArjunFeedbackAccepted={setArjunFeedbackAccepted} planStatus={planStatus} />}
                     {currentStep === "execute" && <ExecuteStep form={form} onSetModule={onSetModule} onSetStep={setCurrentStep} planStatus={planStatus} />}
 
