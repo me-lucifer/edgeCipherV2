@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Calendar, Bookmark, ArrowRight, Edit, AlertCircle, CheckCircle, Filter, X } from "lucide-react";
+import { Bot, Calendar, Bookmark, ArrowRight, Edit, AlertCircle, CheckCircle, Filter, X, XCircle } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Calendar as CalendarComponent } from "./ui/calendar";
 import { format } from "date-fns";
@@ -24,6 +24,18 @@ import { useEventLog } from "@/context/event-log-provider";
 import { ScrollArea } from "./ui/scroll-area";
 import { Separator } from "./ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+
 
 interface TradeJournalModuleProps {
     onSetModule: (module: any, context?: any) => void;
@@ -97,7 +109,7 @@ const mockJournalEntries: JournalEntry[] = [
       technical: { instrument: 'BTC-PERP', direction: 'Long', entryPrice: 68500, stopLoss: 68000, takeProfit: 69500, leverage: 20, positionSize: 0.5, riskPercent: 1, rrRatio: 2, strategy: "BTC Trend Breakout" },
       planning: { planNotes: "Clean breakout above resistance. Good follow-through.", mindset: "Confident, Calm" },
       review: { pnl: 234.75, exitPrice: 68969.5, emotionalNotes: "Felt good, stuck to the plan.", emotionsTags: "Confident,Focused", mistakesTags: "None (disciplined)", learningNotes: "Trust the plan when the setup is clean.", newsContextTags: "Post-CPI" },
-      meta: { journalingCompletedAt: new Date().toISOString() }
+      meta: { journalingCompletedAt: new Date().toISOString(), ruleAdherenceSummary: { followedEntryRules: true, movedSL: false, exitedEarly: false, rrBelowMin: false } }
     },
     {
       id: 'completed-2',
@@ -107,7 +119,7 @@ const mockJournalEntries: JournalEntry[] = [
       technical: { instrument: 'ETH-PERP', direction: 'Short', entryPrice: 3605, stopLoss: 3625, leverage: 50, positionSize: 12, riskPercent: 2, rrRatio: 1, strategy: "London Reversal" },
       planning: { planNotes: "Fading what looks like a sweep of the high.", mindset: "Anxious" },
       review: { pnl: -240, exitPrice: 3625, emotionalNotes: "Market kept pushing, I felt like I was fighting a trend. Should have waited for more confirmation.", emotionsTags: "Anxious,Revenge", mistakesTags: "Forced Entry,Moved SL", learningNotes: "Don't fight a strong trend, even if it looks like a sweep.", newsContextTags: "News-driven day" },
-      meta: { journalingCompletedAt: new Date().toISOString() }
+      meta: { journalingCompletedAt: new Date().toISOString(), ruleAdherenceSummary: { followedEntryRules: false, movedSL: true, exitedEarly: false, rrBelowMin: true } }
     },
 ];
 
@@ -175,10 +187,13 @@ const presetContexts = ["News-driven day", "Major macro event", "Exchange outage
 
 
 function JournalReviewForm({ entry, onSubmit }: { entry: JournalEntry; onSubmit: (values: JournalEntry) => void; }) {
+    const { toast } = useToast();
     const form = useForm<JournalEntry>({
       resolver: zodResolver(journalEntrySchema),
       defaultValues: entry,
     });
+    
+    const [showCompletionDialog, setShowCompletionDialog] = useState(false);
 
     const handleSubmit = (values: JournalEntry) => {
         const finalEntry: JournalEntry = {
@@ -192,190 +207,255 @@ function JournalReviewForm({ entry, onSubmit }: { entry: JournalEntry; onSubmit:
         onSubmit(finalEntry);
     };
 
+    const handleAttemptSubmit = () => {
+        const values = form.getValues();
+        const hasEmotionTag = values.review.emotionsTags && values.review.emotionsTags.trim() !== '';
+        const hasLearningNote = values.review.learningNotes && values.review.learningNotes.trim() !== '';
+
+        if (!hasEmotionTag && !hasLearningNote) {
+            setShowCompletionDialog(true);
+        } else {
+            form.handleSubmit(handleSubmit)();
+        }
+    }
+
+
     const isLosingTrade = form.getValues('review.pnl') < 0;
 
     return (
-        <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField control={form.control} name="review.pnl" render={({ field }) => (<FormItem><FormLabel>Final PnL ($)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="review.exitPrice" render={({ field }) => (<FormItem><FormLabel>Final Exit Price</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                </div>
-                 <Separator />
+        <>
+            <Form {...form}>
+                <form onSubmit={(e) => { e.preventDefault(); handleAttemptSubmit(); }} className="space-y-6">
+                    {/* Final PnL and Exit Price */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField control={form.control} name="review.pnl" render={({ field }) => (<FormItem><FormLabel>Final PnL ($)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="review.exitPrice" render={({ field }) => (<FormItem><FormLabel>Final Exit Price</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    </div>
+                    <Separator />
 
-                <div>
-                    <h4 className="font-semibold text-foreground mb-3">Emotions during this trade</h4>
-                    <FormField
-                        control={form.control}
-                        name="review.emotionsTags"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormControl>
-                                    <div className="flex flex-wrap gap-2">
-                                        {presetEmotions.map(emotion => {
-                                            const selected = (field.value || "").split(',').includes(emotion);
-                                            return (
-                                                <Button
-                                                    key={emotion}
-                                                    type="button"
-                                                    variant={selected ? "secondary" : "outline"}
-                                                    size="sm"
-                                                    className="h-8 text-xs rounded-full"
-                                                    onClick={() => {
-                                                        const currentTags = (field.value || "").split(',').filter(Boolean);
-                                                        const newTags = selected
-                                                            ? currentTags.filter(t => t !== emotion)
-                                                            : [...currentTags, emotion];
-                                                        field.onChange(newTags.join(','));
-                                                    }}
-                                                >
-                                                    {emotion}
-                                                </Button>
-                                            )
-                                        })}
-                                    </div>
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                     <FormField
-                        control={form.control}
-                        name="review.emotionalNotes"
-                        render={({ field }) => (
-                            <FormItem className="mt-4">
-                                <FormLabel className="text-xs text-muted-foreground">Emotional notes (optional but powerful)</FormLabel>
-                                <FormControl>
-                                    <Textarea placeholder="Example: ‘Got anxious when price moved against me, almost closed early.’" {...field} />
-                                </FormControl>
-                            </FormItem>
-                        )}
-                    />
-                </div>
-                 <Separator />
-
-                <div>
-                    <h4 className="font-semibold text-foreground mb-3">Mistakes (if any)</h4>
-                    <FormField
-                        control={form.control}
-                        name="review.mistakesTags"
-                        render={({ field }) => (
-                             <FormItem>
-                                <FormControl>
-                                    <div className="flex flex-wrap gap-2">
-                                        {presetMistakes.map(mistake => {
-                                            const selected = (field.value || "").split(',').includes(mistake);
-                                            return (
-                                                <Button
-                                                    key={mistake}
-                                                    type="button"
-                                                    variant={selected ? "secondary" : "outline"}
-                                                    size="sm"
-                                                    className="h-8 text-xs rounded-full"
-                                                    onClick={() => {
-                                                        let currentTags = (field.value || "").split(',').filter(Boolean);
-                                                        if (mistake === 'None (disciplined)') {
-                                                            field.onChange(selected ? '' : 'None (disciplined)');
-                                                        } else {
-                                                            currentTags = currentTags.filter(t => t !== 'None (disciplined)');
+                    {/* Emotions */}
+                    <div>
+                        <h4 className="font-semibold text-foreground mb-3">Emotions during this trade</h4>
+                        <FormField
+                            control={form.control}
+                            name="review.emotionsTags"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormControl>
+                                        <div className="flex flex-wrap gap-2">
+                                            {presetEmotions.map(emotion => {
+                                                const selected = (field.value || "").split(',').includes(emotion);
+                                                return (
+                                                    <Button
+                                                        key={emotion}
+                                                        type="button"
+                                                        variant={selected ? "secondary" : "outline"}
+                                                        size="sm"
+                                                        className="h-8 text-xs rounded-full"
+                                                        onClick={() => {
+                                                            const currentTags = (field.value || "").split(',').filter(Boolean);
                                                             const newTags = selected
-                                                                ? currentTags.filter(t => t !== mistake)
-                                                                : [...currentTags, mistake];
+                                                                ? currentTags.filter(t => t !== emotion)
+                                                                : [...currentTags, emotion];
                                                             field.onChange(newTags.join(','));
-                                                        }
-                                                    }}
-                                                >
-                                                    {mistake}
-                                                </Button>
-                                            )
-                                        })}
-                                    </div>
-                                </FormControl>
-                                <p className="text-xs text-muted-foreground mt-3">Be honest here. These tags help Arjun and Performance Analytics show you patterns later.</p>
-                            </FormItem>
-                        )}
-                    />
-                </div>
-                <Separator />
-                
-                <div>
-                    <FormLabel>What did you learn from this trade?</FormLabel>
-                    <ul className="text-xs text-muted-foreground list-disc list-inside space-y-1 my-2">
-                        <li>What would you repeat next time?</li>
-                        <li>What would you avoid next time?</li>
-                        <li>Did you follow your plan, or adjust mid-trade?</li>
-                    </ul>
-                    <FormField 
-                        control={form.control} 
-                        name="review.learningNotes" 
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormControl>
-                                    <Textarea
-                                        placeholder="Example: ‘I respected my SL but rushed my TP. Next time I’ll keep a partial position for the original target.’"
-                                        className="min-h-[100px]"
-                                        {...field}
-                                    />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )} 
-                    />
-                </div>
-                
-                 <Separator />
+                                                        }}
+                                                    >
+                                                        {emotion}
+                                                    </Button>
+                                                )
+                                            })}
+                                        </div>
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="review.emotionalNotes"
+                            render={({ field }) => (
+                                <FormItem className="mt-4">
+                                    <FormLabel className="text-xs text-muted-foreground">Emotional notes (optional but powerful)</FormLabel>
+                                    <FormControl>
+                                        <Textarea placeholder="Example: ‘Got anxious when price moved against me, almost closed early.’" {...field} />
+                                    </FormControl>
+                                </FormItem>
+                            )}
+                        />
+                    </div>
+                    <Separator />
 
-                <div>
-                    <h4 className="font-semibold text-foreground mb-3">News &amp; Context</h4>
-                     <FormField
-                        control={form.control}
-                        name="review.newsContextTags"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormControl>
-                                    <div className="flex flex-wrap gap-2">
-                                        {presetContexts.map(context => {
-                                            const selected = (field.value || "").split(',').includes(context);
-                                            return (
-                                                <Button
-                                                    key={context}
-                                                    type="button"
-                                                    variant={selected ? "secondary" : "outline"}
-                                                    size="sm"
-                                                    className="h-8 text-xs rounded-full"
-                                                    onClick={() => {
-                                                        const currentTags = (field.value || "").split(',').filter(Boolean);
-                                                        const newTags = selected
-                                                            ? currentTags.filter(t => t !== context)
-                                                            : [...currentTags, context];
-                                                        field.onChange(newTags.join(','));
-                                                    }}
-                                                >
-                                                    {context}
-                                                </Button>
-                                            )
-                                        })}
-                                    </div>
-                                </FormControl>
-                            </FormItem>
-                        )}
-                    />
-                     <p className="text-xs text-muted-foreground mt-3">Tagging news and conditions helps separate bad decisions from bad environments.</p>
-                </div>
+                    {/* Mistakes */}
+                    <div>
+                        <h4 className="font-semibold text-foreground mb-3">Mistakes (if any)</h4>
+                        <FormField
+                            control={form.control}
+                            name="review.mistakesTags"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormControl>
+                                        <div className="flex flex-wrap gap-2">
+                                            {presetMistakes.map(mistake => {
+                                                const selected = (field.value || "").split(',').includes(mistake);
+                                                return (
+                                                    <Button
+                                                        key={mistake}
+                                                        type="button"
+                                                        variant={selected ? "secondary" : "outline"}
+                                                        size="sm"
+                                                        className="h-8 text-xs rounded-full"
+                                                        onClick={() => {
+                                                            let currentTags = (field.value || "").split(',').filter(Boolean);
+                                                            if (mistake === 'None (disciplined)') {
+                                                                field.onChange(selected ? '' : 'None (disciplined)');
+                                                            } else {
+                                                                currentTags = currentTags.filter(t => t !== 'None (disciplined)');
+                                                                const newTags = selected
+                                                                    ? currentTags.filter(t => t !== mistake)
+                                                                    : [...currentTags, mistake];
+                                                                field.onChange(newTags.join(','));
+                                                            }
+                                                        }}
+                                                    >
+                                                        {mistake}
+                                                    </Button>
+                                                )
+                                            })}
+                                        </div>
+                                    </FormControl>
+                                    <p className="text-xs text-muted-foreground mt-3">Be honest here. These tags help Arjun and Performance Analytics show you patterns later.</p>
+                                </FormItem>
+                            )}
+                        />
+                    </div>
+                    <Separator />
 
+                    {/* Learning Notes */}
+                    <div>
+                        <FormLabel>What did you learn from this trade?</FormLabel>
+                        <ul className="text-xs text-muted-foreground list-disc list-inside space-y-1 my-2">
+                            <li>What would you repeat next time?</li>
+                            <li>What would you avoid next time?</li>
+                            <li>Did you follow your plan, or adjust mid-trade?</li>
+                        </ul>
+                        <FormField
+                            control={form.control}
+                            name="review.learningNotes"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormControl>
+                                        <Textarea
+                                            placeholder="Example: ‘I respected my SL but rushed my TP. Next time I’ll keep a partial position for the original target.’"
+                                            className="min-h-[100px]"
+                                            {...field}
+                                        />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </div>
+                    <Separator />
 
-                 {isLosingTrade && !(form.watch('review.mistakesTags') || form.watch('review.learningNotes')) && (
-                    <p className="text-xs text-amber-400">
-                        Big losses rarely come from perfect execution. Consider tagging a mistake or adding a learning note if something felt off.
-                    </p>
-                )}
-                 <div className="flex justify-end pt-4">
-                    <Button type="submit">Mark Journal as Completed</Button>
-                </div>
-            </form>
-        </Form>
+                    {/* Context */}
+                    <div>
+                        <h4 className="font-semibold text-foreground mb-3">News &amp; Context</h4>
+                         <FormField
+                            control={form.control}
+                            name="review.newsContextTags"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormControl>
+                                        <div className="flex flex-wrap gap-2">
+                                            {presetContexts.map(context => {
+                                                const selected = (field.value || "").split(',').includes(context);
+                                                return (
+                                                    <Button
+                                                        key={context}
+                                                        type="button"
+                                                        variant={selected ? "secondary" : "outline"}
+                                                        size="sm"
+                                                        className="h-8 text-xs rounded-full"
+                                                        onClick={() => {
+                                                            const currentTags = (field.value || "").split(',').filter(Boolean);
+                                                            const newTags = selected
+                                                                ? currentTags.filter(t => t !== context)
+                                                                : [...currentTags, context];
+                                                            field.onChange(newTags.join(','));
+                                                        }}
+                                                    >
+                                                        {context}
+                                                    </Button>
+                                                )
+                                            })}
+                                        </div>
+                                    </FormControl>
+                                </FormItem>
+                            )}
+                        />
+                         <p className="text-xs text-muted-foreground mt-3">Tagging news and conditions helps separate bad decisions from bad environments.</p>
+                    </div>
+
+                    {isLosingTrade && !(form.watch('review.mistakesTags') || form.watch('review.learningNotes')) && (
+                        <p className="text-xs text-amber-400">
+                            Big losses rarely come from perfect execution. Consider tagging a mistake or adding a learning note if something felt off.
+                        </p>
+                    )}
+                    <div className="flex justify-end pt-4 gap-2">
+                        <Button type="button" variant="ghost" onClick={() => updateEntry(form.getValues())}>Save and finish later</Button>
+                        <Button type="submit">Mark journal as completed</Button>
+                    </div>
+                </form>
+            </Form>
+            <AlertDialog open={showCompletionDialog} onOpenChange={setShowCompletionDialog}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Journal is Empty</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This journal entry has no psychological notes. Are you sure you want to mark it as completed?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => form.handleSubmit(handleSubmit)()}>Yes, complete</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </>
     );
 }
+
+const RuleAdherenceCheck = ({ label, passed, note }: { label: string; passed: boolean; note?: string }) => (
+    <div className="flex items-center gap-2 text-sm">
+        {passed ? <CheckCircle className="h-4 w-4 text-green-500" /> : <XCircle className="h-4 w-4 text-red-500" />}
+        <span className={cn(passed ? 'text-muted-foreground' : 'text-foreground font-medium')}>{label}</span>
+    </div>
+);
+
+function RuleAdherenceSummary({ entry }: { entry: JournalEntry }) {
+    const summary = entry.meta.ruleAdherenceSummary || {};
+    const mistakes = entry.review.mistakesTags || "";
+
+    const checks = [
+        { label: "Followed Entry Rules", passed: summary.followedEntryRules ?? true, note: "" },
+        { label: "Stop Loss Respected", passed: !mistakes.includes("Moved SL"), note: "" },
+        { label: "R:R Met Minimum", passed: !summary.rrBelowMin, note: "" },
+        { label: "Risk Within Limits", passed: entry.technical.riskPercent <= 2, note: "" }, // Mocking threshold
+    ];
+
+    return (
+        <div>
+            <h4 className="text-sm font-semibold text-foreground mb-3">Rule Adherence Summary</h4>
+            <div className="space-y-3">
+                {checks.map((check, i) => <RuleAdherenceCheck key={i} {...check} />)}
+            </div>
+            <p className="text-xs text-muted-foreground/80 mt-4">
+                These flags help you see whether you broke your own rules on this trade.
+            </p>
+        </div>
+    );
+}
+
 
 function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { entries: JournalEntry[], updateEntry: (entry: JournalEntry) => void, onSetModule: TradeJournalModuleProps['onSetModule'], initialDraftId?: string }) {
     const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);
@@ -472,6 +552,8 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { e
                                     </div>
                                 </div>
                             </div>
+                             <Separator />
+                            <RuleAdherenceSummary entry={editingEntry} />
                         </CardContent>
                     </Card>
                     
@@ -697,8 +779,16 @@ export function TradeJournalModule({ onSetModule, draftId }: TradeJournalModuleP
      useEffect(() => {
         if (draftId) {
             setActiveTab('all');
+        } else {
+            // If there are no pending drafts, default to the 'all' tab
+            const hasPending = entries.some(e => e.status === 'pending');
+            if (!hasPending) {
+                setActiveTab('all');
+            }
         }
-    }, [draftId]);
+    }, [draftId, entries]);
+
+    const pendingCount = useMemo(() => entries.filter(e => e.status === 'pending').length, [entries]);
 
     return (
         <div className="space-y-8">
@@ -708,7 +798,10 @@ export function TradeJournalModule({ onSetModule, draftId }: TradeJournalModuleP
             </div>
              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto md:mx-0">
-                    <TabsTrigger value="pending">Pending Review ({entries.filter(e => e.status === 'pending').length})</TabsTrigger>
+                    <TabsTrigger value="pending">
+                        Pending Review 
+                        {pendingCount > 0 && <Badge className="ml-2 bg-amber-500/80 text-white">{pendingCount}</Badge>}
+                    </TabsTrigger>
                     <TabsTrigger value="all">All Trades &amp; Filters</TabsTrigger>
                 </TabsList>
                 <TabsContent value="pending" className="pt-6">
