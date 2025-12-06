@@ -1454,11 +1454,22 @@ function ScenarioWalkthrough({ isOpen, onOpenChange, onDemoSelect }: { isOpen: b
                         ))}
                     </div>
                      <Separator />
-                     <div className="text-center">
-                        <h3 className="font-semibold text-foreground mb-4">Try a demo scenario</h3>
-                        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                            <Button onClick={() => onDemoSelect('conservative')}>Demo: Conservative Plan</Button>
-                            <Button variant="outline" onClick={() => onDemoSelect('risky')}>Demo: Risky Plan (breaks rules)</Button>
+                     <div className="grid md:grid-cols-2 gap-6">
+                        <div className="text-center">
+                            <h3 className="font-semibold text-foreground mb-4">Try a demo scenario</h3>
+                            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                                <Button onClick={() => onDemoSelect('conservative')}>Demo: Conservative Plan</Button>
+                                <Button variant="outline" onClick={() => onDemoSelect('risky')}>Demo: Risky Plan (breaks rules)</Button>
+                            </div>
+                        </div>
+                        <div className="text-center md:text-left">
+                            <h3 className="font-semibold text-foreground mb-4">Power-user Shortcuts</h3>
+                             <p className="text-sm text-muted-foreground">
+                                <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Alt</kbd> + <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">1/2/3</kbd> to switch steps.
+                            </p>
+                             <p className="text-sm text-muted-foreground mt-2">
+                                <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Ctrl</kbd> + <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Enter</kbd> to proceed.
+                            </p>
                         </div>
                     </div>
                 </CardContent>
@@ -1501,6 +1512,9 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
         mode: "onBlur",
     });
 
+    const canProceedToReview = planStatus !== 'incomplete' && (planStatus !== 'blocked' || (form.getValues('justification') && (form.getValues('justification')?.length || 0) > 0));
+    const canProceedToExecution = canProceedToReview && arjunFeedbackAccepted;
+
     useEffect(() => {
         const timer = setTimeout(() => {
             setIsPlanningLoading(false);
@@ -1541,9 +1555,31 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
             }
         }
 
-        return () => clearTimeout(timer);
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.altKey) {
+                e.preventDefault();
+                if (e.key === '1') setCurrentStep('plan');
+                if (e.key === '2' && canProceedToReview) setCurrentStep('review');
+                if (e.key === '3' && canProceedToExecution) setCurrentStep('execute');
+            }
+
+            if (e.ctrlKey || e.metaKey) {
+                if (e.key === 'Enter') {
+                    if (document.activeElement?.tagName === 'TEXTAREA') return;
+                    e.preventDefault();
+                    form.handleSubmit(onValidSubmit, onInvalidSubmit)();
+                }
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+
+        return () => {
+            clearTimeout(timer);
+            window.removeEventListener('keydown', handleKeyDown);
+        };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [toast, planContext]);
+    }, [toast, planContext, canProceedToReview, canProceedToExecution]);
 
     const handleResumeDraft = () => {
         if (!draftToResume) return;
@@ -1685,8 +1721,6 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
         }
     }
 
-    const canProceedToReview = planStatus !== 'incomplete' && (planStatus !== 'blocked' || (justificationValue && justificationValue.length > 0));
-    const canProceedToExecution = canProceedToReview && arjunFeedbackAccepted;
     
     const isProceedDisabled = currentStep === 'plan' ? !canProceedToReview :
                               currentStep === 'review' ? !canProceedToExecution :
