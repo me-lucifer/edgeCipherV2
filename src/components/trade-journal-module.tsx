@@ -771,6 +771,54 @@ function PendingReviewTab({ entries, onSetModule }: { entries: JournalEntry[], o
     )
 }
 
+function ArjunJournalSummary({ entries }: { entries: JournalEntry[] }) {
+    const { pendingCount, completedLast7Days, message } = useMemo(() => {
+        const pendingCount = entries.filter(e => e.status === 'pending').length;
+        const now = new Date();
+        const sevenDaysAgo = now.getTime() - 7 * 24 * 60 * 60 * 1000;
+        
+        const completedLast7Days = entries.filter(e => 
+            e.status === 'completed' &&
+            e.meta.journalingCompletedAt &&
+            new Date(e.meta.journalingCompletedAt).getTime() >= sevenDaysAgo
+        ).length;
+
+        let message = "You're journaling consistently. This is how pros think.";
+        if (pendingCount > 0) {
+            message = "You have journal work waiting. Complete pending reviews before your next session to stay sharp.";
+        } else if (completedLast7Days === 0 && entries.some(e => e.status === 'completed')) {
+            message = "You’re trading but not journaling. That’s a leak in your edge.";
+        } else if (completedLast7Days === 0 && entries.length === 0) {
+            message = "Plan and execute trades to start building your journal.";
+        }
+        
+        return { pendingCount, completedLast7Days, message };
+    }, [entries]);
+
+    return (
+        <Card className="bg-muted/30 border-primary/20">
+            <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-start gap-4">
+                    <Bot className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
+                    <div>
+                        <h3 className="font-semibold text-foreground">Arjun's view on your journaling</h3>
+                        <p className="text-sm text-muted-foreground">{message}</p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-6 text-sm font-mono self-start sm:self-center ml-10 sm:ml-0">
+                    <div>
+                        <p className="text-xs text-muted-foreground">Completed (7D)</p>
+                        <p className="font-bold text-lg text-foreground">{completedLast7Days}</p>
+                    </div>
+                    <div>
+                        <p className="text-xs text-muted-foreground">Pending</p>
+                        <p className="font-bold text-lg text-amber-400">{pendingCount}</p>
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
 
 export function TradeJournalModule({ onSetModule, draftId }: TradeJournalModuleProps) {
     const { entries, updateEntry } = useJournal();
@@ -796,6 +844,9 @@ export function TradeJournalModule({ onSetModule, draftId }: TradeJournalModuleP
                 <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-3 justify-center md:justify-start"><Bookmark className="h-6 w-6"/>Trade Journal</h1>
                 <p className="text-muted-foreground mt-2">Low-effort trade logging. High-impact psychology.</p>
             </div>
+            
+            <ArjunJournalSummary entries={entries} />
+
              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto md:mx-0">
                     <TabsTrigger value="pending">
