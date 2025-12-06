@@ -186,7 +186,7 @@ const presetMistakes = ["Moved SL", "Exited early", "Exited late", "Oversized ri
 const presetContexts = ["News-driven day", "Major macro event", "Exchange outage/latency", "Low liquidity session", "Weekend trading", "No special context"];
 
 
-function JournalReviewForm({ entry, onSubmit }: { entry: JournalEntry; onSubmit: (values: JournalEntry) => void; }) {
+function JournalReviewForm({ entry, onSubmit, onSetModule, onSaveDraft }: { entry: JournalEntry; onSubmit: (values: JournalEntry) => void; onSetModule: TradeJournalModuleProps['onSetModule'], onSaveDraft: () => void }) {
     const { toast } = useToast();
     const form = useForm<JournalEntry>({
       resolver: zodResolver(journalEntrySchema),
@@ -219,6 +219,10 @@ function JournalReviewForm({ entry, onSubmit }: { entry: JournalEntry; onSubmit:
         }
     }
 
+    const discussWithArjun = (entry: JournalEntry) => {
+        const question = `Arjun, can we review this trade? ${entry.technical.direction} ${entry.technical.instrument} on ${format(new Date(entry.timestamps.executedAt), "PPP")}. The result was a ${entry.review.pnl > 0 ? 'win' : 'loss'} of $${Math.abs(entry.review.pnl)}. My notes say: "${entry.planning.planNotes}". What can I learn from this?`;
+        onSetModule('aiCoaching', { initialMessage: question });
+    }
 
     const isLosingTrade = form.getValues('review.pnl') < 0;
 
@@ -402,8 +406,11 @@ function JournalReviewForm({ entry, onSubmit }: { entry: JournalEntry; onSubmit:
                         </p>
                     )}
                     <div className="flex justify-end pt-4 gap-2">
-                        <Button type="button" variant="ghost" onClick={() => updateEntry(form.getValues())}>Save and finish later</Button>
+                        <Button type="button" variant="ghost" onClick={() => onSaveDraft()}>Save and finish later</Button>
                         <Button type="submit">Mark journal as completed</Button>
+                    </div>
+                     <div className="pt-4 border-t border-border/50">
+                        <Button className="w-full" variant="outline" onClick={() => discussWithArjun(form.getValues())}><Bot className="mr-2 h-4 w-4"/>Discuss this trade with Arjun</Button>
                     </div>
                 </form>
             </Form>
@@ -568,10 +575,18 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { e
                         </CardHeader>
                         <CardContent>
                             {editingEntry.status === 'pending' ? (
-                                <JournalReviewForm entry={editingEntry} onSubmit={(values) => {
-                                    updateEntry(values);
-                                    setEditingEntry(null);
-                                }} />
+                                <JournalReviewForm 
+                                    entry={editingEntry} 
+                                    onSubmit={(values) => {
+                                        updateEntry(values);
+                                        setEditingEntry(null);
+                                    }} 
+                                    onSetModule={onSetModule}
+                                    onSaveDraft={() => {
+                                        updateEntry(editingEntry);
+                                        setEditingEntry(null);
+                                    }}
+                                />
                             ) : (
                                 <div className="space-y-6">
                                      <div className="flex justify-between font-mono text-sm"><span className="text-muted-foreground">Final PnL:</span> <span className={cn(editingEntry.review.pnl >= 0 ? 'text-green-400' : 'text-red-400')}>{editingEntry.review.pnl >= 0 ? '+' : ''}{editingEntry.review.pnl.toFixed(2)}$</span></div>
@@ -740,8 +755,8 @@ function getReviewPriority(entry: JournalEntry): ReviewPriority {
     let priority: Priority = 'Low';
 
     const potentialLoss = (entry.technical.riskPercent / 100) * 10000; // Mocking 10k capital
-    const rValue = Math.abs(potentialLoss / (entry.technical.entryPrice - entry.technical.stopLoss));
-    const potentialLossInR = entry.technical.riskPercent * rValue / 100;
+    const rValue = (entry.technical.entryPrice && entry.technical.stopLoss) ? Math.abs(potentialLoss / (entry.technical.entryPrice - entry.technical.stopLoss)) : 0;
+    const potentialLossInR = rValue > 0 ? entry.technical.riskPercent * rValue / 100 : 0;
     
     if (potentialLossInR > 2) {
         reasons.push('Big loss');
@@ -753,9 +768,6 @@ function getReviewPriority(entry: JournalEntry): ReviewPriority {
         if (priority !== 'High') priority = 'High';
     }
     
-    // In a real app, we'd check `entry.meta.ruleAdherenceSummary`
-    // but for drafts, we check the justification.
-
     if (priority === 'Low' && (entry.planning.mindset || "").toLowerCase().includes("anxious")) {
         reasons.push('Emotional trade');
         priority = 'Medium';
@@ -941,5 +953,3 @@ export function TradeJournalModule({ onSetModule, draftId }: TradeJournalModuleP
         </div>
     );
 }
-
-    
