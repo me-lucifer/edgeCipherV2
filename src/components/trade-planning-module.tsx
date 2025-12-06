@@ -27,6 +27,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useEventLog } from "@/context/event-log-provider";
 import { Slider } from "./ui/slider";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "./ui/drawer";
+import { Skeleton } from "./ui/skeleton";
 
 
 interface TradePlanningModuleProps {
@@ -638,7 +639,7 @@ function PlanSummary({ control, setPlanStatus, onSetModule }: { control: any, se
                     <div className="space-y-2">
                         <SummaryRow label="Pair / Direction" value={<span className={isLong ? 'text-green-400' : 'text-red-400'}>{instrument || '-'} {direction}</span>} />
                         <SummaryRow label="Entry Price" value={entryPrice && Number(entryPrice) > 0 ? Number(entryPrice).toFixed(4) : '-'} />
-                        <SummaryRow label="Stop Loss" value={isSlSet ? Number(stopLoss).toFixed(4) : <span className="text-red-400">Not set</span>} />
+                        <SummaryRow label="Stop Loss (your promised exit)" value={isSlSet ? Number(stopLoss).toFixed(4) : <span className="text-red-400">Not set</span>} />
                         <SummaryRow label="Take Profit" value={isTpSet ? Number(takeProfit).toFixed(4) : 'Not set'} />
                     </div>
                 </div>
@@ -872,7 +873,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, planConte
                             <div />
                             <FormField control={form.control} name="stopLoss" render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Stop Loss Price (SL)*</FormLabel>
+                                    <FormLabel>Stop Loss Price (your promised exit)*</FormLabel>
                                     <FormControl><Input type="number" placeholder="0.00" {...field} value={field.value || ''} /></FormControl>
                                     <FormDescription className="text-xs">Your invalidation point. Where you promise to exit if wrong.</FormDescription>
                                     <FormMessage />
@@ -896,7 +897,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, planConte
                                 <FormItem><FormLabel>Account Capital ($)</FormLabel><FormControl><Input type="number" placeholder="10000" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                             )}/>
                             <FormField control={form.control} name="riskPercent" render={({ field }) => (
-                                <FormItem><FormLabel>Risk Per Trade (% of account)</FormLabel><FormControl><Input type="number" placeholder="1" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>Risk per Trade (% of account)</FormLabel><FormControl><Input type="number" placeholder="1" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                             )}/>
                             <FormField control={form.control} name="leverage" render={({ field }) => (
                                 <FormItem><FormLabel>Leverage</FormLabel><Select onValueChange={(v) => field.onChange(Number(v))} defaultValue={String(field.value)}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="5">5x</SelectItem><SelectItem value="10">10x</SelectItem><SelectItem value="20">20x</SelectItem><SelectItem value="50">50x</SelectItem></SelectContent></Select><FormMessage /></FormItem>
@@ -1219,7 +1220,7 @@ function ExecutionOptions({ form, onSetModule }: { form: any, onSetModule: (modu
                         <div className="flex justify-between"><span className="text-muted-foreground">Order type:</span><span className="font-mono">{executionType}</span></div>
                         <div className="flex justify-between"><span className="text-muted-foreground">Quantity:</span><span className="font-mono">{positionSize.toFixed(4)}</span></div>
                         <div className="flex justify-between"><span className="text-muted-foreground">Exchange:</span><span className="font-mono">Delta (mock)</span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">Estimated risk:</span><span className="font-mono">${potentialLoss.toFixed(2)}</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Estimated risk:</span><span className="font-mono text-red-400">${potentialLoss.toFixed(2)}</span></div>
                     </div>
                      <Alert variant="default" className="mt-4 bg-muted/50 border-border/50">
                         <Info className="h-4 w-4" />
@@ -1354,8 +1355,34 @@ function PlanSnapshot({ form, onSetStep }: { form: any; onSetStep: (step: TradeP
     );
 }
 
+function TradePlanningSkeleton() {
+    return (
+        <div className="space-y-8 animate-pulse">
+             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                    <Skeleton className="h-8 w-64" />
+                    <Skeleton className="h-5 w-80 mt-2" />
+                </div>
+                <Skeleton className="h-10 w-48" />
+            </div>
+            <Skeleton className="h-16 w-full" />
+             <div className="grid lg:grid-cols-3 gap-8 items-start">
+                <div className="lg:col-span-2 space-y-6">
+                    <Skeleton className="h-96 w-full" />
+                    <Skeleton className="h-64 w-full" />
+                </div>
+                 <div className="lg:col-span-1 space-y-6">
+                    <Skeleton className="h-64 w-full" />
+                    <Skeleton className="h-96 w-full" />
+                </div>
+            </div>
+        </div>
+    );
+}
+
 export function TradePlanningModule({ onSetModule, planContext }: TradePlanningModuleProps) {
     const { toast } = useToast();
+    const [isPlanningLoading, setIsPlanningLoading] = useState(true);
     const [planStatus, setPlanStatus] = useState<PlanStatusType>("incomplete");
     const [showBanner, setShowBanner] = useState(true);
     const [currentStep, setCurrentStep] = useState<TradePlanStep>("plan");
@@ -1376,14 +1403,18 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
             instrument: "",
             notes: "",
             justification: "",
-            entryPrice: 0,
-            stopLoss: 0,
-            takeProfit: 0,
+            entryPrice: '' as unknown as number, // Controlled input
+            stopLoss: '' as unknown as number,
+            takeProfit: '' as unknown as number,
             mindset: "",
         },
     });
 
     useEffect(() => {
+        const timer = setTimeout(() => {
+            setIsPlanningLoading(false);
+        }, 1000);
+
         if (typeof window !== "undefined") {
             const scenario = localStorage.getItem('ec_demo_scenario') as DemoScenario | null;
             setIsNewUser(scenario === 'no_positions');
@@ -1413,6 +1444,8 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
               });
             }
         }
+
+        return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [form, toast, planContext]);
     
@@ -1423,7 +1456,7 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
         const defaultValues = {
             direction: "Long", entryType: "Limit", leverage: 10, accountCapital: 10000,
             riskPercent: 1, strategyId: '', instrument: "", notes: "", justification: "",
-            entryPrice: 0, stopLoss: 0, takeProfit: 0, mindset: ""
+            entryPrice: '' as unknown as number, stopLoss: '' as unknown as number, takeProfit: '' as unknown as number, mindset: ""
         };
 
         form.reset({
@@ -1504,6 +1537,10 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
         execute: { label: "Execute", buttonText: "Execute (Prototype)", disabled: !canProceedToExecution },
     }
     
+    if (isPlanningLoading) {
+        return <TradePlanningSkeleton />;
+    }
+
     return (
         <div className="space-y-8">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
