@@ -421,7 +421,7 @@ function PriceLadder({ direction, entryPrice, stopLoss, takeProfit }: { directio
 
     const markers = [
         { price: entryPrice, label: "Entry", color: "bg-primary", dist: "" },
-        { price: stopLoss, label: "SL", color: "bg-red-500", dist: `-${slDistPercent}%` },
+        { price: stopLoss, label: "SL", color: "bg-destructive", dist: `-${slDistPercent}%` },
     ];
 
     if (takeProfit) {
@@ -645,7 +645,7 @@ function PlanSummary({ control, setPlanStatus, onSetModule }: { control: any, se
                     <div className="space-y-2">
                         <SummaryRow label="Pair / Direction" value={<span className={isLong ? 'text-green-400' : 'text-red-400'}>{instrument || '-'} {direction}</span>} />
                         <SummaryRow label="Entry Price" value={entryPrice && Number(entryPrice) > 0 ? Number(entryPrice).toFixed(4) : '-'} />
-                        <SummaryRow label="Stop Loss (your promised exit)" value={isSlSet ? Number(stopLoss).toFixed(4) : <span className="text-red-400">Not set</span>} />
+                        <SummaryRow label="Stop Loss (your promised exit)" value={isSlSet ? Number(stopLoss).toFixed(4) : <span className="text-destructive">Not set</span>} />
                         <SummaryRow label="Take Profit" value={isTpSet ? Number(takeProfit).toFixed(4) : 'Not set'} />
                     </div>
                 </div>
@@ -660,7 +660,7 @@ function PlanSummary({ control, setPlanStatus, onSetModule }: { control: any, se
                         <div className="space-y-2">
                              <SummaryRow label="R:R Ratio" value={summary.rrr > 0 ? `${summary.rrr.toFixed(2)} : 1` : '-'} className={summary.rrr > 0 ? (summary.rrr < 1.5 ? 'text-amber-400' : 'text-green-400') : ''} />
                              <SummaryRow label="Position Size" value={summary.positionSize > 0 ? `${summary.positionSize.toFixed(4)} ${instrument?.replace('-PERP','').replace('USDT','')} ` : '-'} />
-                             <SummaryRow label="Potential Loss" value={`-$${summary.potentialLoss > 0 ? summary.potentialLoss.toFixed(2) : '0.00'}`} className="text-red-400" />
+                             <SummaryRow label="Potential Loss" value={`-$${summary.potentialLoss > 0 ? summary.potentialLoss.toFixed(2) : '0.00'}`} className="text-destructive" />
                              <SummaryRow label="Potential Profit" value={`+$${summary.potentialProfit > 0 ? summary.potentialProfit.toFixed(2) : '0.00'}`} className="text-green-400" />
                         </div>
                     ) : (
@@ -687,17 +687,17 @@ function PlanSummary({ control, setPlanStatus, onSetModule }: { control: any, se
                         control={control}
                         name="justification"
                         render={({ field }) => (
-                            <FormItem className="p-4 bg-red-950/50 border border-red-500/20 rounded-lg">
-                                <FormLabel className="text-red-400">Justification to Override Rules</FormLabel>
+                            <FormItem className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+                                <FormLabel className="text-destructive">Justification to Override Rules</FormLabel>
                                 <FormControl>
                                     <Textarea
                                         placeholder="Why is this trade worth making despite rule violations? This will be logged."
-                                        className="bg-background/50 border-red-500/30 focus-visible:ring-red-500"
+                                        className="bg-background/50 border-destructive/30 focus-visible:ring-destructive"
                                         {...field}
                                     />
                                 </FormControl>
-                                <p className="text-xs text-red-400/80">You are breaking your own rules. Explain why you want to proceed.</p>
-                                <FormMessage className="text-red-400" />
+                                <p className="text-xs text-destructive/80">You are breaking your own rules. Explain why you want to proceed.</p>
+                                <FormMessage className="text-destructive" />
                             </FormItem>
                         )}
                     />
@@ -771,7 +771,7 @@ function WhatIfRiskSlider({ control, form }: { control: any; form: ReturnType<ty
                 <p>At <span className="font-bold text-primary">{whatIfRisk}%</span> risk:</p>
                 <ul className="text-xs text-muted-foreground mt-1">
                     <li>Position Size: <span className="font-mono">{whatIfSizing.size.toFixed(4)}</span></li>
-                    <li>Dollar Risk: <span className="font-mono text-red-400">-${whatIfSizing.loss.toFixed(2)}</span></li>
+                    <li>Dollar Risk: <span className="font-mono text-destructive">-${whatIfSizing.loss.toFixed(2)}</span></li>
                 </ul>
             </div>
              <div className="flex gap-2">
@@ -871,14 +871,14 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, planConte
                                 )}/>
                                 <FormField control={form.control} name="direction" render={({ field }) => (
                                     <FormItem><FormLabel>Direction</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} value={field.value} className="flex pt-2 gap-4">
-                                    <Label className="flex items-center gap-2 p-2 rounded-md border border-transparent has-[:checked]:border-primary/50 has-[:checked]:bg-primary/5 cursor-pointer"><FormControl><RadioGroupItem value="Long" /></FormControl><span>Long</span></Label>
-                                    <Label className="flex items-center gap-2 p-2 rounded-md border border-transparent has-[:checked]:border-primary/50 has-[:checked]:bg-primary/5 cursor-pointer"><FormControl><RadioGroupItem value="Short" /></FormControl><span>Short</span></Label>
+                                    <Label className="flex items-center gap-2 p-2 h-10 rounded-md border border-transparent has-[:checked]:border-primary/50 has-[:checked]:bg-primary/5 cursor-pointer"><FormControl><RadioGroupItem value="Long" /></FormControl><span>Long</span></Label>
+                                    <Label className="flex items-center gap-2 p-2 h-10 rounded-md border border-transparent has-[:checked]:border-primary/50 has-[:checked]:bg-primary/5 cursor-pointer"><FormControl><RadioGroupItem value="Short" /></FormControl><span>Short</span></Label>
                                     </RadioGroup></FormControl><FormMessage /></FormItem>
                                 )}/>
                                 <FormField control={form.control} name="entryType" render={({ field }) => (
                                     <FormItem><FormLabel>Entry Type</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} value={field.value} className="flex pt-2 gap-4">
-                                    <Label className="flex items-center gap-2 p-2 rounded-md border border-transparent has-[:checked]:border-primary/50 has-[:checked]:bg-primary/5 cursor-pointer"><FormControl><RadioGroupItem value="Limit" /></FormControl><span>Limit</span></Label>
-                                    <Label className="flex items-center gap-2 p-2 rounded-md border border-transparent has-[:checked]:border-primary/50 has-[:checked]:bg-primary/5 cursor-pointer"><FormControl><RadioGroupItem value="Market" /></FormControl><span>Market</span></Label>
+                                    <Label className="flex items-center gap-2 p-2 h-10 rounded-md border border-transparent has-[:checked]:border-primary/50 has-[:checked]:bg-primary/5 cursor-pointer"><FormControl><RadioGroupItem value="Limit" /></FormControl><span>Limit</span></Label>
+                                    <Label className="flex items-center gap-2 p-2 h-10 rounded-md border border-transparent has-[:checked]:border-primary/50 has-[:checked]:bg-primary/5 cursor-pointer"><FormControl><RadioGroupItem value="Market" /></FormControl><span>Market</span></Label>
                                     </RadioGroup></FormControl><FormMessage /></FormItem>
                                 )}/>
                             </div>
@@ -1251,7 +1251,7 @@ function ExecutionOptions({ form, onSetModule, executionHeadingRef }: { form: an
                         <div className="flex justify-between"><span className="text-muted-foreground">Order type:</span><span className="font-mono">{executionType}</span></div>
                         <div className="flex justify-between"><span className="text-muted-foreground">Quantity:</span><span className="font-mono">{positionSize.toFixed(4)}</span></div>
                         <div className="flex justify-between"><span className="text-muted-foreground">Exchange:</span><span className="font-mono">Delta (mock)</span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">Estimated risk:</span><span className="font-mono text-red-400">${potentialLoss.toFixed(2)}</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Estimated risk:</span><span className="font-mono text-destructive">${potentialLoss.toFixed(2)}</span></div>
                     </div>
                      <Alert variant="default" className="mt-4 bg-muted/50 border-border/50">
                         <Info className="h-4 w-4" />
@@ -1328,14 +1328,14 @@ const RuleCheckRow = ({ check }: { check: RuleCheck }) => {
     const color = {
         PASS: 'text-green-400',
         WARN: 'text-amber-400',
-        FAIL: 'text-red-400',
+        FAIL: 'text-destructive',
         "N/A": 'text-muted-foreground'
     }[check.status];
 
     return (
         <div className="flex items-center gap-2 text-sm">
             <Icon className={cn("h-4 w-4", color)} />
-            <span className={cn(check.status === 'FAIL' && 'text-red-400', check.status === 'WARN' && 'text-amber-400')}>{check.label}</span>
+            <span className={cn(check.status === 'FAIL' && 'text-destructive', check.status === 'WARN' && 'text-amber-400')}>{check.label}</span>
         </div>
     );
 };
@@ -1365,7 +1365,7 @@ function PlanSnapshot({ form, onSetStep }: { form: any; onSetStep: (step: TradeP
             <Separator />
             <div className="space-y-2">
                 <SummaryRow label="R:R Ratio" value={rrr > 0 ? `${rrr.toFixed(2)} : 1` : '-'} className={rrr > 0 ? (rrr < 1.5 ? 'text-amber-400' : 'text-green-400') : ''} />
-                <SummaryRow label="Risk %" value={`${riskPercent}%`} className={riskPercent > 2 ? 'text-red-400' : ''} />
+                <SummaryRow label="Risk %" value={`${riskPercent}%`} className={riskPercent > 2 ? 'text-destructive' : ''} />
             </div>
             <Separator />
             <div>
