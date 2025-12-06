@@ -26,6 +26,7 @@ import { Label } from "./ui/label";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "./ui/alert-dialog";
 import { useEventLog } from "@/context/event-log-provider";
 import { Slider } from "./ui/slider";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "./ui/drawer";
 
 
 interface TradePlanningModuleProps {
@@ -80,9 +81,45 @@ const planSchema = z.object({
 
 type PlanFormValues = z.infer<typeof planSchema>;
 
-const mockStrategies = [
-    { id: '1', name: "London Reversal" },
-    { id: '2', name: "BTC Trend Breakout" },
+// Duplicating from strategy-management-module for prototype purposes
+type Strategy = {
+    id: string;
+    name: string;
+    status: "Active" | "Paused";
+    timeframe: string;
+    trades: number;
+    winRate: number;
+    description: string;
+    entryCriteria: string[];
+    exitCriteria: string[];
+    riskRules: string[];
+};
+
+const mockStrategies: Strategy[] = [
+    {
+        id: '1',
+        name: "London Reversal",
+        status: "Active",
+        timeframe: "M15",
+        trades: 112,
+        winRate: 62,
+        description: "A mean-reversion strategy played during the first 2 hours of the London session, targeting overnight sweeps.",
+        entryCriteria: ["Price sweeps Asia high/low.", "Divergence on 5-min RSI.", "Entry on first 15-min candle to close back inside the range."],
+        exitCriteria: ["Target is the opposing side of the daily range.", "Stop-loss is 2x ATR above/below the wick."],
+        riskRules: ["Max risk 1% of account.", "Not valid during major news events."],
+    },
+    {
+        id: '2',
+        name: "BTC Trend Breakout",
+        status: "Active",
+        timeframe: "H1",
+        trades: 78,
+        winRate: 48,
+        description: "A trend-following strategy on the 1-hour chart for BTC, looking for breakouts from consolidations.",
+        entryCriteria: ["4+ hours of consolidation.", "Breakout candle closes with high volume.", "Enter on retest of the breakout level."],
+        exitCriteria: ["Target is 2R.", "Stop-loss is below the consolidation range."],
+        riskRules: ["Max size 0.5 BTC.", "Only trade during NY session."],
+    },
 ];
 
 const planTemplates: ({ id: string, name: string, values: Partial<PlanFormValues> })[] = [
@@ -673,12 +710,18 @@ function WhatIfRiskSlider({ control, form }: { control: any; form: ReturnType<ty
 
 function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, planContext, isNewUser }: { form: any, onSetModule: any, setPlanStatus: any, onApplyTemplate: (templateId: string) => void, planContext?: TradePlanningModuleProps['planContext'], isNewUser: boolean }) {
     const entryType = useWatch({ control: form.control, name: 'entryType' });
+    const strategyId = useWatch({ control: form.control, name: 'strategyId' });
+    
     const [selectedTemplate, setSelectedTemplate] = useState<string>(() => {
         if (typeof window !== 'undefined') {
             return localStorage.getItem("ec_trade_plan_last_template") || 'blank';
         }
         return 'blank';
     });
+    
+    const [isStrategyDrawerOpen, setIsStrategyDrawerOpen] = useState(false);
+    
+    const viewedStrategy = mockStrategies.find(s => s.id === strategyId) || null;
 
     const handleTemplateChange = (templateId: string) => {
         setSelectedTemplate(templateId);
@@ -744,7 +787,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, planConte
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {entryType === 'Limit' ? (
                                 <FormField control={form.control} name="entryPrice" render={({ field }) => (
-                                    <FormItem><FormLabel>Entry Price</FormLabel><FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl><FormMessage /></FormItem>
+                                    <FormItem><FormLabel>Entry Price</FormLabel><FormControl><Input type="number" placeholder="0.00" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                                 )}/>
                             ) : (
                                 <FormItem>
@@ -757,14 +800,14 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, planConte
                             <FormField control={form.control} name="stopLoss" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Stop Loss Price (SL)*</FormLabel>
-                                    <FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl>
+                                    <FormControl><Input type="number" placeholder="0.00" {...field} value={field.value || ''} /></FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )}/>
                             <FormField control={form.control} name="takeProfit" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Take Profit Price (TP)</FormLabel>
-                                    <FormControl><Input type="number" placeholder="0.00" {...field} /></FormControl>
+                                    <FormControl><Input type="number" placeholder="0.00" {...field} value={field.value || ''} /></FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )}/>
@@ -802,9 +845,14 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, planConte
                     {/* Group D */}
                      <div className="p-4 bg-muted/50 rounded-lg space-y-4">
                         <h3 className="text-sm font-semibold text-muted-foreground">Strategy & Reasoning</h3>
-                        <FormField control={form.control} name="strategyId" render={({ field }) => (
-                            <FormItem><FormLabel>Strategy</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select from your playbook"/></SelectTrigger></FormControl><SelectContent>{mockStrategies.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
-                        )}/>
+                         <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] items-end gap-2">
+                            <FormField control={form.control} name="strategyId" render={({ field }) => (
+                                <FormItem><FormLabel>Strategy</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select from your playbook"/></SelectTrigger></FormControl><SelectContent>{mockStrategies.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
+                            )}/>
+                             <Button type="button" variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => setIsStrategyDrawerOpen(true)} disabled={!strategyId}>
+                                View strategy details <ArrowRight className="ml-1 h-3 w-3" />
+                            </Button>
+                        </div>
                         <FormField control={form.control} name="notes" render={({ field }) => (
                             <FormItem><FormLabel>Trade Rationale*</FormLabel><FormControl><Textarea placeholder="Why are you taking this trade? What conditions must be true?" {...field} /></FormControl><FormMessage /></FormItem>
                         )}/>
@@ -815,6 +863,51 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, planConte
             <div className="lg:col-span-1 space-y-6 sticky top-24">
                 <PlanSummary control={form.control} setPlanStatus={setPlanStatus} onSetModule={onSetModule} />
             </div>
+            
+            <Drawer open={isStrategyDrawerOpen} onOpenChange={setIsStrategyDrawerOpen}>
+                <DrawerContent>
+                    {viewedStrategy && (
+                        <div className="mx-auto w-full max-w-2xl p-4 md:p-6">
+                            <DrawerHeader>
+                                <DrawerTitle className="text-2xl">{viewedStrategy.name}</DrawerTitle>
+                                <DrawerDescription>{viewedStrategy.description}</DrawerDescription>
+                            </DrawerHeader>
+                            <div className="px-4 py-6 space-y-6">
+                                <div className="space-y-3">
+                                    <h4 className="font-semibold text-foreground">Entry Criteria</h4>
+                                    <ul className="space-y-2 text-sm text-muted-foreground list-disc list-inside">
+                                        {viewedStrategy.entryCriteria.map((item, i) => <li key={i}>{item}</li>)}
+                                    </ul>
+                                </div>
+                                <div className="space-y-3">
+                                    <h4 className="font-semibold text-foreground">Exit Criteria</h4>
+                                    <ul className="space-y-2 text-sm text-muted-foreground list-disc list-inside">
+                                        {viewedStrategy.exitCriteria.map((item, i) => <li key={i}>{item}</li>)}
+                                    </ul>
+                                </div>
+                                 <div className="space-y-3">
+                                    <h4 className="font-semibold text-foreground">Risk Rules</h4>
+                                    <ul className="space-y-2 text-sm text-muted-foreground list-disc list-inside">
+                                        {viewedStrategy.riskRules.map((item, i) => <li key={i}>{item}</li>)}
+                                    </ul>
+                                </div>
+                                <Separator />
+                                <div className="space-y-3 p-4 bg-muted/50 rounded-lg">
+                                    <h4 className="font-semibold text-foreground">Pre-flight Checklist</h4>
+                                    <div className="flex items-center space-x-2"><Checkbox id="check1" /><Label htmlFor="check1" className="text-sm font-normal">Market condition matches this strategy</Label></div>
+                                    <div className="flex items-center space-x-2"><Checkbox id="check2" /><Label htmlFor="check2" className="text-sm font-normal">Setup matches A+ criteria</Label></div>
+                                    <div className="flex items-center space-x-2"><Checkbox id="check3" /><Label htmlFor="check3" className="text-sm font-normal">I’m not forcing this trade.</Label></div>
+                                </div>
+                            </div>
+                            <div className="p-4 border-t border-border/50">
+                                <Button className="w-full" onClick={() => { setIsStrategyDrawerOpen(false); onSetModule('strategyManagement'); }}>
+                                    Open in Strategy Management
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+                </DrawerContent>
+            </Drawer>
         </div>
     );
 }
