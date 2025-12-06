@@ -13,7 +13,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Calendar, Filter, AlertCircle, Bookmark } from "lucide-react";
+import { Bot, Calendar, Filter, AlertCircle, Bookmark, ArrowRight, Edit } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Calendar as CalendarComponent } from "./ui/calendar";
 import { format } from "date-fns";
@@ -102,8 +102,9 @@ const useJournal = () => {
     return { entries, addOrUpdateEntry };
 }
 
-function JournalTab({ entries, addOrUpdateEntry, onSetModule, initialDraftId }: { entries: JournalEntry[], addOrUpdateEntry: (entry: JournalEntry) => void, onSetModule: TradeJournalModuleProps['onSetModule'], initialDraftId?: string }) {
+function AllTradesTab({ entries, addOrUpdateEntry, onSetModule, initialDraftId }: { entries: JournalEntry[], addOrUpdateEntry: (entry: JournalEntry) => void, onSetModule: TradeJournalModuleProps['onSetModule'], initialDraftId?: string }) {
     const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);
+    const [activeTab, setActiveTab] = useState<'log' | 'history'>('log');
 
     const form = useForm<JournalEntry>({
         resolver: zodResolver(journalEntrySchema),
@@ -158,7 +159,7 @@ function JournalTab({ entries, addOrUpdateEntry, onSetModule, initialDraftId }: 
                     <CardDescription>
                         {editingEntry && editingEntry.id?.startsWith('draft-') 
                             ? "Finalizing draft created from your trade plan."
-                            : "Log your trades to build a rich history for Arjun to analyze."}
+                            : "Log trades manually or view historical data."}
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -209,7 +210,7 @@ function JournalTab({ entries, addOrUpdateEntry, onSetModule, initialDraftId }: 
 
             <Card className="bg-muted/30 border-border/50">
                  <CardHeader>
-                    <CardTitle>Recent Journal Entries</CardTitle>
+                    <CardTitle>Journal History</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <ScrollArea className="w-full whitespace-nowrap">
@@ -245,73 +246,82 @@ function JournalTab({ entries, addOrUpdateEntry, onSetModule, initialDraftId }: 
     )
 }
 
-function HistoricalTradesTab() {
-    return (
-        <div className="space-y-8">
-            <Card className="bg-muted/30 border-border/50">
-                 <CardHeader>
-                    <CardTitle>Trade History & Filters</CardTitle>
-                    <CardDescription>Analyze your past performance to find an edge.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="flex flex-wrap items-end gap-4 p-4 bg-muted/50 rounded-lg">
-                        <FormItem><FormLabel>Date Range</FormLabel><Button variant="outline" className="font-normal w-[240px] justify-start"><Calendar className="mr-2 h-4 w-4" />{format(new Date(new Date().setDate(new Date().getDate() - 30)), "LLL dd, y")} - {format(new Date(), "LLL dd, y")}</Button></FormItem>
-                        <FormItem><FormLabel>Instrument</FormLabel><Input placeholder="e.g., BTC-PERP" className="w-[180px]" /></FormItem>
-                        <FormItem><FormLabel>Setup Tag</FormLabel><Select><SelectTrigger className="w-[180px]"><SelectValue placeholder="Any setup" /></SelectTrigger><SelectContent>{setupTags.map(tag => <SelectItem key={tag} value={tag}>{tag}</SelectItem>)}</SelectContent></Select></FormItem>
-                        <FormItem><FormLabel>Result</FormLabel><Select><SelectTrigger className="w-[120px]"><SelectValue placeholder="Any" /></SelectTrigger><SelectContent><SelectItem value="win">Win</SelectItem><SelectItem value="loss">Loss</SelectItem></SelectContent></Select></FormItem>
-                        <Button><Filter className="mr-2 h-4 w-4" />Apply Filters</Button>
-                    </div>
+function PendingReviewTab({ entries, onSetModule }: { entries: JournalEntry[], onSetModule: TradeJournalModuleProps['onSetModule']}) {
+    const draftEntries = entries.filter(e => e.id?.startsWith('draft-'));
 
-                     <div className="p-4 bg-muted/50 rounded-lg">
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                            <div><p className="text-sm text-muted-foreground">Total Trades</p><p className="font-semibold text-foreground font-mono">138</p></div>
-                            <div><p className="text-sm text-muted-foreground">Win Rate</p><p className="font-semibold text-foreground font-mono">43.5%</p></div>
-                            <div><p className="text-sm text-muted-foreground">Average R</p><p className="font-semibold text-foreground font-mono">1.25</p></div>
-                            <div><p className="text-sm text-muted-foreground">Net PnL</p><p className="font-semibold text-green-400 font-mono">$1,280.50</p></div>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-            
-            <Card className="bg-muted/30 border-border/50">
-                 <CardHeader>
-                    <CardTitle>Filtered Trades</CardTitle>
+    if (draftEntries.length === 0) {
+        return (
+            <Card className="bg-muted/30 border-border/50 text-center py-12">
+                <CardHeader>
+                    <Bookmark className="mx-auto h-12 w-12 text-muted-foreground" />
+                    <CardTitle>Journal Inbox Zero</CardTitle>
                 </CardHeader>
-                 <CardContent>
-                    <div className="text-center py-12 border-2 border-dashed border-border/50 rounded-lg">
-                         <AlertCircle className="mx-auto h-12 w-12 text-muted-foreground" />
-                        <h3 className="mt-4 text-lg font-semibold text-foreground">Historical Analysis Coming Soon</h3>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                            This is a prototype. In the full version, this table will show your filtered historical trades.
-                        </p>
-                    </div>
+                <CardContent>
+                    <p className="text-muted-foreground">You've completed all your pending journal entries. Great work!</p>
                 </CardContent>
             </Card>
+        )
+    }
+
+    return (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {draftEntries.map(draft => (
+                <Card key={draft.id} className="bg-muted/30 border-border/50 hover:border-primary/40 transition-colors">
+                    <CardHeader>
+                        <div className="flex justify-between items-start">
+                            <CardTitle>{draft.instrument}</CardTitle>
+                            <Badge variant={draft.direction === 'Long' ? 'default' : 'destructive'} className={cn(draft.direction === 'Long' ? 'bg-green-500/20 text-green-300 border-green-500/40' : 'bg-red-500/20 text-red-300 border-red-500/40')}>{draft.direction}</Badge>
+                        </div>
+                        <CardDescription>{format(new Date(draft.datetime), "PPP 'at' p")}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="text-sm text-muted-foreground line-clamp-2">
+                           <span className="font-semibold text-foreground">Rationale: </span> {draft.notes || 'No notes yet.'}
+                        </div>
+                        <Button 
+                            className="w-full"
+                            onClick={() => onSetModule('tradeJournal', { draftId: draft.id })}
+                        >
+                           Complete Review <ArrowRight className="ml-2 h-4 w-4" />
+                        </Button>
+                    </CardContent>
+                </Card>
+            ))}
         </div>
     )
 }
 
+
 export function TradeJournalModule({ onSetModule, draftId }: TradeJournalModuleProps) {
     const { entries, addOrUpdateEntry } = useJournal();
+    const [activeTab, setActiveTab] = useState(draftId ? 'all' : 'pending');
+
+     useEffect(() => {
+        if (draftId) {
+            setActiveTab('all');
+        }
+    }, [draftId]);
 
     return (
         <div className="space-y-8">
             <div>
                 <h1 className="text-2xl font-bold tracking-tight text-foreground">Trade Journal</h1>
-                <p className="text-muted-foreground">The single source of truth for your trading life. Log, review, and learn.</p>
+                <p className="text-muted-foreground">Low-effort trade logging. High-impact psychology.</p>
             </div>
-             <Tabs defaultValue="journal" className="w-full">
+             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="grid w-full grid-cols-2 max-w-md">
-                    <TabsTrigger value="journal">Journal</TabsTrigger>
-                    <TabsTrigger value="history">Historical Trades</TabsTrigger>
+                    <TabsTrigger value="pending">Pending Review</TabsTrigger>
+                    <TabsTrigger value="all">All Trades &amp; Filters</TabsTrigger>
                 </TabsList>
-                <TabsContent value="journal" className="pt-6">
-                    <JournalTab entries={entries} addOrUpdateEntry={addOrUpdateEntry as any} onSetModule={onSetModule} initialDraftId={draftId} />
+                <TabsContent value="pending" className="pt-6">
+                    <PendingReviewTab entries={entries} onSetModule={onSetModule} />
                 </TabsContent>
-                <TabsContent value="history" className="pt-6">
-                    <HistoricalTradesTab />
+                <TabsContent value="all" className="pt-6">
+                    <AllTradesTab entries={entries} addOrUpdateEntry={addOrUpdateEntry as any} onSetModule={onSetModule} initialDraftId={draftId} />
                 </TabsContent>
             </Tabs>
         </div>
     );
 }
+
+    
