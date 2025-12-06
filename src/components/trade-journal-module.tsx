@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { useForm } from "react-hook-form";
+import { useForm } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -257,32 +257,70 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { e
                 <CardHeader>
                     <div className="flex justify-between items-start">
                         <div>
-                            <CardTitle>Reviewing: {editingEntry.technical.instrument}</CardTitle>
-                            <CardDescription>Finalize your journal entry by adding psychological notes and outcomes.</CardDescription>
+                            <CardTitle>Trade Review: {editingEntry.tradeId || editingEntry.id}</CardTitle>
+                            <CardDescription>
+                                {editingEntry.status === 'pending' ? "Finalize your journal entry by adding psychological notes and outcomes." : "Viewing completed journal entry."}
+                            </CardDescription>
                         </div>
                         <Button variant="ghost" onClick={() => setEditingEntry(null)}>Back to list</Button>
                     </div>
                 </CardHeader>
                 <CardContent className="grid md:grid-cols-2 gap-8">
-                     <div className="space-y-4">
-                        <h3 className="font-semibold text-foreground">Trade Snapshot</h3>
-                        <div className="p-4 bg-muted/50 rounded-lg space-y-2 border">
-                            <div className="flex justify-between"><span className="text-muted-foreground">Pair/Direction:</span> <span className={cn("font-mono", editingEntry.technical.direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{editingEntry.technical.instrument} {editingEntry.technical.direction}</span></div>
-                            <div className="flex justify-between"><span className="text-muted-foreground">Entry / SL / TP:</span> <span className="font-mono">{editingEntry.technical.entryPrice} / {editingEntry.technical.stopLoss} / {editingEntry.technical.takeProfit || 'N/A'}</span></div>
-                            <div className="flex justify-between"><span className="text-muted-foreground">Risk % / R:R:</span> <span className="font-mono">{editingEntry.technical.riskPercent}% / {editingEntry.technical.rrRatio?.toFixed(2) || 'N/A'}</span></div>
-                            <div className="flex justify-between"><span className="text-muted-foreground">Strategy:</span> <span className="font-mono">{editingEntry.technical.strategy}</span></div>
-                        </div>
-                        <div>
-                             <h4 className="font-semibold text-foreground mb-2 text-sm">Planning Notes</h4>
-                             <p className="text-sm text-muted-foreground p-3 bg-muted/50 rounded-lg border italic">"{editingEntry.planning.planNotes || 'No plan notes were entered.'}"</p>
-                        </div>
+                     <div className="space-y-6">
+                        <Card className="bg-muted/50 border-border/50">
+                            <CardHeader>
+                                <CardTitle className="text-base">Trade Summary</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-2 text-sm">
+                                <div className="flex justify-between"><span className="text-muted-foreground">Pair/Direction:</span> <span className={cn("font-mono", editingEntry.technical.direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{editingEntry.technical.instrument} {editingEntry.technical.direction}</span></div>
+                                <div className="flex justify-between"><span className="text-muted-foreground">Entry / SL / TP:</span> <span className="font-mono">{editingEntry.technical.entryPrice} / {editingEntry.technical.stopLoss} / {editingEntry.technical.takeProfit || 'N/A'}</span></div>
+                                <div className="flex justify-between"><span className="text-muted-foreground">Risk % / R:R:</span> <span className="font-mono">{editingEntry.technical.riskPercent}% / {editingEntry.technical.rrRatio?.toFixed(2) || 'N/A'}</span></div>
+                                <div className="flex justify-between"><span className="text-muted-foreground">Strategy:</span> <span className="font-mono">{editingEntry.technical.strategy}</span></div>
+                            </CardContent>
+                        </Card>
+                        <Card className="bg-muted/50 border-border/50">
+                            <CardHeader>
+                                <CardTitle className="text-base">Planning & Mindset</CardTitle>
+                            </CardHeader>
+                             <CardContent className="space-y-4">
+                                <div>
+                                    <h4 className="font-semibold text-foreground mb-2 text-sm">Rationale</h4>
+                                    <p className="text-sm text-muted-foreground p-3 bg-muted rounded-lg border italic">"{editingEntry.planning.planNotes || 'No plan notes were entered.'}"</p>
+                                </div>
+                                <div>
+                                    <h4 className="font-semibold text-foreground mb-2 text-sm">Pre-trade Mindset</h4>
+                                    <p className="text-sm text-muted-foreground p-3 bg-muted rounded-lg border italic">"{editingEntry.planning.mindset || 'No mindset notes were entered.'}"</p>
+                                </div>
+                             </CardContent>
+                        </Card>
                     </div>
-                    <div className="space-y-4">
-                        <h3 className="font-semibold text-foreground">Post-Trade Review</h3>
-                         <JournalReviewForm entry={editingEntry} onSubmit={(values) => {
-                            updateEntry(values);
-                            setEditingEntry(null);
-                        }} />
+                    <div className="space-y-6">
+                         <Card className="bg-muted/50 border-border/50">
+                            <CardHeader>
+                                <CardTitle className="text-base">Psychological Review</CardTitle>
+                                {editingEntry.status === 'completed' && <CardDescription>This entry is locked. To edit, create a new version (prototype).</CardDescription>}
+                            </CardHeader>
+                            <CardContent>
+                                {editingEntry.status === 'pending' ? (
+                                    <JournalReviewForm entry={editingEntry} onSubmit={(values) => {
+                                        updateEntry(values);
+                                        setEditingEntry(null);
+                                    }} />
+                                ) : (
+                                    <div className="space-y-4 text-sm">
+                                        <div className="flex justify-between font-mono"><span className="text-muted-foreground">Final PnL:</span> <span className={cn(editingEntry.review.pnl > 0 ? 'text-green-400' : 'text-red-400')}>{editingEntry.review.pnl.toFixed(2)}$</span></div>
+                                        <div className="flex justify-between font-mono"><span className="text-muted-foreground">Exit Price:</span> <span>{editingEntry.review.exitPrice}</span></div>
+                                        <Separator className="my-4"/>
+                                        <div><h4 className="font-semibold mb-1">Emotion Tags:</h4><p className="text-muted-foreground">{editingEntry.review.emotionsTags || "None"}</p></div>
+                                        <div><h4 className="font-semibold mb-1">Mistake Tags:</h4><p className="text-muted-foreground">{editingEntry.review.mistakesTags || "None"}</p></div>
+                                        <div><h4 className="font-semibold mb-1">Learnings:</h4><p className="text-muted-foreground italic">"{editingEntry.review.learningNotes || "No learning notes."}"</p></div>
+                                        <div className="pt-4">
+                                            <Button className="w-full" onClick={() => discussWithArjun(editingEntry)}><Bot className="mr-2 h-4 w-4"/>Discuss with Arjun</Button>
+                                        </div>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
                     </div>
                 </CardContent>
             </Card>
@@ -298,14 +336,14 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { e
                         <Button variant="ghost" size="sm" onClick={clearFilters}><X className="mr-2 h-4 w-4"/>Clear Filters</Button>
                     </div>
                 </CardHeader>
-                <CardContent className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <CardContent className="grid grid-cols-2 lg:grid-cols-5 gap-4">
                      <div className="flex items-center gap-1 rounded-full bg-muted p-1">
                         {(['today', '7d', '30d'] as const).map(range => (
                             <Button
                                 key={range}
                                 size="sm"
                                 variant={filters.timeRange === range ? 'secondary' : 'ghost'}
-                                onClick={()={() => setFilters(f => ({ ...f, timeRange: range }))}
+                                onClick={() => setFilters(f => ({ ...f, timeRange: range }))}
                                 className="rounded-full h-8 px-3 text-xs w-full"
                             >
                                 {range === 'today' ? 'Today' : range.toUpperCase()}
@@ -318,7 +356,7 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { e
                                 key={res}
                                 size="sm"
                                 variant={filters.result === res ? 'secondary' : 'ghost'}
-                                onClick={()={() => setFilters(f => ({ ...f, result: res }))}
+                                onClick={() => setFilters(f => ({ ...f, result: res }))}
                                 className="rounded-full h-8 px-3 text-xs w-full capitalize"
                             >
                                 {res}
@@ -355,7 +393,7 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { e
                         <CardHeader>
                             <div className="flex justify-between items-start">
                                 <div>
-                                    <h3 className={cn("font-bold text-lg", entry.review.pnl >= 0 ? 'text-green-400' : 'text-red-400')}>
+                                    <h3 className={cn("font-bold text-lg", entry.status === 'completed' && (entry.review.pnl >= 0 ? 'text-green-400' : 'text-red-400'))}>
                                         {entry.technical.instrument} &bull; {entry.status === 'completed' ? `${entry.review.pnl >= 0 ? '+' : ''}${entry.review.pnl.toFixed(2)}` : 'Pending'}
                                     </h3>
                                     <p className="text-sm text-muted-foreground">{entry.technical.direction}</p>
