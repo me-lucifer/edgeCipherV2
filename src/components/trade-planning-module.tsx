@@ -29,6 +29,7 @@ import { Slider } from "./ui/slider";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "./ui/drawer";
 import { Skeleton } from "./ui/skeleton";
 import { formatDistanceToNow } from "date-fns";
+import type { JournalEntry } from "./trade-journal-module";
 
 
 interface TradePlanningModuleProps {
@@ -1132,39 +1133,43 @@ function ExecutionOptions({ form, onSetModule, executionHeadingRef }: { form: an
             const tradeId = `DELTA-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
             const draftId = `draft-${Date.now()}`;
             
-            // --- Auto-Journaling Logic ---
             const rrr = (() => {
                 const rewardPerUnit = (values.takeProfit && values.entryPrice) ? Math.abs(values.takeProfit - values.entryPrice) : 0;
                 return (riskPerUnit > 0 && rewardPerUnit > 0) ? rewardPerUnit / riskPerUnit : 0;
             })();
             const strategyName = mockStrategies.find(s => s.id === values.strategyId)?.name || "Unknown";
 
-            const journalDraft = {
+            const journalDraft: JournalEntry = {
                 id: draftId,
-                datetime: new Date(),
-                instrument: values.instrument,
-                direction: values.direction,
-                entryPrice: values.entryPrice,
-                exitPrice: 0, // Not known at execution
-                size: positionSize,
-                pnl: 0, // Not known at execution
-                rMultiple: rrr,
-                setup: strategyName,
-                emotions: values.mindset, // From review step
-                notes: `Trade executed via plan. Rationale: ${values.notes}`,
-                // --- New fields for full context ---
-                plan: {
-                    ...values,
-                    takeProfit: values.takeProfit || 0,
-                    notes: values.notes || "",
-                    justification: values.justification || "",
-                    mindset: values.mindset || ""
+                tradeId: tradeId,
+                status: 'pending',
+                timestamps: {
+                    plannedAt: new Date().toISOString(),
+                    executedAt: new Date().toISOString(),
                 },
-                execution: {
-                    tradeId: tradeId,
-                    timestamp: new Date().toISOString(),
-                    type: executionType
-                }
+                technical: {
+                    instrument: values.instrument,
+                    direction: values.direction,
+                    entryPrice: values.entryPrice,
+                    stopLoss: values.stopLoss,
+                    takeProfit: values.takeProfit,
+                    leverage: values.leverage,
+                    positionSize: positionSize,
+                    riskPercent: values.riskPercent,
+                    rrRatio: rrr,
+                    strategy: strategyName,
+                },
+                planning: {
+                    planNotes: values.notes,
+                    ruleOverridesJustification: values.justification,
+                    mindset: values.mindset,
+                    arjunPreTradeSummary: "Arjun noted a tight SL and below-average R:R." // Mock summary
+                },
+                review: {
+                    pnl: 0,
+                    exitPrice: 0,
+                },
+                meta: {},
             };
             
             const existingDrafts = JSON.parse(localStorage.getItem("ec_journal_drafts") || "[]");
