@@ -40,16 +40,16 @@ interface TradePlanningModuleProps {
 }
 
 const planSchema = z.object({
-    instrument: z.string().min(1, "Required."),
+    instrument: z.string().min(1, "A trading pair is required."),
     direction: z.enum(["Long", "Short"]),
     entryType: z.enum(["Market", "Limit"]),
-    entryPrice: z.coerce.number().positive("Must be > 0."),
-    stopLoss: z.coerce.number().positive("Must be > 0."),
+    entryPrice: z.coerce.number().positive("Enter a valid entry price."),
+    stopLoss: z.coerce.number().positive("A stop loss is mandatory for every plan."),
     takeProfit: z.coerce.number().optional(),
     leverage: z.coerce.number().min(1).max(100),
-    accountCapital: z.coerce.number().positive("Must be > 0."),
-    riskPercent: z.coerce.number().min(0.1).max(100),
-    strategyId: z.string().min(1, "Required."),
+    accountCapital: z.coerce.number().positive("Account capital is required to calculate risk."),
+    riskPercent: z.coerce.number().min(0.1, "Risk must be at least 0.1%").max(100, "Risk cannot exceed 100%"),
+    strategyId: z.string().min(1, "You must select a strategy for this plan."),
     notes: z.string().optional(),
     justification: z.string().min(10, "Justification must be at least 10 characters.").optional(),
     mindset: z.string().optional(),
@@ -577,7 +577,7 @@ function PlanSummary({ control, setPlanStatus, onSetModule }: { control: any, se
         const currentChecks = getRuleChecks(rrr, riskPercent ? Number(riskPercent) : 0);
         setRuleChecks(currentChecks);
 
-        const requiredFieldsSet = instrument && direction && numEntryPrice > 0 && numStopLoss > 0 && accountCapital && riskPercent && strategyId && notes && notes.length >= 10;
+        const requiredFieldsSet = instrument && direction && numEntryPrice > 0 && numStopLoss > 0 && accountCapital && Number(accountCapital) > 0 && riskPercent && Number(riskPercent) > 0 && strategyId;
         let currentStatus: PlanStatusType = 'incomplete';
         let currentMessage = "Fill in all required values to continue.";
 
@@ -843,7 +843,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, planConte
                         <h3 className="text-sm font-semibold text-muted-foreground">Market & Direction</h3>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <FormField control={form.control} name="instrument" render={({ field }) => (
-                                <FormItem><FormLabel>Trading Pair</FormLabel><FormControl><Input placeholder="e.g., BTC-PERP" {...field} /></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>Trading Pair*</FormLabel><FormControl><Input placeholder="e.g., BTC-PERP" {...field} /></FormControl><FormMessage /></FormItem>
                             )}/>
                             <FormField control={form.control} name="direction" render={({ field }) => (
                                 <FormItem><FormLabel>Direction</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} value={field.value} className="flex pt-2 gap-4"><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Long" /></FormControl><FormLabel className="font-normal">Long</FormLabel></FormItem><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Short" /></FormControl><FormLabel className="font-normal">Short</FormLabel></FormItem></RadioGroup></FormControl><FormMessage /></FormItem>
@@ -861,7 +861,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, planConte
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {entryType === 'Limit' ? (
                                 <FormField control={form.control} name="entryPrice" render={({ field }) => (
-                                    <FormItem><FormLabel>Entry Price</FormLabel><FormControl><Input type="number" placeholder="0.00" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                                    <FormItem><FormLabel>Entry Price*</FormLabel><FormControl><Input type="number" placeholder="0.00" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                                 )}/>
                             ) : (
                                 <FormItem>
@@ -894,10 +894,10 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, planConte
                         <h3 className="text-sm font-semibold text-muted-foreground">Account & Risk</h3>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <FormField control={form.control} name="accountCapital" render={({ field }) => (
-                                <FormItem><FormLabel>Account Capital ($)</FormLabel><FormControl><Input type="number" placeholder="10000" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>Account Capital ($)*</FormLabel><FormControl><Input type="number" placeholder="10000" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                             )}/>
                             <FormField control={form.control} name="riskPercent" render={({ field }) => (
-                                <FormItem><FormLabel>Risk per Trade (% of account)</FormLabel><FormControl><Input type="number" placeholder="1" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>Risk per Trade (% of account)*</FormLabel><FormControl><Input type="number" placeholder="1" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                             )}/>
                             <FormField control={form.control} name="leverage" render={({ field }) => (
                                 <FormItem><FormLabel>Leverage</FormLabel><Select onValueChange={(v) => field.onChange(Number(v))} defaultValue={String(field.value)}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="5">5x</SelectItem><SelectItem value="10">10x</SelectItem><SelectItem value="20">20x</SelectItem><SelectItem value="50">50x</SelectItem></SelectContent></Select><FormMessage /></FormItem>
@@ -922,7 +922,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, planConte
                         <h3 className="text-sm font-semibold text-muted-foreground">Strategy & Reasoning</h3>
                          <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] items-end gap-2">
                             <FormField control={form.control} name="strategyId" render={({ field }) => (
-                                <FormItem><FormLabel>Strategy</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select from your playbook"/></SelectTrigger></FormControl><SelectContent>{mockStrategies.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
+                                <FormItem><FormLabel>Strategy*</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select from your playbook"/></SelectTrigger></FormControl><SelectContent>{mockStrategies.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
                             )}/>
                              <Button type="button" variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => setIsStrategyDrawerOpen(true)} disabled={!strategyId}>
                                 View strategy details <ArrowRight className="ml-1 h-3 w-3" />
@@ -930,7 +930,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, planConte
                         </div>
                         <FormField control={form.control} name="notes" render={({ field }) => (
                             <FormItem>
-                                <FormLabel>Trade Rationale*</FormLabel>
+                                <FormLabel>Trade Rationale</FormLabel>
                                 <FormControl><Textarea placeholder="Why are you taking this trade? What conditions must be true?" {...field} /></FormControl>
                                 <FormDescription className="text-xs italic">This will be saved to your journal. Write it for your future self to review.</FormDescription>
                                 <FormMessage />
@@ -1390,6 +1390,7 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
     const [showTemplateOverwriteDialog, setShowTemplateOverwriteDialog] = useState(false);
     const [pendingTemplateId, setPendingTemplateId] = useState<string | null>(null);
     const [isNewUser, setIsNewUser] = useState(false);
+    const [showValidationBanner, setShowValidationBanner] = useState(false);
 
     const form = useForm<PlanFormValues>({
         resolver: zodResolver(planSchema),
@@ -1408,6 +1409,7 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
             takeProfit: '' as unknown as number,
             mindset: "",
         },
+        mode: "onBlur",
     });
 
     useEffect(() => {
@@ -1483,8 +1485,9 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
         control: form.control,
         name: 'justification'
     });
-
-    const onSubmit = (values: PlanFormValues) => {
+    
+    const onValidSubmit = (values: PlanFormValues) => {
+        setShowValidationBanner(false);
         if (currentStep === 'plan') {
             setCurrentStep('review');
         } else if (currentStep === 'review') {
@@ -1493,6 +1496,10 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
              // Execution logic is now inside ExecutionOptions
         }
     };
+
+    const onInvalidSubmit = () => {
+        setShowValidationBanner(true);
+    }
 
     const handleSaveDraft = () => {
         const values = form.getValues();
@@ -1561,6 +1568,23 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
                     ))}
                 </div>
             </div>
+
+            {showValidationBanner && (
+                 <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <div className="flex items-center justify-between w-full">
+                        <div>
+                            <AlertTitle>Validation Errors</AlertTitle>
+                            <AlertDescription>
+                                Fix the highlighted issues before moving to Review.
+                            </AlertDescription>
+                        </div>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setShowValidationBanner(false)}>
+                            <X className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </Alert>
+            )}
             
             {isBannerVisible && (
                  <Alert variant="destructive" className="bg-amber-950/60 border-amber-500/30 text-amber-300">
@@ -1616,7 +1640,7 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
             </AlertDialog>
             
             <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+                <form onSubmit={form.handleSubmit(onValidSubmit, onInvalidSubmit)} className="space-y-8">
 
                     {currentStep === "plan" && <PlanStep form={form} onSetModule={onSetModule} setPlanStatus={setPlanStatus} onApplyTemplate={handleApplyTemplate} planContext={planContext} isNewUser={isNewUser} currentStep={currentStep} />}
                     {currentStep === "review" && <ReviewStep form={form} onSetModule={onSetModule} onSetStep={setCurrentStep} arjunFeedbackAccepted={arjunFeedbackAccepted} setArjunFeedbackAccepted={setArjunFeedbackAccepted} planStatus={planStatus} />}
@@ -1659,4 +1683,3 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
 
 
 
-    
