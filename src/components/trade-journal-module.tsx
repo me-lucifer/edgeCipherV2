@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Calendar, Bookmark, ArrowRight, Edit, AlertCircle, CheckCircle } from "lucide-react";
+import { Bot, Calendar, Bookmark, ArrowRight, Edit, AlertCircle, CheckCircle, Filter, X } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Calendar as CalendarComponent } from "./ui/calendar";
 import { format } from "date-fns";
@@ -22,6 +22,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useEventLog } from "@/context/event-log-provider";
 import { ScrollArea } from "./ui/scroll-area";
 import { Separator } from "./ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
 interface TradeJournalModuleProps {
     onSetModule: (module: any, context?: any) => void;
@@ -62,6 +63,7 @@ const journalEntrySchema = z.object({
     emotionsTags: z.string().optional(),
     mistakesTags: z.string().optional(),
     learningNotes: z.string().optional(),
+    newsContextTags: z.string().optional(),
   }),
   meta: z.object({
     ruleAdherenceSummary: z.object({
@@ -81,20 +83,20 @@ const mockJournalEntries: JournalEntry[] = [
       id: 'completed-1',
       tradeId: 'DELTA-1699881122',
       status: 'completed',
-      timestamps: { plannedAt: new Date().toISOString(), executedAt: new Date().toISOString(), closedAt: new Date().toISOString() },
+      timestamps: { plannedAt: new Date(Date.now() - 86400000 * 2).toISOString(), executedAt: new Date(Date.now() - 86400000 * 2).toISOString(), closedAt: new Date(Date.now() - 86400000 * 2).toISOString() },
       technical: { instrument: 'BTC-PERP', direction: 'Long', entryPrice: 68500, stopLoss: 68000, takeProfit: 69500, leverage: 20, positionSize: 0.5, riskPercent: 1, rrRatio: 2, strategy: "BTC Trend Breakout" },
       planning: { planNotes: "Clean breakout above resistance. Good follow-through.", mindset: "Confident, Calm" },
-      review: { pnl: 234.75, exitPrice: 68969.5, emotionalNotes: "Felt good, stuck to the plan.", emotionsTags: "Confident", mistakesTags: "None", learningNotes: "Trust the plan when the setup is clean." },
+      review: { pnl: 234.75, exitPrice: 68969.5, emotionalNotes: "Felt good, stuck to the plan.", emotionsTags: "Confident", mistakesTags: "None", learningNotes: "Trust the plan when the setup is clean.", newsContextTags: "Post-CPI" },
       meta: { journalingCompletedAt: new Date().toISOString() }
     },
     {
       id: 'completed-2',
       tradeId: 'DELTA-1699794722',
       status: 'completed',
-      timestamps: { plannedAt: new Date().toISOString(), executedAt: new Date().toISOString(), closedAt: new Date().toISOString() },
+      timestamps: { plannedAt: new Date(Date.now() - 86400000).toISOString(), executedAt: new Date(Date.now() - 86400000).toISOString(), closedAt: new Date(Date.now() - 86400000).toISOString() },
       technical: { instrument: 'ETH-PERP', direction: 'Short', entryPrice: 3605, stopLoss: 3625, leverage: 50, positionSize: 12, riskPercent: 2, rrRatio: 1, strategy: "London Reversal" },
       planning: { planNotes: "Fading what looks like a sweep of the high.", mindset: "Anxious" },
-      review: { pnl: -240, exitPrice: 3625, emotionalNotes: "Market kept pushing, I felt like I was fighting a trend. Should have waited for more confirmation.", emotionsTags: "Anxious, Revenge Trading", mistakesTags: "Forced Entry", learningNotes: "Don't fight a strong trend, even if it looks like a sweep." },
+      review: { pnl: -240, exitPrice: 3625, emotionalNotes: "Market kept pushing, I felt like I was fighting a trend. Should have waited for more confirmation.", emotionsTags: "Anxious,Revenge Trading", mistakesTags: "Forced Entry", learningNotes: "Don't fight a strong trend, even if it looks like a sweep.", newsContextTags: "" },
       meta: { journalingCompletedAt: new Date().toISOString() }
     },
 ];
@@ -175,10 +177,13 @@ function JournalReviewForm({ entry, onSubmit }: { entry: JournalEntry; onSubmit:
                     <FormField control={form.control} name="review.exitPrice" render={({ field }) => (<FormItem><FormLabel>Final Exit Price</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
                 </div>
                  <FormField control={form.control} name="review.emotionsTags" render={({ field }) => (
-                    <FormItem><FormLabel>Emotions (tags)</FormLabel><FormControl><Input placeholder="e.g., Confident, Anxious, FOMO" {...field} /></FormControl></FormItem>
+                    <FormItem><FormLabel>Emotions (comma-separated tags)</FormLabel><FormControl><Input placeholder="e.g., Confident, Anxious, FOMO" {...field} /></FormControl></FormItem>
                 )} />
                  <FormField control={form.control} name="review.mistakesTags" render={({ field }) => (
-                    <FormItem><FormLabel>Mistakes (tags)</FormLabel><FormControl><Input placeholder="e.g., Moved SL, Exited too early, Oversized" {...field} /></FormControl></FormItem>
+                    <FormItem><FormLabel>Mistakes (comma-separated tags)</FormLabel><FormControl><Input placeholder="e.g., Moved SL, Exited too early, Oversized" {...field} /></FormControl></FormItem>
+                )} />
+                <FormField control={form.control} name="review.newsContextTags" render={({ field }) => (
+                    <FormItem><FormLabel>News Context (comma-separated tags)</FormLabel><FormControl><Input placeholder="e.g., FOMC Day, CPI Print" {...field} /></FormControl></FormItem>
                 )} />
                 <FormField control={form.control} name="review.learningNotes" render={({ field }) => (
                     <FormItem>
@@ -196,6 +201,43 @@ function JournalReviewForm({ entry, onSubmit }: { entry: JournalEntry; onSubmit:
 
 function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { entries: JournalEntry[], updateEntry: (entry: JournalEntry) => void, onSetModule: TradeJournalModuleProps['onSetModule'], initialDraftId?: string }) {
     const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);
+    const [filters, setFilters] = useState({
+        timeRange: '30d',
+        result: 'all',
+        emotion: 'all',
+        mistake: 'all',
+        strategy: 'all',
+    });
+
+    const filteredEntries = useMemo(() => {
+        return entries.filter(entry => {
+            if (filters.result !== 'all' && entry.status === 'completed') {
+                const isWin = entry.review.pnl > 0;
+                if (filters.result === 'win' && !isWin) return false;
+                if (filters.result === 'loss' && isWin) return false;
+            }
+            if (filters.emotion !== 'all' && !(entry.review.emotionsTags || '').includes(filters.emotion)) return false;
+            if (filters.mistake !== 'all' && !(entry.review.mistakesTags || '').includes(filters.mistake)) return false;
+            if (filters.strategy !== 'all' && entry.technical.strategy !== filters.strategy) return false;
+            
+            // Date filter (mocked)
+            const entryDate = new Date(entry.timestamps.executedAt);
+            const now = new Date();
+            if (filters.timeRange === '7d' && now.getTime() - entryDate.getTime() > 7 * 24 * 60 * 60 * 1000) return false;
+            if (filters.timeRange === 'today' && now.toDateString() !== entryDate.toDateString()) return false;
+            
+            return true;
+        });
+    }, [entries, filters]);
+
+    const clearFilters = () => {
+        setFilters({ timeRange: '30d', result: 'all', emotion: 'all', mistake: 'all', strategy: 'all' });
+    }
+
+    const uniqueStrats = [...new Set(entries.map(e => e.technical.strategy))];
+    const uniqueEmotions = [...new Set(entries.flatMap(e => (e.review.emotionsTags || "").split(',')).filter(Boolean))];
+    const uniqueMistakes = [...new Set(entries.flatMap(e => (e.review.mistakesTags || "").split(',')).filter(Boolean))];
+
 
     useEffect(() => {
         const entryToEdit = entries.find(e => e.id === initialDraftId);
@@ -250,48 +292,117 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { e
     return (
         <div className="space-y-8">
             <Card className="bg-muted/30 border-border/50">
-                 <CardHeader>
-                    <CardTitle>Journal History</CardTitle>
-                    <CardDescription>A log of your completed and pending trade reviews.</CardDescription>
+                <CardHeader>
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <CardTitle className="flex items-center gap-2"><Filter /> Journal Filters</CardTitle>
+                        <Button variant="ghost" size="sm" onClick={clearFilters}><X className="mr-2 h-4 w-4"/>Clear Filters</Button>
+                    </div>
                 </CardHeader>
-                <CardContent>
-                    <ScrollArea className="w-full whitespace-nowrap">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Date</TableHead><TableHead>Instrument</TableHead><TableHead>Direction</TableHead>
-                                    <TableHead>PnL ($)</TableHead><TableHead>Status</TableHead><TableHead>Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {entries.slice(0, 10).map((entry) => (
-                                    <TableRow key={entry.id}>
-                                        <TableCell>{format(new Date(entry.timestamps.executedAt), "yyyy-MM-dd")}</TableCell>
-                                        <TableCell>{entry.technical.instrument}</TableCell>
-                                        <TableCell className={cn(entry.technical.direction === "Long" ? "text-green-400" : "text-red-400")}>{entry.technical.direction}</TableCell>
-                                        <TableCell className={cn(entry.review.pnl >= 0 ? "text-green-400" : "text-red-400")}>{entry.status === 'completed' ? entry.review.pnl.toFixed(2) : 'N/A'}</TableCell>
-                                        <TableCell>
-                                            <Badge variant={entry.status === 'completed' ? 'secondary' : 'outline'} className={cn(
-                                                entry.status === 'completed' ? 'bg-green-500/20 text-green-300 border-green-500/30' : 'border-amber-500/30 text-amber-300'
-                                            )}>{entry.status}</Badge>
-                                        </TableCell>
-                                        <TableCell className="space-x-2">
-                                            <Button variant="outline" size="sm" onClick={() => setEditingEntry(entry)}>
-                                                {entry.status === 'pending' ? 'Review' : 'View'}
-                                            </Button>
-                                             {entry.status === 'completed' && (
-                                                <Button variant="link" size="sm" className="px-1 h-auto" onClick={() => discussWithArjun(entry)}>
-                                                    <Bot className="mr-1 h-4 w-4" /> Discuss
-                                                </Button>
-                                             )}
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </ScrollArea>
+                <CardContent className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                     <div className="flex items-center gap-1 rounded-full bg-muted p-1">
+                        {(['today', '7d', '30d'] as const).map(range => (
+                            <Button
+                                key={range}
+                                size="sm"
+                                variant={filters.timeRange === range ? 'secondary' : 'ghost'}
+                                onClick={()={() => setFilters(f => ({ ...f, timeRange: range }))}
+                                className="rounded-full h-8 px-3 text-xs w-full"
+                            >
+                                {range === 'today' ? 'Today' : range.toUpperCase()}
+                            </Button>
+                        ))}
+                    </div>
+                     <div className="flex items-center gap-1 rounded-full bg-muted p-1">
+                        {(['all', 'win', 'loss'] as const).map(res => (
+                            <Button
+                                key={res}
+                                size="sm"
+                                variant={filters.result === res ? 'secondary' : 'ghost'}
+                                onClick={()={() => setFilters(f => ({ ...f, result: res }))}
+                                className="rounded-full h-8 px-3 text-xs w-full capitalize"
+                            >
+                                {res}
+                            </Button>
+                        ))}
+                    </div>
+                    <Select value={filters.strategy} onValueChange={(v) => setFilters(f => ({ ...f, strategy: v }))}>
+                        <SelectTrigger><SelectValue placeholder="Filter by strategy..." /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Strategies</SelectItem>
+                            {uniqueStrats.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                     <Select value={filters.emotion} onValueChange={(v) => setFilters(f => ({ ...f, emotion: v }))}>
+                        <SelectTrigger><SelectValue placeholder="Filter by emotion..." /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Emotions</SelectItem>
+                            {uniqueEmotions.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                     <Select value={filters.mistake} onValueChange={(v) => setFilters(f => ({ ...f, mistake: v }))}>
+                        <SelectTrigger><SelectValue placeholder="Filter by mistake..." /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Mistakes</SelectItem>
+                            {uniqueMistakes.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
                 </CardContent>
             </Card>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                 {filteredEntries.map(entry => (
+                    <Card key={entry.id} className="bg-muted/30 border-border/50 hover:border-primary/40 transition-colors flex flex-col">
+                        <CardHeader>
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <h3 className={cn("font-bold text-lg", entry.review.pnl >= 0 ? 'text-green-400' : 'text-red-400')}>
+                                        {entry.technical.instrument} &bull; {entry.status === 'completed' ? `${entry.review.pnl >= 0 ? '+' : ''}${entry.review.pnl.toFixed(2)}` : 'Pending'}
+                                    </h3>
+                                    <p className="text-sm text-muted-foreground">{entry.technical.direction}</p>
+                                </div>
+                                <Badge variant={entry.status === 'completed' ? 'secondary' : 'outline'} className={cn(
+                                    'text-xs',
+                                    entry.status === 'completed' ? 'bg-green-500/20 text-green-300 border-green-500/30' : 'border-amber-500/30 text-amber-300'
+                                )}>{entry.status}</Badge>
+                            </div>
+                            <CardDescription>{format(new Date(entry.timestamps.executedAt), "PPP 'at' p")}</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4 flex-1 flex flex-col">
+                             <div className="flex-1 space-y-2">
+                                <div className="flex flex-wrap gap-2">
+                                    {(entry.review.emotionsTags || "").split(',').filter(Boolean).map(tag => (
+                                        <Badge key={tag} variant="outline" className="text-xs border-amber-500/30 text-amber-300">{tag}</Badge>
+                                    ))}
+                                </div>
+                                 <div className="flex flex-wrap gap-2">
+                                    {(entry.review.mistakesTags || "").split(',').filter(Boolean).map(tag => (
+                                        <Badge key={tag} variant="outline" className="text-xs border-red-500/30 text-red-300">{tag}</Badge>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="flex gap-2">
+                                <Button className="w-full" variant="outline" size="sm" onClick={() => setEditingEntry(entry)}>
+                                    {entry.status === 'pending' ? 'Review' : 'View'}
+                                </Button>
+                                {entry.status === 'completed' && (
+                                    <Button className="w-full" variant="secondary" size="sm" onClick={() => discussWithArjun(entry)}>
+                                        <Bot className="mr-2 h-4 w-4" /> Discuss
+                                    </Button>
+                                )}
+                            </div>
+                        </CardContent>
+                    </Card>
+                 ))}
+                 {filteredEntries.length === 0 && (
+                    <Card className="md:col-span-2 lg:col-span-3 bg-muted/30 border-border/50 text-center py-12">
+                        <CardHeader><CardTitle>No Entries Found</CardTitle></CardHeader>
+                        <CardContent>
+                            <p className="text-muted-foreground">No journal entries match your current filters.</p>
+                            <Button variant="secondary" className="mt-4" onClick={clearFilters}>Clear filters</Button>
+                        </CardContent>
+                    </Card>
+                )}
+            </div>
         </div>
     )
 }
@@ -374,3 +485,5 @@ export function TradeJournalModule({ onSetModule, draftId }: TradeJournalModuleP
         </div>
     );
 }
+
+    
