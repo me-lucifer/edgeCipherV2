@@ -459,6 +459,78 @@ function PriceLadder({ direction, entryPrice, stopLoss, takeProfit }: { directio
     );
 }
 
+function SessionChecklist({ currentStep }: { currentStep: TradePlanStep }) {
+    const [checklist, setChecklist] = useState({
+        growthPlan: false,
+        market: false,
+        rules: false,
+        emotion: false,
+    });
+
+    const [seconds, setSeconds] = useState(0);
+
+    useEffect(() => {
+        let interval: NodeJS.Timeout | null = null;
+        if (currentStep === 'plan') {
+            interval = setInterval(() => {
+                setSeconds(s => s + 1);
+            }, 1000);
+        } else if (interval) {
+            clearInterval(interval);
+        }
+        return () => {
+            if (interval) clearInterval(interval);
+        };
+    }, [currentStep]);
+
+    const formatTime = (totalSeconds: number) => {
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    };
+
+    const handleCheck = (key: keyof typeof checklist) => {
+        setChecklist(prev => ({ ...prev, [key]: !prev[key] }));
+    };
+
+    const checklistItems = [
+        { id: 'growthPlan', label: "Reviewed today's Growth Plan" },
+        { id: 'market', label: "Checked Crypto VIX and news" },
+        { id: 'rules', label: "Defined Entry, SL, and risk %" },
+        { id: 'emotion', label: "Emotion check done with Arjun" },
+    ];
+
+    return (
+        <Card className="bg-muted/30 border-border/50 mb-8">
+            <CardHeader>
+                <CardTitle className="text-base">Session Checklist</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="space-y-2">
+                    {checklistItems.map(item => (
+                        <div key={item.id} className="flex items-center space-x-2">
+                            <Checkbox 
+                                id={item.id} 
+                                checked={checklist[item.id as keyof typeof checklist]}
+                                onCheckedChange={() => handleCheck(item.id as keyof typeof checklist)}
+                            />
+                            <Label htmlFor={item.id} className="text-sm font-normal text-muted-foreground">{item.label}</Label>
+                        </div>
+                    ))}
+                </div>
+                <Separator />
+                <div className="flex justify-between items-center text-sm">
+                    <p className="text-muted-foreground">Time spent planning:</p>
+                    <p className="font-mono font-semibold text-foreground">{formatTime(seconds)}</p>
+                </div>
+                 <p className="text-xs text-muted-foreground/80 pt-2">
+                    Rushing planning is how impulsive trades slip through. Take a few minutes here – future you will thank you.
+                </p>
+            </CardContent>
+        </Card>
+    );
+}
+
 function PlanSummary({ control, setPlanStatus, onSetModule }: { control: any, setPlanStatus: (status: PlanStatusType) => void, onSetModule: TradePlanningModuleProps['onSetModule'] }) {
     const values = useWatch({ control }) as Partial<PlanFormValues>;
     const { instrument, direction, entryPrice, stopLoss, takeProfit, riskPercent, accountCapital, strategyId, notes, justification } = values;
@@ -708,7 +780,7 @@ function WhatIfRiskSlider({ control, form }: { control: any; form: ReturnType<ty
     );
 }
 
-function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, planContext, isNewUser }: { form: any, onSetModule: any, setPlanStatus: any, onApplyTemplate: (templateId: string) => void, planContext?: TradePlanningModuleProps['planContext'], isNewUser: boolean }) {
+function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, planContext, isNewUser, currentStep }: { form: any, onSetModule: any, setPlanStatus: any, onApplyTemplate: (templateId: string) => void, planContext?: TradePlanningModuleProps['planContext'], isNewUser: boolean, currentStep: TradePlanStep }) {
     const entryType = useWatch({ control: form.control, name: 'entryType' });
     const strategyId = useWatch({ control: form.control, name: 'strategyId' });
     
@@ -819,10 +891,10 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, planConte
                         <h3 className="text-sm font-semibold text-muted-foreground">Account & Risk</h3>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <FormField control={form.control} name="accountCapital" render={({ field }) => (
-                                <FormItem><FormLabel>Account Capital ($)</FormLabel><FormControl><Input type="number" placeholder="10000" {...field} /></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>Account Capital ($)</FormLabel><FormControl><Input type="number" placeholder="10000" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                             )}/>
                             <FormField control={form.control} name="riskPercent" render={({ field }) => (
-                                <FormItem><FormLabel>Risk Per Trade (%)</FormLabel><FormControl><Input type="number" placeholder="1" {...field} /></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>Risk Per Trade (%)</FormLabel><FormControl><Input type="number" placeholder="1" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                             )}/>
                             <FormField control={form.control} name="leverage" render={({ field }) => (
                                 <FormItem><FormLabel>Leverage</FormLabel><Select onValueChange={(v) => field.onChange(Number(v))} defaultValue={String(field.value)}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="5">5x</SelectItem><SelectItem value="10">10x</SelectItem><SelectItem value="20">20x</SelectItem><SelectItem value="50">50x</SelectItem></SelectContent></Select><FormMessage /></FormItem>
@@ -861,6 +933,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, planConte
             </Card>
 
             <div className="lg:col-span-1 space-y-6 sticky top-24">
+                <SessionChecklist currentStep={currentStep} />
                 <PlanSummary control={form.control} setPlanStatus={setPlanStatus} onSetModule={onSetModule} />
             </div>
             
@@ -1498,7 +1571,7 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
 
-                    {currentStep === "plan" && <PlanStep form={form} onSetModule={onSetModule} setPlanStatus={setPlanStatus} onApplyTemplate={handleApplyTemplate} planContext={planContext} isNewUser={isNewUser} />}
+                    {currentStep === "plan" && <PlanStep form={form} onSetModule={onSetModule} setPlanStatus={setPlanStatus} onApplyTemplate={handleApplyTemplate} planContext={planContext} isNewUser={isNewUser} currentStep={currentStep} />}
                     {currentStep === "review" && <ReviewStep form={form} onSetModule={onSetModule} onSetStep={setCurrentStep} arjunFeedbackAccepted={arjunFeedbackAccepted} setArjunFeedbackAccepted={setArjunFeedbackAccepted} planStatus={planStatus} />}
                     {currentStep === "execute" && <ExecuteStep form={form} onSetModule={onSetModule} onSetStep={setCurrentStep} planStatus={planStatus} />}
 
@@ -1536,3 +1609,4 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
         </div>
     );
 }
+
