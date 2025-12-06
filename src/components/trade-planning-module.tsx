@@ -8,7 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
@@ -851,6 +851,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, planConte
                                 <FormItem><FormLabel>Entry Type</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} value={field.value} className="flex pt-2 gap-4"><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Limit" /></FormControl><FormLabel className="font-normal">Limit</FormLabel></FormItem><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Market" /></FormControl><FormLabel className="font-normal">Market</FormLabel></FormItem></RadioGroup></FormControl><FormMessage /></FormItem>
                             )}/>
                         </div>
+                        <FormDescription className="text-xs italic">Be honest – is this following your plan, or chasing a move?</FormDescription>
                     </div>
 
                     {/* Group B */}
@@ -873,6 +874,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, planConte
                                 <FormItem>
                                     <FormLabel>Stop Loss Price (SL)*</FormLabel>
                                     <FormControl><Input type="number" placeholder="0.00" {...field} value={field.value || ''} /></FormControl>
+                                    <FormDescription className="text-xs">Your invalidation point. Where you promise to exit if wrong.</FormDescription>
                                     <FormMessage />
                                 </FormItem>
                             )}/>
@@ -894,7 +896,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, planConte
                                 <FormItem><FormLabel>Account Capital ($)</FormLabel><FormControl><Input type="number" placeholder="10000" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                             )}/>
                             <FormField control={form.control} name="riskPercent" render={({ field }) => (
-                                <FormItem><FormLabel>Risk Per Trade (%)</FormLabel><FormControl><Input type="number" placeholder="1" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>Risk Per Trade (% of account)</FormLabel><FormControl><Input type="number" placeholder="1" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
                             )}/>
                             <FormField control={form.control} name="leverage" render={({ field }) => (
                                 <FormItem><FormLabel>Leverage</FormLabel><Select onValueChange={(v) => field.onChange(Number(v))} defaultValue={String(field.value)}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="5">5x</SelectItem><SelectItem value="10">10x</SelectItem><SelectItem value="20">20x</SelectItem><SelectItem value="50">50x</SelectItem></SelectContent></Select><FormMessage /></FormItem>
@@ -926,7 +928,12 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, planConte
                             </Button>
                         </div>
                         <FormField control={form.control} name="notes" render={({ field }) => (
-                            <FormItem><FormLabel>Trade Rationale*</FormLabel><FormControl><Textarea placeholder="Why are you taking this trade? What conditions must be true?" {...field} /></FormControl><FormMessage /></FormItem>
+                            <FormItem>
+                                <FormLabel>Trade Rationale*</FormLabel>
+                                <FormControl><Textarea placeholder="Why are you taking this trade? What conditions must be true?" {...field} /></FormControl>
+                                <FormDescription className="text-xs italic">This will be saved to your journal. Write it for your future self to review.</FormDescription>
+                                <FormMessage />
+                            </FormItem>
                         )}/>
                     </div>
                 </CardContent>
@@ -1227,6 +1234,9 @@ function ExecutionOptions({ form, onSetModule }: { form: any, onSetModule: (modu
                         {isExecuting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                         {isExecuting ? 'Executing...' : 'Execute trade (Prototype)'}
                     </Button>
+                     <p className="text-xs text-muted-foreground/80 mt-4 text-center">
+                        EdgeCipher never encourages revenge trading or ‘all-in’ bets. If you feel emotionally charged, step back and revisit your plan tomorrow.
+                    </p>
                 </div>
                  
             </CardContent>
@@ -1610,3 +1620,6 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
     );
 }
 
+
+
+    
