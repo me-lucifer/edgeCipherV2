@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Info, CheckCircle, Circle, AlertTriangle, FileText, ArrowRight, Gauge, ShieldCheck, XCircle, X, Lock, Loader2, Bookmark, Copy, RefreshCw, Sparkles } from "lucide-react";
+import { Bot, Info, CheckCircle, Circle, AlertTriangle, FileText, ArrowRight, Gauge, ShieldCheck, XCircle, X, Lock, Loader2, Bookmark, Copy, RefreshCw, Sparkles, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
@@ -28,6 +28,7 @@ import { useEventLog } from "@/context/event-log-provider";
 import { Slider } from "./ui/slider";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "./ui/drawer";
 import { Skeleton } from "./ui/skeleton";
+import { formatDistanceToNow } from "date-fns";
 
 
 interface TradePlanningModuleProps {
@@ -81,6 +82,12 @@ const planSchema = z.object({
 
 
 type PlanFormValues = z.infer<typeof planSchema>;
+type TradePlanStep = "plan" | "review" | "execute";
+type SavedDraft = {
+    formData: PlanFormValues;
+    draftStep: TradePlanStep;
+    timestamp: string;
+};
 
 // Duplicating from strategy-management-module for prototype purposes
 type Strategy = {
@@ -153,7 +160,6 @@ const planTemplates: ({ id: string, name: string, values: Partial<PlanFormValues
 ];
 
 type PlanStatusType = "incomplete" | "blocked" | "needs_attention" | "ok" | "overridden";
-type TradePlanStep = "plan" | "review" | "execute";
 
 const PlanStatus = ({ status, message }: { status: PlanStatusType, message: string }) => {
     const statusConfig = {
@@ -781,7 +787,7 @@ function WhatIfRiskSlider({ control, form }: { control: any; form: ReturnType<ty
     );
 }
 
-function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, planContext, isNewUser, currentStep }: { form: any, onSetModule: any, setPlanStatus: any, onApplyTemplate: (templateId: string) => void, planContext?: TradePlanningModuleProps['planContext'], isNewUser: boolean, currentStep: TradePlanStep }) {
+function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, planContext, isNewUser, currentStep, draftToResume, onResume, onDiscard }: { form: any, onSetModule: any, setPlanStatus: any, onApplyTemplate: (templateId: string) => void, planContext?: TradePlanningModuleProps['planContext'], isNewUser: boolean, currentStep: TradePlanStep, draftToResume: SavedDraft | null, onResume: () => void, onDiscard: () => void }) {
     const entryType = useWatch({ control: form.control, name: 'entryType' });
     const strategyId = useWatch({ control: form.control, name: 'strategyId' });
     
@@ -814,6 +820,23 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, planConte
                     )}
                 </CardHeader>
                 <CardContent className="space-y-6">
+                    {draftToResume && (
+                        <Card className="border-primary/30 bg-muted/50">
+                            <CardHeader className="flex-row items-center gap-4 space-y-0">
+                                <Clock className="h-5 w-5 text-primary" />
+                                <div>
+                                    <CardTitle className="text-base">Resume where you left off?</CardTitle>
+                                    <CardDescription>
+                                        You have an unfinished plan from {formatDistanceToNow(new Date(draftToResume.timestamp), { addSuffix: true })}.
+                                    </CardDescription>
+                                </div>
+                            </CardHeader>
+                            <CardContent className="flex gap-2">
+                                <Button onClick={onResume}>Resume Draft</Button>
+                                <Button variant="ghost" onClick={onDiscard}>Discard</Button>
+                            </CardContent>
+                        </Card>
+                    )}
                     {/* Template Selector */}
                     <div className="p-4 bg-muted/50 rounded-lg space-y-2 border-b border-border/50">
                         <Label htmlFor="plan-template">Start from template</Label>
@@ -1397,6 +1420,7 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
     const [pendingTemplateId, setPendingTemplateId] = useState<string | null>(null);
     const [isNewUser, setIsNewUser] = useState(false);
     const [showValidationBanner, setShowValidationBanner] = useState(false);
+    const [draftToResume, setDraftToResume] = useState<SavedDraft | null>(null);
 
     const form = useForm<PlanFormValues>({
         resolver: zodResolver(planSchema),
@@ -1427,15 +1451,14 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
             const scenario = localStorage.getItem('ec_demo_scenario') as DemoScenario | null;
             setIsNewUser(scenario === 'no_positions');
             
-            const draft = localStorage.getItem("ec_trade_plan_draft");
-            if (draft) {
+            const draftString = localStorage.getItem("ec_trade_plan_draft");
+            if (draftString) {
                 try {
-                    const parsedDraft = JSON.parse(draft);
-                    form.reset(parsedDraft);
-                     toast({
-                        title: "Draft Loaded",
-                        description: "Your previous trade plan draft has been loaded.",
-                    });
+                    const parsedDraft = JSON.parse(draftString);
+                    // Check if form is empty before showing resume banner
+                    if(!form.formState.isDirty && !form.getValues('instrument')) {
+                        setDraftToResume(parsedDraft);
+                    }
                 } catch(e) {
                     console.error("Could not parse trade plan draft:", e);
                 }
@@ -1455,7 +1478,27 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
 
         return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [form, toast, planContext]);
+    }, [toast, planContext]);
+
+    const handleResumeDraft = () => {
+        if (!draftToResume) return;
+        form.reset(draftToResume.formData);
+        setCurrentStep(draftToResume.draftStep);
+        setDraftToResume(null);
+        toast({
+            title: "Draft Loaded",
+            description: "Your previous trade plan draft has been loaded.",
+        });
+    };
+    
+    const handleDiscardDraft = () => {
+        localStorage.removeItem("ec_trade_plan_draft");
+        setDraftToResume(null);
+        toast({
+            title: "Draft Discarded",
+            variant: "destructive"
+        });
+    };
     
     const applyTemplate = (templateId: string) => {
         const template = planTemplates.find(t => t.id === templateId);
@@ -1509,7 +1552,12 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
 
     const handleSaveDraft = () => {
         const values = form.getValues();
-        localStorage.setItem("ec_trade_plan_draft", JSON.stringify(values));
+        const draft: SavedDraft = {
+            formData: values,
+            draftStep: currentStep,
+            timestamp: new Date().toISOString()
+        };
+        localStorage.setItem("ec_trade_plan_draft", JSON.stringify(draft));
         toast({
             title: "Plan saved as draft",
             description: "Your current trade plan has been saved locally.",
@@ -1648,7 +1696,7 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onValidSubmit, onInvalidSubmit)} className="space-y-8">
 
-                    {currentStep === "plan" && <PlanStep form={form} onSetModule={onSetModule} setPlanStatus={setPlanStatus} onApplyTemplate={handleApplyTemplate} planContext={planContext} isNewUser={isNewUser} currentStep={currentStep} />}
+                    {currentStep === "plan" && <PlanStep form={form} onSetModule={onSetModule} setPlanStatus={setPlanStatus} onApplyTemplate={handleApplyTemplate} planContext={planContext} isNewUser={isNewUser} currentStep={currentStep} draftToResume={draftToResume} onResume={handleResumeDraft} onDiscard={handleDiscardDraft} />}
                     {currentStep === "review" && <ReviewStep form={form} onSetModule={onSetModule} onSetStep={setCurrentStep} arjunFeedbackAccepted={arjunFeedbackAccepted} setArjunFeedbackAccepted={setArjunFeedbackAccepted} planStatus={planStatus} />}
                     {currentStep === "execute" && <ExecuteStep form={form} onSetModule={onSetModule} onSetStep={setCurrentStep} planStatus={planStatus} />}
 
