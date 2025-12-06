@@ -265,62 +265,78 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { e
                     </div>
                 </CardHeader>
                 <CardContent className="grid md:grid-cols-2 gap-8">
-                     <div className="space-y-6">
-                        <Card className="bg-muted/50 border-border/50">
-                            <CardHeader>
-                                <CardTitle className="text-base">Trade Summary</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-2 text-sm">
-                                <div className="flex justify-between"><span className="text-muted-foreground">Pair/Direction:</span> <span className={cn("font-mono", editingEntry.technical.direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{editingEntry.technical.instrument} {editingEntry.technical.direction}</span></div>
-                                <div className="flex justify-between"><span className="text-muted-foreground">Entry / SL / TP:</span> <span className="font-mono">{editingEntry.technical.entryPrice} / {editingEntry.technical.stopLoss} / {editingEntry.technical.takeProfit || 'N/A'}</span></div>
-                                <div className="flex justify-between"><span className="text-muted-foreground">Risk % / R:R:</span> <span className="font-mono">{editingEntry.technical.riskPercent}% / {editingEntry.technical.rrRatio?.toFixed(2) || 'N/A'}</span></div>
-                                <div className="flex justify-between"><span className="text-muted-foreground">Strategy:</span> <span className="font-mono">{editingEntry.technical.strategy}</span></div>
-                            </CardContent>
-                        </Card>
-                        <Card className="bg-muted/50 border-border/50">
-                            <CardHeader>
-                                <CardTitle className="text-base">Planning & Mindset</CardTitle>
-                            </CardHeader>
-                             <CardContent className="space-y-4">
-                                <div>
-                                    <h4 className="font-semibold text-foreground mb-2 text-sm">Rationale</h4>
-                                    <p className="text-sm text-muted-foreground p-3 bg-muted rounded-lg border italic">"{editingEntry.planning.planNotes || 'No plan notes were entered.'}"</p>
+                    {/* Left Column: Trade Summary */}
+                    <Card className="bg-muted/50 border-border/50">
+                        <CardHeader>
+                            <CardTitle className="text-base">Trade Summary</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            <div>
+                                <h4 className="text-sm font-semibold text-foreground mb-2">Technical Details</h4>
+                                <div className="space-y-2 text-sm">
+                                    <div className="flex justify-between"><span className="text-muted-foreground">Pair/Direction:</span> <span className={cn("font-mono", editingEntry.technical.direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{editingEntry.technical.instrument} {editingEntry.technical.direction}</span></div>
+                                    <div className="flex justify-between"><span className="text-muted-foreground">Entry / SL / TP:</span> <span className="font-mono">{editingEntry.technical.entryPrice} / {editingEntry.technical.stopLoss} / {editingEntry.technical.takeProfit || 'N/A'}</span></div>
+                                    <div className="flex justify-between"><span className="text-muted-foreground">Risk % / R:R:</span> <span className="font-mono">{editingEntry.technical.riskPercent}% / {editingEntry.technical.rrRatio?.toFixed(2) || 'N/A'}</span></div>
+                                    <div className="flex justify-between"><span className="text-muted-foreground">Strategy:</span> <span className="font-mono">{editingEntry.technical.strategy}</span></div>
                                 </div>
-                                <div>
-                                    <h4 className="font-semibold text-foreground mb-2 text-sm">Pre-trade Mindset</h4>
-                                    <p className="text-sm text-muted-foreground p-3 bg-muted rounded-lg border italic">"{editingEntry.planning.mindset || 'No mindset notes were entered.'}"</p>
+                            </div>
+                             <Separator />
+                            <div>
+                                <h4 className="text-sm font-semibold text-foreground mb-2">Planning & Mindset</h4>
+                                <div className="space-y-3">
+                                     <div>
+                                        <p className="font-semibold text-muted-foreground text-xs">Rationale</p>
+                                        <p className="text-sm text-muted-foreground p-3 bg-muted rounded-lg border italic">"{editingEntry.planning.planNotes || 'No plan notes were entered.'}"</p>
+                                    </div>
+                                    <div>
+                                        <p className="font-semibold text-muted-foreground text-xs">Pre-trade Mindset</p>
+                                        <p className="text-sm text-muted-foreground p-3 bg-muted rounded-lg border italic">"{editingEntry.planning.mindset || 'No mindset notes were entered.'}"</p>
+                                    </div>
                                 </div>
-                             </CardContent>
-                        </Card>
-                    </div>
-                    <div className="space-y-6">
-                         <Card className="bg-muted/50 border-border/50">
-                            <CardHeader>
-                                <CardTitle className="text-base">Psychological Review</CardTitle>
-                                {editingEntry.status === 'completed' && <CardDescription>This entry is locked. To edit, create a new version (prototype).</CardDescription>}
-                            </CardHeader>
-                            <CardContent>
-                                {editingEntry.status === 'pending' ? (
-                                    <JournalReviewForm entry={editingEntry} onSubmit={(values) => {
-                                        updateEntry(values);
-                                        setEditingEntry(null);
-                                    }} />
-                                ) : (
-                                    <div className="space-y-4 text-sm">
-                                        <div className="flex justify-between font-mono"><span className="text-muted-foreground">Final PnL:</span> <span className={cn(editingEntry.review.pnl > 0 ? 'text-green-400' : 'text-red-400')}>{editingEntry.review.pnl.toFixed(2)}$</span></div>
-                                        <div className="flex justify-between font-mono"><span className="text-muted-foreground">Exit Price:</span> <span>{editingEntry.review.exitPrice}</span></div>
-                                        <Separator className="my-4"/>
-                                        <div><h4 className="font-semibold mb-1">Emotion Tags:</h4><p className="text-muted-foreground">{editingEntry.review.emotionsTags || "None"}</p></div>
-                                        <div><h4 className="font-semibold mb-1">Mistake Tags:</h4><p className="text-muted-foreground">{editingEntry.review.mistakesTags || "None"}</p></div>
-                                        <div><h4 className="font-semibold mb-1">Learnings:</h4><p className="text-muted-foreground italic">"{editingEntry.review.learningNotes || "No learning notes."}"</p></div>
-                                        <div className="pt-4">
-                                            <Button className="w-full" onClick={() => discussWithArjun(editingEntry)}><Bot className="mr-2 h-4 w-4"/>Discuss with Arjun</Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                    
+                    {/* Right Column: Psychological Review */}
+                    <Card className="bg-muted/50 border-border/50">
+                        <CardHeader>
+                            <CardTitle className="text-base">Psychological Review</CardTitle>
+                            <CardDescription>Capture how you traded, not just what you traded.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {editingEntry.status === 'pending' ? (
+                                <JournalReviewForm entry={editingEntry} onSubmit={(values) => {
+                                    updateEntry(values);
+                                    setEditingEntry(null);
+                                }} />
+                            ) : (
+                                <div className="space-y-6">
+                                     <div className="flex justify-between font-mono text-sm"><span className="text-muted-foreground">Final PnL:</span> <span className={cn(editingEntry.review.pnl > 0 ? 'text-green-400' : 'text-red-400')}>{editingEntry.review.pnl.toFixed(2)}$</span></div>
+                                     <div className="flex justify-between font-mono text-sm"><span className="text-muted-foreground">Exit Price:</span> <span>{editingEntry.review.exitPrice}</span></div>
+                                    <Separator />
+                                     <div>
+                                        <h4 className="font-semibold mb-2 text-sm">Emotions During Trade</h4>
+                                        <div className="flex flex-wrap gap-2">
+                                            {(editingEntry.review.emotionsTags || "None").split(',').map(tag => <Badge key={tag} variant="outline">{tag}</Badge>)}
                                         </div>
                                     </div>
-                                )}
-                            </CardContent>
-                        </Card>
-                    </div>
+                                     <div>
+                                        <h4 className="font-semibold mb-2 text-sm">Mistakes (if any)</h4>
+                                         <div className="flex flex-wrap gap-2">
+                                            {(editingEntry.review.mistakesTags || "None").split(',').map(tag => <Badge key={tag} variant="destructive">{tag}</Badge>)}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <h4 className="font-semibold mb-2 text-sm">Learning Notes</h4>
+                                        <p className="text-sm text-muted-foreground p-3 bg-muted rounded-lg border italic">"{editingEntry.review.learningNotes || "No learning notes."}"</p>
+                                    </div>
+                                    <div className="pt-4">
+                                        <Button className="w-full" onClick={() => discussWithArjun(editingEntry)}><Bot className="mr-2 h-4 w-4"/>Discuss with Arjun</Button>
+                                    </div>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
                 </CardContent>
             </Card>
         )
@@ -503,12 +519,12 @@ export function TradeJournalModule({ onSetModule, draftId }: TradeJournalModuleP
 
     return (
         <div className="space-y-8">
-            <div>
-                <h1 className="text-2xl font-bold tracking-tight text-foreground">Trade Journal</h1>
-                <p className="text-muted-foreground">Low-effort trade logging. High-impact psychology.</p>
+            <div className="text-center md:text-left">
+                <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-3 justify-center md:justify-start"><Bookmark className="h-6 w-6"/>Trade Journal</h1>
+                <p className="text-muted-foreground mt-2">Low-effort trade logging. High-impact psychology.</p>
             </div>
              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-2 max-w-md">
+                <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto md:mx-0">
                     <TabsTrigger value="pending">Pending Review ({entries.filter(e => e.status === 'pending').length})</TabsTrigger>
                     <TabsTrigger value="all">All Trades &amp; Filters</TabsTrigger>
                 </TabsList>
