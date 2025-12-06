@@ -95,7 +95,7 @@ const mockJournalEntries: JournalEntry[] = [
       timestamps: { plannedAt: new Date(Date.now() - 86400000 * 2).toISOString(), executedAt: new Date(Date.now() - 86400000 * 2).toISOString(), closedAt: new Date(Date.now() - 86400000 * 2).toISOString() },
       technical: { instrument: 'BTC-PERP', direction: 'Long', entryPrice: 68500, stopLoss: 68000, takeProfit: 69500, leverage: 20, positionSize: 0.5, riskPercent: 1, rrRatio: 2, strategy: "BTC Trend Breakout" },
       planning: { planNotes: "Clean breakout above resistance. Good follow-through.", mindset: "Confident, Calm" },
-      review: { pnl: 234.75, exitPrice: 68969.5, emotionalNotes: "Felt good, stuck to the plan.", emotionsTags: "Confident,Focused", mistakesTags: "None", learningNotes: "Trust the plan when the setup is clean.", newsContextTags: "Post-CPI" },
+      review: { pnl: 234.75, exitPrice: 68969.5, emotionalNotes: "Felt good, stuck to the plan.", emotionsTags: "Confident,Focused", mistakesTags: "None (disciplined)", learningNotes: "Trust the plan when the setup is clean.", newsContextTags: "Post-CPI" },
       meta: { journalingCompletedAt: new Date().toISOString() }
     },
     {
@@ -105,7 +105,7 @@ const mockJournalEntries: JournalEntry[] = [
       timestamps: { plannedAt: new Date(Date.now() - 86400000).toISOString(), executedAt: new Date(Date.now() - 86400000).toISOString(), closedAt: new Date(Date.now() - 86400000).toISOString() },
       technical: { instrument: 'ETH-PERP', direction: 'Short', entryPrice: 3605, stopLoss: 3625, leverage: 50, positionSize: 12, riskPercent: 2, rrRatio: 1, strategy: "London Reversal" },
       planning: { planNotes: "Fading what looks like a sweep of the high.", mindset: "Anxious" },
-      review: { pnl: -240, exitPrice: 3625, emotionalNotes: "Market kept pushing, I felt like I was fighting a trend. Should have waited for more confirmation.", emotionsTags: "Anxious,Revenge", mistakesTags: "Forced Entry", learningNotes: "Don't fight a strong trend, even if it looks like a sweep.", newsContextTags: "" },
+      review: { pnl: -240, exitPrice: 3625, emotionalNotes: "Market kept pushing, I felt like I was fighting a trend. Should have waited for more confirmation.", emotionsTags: "Anxious,Revenge", mistakesTags: "Forced Entry,Moved SL", learningNotes: "Don't fight a strong trend, even if it looks like a sweep.", newsContextTags: "" },
       meta: { journalingCompletedAt: new Date().toISOString() }
     },
 ];
@@ -161,6 +161,7 @@ const useJournal = () => {
 }
 
 const presetEmotions = ["FOMO", "Fear", "Anxiety", "Overconfidence", "Revenge", "Boredom", "Calm", "Focused", "Curious"];
+const presetMistakes = ["Moved SL", "Exited early", "Exited late", "Oversized risk", "Skipped plan", "Took revenge trade", "Overtraded", "Ignored VIX / news", "None (disciplined)"];
 
 function JournalReviewForm({ entry, onSubmit }: { entry: JournalEntry; onSubmit: (values: JournalEntry) => void; }) {
     const form = useForm<JournalEntry>({
@@ -180,14 +181,22 @@ function JournalReviewForm({ entry, onSubmit }: { entry: JournalEntry; onSubmit:
         onSubmit(finalEntry);
     };
 
+    const isLosingTrade = form.getValues('review.pnl') < 0;
+
     return (
         <Form {...form}>
             <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-                <div className="space-y-4">
-                    <h4 className="font-semibold text-foreground">Emotions during this trade</h4>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField control={form.control} name="review.pnl" render={({ field }) => (<FormItem><FormLabel>Final PnL ($)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="review.exitPrice" render={({ field }) => (<FormItem><FormLabel>Final Exit Price</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                </div>
+                 <Separator />
+
+                <div>
+                    <h4 className="font-semibold text-foreground mb-3">Emotions during this trade</h4>
                     <FormField
                         control={form.control}
-                        name="emotionsTags"
+                        name="review.emotionsTags"
                         render={({ field }) => (
                             <FormItem>
                                 <FormControl>
@@ -223,7 +232,7 @@ function JournalReviewForm({ entry, onSubmit }: { entry: JournalEntry; onSubmit:
                         control={form.control}
                         name="review.emotionalNotes"
                         render={({ field }) => (
-                            <FormItem>
+                            <FormItem className="mt-4">
                                 <FormLabel className="text-xs text-muted-foreground">Emotional notes (optional but powerful)</FormLabel>
                                 <FormControl>
                                     <Textarea placeholder="Example: ‘Got anxious when price moved against me, almost closed early.’" {...field} />
@@ -233,13 +242,51 @@ function JournalReviewForm({ entry, onSubmit }: { entry: JournalEntry; onSubmit:
                     />
                 </div>
                  <Separator />
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField control={form.control} name="review.pnl" render={({ field }) => (<FormItem><FormLabel>Final PnL ($)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                    <FormField control={form.control} name="review.exitPrice" render={({ field }) => (<FormItem><FormLabel>Final Exit Price</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
+
+                <div>
+                    <h4 className="font-semibold text-foreground mb-3">Mistakes (if any)</h4>
+                    <FormField
+                        control={form.control}
+                        name="review.mistakesTags"
+                        render={({ field }) => (
+                             <FormItem>
+                                <FormControl>
+                                    <div className="flex flex-wrap gap-2">
+                                        {presetMistakes.map(mistake => {
+                                            const selected = (field.value || "").split(',').includes(mistake);
+                                            return (
+                                                <Button
+                                                    key={mistake}
+                                                    type="button"
+                                                    variant={selected ? "secondary" : "outline"}
+                                                    size="sm"
+                                                    className="h-8 text-xs rounded-full"
+                                                    onClick={() => {
+                                                        let currentTags = (field.value || "").split(',').filter(Boolean);
+                                                        if (mistake === 'None (disciplined)') {
+                                                            field.onChange(selected ? '' : 'None (disciplined)');
+                                                        } else {
+                                                            currentTags = currentTags.filter(t => t !== 'None (disciplined)');
+                                                            const newTags = selected
+                                                                ? currentTags.filter(t => t !== mistake)
+                                                                : [...currentTags, mistake];
+                                                            field.onChange(newTags.join(','));
+                                                        }
+                                                    }}
+                                                >
+                                                    {mistake}
+                                                </Button>
+                                            )
+                                        })}
+                                    </div>
+                                </FormControl>
+                                <p className="text-xs text-muted-foreground mt-3">Be honest here. These tags help Arjun and Performance Analytics show you patterns later.</p>
+                            </FormItem>
+                        )}
+                    />
                 </div>
-                 <FormField control={form.control} name="review.mistakesTags" render={({ field }) => (
-                    <FormItem><FormLabel>Mistakes (comma-separated tags)</FormLabel><FormControl><Input placeholder="e.g., Moved SL, Exited too early, Oversized" {...field} /></FormControl></FormItem>
-                )} />
+                <Separator />
+                
                 <FormField control={form.control} name="review.newsContextTags" render={({ field }) => (
                     <FormItem><FormLabel>News Context (comma-separated tags)</FormLabel><FormControl><Input placeholder="e.g., FOMC Day, CPI Print" {...field} /></FormControl></FormItem>
                 )} />
@@ -249,7 +296,12 @@ function JournalReviewForm({ entry, onSubmit }: { entry: JournalEntry; onSubmit:
                         <FormControl><Textarea placeholder="The most important part. What is the key takeaway from this trade, win or lose?" {...field} /></FormControl>
                     </FormItem>
                 )} />
-                 <div className="flex justify-end">
+                 {isLosingTrade && !(form.watch('review.mistakesTags') || form.watch('review.learningNotes')) && (
+                    <p className="text-xs text-amber-400">
+                        Big losses rarely come from perfect execution. Consider tagging at least one issue if something felt off.
+                    </p>
+                )}
+                 <div className="flex justify-end pt-4">
                     <Button type="submit">Complete Journal Entry</Button>
                 </div>
             </form>
@@ -323,10 +375,10 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { e
                     </div>
                 </CardHeader>
                 <CardContent className="grid md:grid-cols-2 gap-8">
-                    {/* Left Column: Trade Summary */}
                     <Card className="bg-muted/50 border-border/50">
                         <CardHeader>
                             <CardTitle className="text-base">Trade Summary</CardTitle>
+                            <CardDescription>The "what" of your trade (read-only).</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
                             <div>
@@ -355,11 +407,10 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { e
                         </CardContent>
                     </Card>
                     
-                    {/* Right Column: Psychological Review */}
                     <Card className="bg-muted/50 border-border/50">
                         <CardHeader>
                             <CardTitle className="text-base">Psychological Review</CardTitle>
-                            <CardDescription>Capture how you traded, not just what you traded.</CardDescription>
+                            <CardDescription>The "how" and "why" of your trade.</CardDescription>
                         </CardHeader>
                         <CardContent>
                             {editingEntry.status === 'pending' ? (
@@ -369,19 +420,19 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { e
                                 }} />
                             ) : (
                                 <div className="space-y-6">
-                                     <div className="flex justify-between font-mono text-sm"><span className="text-muted-foreground">Final PnL:</span> <span className={cn(editingEntry.review.pnl >= 0 ? 'text-green-400' : 'text-red-400')}>{editingEntry.review.pnl.toFixed(2)}$</span></div>
+                                     <div className="flex justify-between font-mono text-sm"><span className="text-muted-foreground">Final PnL:</span> <span className={cn(editingEntry.review.pnl >= 0 ? 'text-green-400' : 'text-red-400')}>{editingEntry.review.pnl >= 0 ? '+' : ''}{editingEntry.review.pnl.toFixed(2)}$</span></div>
                                      <div className="flex justify-between font-mono text-sm"><span className="text-muted-foreground">Exit Price:</span> <span>{editingEntry.review.exitPrice}</span></div>
                                     <Separator />
                                      <div>
                                         <h4 className="font-semibold mb-2 text-sm">Emotions During Trade</h4>
                                         <div className="flex flex-wrap gap-2">
-                                            {(editingEntry.review.emotionsTags || "None").split(',').filter(Boolean).map(tag => <Badge key={tag} variant="outline">{tag}</Badge>)}
+                                            {(editingEntry.review.emotionsTags || "None").split(',').filter(Boolean).map(tag => <Badge key={tag} variant="outline" className="border-amber-500/30 text-amber-300">{tag}</Badge>)}
                                         </div>
                                     </div>
                                      <div>
                                         <h4 className="font-semibold mb-2 text-sm">Mistakes (if any)</h4>
                                          <div className="flex flex-wrap gap-2">
-                                            {(editingEntry.review.mistakesTags || "None").split(',').filter(Boolean).map(tag => <Badge key={tag} variant="destructive">{tag}</Badge>)}
+                                            {(editingEntry.review.mistakesTags || "None").split(',').filter(Boolean).map(tag => <Badge key={tag} variant="destructive" className="bg-red-500/20 border-red-500/30 text-red-300">{tag}</Badge>)}
                                         </div>
                                     </div>
                                     <div>
@@ -596,3 +647,5 @@ export function TradeJournalModule({ onSetModule, draftId }: TradeJournalModuleP
         </div>
     );
 }
+
+    
