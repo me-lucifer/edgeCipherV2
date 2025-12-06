@@ -74,7 +74,16 @@ const journalEntrySchema = z.object({
     }).optional(),
     journalingCompletedAt: z.string().optional(),
   })
+}).refine(data => {
+    if (data.status === 'pending') return true; // Don't validate for pending drafts
+    const hasEmotionTag = data.review.emotionsTags && data.review.emotionsTags.trim() !== '';
+    const hasEmotionNote = data.review.emotionalNotes && data.review.emotionalNotes.trim() !== '';
+    return hasEmotionTag || hasEmotionNote;
+}, {
+    message: "Pick at least one emotion or write a note so Arjun can understand your mindset.",
+    path: ["review.emotionsTags"],
 });
+
 
 export type JournalEntry = z.infer<typeof journalEntrySchema>;
 
@@ -86,7 +95,7 @@ const mockJournalEntries: JournalEntry[] = [
       timestamps: { plannedAt: new Date(Date.now() - 86400000 * 2).toISOString(), executedAt: new Date(Date.now() - 86400000 * 2).toISOString(), closedAt: new Date(Date.now() - 86400000 * 2).toISOString() },
       technical: { instrument: 'BTC-PERP', direction: 'Long', entryPrice: 68500, stopLoss: 68000, takeProfit: 69500, leverage: 20, positionSize: 0.5, riskPercent: 1, rrRatio: 2, strategy: "BTC Trend Breakout" },
       planning: { planNotes: "Clean breakout above resistance. Good follow-through.", mindset: "Confident, Calm" },
-      review: { pnl: 234.75, exitPrice: 68969.5, emotionalNotes: "Felt good, stuck to the plan.", emotionsTags: "Confident", mistakesTags: "None", learningNotes: "Trust the plan when the setup is clean.", newsContextTags: "Post-CPI" },
+      review: { pnl: 234.75, exitPrice: 68969.5, emotionalNotes: "Felt good, stuck to the plan.", emotionsTags: "Confident,Focused", mistakesTags: "None", learningNotes: "Trust the plan when the setup is clean.", newsContextTags: "Post-CPI" },
       meta: { journalingCompletedAt: new Date().toISOString() }
     },
     {
@@ -96,7 +105,7 @@ const mockJournalEntries: JournalEntry[] = [
       timestamps: { plannedAt: new Date(Date.now() - 86400000).toISOString(), executedAt: new Date(Date.now() - 86400000).toISOString(), closedAt: new Date(Date.now() - 86400000).toISOString() },
       technical: { instrument: 'ETH-PERP', direction: 'Short', entryPrice: 3605, stopLoss: 3625, leverage: 50, positionSize: 12, riskPercent: 2, rrRatio: 1, strategy: "London Reversal" },
       planning: { planNotes: "Fading what looks like a sweep of the high.", mindset: "Anxious" },
-      review: { pnl: -240, exitPrice: 3625, emotionalNotes: "Market kept pushing, I felt like I was fighting a trend. Should have waited for more confirmation.", emotionsTags: "Anxious,Revenge Trading", mistakesTags: "Forced Entry", learningNotes: "Don't fight a strong trend, even if it looks like a sweep.", newsContextTags: "" },
+      review: { pnl: -240, exitPrice: 3625, emotionalNotes: "Market kept pushing, I felt like I was fighting a trend. Should have waited for more confirmation.", emotionsTags: "Anxious,Revenge", mistakesTags: "Forced Entry", learningNotes: "Don't fight a strong trend, even if it looks like a sweep.", newsContextTags: "" },
       meta: { journalingCompletedAt: new Date().toISOString() }
     },
 ];
@@ -151,6 +160,8 @@ const useJournal = () => {
     return { entries, updateEntry };
 }
 
+const presetEmotions = ["FOMO", "Fear", "Anxiety", "Overconfidence", "Revenge", "Boredom", "Calm", "Focused", "Curious"];
+
 function JournalReviewForm({ entry, onSubmit }: { entry: JournalEntry; onSubmit: (values: JournalEntry) => void; }) {
     const form = useForm<JournalEntry>({
       resolver: zodResolver(journalEntrySchema),
@@ -172,13 +183,60 @@ function JournalReviewForm({ entry, onSubmit }: { entry: JournalEntry; onSubmit:
     return (
         <Form {...form}>
             <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+                <div className="space-y-4">
+                    <h4 className="font-semibold text-foreground">Emotions during this trade</h4>
+                    <FormField
+                        control={form.control}
+                        name="emotionsTags"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormControl>
+                                    <div className="flex flex-wrap gap-2">
+                                        {presetEmotions.map(emotion => {
+                                            const selected = (field.value || "").split(',').includes(emotion);
+                                            return (
+                                                <Button
+                                                    key={emotion}
+                                                    type="button"
+                                                    variant={selected ? "secondary" : "outline"}
+                                                    size="sm"
+                                                    className="h-8 text-xs rounded-full"
+                                                    onClick={() => {
+                                                        const currentTags = (field.value || "").split(',').filter(Boolean);
+                                                        const newTags = selected
+                                                            ? currentTags.filter(t => t !== emotion)
+                                                            : [...currentTags, emotion];
+                                                        field.onChange(newTags.join(','));
+                                                    }}
+                                                >
+                                                    {emotion}
+                                                </Button>
+                                            )
+                                        })}
+                                    </div>
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                     <FormField
+                        control={form.control}
+                        name="review.emotionalNotes"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel className="text-xs text-muted-foreground">Emotional notes (optional but powerful)</FormLabel>
+                                <FormControl>
+                                    <Textarea placeholder="Example: ‘Got anxious when price moved against me, almost closed early.’" {...field} />
+                                </FormControl>
+                            </FormItem>
+                        )}
+                    />
+                </div>
+                 <Separator />
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField control={form.control} name="review.pnl" render={({ field }) => (<FormItem><FormLabel>Final PnL ($)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
                     <FormField control={form.control} name="review.exitPrice" render={({ field }) => (<FormItem><FormLabel>Final Exit Price</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
                 </div>
-                 <FormField control={form.control} name="review.emotionsTags" render={({ field }) => (
-                    <FormItem><FormLabel>Emotions (comma-separated tags)</FormLabel><FormControl><Input placeholder="e.g., Confident, Anxious, FOMO" {...field} /></FormControl></FormItem>
-                )} />
                  <FormField control={form.control} name="review.mistakesTags" render={({ field }) => (
                     <FormItem><FormLabel>Mistakes (comma-separated tags)</FormLabel><FormControl><Input placeholder="e.g., Moved SL, Exited too early, Oversized" {...field} /></FormControl></FormItem>
                 )} />
@@ -311,19 +369,19 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { e
                                 }} />
                             ) : (
                                 <div className="space-y-6">
-                                     <div className="flex justify-between font-mono text-sm"><span className="text-muted-foreground">Final PnL:</span> <span className={cn(editingEntry.review.pnl > 0 ? 'text-green-400' : 'text-red-400')}>{editingEntry.review.pnl.toFixed(2)}$</span></div>
+                                     <div className="flex justify-between font-mono text-sm"><span className="text-muted-foreground">Final PnL:</span> <span className={cn(editingEntry.review.pnl >= 0 ? 'text-green-400' : 'text-red-400')}>{editingEntry.review.pnl.toFixed(2)}$</span></div>
                                      <div className="flex justify-between font-mono text-sm"><span className="text-muted-foreground">Exit Price:</span> <span>{editingEntry.review.exitPrice}</span></div>
                                     <Separator />
                                      <div>
                                         <h4 className="font-semibold mb-2 text-sm">Emotions During Trade</h4>
                                         <div className="flex flex-wrap gap-2">
-                                            {(editingEntry.review.emotionsTags || "None").split(',').map(tag => <Badge key={tag} variant="outline">{tag}</Badge>)}
+                                            {(editingEntry.review.emotionsTags || "None").split(',').filter(Boolean).map(tag => <Badge key={tag} variant="outline">{tag}</Badge>)}
                                         </div>
                                     </div>
                                      <div>
                                         <h4 className="font-semibold mb-2 text-sm">Mistakes (if any)</h4>
                                          <div className="flex flex-wrap gap-2">
-                                            {(editingEntry.review.mistakesTags || "None").split(',').map(tag => <Badge key={tag} variant="destructive">{tag}</Badge>)}
+                                            {(editingEntry.review.mistakesTags || "None").split(',').filter(Boolean).map(tag => <Badge key={tag} variant="destructive">{tag}</Badge>)}
                                         </div>
                                     </div>
                                     <div>
