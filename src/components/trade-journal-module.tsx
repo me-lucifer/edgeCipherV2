@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -287,18 +288,33 @@ function JournalReviewForm({ entry, onSubmit }: { entry: JournalEntry; onSubmit:
                 </div>
                 <Separator />
                 
-                <FormField control={form.control} name="review.newsContextTags" render={({ field }) => (
-                    <FormItem><FormLabel>News Context (comma-separated tags)</FormLabel><FormControl><Input placeholder="e.g., FOMC Day, CPI Print" {...field} /></FormControl></FormItem>
-                )} />
-                <FormField control={form.control} name="review.learningNotes" render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>What did you learn?</FormLabel>
-                        <FormControl><Textarea placeholder="The most important part. What is the key takeaway from this trade, win or lose?" {...field} /></FormControl>
-                    </FormItem>
-                )} />
+                <div>
+                    <FormLabel>What did you learn from this trade?</FormLabel>
+                    <ul className="text-xs text-muted-foreground list-disc list-inside space-y-1 my-2">
+                        <li>What would you repeat next time?</li>
+                        <li>What would you avoid next time?</li>
+                        <li>Did you follow your plan, or adjust mid-trade?</li>
+                    </ul>
+                    <FormField 
+                        control={form.control} 
+                        name="review.learningNotes" 
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormControl>
+                                    <Textarea
+                                        placeholder="Example: ‘I respected my SL but rushed my TP. Next time I’ll keep a partial position for the original target.’"
+                                        className="min-h-[100px]"
+                                        {...field}
+                                    />
+                                </FormControl>
+                            </FormItem>
+                        )} 
+                    />
+                </div>
+                
                  {isLosingTrade && !(form.watch('review.mistakesTags') || form.watch('review.learningNotes')) && (
                     <p className="text-xs text-amber-400">
-                        Big losses rarely come from perfect execution. Consider tagging at least one issue if something felt off.
+                        Big losses rarely come from perfect execution. Consider tagging a mistake or adding a learning note if something felt off.
                     </p>
                 )}
                  <div className="flex justify-end pt-4">
@@ -647,5 +663,3 @@ export function TradeJournalModule({ onSetModule, draftId }: TradeJournalModuleP
         </div>
     );
 }
-
-    
