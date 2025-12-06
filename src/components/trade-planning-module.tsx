@@ -423,7 +423,7 @@ function PriceLadder({ direction, entryPrice, stopLoss, takeProfit }: { directio
     }
 
     return (
-        <div className="relative h-40 w-full">
+        <div className="relative h-40 w-full overflow-hidden">
             {/* Center Line */}
             <div className="absolute top-0 bottom-0 left-1/2 w-px bg-border -translate-x-1/2" />
             
@@ -846,10 +846,16 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, planConte
                                 <FormItem><FormLabel>Trading Pair*</FormLabel><FormControl><Input placeholder="e.g., BTC-PERP" {...field} /></FormControl><FormMessage /></FormItem>
                             )}/>
                             <FormField control={form.control} name="direction" render={({ field }) => (
-                                <FormItem><FormLabel>Direction</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} value={field.value} className="flex pt-2 gap-4"><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Long" /></FormControl><FormLabel className="font-normal">Long</FormLabel></FormItem><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Short" /></FormControl><FormLabel className="font-normal">Short</FormLabel></FormItem></RadioGroup></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>Direction</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} value={field.value} className="flex pt-2 gap-4">
+                                <Label className="flex items-center gap-2 p-2 rounded-md border border-transparent has-[:checked]:border-primary/50 has-[:checked]:bg-primary/5 cursor-pointer"><FormControl><RadioGroupItem value="Long" /></FormControl><span>Long</span></Label>
+                                <Label className="flex items-center gap-2 p-2 rounded-md border border-transparent has-[:checked]:border-primary/50 has-[:checked]:bg-primary/5 cursor-pointer"><FormControl><RadioGroupItem value="Short" /></FormControl><span>Short</span></Label>
+                                </RadioGroup></FormControl><FormMessage /></FormItem>
                             )}/>
                             <FormField control={form.control} name="entryType" render={({ field }) => (
-                                <FormItem><FormLabel>Entry Type</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} value={field.value} className="flex pt-2 gap-4"><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Limit" /></FormControl><FormLabel className="font-normal">Limit</FormLabel></FormItem><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="Market" /></FormControl><FormLabel className="font-normal">Market</FormLabel></FormItem></RadioGroup></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>Entry Type</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} value={field.value} className="flex pt-2 gap-4">
+                                <Label className="flex items-center gap-2 p-2 rounded-md border border-transparent has-[:checked]:border-primary/50 has-[:checked]:bg-primary/5 cursor-pointer"><FormControl><RadioGroupItem value="Limit" /></FormControl><span>Limit</span></Label>
+                                <Label className="flex items-center gap-2 p-2 rounded-md border border-transparent has-[:checked]:border-primary/50 has-[:checked]:bg-primary/5 cursor-pointer"><FormControl><RadioGroupItem value="Market" /></FormControl><span>Market</span></Label>
+                                </RadioGroup></FormControl><FormMessage /></FormItem>
                             )}/>
                         </div>
                         <FormDescription className="text-xs italic">Be honest – is this following your plan, or chasing a move?</FormDescription>
@@ -1204,11 +1210,11 @@ function ExecutionOptions({ form, onSetModule }: { form: any, onSetModule: (modu
                 <div>
                     <h3 className="text-sm font-semibold text-foreground mb-2">1. Execution Type</h3>
                     <RadioGroup value={executionType} onValueChange={(v) => setExecutionType(v as "Market" | "Limit")} className="space-y-2">
-                        <Label className="flex items-center gap-2 p-3 rounded-md border bg-muted/50 has-[:checked]:bg-primary/10 has-[:checked]:border-primary/30">
+                        <Label className="flex items-center gap-2 p-3 rounded-md border bg-muted/50 has-[:checked]:bg-primary/10 has-[:checked]:border-primary/30 cursor-pointer">
                             <RadioGroupItem value="Market" />
                             <span>Execute now (Market order)</span>
                         </Label>
-                         <Label className="flex items-center gap-2 p-3 rounded-md border bg-muted/50 has-[:checked]:bg-primary/10 has-[:checked]:border-primary/30">
+                         <Label className="flex items-center gap-2 p-3 rounded-md border bg-muted/50 has-[:checked]:bg-primary/10 has-[:checked]:border-primary/30 cursor-pointer">
                             <RadioGroupItem value="Limit" />
                             <span>Execute as Limit order</span>
                         </Label>
@@ -1648,15 +1654,15 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
 
                      <div className="mt-8 p-4 bg-muted/20 border-t border-border/50 flex flex-col sm:flex-row items-center justify-between gap-4">
                         <p className="text-sm text-muted-foreground">Step {Object.keys(stepConfig).indexOf(currentStep) + 1} of 3: {stepConfig[currentStep].label} your trade.</p>
-                        <div className="flex items-center gap-4">
-                            <Button variant="outline" type="button" onClick={handleSaveDraft}>Save as draft (Prototype)</Button>
+                        <div className="flex w-full sm:w-auto flex-col sm:flex-row items-center gap-4">
+                            <Button variant="outline" type="button" onClick={handleSaveDraft} className="w-full sm:w-auto">Save as draft (Prototype)</Button>
                             
                            {currentStep !== 'execute' && (
                                 <TooltipProvider>
                                     <Tooltip open={isProceedDisabled && (planStatus === 'blocked' || currentStep === 'review' && !arjunFeedbackAccepted) ? undefined : false}>
                                         <TooltipTrigger asChild>
-                                            <div tabIndex={0}>
-                                                <Button type="submit" disabled={isProceedDisabled}>
+                                            <div className="w-full sm:w-auto" tabIndex={0}>
+                                                <Button type="submit" disabled={isProceedDisabled} className="w-full">
                                                     {stepConfig[currentStep].buttonText}
                                                 </Button>
                                             </div>
@@ -1680,6 +1686,3 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
         </div>
     );
 }
-
-
-
