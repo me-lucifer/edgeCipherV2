@@ -340,6 +340,82 @@ function DisciplineAlerts({ onSetModule }: { onSetModule: TradePlanningModulePro
   )
 }
 
+function PriceLadder({ direction, entryPrice, stopLoss, takeProfit }: { direction: "Long" | "Short", entryPrice?: number, stopLoss?: number, takeProfit?: number }) {
+    if (!entryPrice || !stopLoss) {
+        return null;
+    }
+
+    const isLong = direction === 'Long';
+    const prices = [entryPrice, stopLoss];
+    if (takeProfit) {
+        prices.push(takeProfit);
+    }
+
+    const minPrice = Math.min(...prices);
+    const maxPrice = Math.max(...prices);
+    const range = maxPrice - minPrice;
+
+    if (range === 0) return null;
+
+    const buffer = range * 0.1;
+    const paddedMin = minPrice - buffer;
+    const paddedMax = maxPrice + buffer;
+    const paddedRange = paddedMax - paddedMin;
+
+    const getPosition = (price: number) => {
+        return ((price - paddedMin) / paddedRange) * 100;
+    };
+    
+    const slDistPercent = ((Math.abs(entryPrice - stopLoss) / entryPrice) * 100).toFixed(2);
+    const tpDistPercent = takeProfit ? ((Math.abs(takeProfit - entryPrice) / entryPrice) * 100).toFixed(2) : '0';
+
+    const markers = [
+        { price: entryPrice, label: "Entry", color: "bg-primary", dist: "" },
+        { price: stopLoss, label: "SL", color: "bg-red-500", dist: `-${slDistPercent}%` },
+    ];
+
+    if (takeProfit) {
+        markers.push({ price: takeProfit, label: "TP", color: "bg-green-500", dist: `+${tpDistPercent}%` });
+    }
+
+    return (
+        <div className="relative h-40 w-full">
+            {/* Center Line */}
+            <div className="absolute top-0 bottom-0 left-1/2 w-px bg-border -translate-x-1/2" />
+            
+            {markers.map(({ price, label, color, dist }) => {
+                const position = getPosition(price);
+                const isEntry = label === 'Entry';
+                const onLeft = label === 'SL' || (isLong && isEntry) || (!isLong && label === 'TP');
+
+                return (
+                     <div key={label} className="absolute w-full" style={{ bottom: `${position}%` }}>
+                        <div className={cn("absolute flex items-center gap-2 -translate-y-1/2", onLeft ? 'right-1/2 mr-4' : 'left-1/2 ml-4')}>
+                            {onLeft ? (
+                                <>
+                                    <div className="text-right">
+                                        <p className="text-xs font-semibold text-foreground">{label}</p>
+                                        <p className="text-xs text-muted-foreground">{dist}</p>
+                                    </div>
+                                    <div className={cn("w-2 h-2 rounded-full", color)} />
+                                </>
+                            ) : (
+                                 <>
+                                    <div className={cn("w-2 h-2 rounded-full", color)} />
+                                    <div className="text-left">
+                                        <p className="text-xs font-semibold text-foreground">{label}</p>
+                                        <p className="text-xs text-muted-foreground">{dist}</p>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
 function PlanSummary({ control, setPlanStatus, onSetModule }: { control: any, setPlanStatus: (status: PlanStatusType) => void, onSetModule: TradePlanningModuleProps['onSetModule'] }) {
     const values = useWatch({ control }) as Partial<PlanFormValues>;
     const { instrument, direction, entryPrice, stopLoss, takeProfit, riskPercent, accountCapital, strategyId, notes, justification } = values;
@@ -448,19 +524,11 @@ function PlanSummary({ control, setPlanStatus, onSetModule }: { control: any, se
                         <SummaryRow label="Pair / Direction" value={<span className={isLong ? 'text-green-400' : 'text-red-400'}>{instrument || '-'} {direction}</span>} />
                         <SummaryRow label="Entry Price" value={entryPrice && Number(entryPrice) > 0 ? Number(entryPrice).toFixed(4) : '-'} />
                         <SummaryRow label="Stop Loss" value={isSlSet ? Number(stopLoss).toFixed(4) : <span className="text-red-400">Not set</span>} />
-                        {isSlSet && entryPrice && (
-                             <p className="text-xs text-muted-foreground text-right -mt-1">
-                                Distance: ${summary.distanceToSl.toFixed(4)} ({summary.distanceToSlPercent.toFixed(2)}%)
-                            </p>
-                        )}
                         <SummaryRow label="Take Profit" value={isTpSet ? Number(takeProfit).toFixed(4) : 'Not set'} />
-                         {isTpSet && entryPrice && (
-                             <p className="text-xs text-muted-foreground text-right -mt-1">
-                                Distance: ${summary.distanceToTp.toFixed(4)} ({summary.distanceToTpPercent.toFixed(2)}%)
-                            </p>
-                        )}
                     </div>
                 </div>
+
+                <PriceLadder direction={direction as "Long" | "Short"} entryPrice={Number(entryPrice)} stopLoss={Number(stopLoss)} takeProfit={Number(takeProfit)} />
                 
                 <Separator />
                 
@@ -1038,9 +1106,9 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
             instrument: "",
             notes: "",
             justification: "",
-            entryPrice: '',
-            stopLoss: '',
-            takeProfit: '',
+            entryPrice: 0,
+            stopLoss: 0,
+            takeProfit: 0,
             mindset: "",
         },
     });
@@ -1070,7 +1138,7 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
         const defaultValues = {
             direction: "Long", entryType: "Limit", leverage: 10, accountCapital: 10000,
             riskPercent: 1, strategyId: '', instrument: "", notes: "", justification: "",
-            entryPrice: '', stopLoss: '', takeProfit: '', mindset: ""
+            entryPrice: 0, stopLoss: 0, takeProfit: 0, mindset: ""
         };
 
         form.reset({
