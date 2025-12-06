@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Calendar, Bookmark, ArrowRight, Edit, AlertCircle, CheckCircle, Filter, X, XCircle } from "lucide-react";
+import { Bot, Calendar, Bookmark, ArrowRight, Edit, AlertCircle, CheckCircle, Filter, X, XCircle, Circle } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Calendar as CalendarComponent } from "./ui/calendar";
 import { format } from "date-fns";
@@ -425,19 +425,23 @@ function JournalReviewForm({ entry, onSubmit }: { entry: JournalEntry; onSubmit:
     );
 }
 
-const RuleAdherenceCheck = ({ label, passed, note }: { label: string; passed: boolean; note?: string }) => (
-    <div className="flex items-center gap-2 text-sm">
-        {passed ? <CheckCircle className="h-4 w-4 text-green-500" /> : <XCircle className="h-4 w-4 text-red-500" />}
-        <span className={cn(passed ? 'text-muted-foreground' : 'text-foreground font-medium')}>{label}</span>
-    </div>
-);
+const RuleAdherenceCheck = ({ label, passed, note }: { label: string; passed: boolean; note?: string }) => {
+    const Icon = passed ? CheckCircle : XCircle;
+    const color = passed ? 'text-green-500' : 'text-red-500';
+    return (
+        <div className="flex items-center gap-2 text-sm">
+            <Icon className={cn("h-4 w-4", color)} />
+            <span className={cn(!passed && 'text-foreground font-medium')}>{label}</span>
+        </div>
+    );
+};
 
 function RuleAdherenceSummary({ entry }: { entry: JournalEntry }) {
-    const summary = entry.meta.ruleAdherenceSummary || {};
+    const summary = entry.meta.ruleAdherenceSummary || { followedEntryRules: true, movedSL: false, exitedEarly: false, rrBelowMin: false };
     const mistakes = entry.review.mistakesTags || "";
 
     const checks = [
-        { label: "Followed Entry Rules", passed: summary.followedEntryRules ?? true, note: "" },
+        { label: "Followed Entry Rules", passed: summary.followedEntryRules, note: "" },
         { label: "Stop Loss Respected", passed: !mistakes.includes("Moved SL"), note: "" },
         { label: "R:R Met Minimum", passed: !summary.rrBelowMin, note: "" },
         { label: "Risk Within Limits", passed: entry.technical.riskPercent <= 2, note: "" }, // Mocking threshold
@@ -725,8 +729,64 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { e
     )
 }
 
-function PendingReviewTab({ entries, onSetModule }: { entries: JournalEntry[], onSetModule: TradeJournalModuleProps['onSetModule']}) {
-    const draftEntries = entries.filter(e => e.status === 'pending');
+type Priority = 'High' | 'Medium' | 'Low';
+type ReviewPriority = {
+    priority: Priority;
+    reasons: string[];
+};
+
+function getReviewPriority(entry: JournalEntry): ReviewPriority {
+    const reasons: string[] = [];
+    let priority: Priority = 'Low';
+
+    const potentialLoss = (entry.technical.riskPercent / 100) * 10000; // Mocking 10k capital
+    const rValue = Math.abs(potentialLoss / (entry.technical.entryPrice - entry.technical.stopLoss));
+    const potentialLossInR = entry.technical.riskPercent * rValue / 100;
+    
+    if (potentialLossInR > 2) {
+        reasons.push('Big loss');
+        priority = 'High';
+    }
+
+    if (entry.planning.ruleOverridesJustification) {
+        reasons.push('Rule breach');
+        if (priority !== 'High') priority = 'High';
+    }
+    
+    // In a real app, we'd check `entry.meta.ruleAdherenceSummary`
+    // but for drafts, we check the justification.
+
+    if (priority === 'Low' && (entry.planning.mindset || "").toLowerCase().includes("anxious")) {
+        reasons.push('Emotional trade');
+        priority = 'Medium';
+    }
+
+    if (reasons.length === 0) {
+        reasons.push('Standard review');
+    }
+
+    return { priority, reasons };
+}
+
+function PendingReviewTab({ entries, onSetModule }: { entries: JournalEntry[]; onSetModule: TradeJournalModuleProps['onSetModule'] }) {
+    const draftEntries = useMemo(() => {
+        const drafts = entries
+            .filter(e => e.status === 'pending')
+            .map(entry => ({
+                entry,
+                priorityInfo: getReviewPriority(entry)
+            }));
+        
+        const priorityOrder: Record<Priority, number> = { High: 1, Medium: 2, Low: 3 };
+
+        drafts.sort((a, b) => {
+            const priorityDiff = priorityOrder[a.priorityInfo.priority] - priorityOrder[b.priorityInfo.priority];
+            if (priorityDiff !== 0) return priorityDiff;
+            return new Date(b.entry.timestamps.executedAt).getTime() - new Date(a.entry.timestamps.executedAt).getTime();
+        });
+        
+        return drafts;
+    }, [entries]);
 
     if (draftEntries.length === 0) {
         return (
@@ -744,23 +804,39 @@ function PendingReviewTab({ entries, onSetModule }: { entries: JournalEntry[], o
     }
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {draftEntries.map(draft => (
-                <Card key={draft.id} className="bg-muted/30 border-border/50 hover:border-primary/40 transition-colors flex flex-col">
-                    <CardHeader>
-                        <div className="flex justify-between items-start">
-                            <CardTitle>{draft.technical.instrument}</CardTitle>
-                            <Badge variant={draft.technical.direction === 'Long' ? 'default' : 'destructive'} className={cn(draft.technical.direction === 'Long' ? 'bg-green-500/20 text-green-300 border-green-500/40' : 'bg-red-500/20 text-red-300 border-red-500/40')}>{draft.technical.direction}</Badge>
-                        </div>
-                        <CardDescription>{format(new Date(draft.timestamps.executedAt), "PPP 'at' p")}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4 flex-1 flex flex-col">
-                         <div className="text-sm text-muted-foreground line-clamp-2 flex-1">
-                           <span className="font-semibold text-foreground">Rationale: </span> {draft.planning.planNotes || 'No notes yet.'}
+        <div className="space-y-6">
+            {draftEntries.map(({ entry, priorityInfo }) => (
+                <Card key={entry.id} className={cn("bg-muted/30 border-l-4 transition-colors hover:bg-muted/40", 
+                    priorityInfo.priority === 'High' && 'border-red-500',
+                    priorityInfo.priority === 'Medium' && 'border-amber-500',
+                    priorityInfo.priority === 'Low' && 'border-green-500',
+                )}>
+                    <CardContent className="p-4 grid md:grid-cols-[1fr_auto] items-center gap-4">
+                        <div className="grid grid-cols-[auto_1fr] md:grid-cols-[auto_1fr_1fr] gap-x-4 gap-y-2 items-center">
+                            <div className={cn("w-2 h-10 rounded-full",
+                                priorityInfo.priority === 'High' && 'bg-red-500',
+                                priorityInfo.priority === 'Medium' && 'bg-amber-500',
+                                priorityInfo.priority === 'Low' && 'bg-green-500',
+                            )} />
+                            <div>
+                                <h3 className="font-semibold text-foreground">{entry.technical.instrument}</h3>
+                                <p className={cn("text-sm font-mono", entry.technical.direction === 'Long' ? "text-green-400" : "text-red-400")}>{entry.technical.direction}</p>
+                            </div>
+                            <div className="col-span-2 md:col-span-1">
+                                <p className="text-xs text-muted-foreground">{format(new Date(entry.timestamps.executedAt), "PPP 'at' p")}</p>
+                                <div className="flex flex-wrap gap-2 mt-2">
+                                    {priorityInfo.reasons.map(reason => (
+                                        <Badge key={reason} variant="outline" className={cn("text-xs",
+                                           priorityInfo.priority === 'High' && 'border-red-500/50 text-red-300',
+                                           priorityInfo.priority === 'Medium' && 'border-amber-500/50 text-amber-300',
+                                        )}>{reason}</Badge>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
                         <Button 
-                            className="w-full mt-auto"
-                            onClick={() => onSetModule('tradeJournal', { draftId: draft.id })}
+                            className="w-full md:w-auto"
+                            onClick={() => onSetModule('tradeJournal', { draftId: entry.id })}
                         >
                            Complete Review <ArrowRight className="ml-2 h-4 w-4" />
                         </Button>
@@ -865,3 +941,5 @@ export function TradeJournalModule({ onSetModule, draftId }: TradeJournalModuleP
         </div>
     );
 }
+
+    
