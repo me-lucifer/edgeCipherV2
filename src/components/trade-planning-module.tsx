@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Info, CheckCircle, Circle, AlertTriangle, FileText, ArrowRight, Gauge, ShieldCheck, XCircle, X, Lock, Loader2, Bookmark, Copy } from "lucide-react";
+import { Bot, Info, CheckCircle, Circle, AlertTriangle, FileText, ArrowRight, Gauge, ShieldCheck, XCircle, X, Lock, Loader2, Bookmark, Copy, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
@@ -25,6 +25,7 @@ import { Checkbox } from "./ui/checkbox";
 import { Label } from "./ui/label";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "./ui/alert-dialog";
 import { useEventLog } from "@/context/event-log-provider";
+import { Slider } from "./ui/slider";
 
 
 interface TradePlanningModuleProps {
@@ -594,6 +595,78 @@ function PlanSummary({ control, setPlanStatus, onSetModule }: { control: any, se
     );
 }
 
+function WhatIfRiskSlider({ control, form }: { control: any; form: ReturnType<typeof useForm<PlanFormValues>> }) {
+    const { entryPrice, stopLoss, accountCapital, riskPercent } = useWatch({ control }) as Partial<PlanFormValues>;
+    const [whatIfRisk, setWhatIfRisk] = useState<number>(riskPercent || 1);
+
+    useEffect(() => {
+        setWhatIfRisk(riskPercent || 1);
+    }, [riskPercent]);
+
+    const numEntryPrice = Number(entryPrice);
+    const numStopLoss = Number(stopLoss);
+    const numAccountCapital = Number(accountCapital);
+
+    const riskPerUnit = (numEntryPrice && numStopLoss) ? Math.abs(numEntryPrice - numStopLoss) : 0;
+    
+    const calculateSizing = (currentRisk: number) => {
+        if (!numAccountCapital || !riskPerUnit) return { size: 0, loss: 0 };
+        const potentialLoss = (numAccountCapital * currentRisk) / 100;
+        const positionSize = riskPerUnit > 0 ? potentialLoss / riskPerUnit : 0;
+        return { size: positionSize, loss: potentialLoss };
+    };
+
+    const whatIfSizing = calculateSizing(whatIfRisk);
+    const planSizing = calculateSizing(riskPercent || 0);
+    
+    const handleApply = () => {
+        form.setValue("riskPercent", whatIfRisk, { shouldValidate: true });
+    };
+
+    const handleReset = () => {
+        setWhatIfRisk(riskPercent || 1);
+    };
+
+    if (!numEntryPrice || !numStopLoss || !numAccountCapital) return null;
+
+    return (
+        <div className="p-4 bg-muted/50 rounded-lg space-y-4">
+             <h3 className="text-sm font-semibold text-muted-foreground">What-if Analysis: Risk</h3>
+             <div>
+                <Label>Adjust risk to see its impact</Label>
+                <Slider
+                    value={[whatIfRisk]}
+                    onValueChange={(val) => setWhatIfRisk(val[0])}
+                    min={0.25}
+                    max={3}
+                    step={0.25}
+                    className="my-2"
+                />
+                 <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>0.25%</span>
+                    <span>3%</span>
+                </div>
+            </div>
+            <div className="p-3 bg-background/50 rounded-md text-sm">
+                <p>At <span className="font-bold text-primary">{whatIfRisk}%</span> risk:</p>
+                <ul className="text-xs text-muted-foreground mt-1">
+                    <li>Position Size: <span className="font-mono">{whatIfSizing.size.toFixed(4)}</span></li>
+                    <li>Dollar Risk: <span className="font-mono text-red-400">-${whatIfSizing.loss.toFixed(2)}</span></li>
+                </ul>
+            </div>
+             <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={handleApply} className="w-full">
+                    Apply {whatIfRisk}% to Plan
+                </Button>
+                <Button size="sm" variant="ghost" onClick={handleReset} className="w-full">
+                    <RefreshCw className="mr-2 h-3 w-3" />
+                    Reset
+                </Button>
+            </div>
+        </div>
+    );
+}
+
 function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate }: { form: any, onSetModule: any, setPlanStatus: any, onApplyTemplate: (templateId: string) => void }) {
     const entryType = useWatch({ control: form.control, name: 'entryType' });
     const [selectedTemplate, setSelectedTemplate] = useState<string>(() => {
@@ -702,6 +775,8 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate }: { form:
                                 <FormItem><FormLabel>Leverage</FormLabel><Select onValueChange={(v) => field.onChange(Number(v))} defaultValue={String(field.value)}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="5">5x</SelectItem><SelectItem value="10">10x</SelectItem><SelectItem value="20">20x</SelectItem><SelectItem value="50">50x</SelectItem></SelectContent></Select><FormMessage /></FormItem>
                             )}/>
                         </div>
+                         <Separator className="mt-4" />
+                        <WhatIfRiskSlider control={form.control} form={form} />
                     </div>
 
                     <Separator />
