@@ -16,6 +16,7 @@ import { useEventLog } from "@/context/event-log-provider";
 import { ScrollArea } from "./ui/scroll-area";
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "./ui/chart";
+import { ModuleContext } from "./authenticated-app-shell";
 
 interface Persona {
     primaryPersonaName?: string;
@@ -37,9 +38,9 @@ const openPositions = [
 ]
 
 const newsItems = [
-    { headline: "Fed hints at slower rate hikes, crypto market rallies", sentiment: "Bullish", summary: "The market reacted positively to the recent announcement." },
-    { headline: "Major exchange announces new security upgrades after hack", sentiment: "Neutral", summary: "The exchange aims to restore user confidence with the move." },
-    { headline: "Regulatory uncertainty in Asia spooks investors", sentiment: "Bearish", summary: "New draft regulations have caused a sell-off in regional markets." },
+    { instrument: 'BTC-PERP', headline: "Fed hints at slower rate hikes, crypto market rallies", sentiment: "Bullish", summary: "The market reacted positively to the recent announcement." },
+    { instrument: 'ETH-PERP', headline: "Major exchange announces new security upgrades after hack", sentiment: "Neutral", summary: "The exchange aims to restore user confidence with the move." },
+    { instrument: 'BTC-PERP', headline: "Regulatory uncertainty in Asia spooks investors", sentiment: "Bearish", summary: "New draft regulations have caused a sell-off in regional markets." },
 ]
 
 const growthPlanItems = [
@@ -373,7 +374,7 @@ function PerformanceSummary({ dailyPnl7d, dailyPnl30d, performanceState, hasHist
     );
 }
 
-function NewsSnapshot({ onSetModule }: { onSetModule: (module: any) => void }) {
+function NewsSnapshot({ onSetModule }: { onSetModule: (module: any, context?: ModuleContext) => void }) {
     return (
          <Card className="bg-muted/30 border-border/50">
             <CardHeader>
@@ -408,7 +409,21 @@ function NewsSnapshot({ onSetModule }: { onSetModule: (module: any) => void }) {
                                     item.sentiment === 'Bearish' && 'bg-red-500/20 text-red-400 border-red-500/30'
                                 )}>{item.sentiment}</Badge>
                             </div>
-                            <p className="text-xs text-muted-foreground mt-1">{item.summary}</p>
+                            <div className="flex items-center justify-between mt-1">
+                                <p className="text-xs text-muted-foreground">{item.summary}</p>
+                                <Button 
+                                    variant="link" 
+                                    size="sm"
+                                    className="text-xs h-auto p-0 text-primary/80 hover:text-primary whitespace-nowrap"
+                                    onClick={() => onSetModule('tradePlanning', { planContext: {
+                                        instrument: item.instrument,
+                                        direction: item.sentiment === 'Bullish' ? 'Long' : (item.sentiment === 'Bearish' ? 'Short' : undefined),
+                                        origin: 'News Snapshot'
+                                    } })}
+                                >
+                                    Plan trade
+                                </Button>
+                            </div>
                         </div>
                     ))}
                 </div>
@@ -488,7 +503,7 @@ function DashboardSkeleton() {
 }
 
 interface DashboardModuleProps {
-    onSetModule: (module: any, context?: any) => void;
+    onSetModule: (module: any, context?: ModuleContext) => void;
     isLoading: boolean;
 }
 
@@ -806,7 +821,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                                                         <TableHead>Size</TableHead>
                                                         <TableHead>Entry</TableHead>
                                                         <TableHead>PnL</TableHead>
-                                                        <TableHead>Risk</TableHead>
+                                                        <TableHead>Action</TableHead>
                                                     </TableRow>
                                                 </TableHeader>
                                                 <TableBody>
@@ -817,12 +832,11 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                                                             <TableCell className="font-mono">{pos.size}</TableCell>
                                                             <TableCell className="font-mono">{pos.entry.toFixed(2)}</TableCell>
                                                             <TableCell><PnlDisplay value={pos.pnl} animateKey={animateKey} /></TableCell>
-                                                            <TableCell><Badge variant={pos.risk === 'Low' ? 'secondary' : 'default'} className={cn(
-                                                                'text-xs',
-                                                                pos.risk === 'Medium' && 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-                                                                pos.risk === 'High' && 'bg-red-500/20 text-red-400 border-red-500/30',
-                                                                pos.risk === 'Low' && 'bg-green-500/20 text-green-400 border-green-500/30'
-                                                            )}>{pos.risk}</Badge></TableCell>
+                                                            <TableCell>
+                                                                <Button variant="outline" size="sm" onClick={() => onSetModule('tradePlanning', { planContext: { instrument: pos.symbol, origin: 'Account Snapshot' } })}>
+                                                                    Plan trade
+                                                                </Button>
+                                                            </TableCell>
                                                         </TableRow>
                                                     ))}
                                                 </TableBody>

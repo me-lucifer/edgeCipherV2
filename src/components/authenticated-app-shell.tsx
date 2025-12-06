@@ -38,7 +38,7 @@ import { Badge } from './ui/badge';
 import { useEventLog } from '@/context/event-log-provider';
 import { DemoControls } from './demo-controls';
 
-type Module = 
+export type Module = 
   | 'dashboard' 
   | 'aiCoaching' 
   | 'tradePlanning' 
@@ -51,9 +51,14 @@ type Module =
   | 'community'
   | 'settings';
 
-interface ModuleContext {
+export interface ModuleContext {
     initialMessage?: string;
     draftId?: string;
+    planContext?: {
+      instrument: string;
+      direction?: 'Long' | 'Short';
+      origin: string;
+    }
 }
 
 interface NavItem {
@@ -135,7 +140,7 @@ function ModuleView({ currentModule, onSetModule, moduleContext, isLoading }: { 
     }
 
     if (currentModule === 'tradePlanning') {
-      return <TradePlanningModule onSetModule={onSetModule} />;
+      return <TradePlanningModule onSetModule={onSetModule} planContext={moduleContext?.planContext} />;
     }
 
     if (currentModule === 'tradeJournal') {
@@ -396,6 +401,10 @@ export function AuthenticatedAppShell() {
     setCurrentModule(id);
     setMobileNavOpen(false);
     setModuleContext(context || null);
+    if(id !== 'tradePlanning') {
+      // Clear context if not navigating to trade planning
+      setModuleContext(current => current ? { ...current, planContext: undefined } : null);
+    }
   }
 
   return (

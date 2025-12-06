@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Info, CheckCircle, Circle, AlertTriangle, FileText, ArrowRight, Gauge, ShieldCheck, XCircle, X, Lock, Loader2, Bookmark, Copy, RefreshCw } from "lucide-react";
+import { Bot, Info, CheckCircle, Circle, AlertTriangle, FileText, ArrowRight, Gauge, ShieldCheck, XCircle, X, Lock, Loader2, Bookmark, Copy, RefreshCw, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
@@ -30,6 +30,11 @@ import { Slider } from "./ui/slider";
 
 interface TradePlanningModuleProps {
     onSetModule: (module: any, context?: any) => void;
+    planContext?: {
+        instrument: string;
+        direction?: 'Long' | 'Short';
+        origin: string;
+    }
 }
 
 const planSchema = z.object({
@@ -667,7 +672,7 @@ function WhatIfRiskSlider({ control, form }: { control: any; form: ReturnType<ty
     );
 }
 
-function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate }: { form: any, onSetModule: any, setPlanStatus: any, onApplyTemplate: (templateId: string) => void }) {
+function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, planContext }: { form: any, onSetModule: any, setPlanStatus: any, onApplyTemplate: (templateId: string) => void, planContext?: TradePlanningModuleProps['planContext'] }) {
     const entryType = useWatch({ control: form.control, name: 'entryType' });
     const [selectedTemplate, setSelectedTemplate] = useState<string>(() => {
         if (typeof window !== 'undefined') {
@@ -684,8 +689,14 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate }: { form:
     return (
          <div className="grid lg:grid-cols-3 gap-8 items-start">
             <Card className="lg:col-span-2 bg-muted/30 border-border/50">
-                <CardHeader>
+                <CardHeader className="flex-row items-start justify-between">
                     <CardTitle>Plan details</CardTitle>
+                    {planContext && (
+                        <Badge variant="secondary" className="bg-primary/10 text-primary">
+                            <Sparkles className="h-3 w-3 mr-1.5" />
+                            Context: From {planContext.origin}
+                        </Badge>
+                    )}
                 </CardHeader>
                 <CardContent className="space-y-6">
                     {/* Template Selector */}
@@ -1160,7 +1171,7 @@ function PlanSnapshot({ form, onSetStep }: { form: any; onSetStep: (step: TradeP
     );
 }
 
-export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
+export function TradePlanningModule({ onSetModule, planContext }: TradePlanningModuleProps) {
     const { toast } = useToast();
     const [planStatus, setPlanStatus] = useState<PlanStatusType>("incomplete");
     const [showBanner, setShowBanner] = useState(true);
@@ -1203,8 +1214,20 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
                     console.error("Could not parse trade plan draft:", e);
                 }
             }
+
+            if (planContext) {
+              form.setValue('instrument', planContext.instrument);
+              if (planContext.direction) {
+                form.setValue('direction', planContext.direction);
+              }
+              toast({
+                  title: "Context applied",
+                  description: `Planning a trade for ${planContext.instrument} from the ${planContext.origin}.`,
+              });
+            }
         }
-    }, [form, toast]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [form, toast, planContext]);
     
     const applyTemplate = (templateId: string) => {
         const template = planTemplates.find(t => t.id === templateId);
@@ -1361,7 +1384,7 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
 
-                    {currentStep === "plan" && <PlanStep form={form} onSetModule={onSetModule} setPlanStatus={setPlanStatus} onApplyTemplate={handleApplyTemplate} />}
+                    {currentStep === "plan" && <PlanStep form={form} onSetModule={onSetModule} setPlanStatus={setPlanStatus} onApplyTemplate={handleApplyTemplate} planContext={planContext} />}
                     {currentStep === "review" && <ReviewStep form={form} onSetModule={onSetModule} onSetStep={setCurrentStep} arjunFeedbackAccepted={arjunFeedbackAccepted} setArjunFeedbackAccepted={setArjunFeedbackAccepted} planStatus={planStatus} />}
                     {currentStep === "execute" && <ExecuteStep form={form} onSetModule={onSetModule} onSetStep={setCurrentStep} planStatus={planStatus} />}
 
