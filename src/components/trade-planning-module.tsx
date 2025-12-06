@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Info, CheckCircle, Circle, AlertTriangle, FileText, ArrowRight, Gauge, ShieldCheck, XCircle, X, Lock, Loader2, Bookmark } from "lucide-react";
+import { Bot, Info, CheckCircle, Circle, AlertTriangle, FileText, ArrowRight, Gauge, ShieldCheck, XCircle, X, Lock, Loader2, Bookmark, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
@@ -77,6 +77,35 @@ type PlanFormValues = z.infer<typeof planSchema>;
 const mockStrategies = [
     { id: '1', name: "London Reversal" },
     { id: '2', name: "BTC Trend Breakout" },
+];
+
+const planTemplates: ({ id: string, name: string, values: Partial<PlanFormValues> })[] = [
+    { id: 'blank', name: "Blank plan", values: {} },
+    {
+        id: 'btc_trend',
+        name: "BTC – Intraday trend follow",
+        values: {
+            instrument: "BTC-PERP",
+            direction: "Long",
+            leverage: 20,
+            riskPercent: 1,
+            strategyId: "2",
+            notes: "Looking for continuation after a period of consolidation. Entry on retest of breakout level.",
+        }
+    },
+    {
+        id: 'eth_scalp',
+        name: "ETH – Mean reversion scalp",
+        values: {
+            instrument: "ETH-PERP",
+            direction: "Short",
+            leverage: 50,
+            riskPercent: 0.5,
+            strategyId: "1",
+            notes: "Fading the extreme of the range during low volatility. Expecting a quick move back to the median.",
+        }
+    },
+    { id: 'custom_soon', name: "Custom template 1 (soon)", values: {} },
 ];
 
 type PlanStatusType = "incomplete" | "blocked" | "needs_attention" | "ok" | "overridden";
@@ -333,18 +362,22 @@ function PlanSummary({ control, setPlanStatus, onSetModule }: { control: any, se
     useEffect(() => {
         // --- Calculations ---
         const isLong = direction === "Long";
-        const riskPerUnit = (entryPrice && stopLoss) ? Math.abs(Number(entryPrice) - Number(stopLoss)) : 0;
-        const rewardPerUnit = (takeProfit && entryPrice) ? Math.abs(Number(takeProfit) - Number(entryPrice)) : 0;
+        const numEntryPrice = Number(entryPrice);
+        const numStopLoss = Number(stopLoss);
+        const numTakeProfit = Number(takeProfit);
+
+        const riskPerUnit = (numEntryPrice && numStopLoss) ? Math.abs(numEntryPrice - numStopLoss) : 0;
+        const rewardPerUnit = (numTakeProfit && numEntryPrice) ? Math.abs(numTakeProfit - numEntryPrice) : 0;
         const rrr = (riskPerUnit > 0 && rewardPerUnit > 0) ? rewardPerUnit / riskPerUnit : 0;
         
         const potentialLoss = (accountCapital && riskPercent) ? (Number(accountCapital) * Number(riskPercent)) / 100 : 0;
         const positionSize = riskPerUnit > 0 ? potentialLoss / riskPerUnit : 0;
         const potentialProfit = potentialLoss * rrr;
         
-        const distanceToSl = (entryPrice && stopLoss) ? Math.abs(Number(entryPrice) - Number(stopLoss)) : 0;
-        const distanceToSlPercent = entryPrice && Number(entryPrice) > 0 ? (distanceToSl / Number(entryPrice)) * 100 : 0;
-        const distanceToTp = (takeProfit && entryPrice) ? Math.abs(Number(takeProfit) - Number(entryPrice)) : 0;
-        const distanceToTpPercent = (entryPrice && takeProfit) ? (distanceToTp / Number(entryPrice)) * 100 : 0;
+        const distanceToSl = (numEntryPrice && numStopLoss) ? Math.abs(numEntryPrice - numStopLoss) : 0;
+        const distanceToSlPercent = numEntryPrice > 0 ? (distanceToSl / numEntryPrice) * 100 : 0;
+        const distanceToTp = (numTakeProfit && numEntryPrice) ? Math.abs(numTakeProfit - numEntryPrice) : 0;
+        const distanceToTpPercent = (numEntryPrice && numTakeProfit) ? (distanceToTp / numEntryPrice) * 100 : 0;
         
         setSummary({ rrr, positionSize, potentialLoss, potentialProfit, distanceToSl, distanceToSlPercent, distanceToTp, distanceToTpPercent });
         
@@ -352,7 +385,7 @@ function PlanSummary({ control, setPlanStatus, onSetModule }: { control: any, se
         const currentChecks = getRuleChecks(rrr, riskPercent ? Number(riskPercent) : 0);
         setRuleChecks(currentChecks);
 
-        const requiredFieldsSet = instrument && direction && entryPrice && stopLoss && accountCapital && riskPercent && strategyId && notes && notes.length >= 10;
+        const requiredFieldsSet = instrument && direction && numEntryPrice > 0 && numStopLoss > 0 && accountCapital && riskPercent && strategyId && notes && notes.length >= 10;
         let currentStatus: PlanStatusType = 'incomplete';
         let currentMessage = "Fill in all required values to continue.";
 
@@ -390,7 +423,7 @@ function PlanSummary({ control, setPlanStatus, onSetModule }: { control: any, se
     const isLong = direction === "Long";
     const isSlSet = stopLoss && Number(stopLoss) > 0;
     const isTpSet = takeProfit && Number(takeProfit) > 0;
-    const canCalcRisk = entryPrice && stopLoss && riskPercent && accountCapital;
+    const canCalcRisk = entryPrice && Number(entryPrice) > 0 && stopLoss && Number(stopLoss) > 0 && riskPercent && accountCapital;
     const hasFails = ruleChecks.some(c => c.status === 'FAIL');
 
     const SummaryRow = ({ label, value, className }: { label: string, value: React.ReactNode, className?: string }) => (
@@ -493,11 +526,20 @@ function PlanSummary({ control, setPlanStatus, onSetModule }: { control: any, se
     );
 }
 
-function PlanStep({ form, onSetModule, setPlanStatus }: { form: any, onSetModule: any, setPlanStatus: any }) {
-     const entryType = useWatch({
-        control: form.control,
-        name: 'entryType',
+function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate }: { form: any, onSetModule: any, setPlanStatus: any, onApplyTemplate: (templateId: string) => void }) {
+    const entryType = useWatch({ control: form.control, name: 'entryType' });
+    const [selectedTemplate, setSelectedTemplate] = useState<string>(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem("ec_trade_plan_last_template") || 'blank';
+        }
+        return 'blank';
     });
+
+    const handleTemplateChange = (templateId: string) => {
+        setSelectedTemplate(templateId);
+        onApplyTemplate(templateId);
+    };
+
     return (
          <div className="grid lg:grid-cols-3 gap-8 items-start">
             <Card className="lg:col-span-2 bg-muted/30 border-border/50">
@@ -505,6 +547,30 @@ function PlanStep({ form, onSetModule, setPlanStatus }: { form: any, onSetModule
                     <CardTitle>Plan details</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
+                    {/* Template Selector */}
+                    <div className="p-4 bg-muted/50 rounded-lg space-y-2 border-b border-border/50">
+                        <Label htmlFor="plan-template">Start from template</Label>
+                        <Select onValueChange={handleTemplateChange} value={selectedTemplate}>
+                            <SelectTrigger id="plan-template">
+                                <SelectValue placeholder="Select a template" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {planTemplates.map(template => (
+                                    <SelectItem 
+                                        key={template.id} 
+                                        value={template.id}
+                                        disabled={template.id === 'custom_soon'}
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <Copy className="h-4 w-4 text-muted-foreground" />
+                                            <span>{template.name}</span>
+                                        </div>
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
                     {/* Group A */}
                     <div className="p-4 bg-muted/50 rounded-lg space-y-4">
                         <h3 className="text-sm font-semibold text-muted-foreground">Market & Direction</h3>
@@ -922,9 +988,9 @@ function PlanSnapshot({ form, onSetStep }: { form: any; onSetStep: (step: TradeP
                 <h2 className={cn("text-xl font-bold", direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{instrument} &ndash; {direction}</h2>
             </div>
             <div className="space-y-2">
-                <SummaryRow label="Entry Price" value={entryPrice?.toFixed(4)} />
-                <SummaryRow label="Stop Loss" value={stopLoss?.toFixed(4)} />
-                <SummaryRow label="Take Profit" value={takeProfit ? takeProfit.toFixed(4) : 'Not Set'} />
+                <SummaryRow label="Entry Price" value={Number(entryPrice).toFixed(4)} />
+                <SummaryRow label="Stop Loss" value={Number(stopLoss).toFixed(4)} />
+                <SummaryRow label="Take Profit" value={takeProfit ? Number(takeProfit).toFixed(4) : 'Not Set'} />
                 <SummaryRow label="Leverage" value={`${leverage}x`} />
             </div>
             <Separator />
@@ -957,7 +1023,9 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
     const [showBanner, setShowBanner] = useState(true);
     const [currentStep, setCurrentStep] = useState<TradePlanStep>("plan");
     const [arjunFeedbackAccepted, setArjunFeedbackAccepted] = useState(false);
-    
+    const [showTemplateOverwriteDialog, setShowTemplateOverwriteDialog] = useState(false);
+    const [pendingTemplateId, setPendingTemplateId] = useState<string | null>(null);
+
     const form = useForm<PlanFormValues>({
         resolver: zodResolver(planSchema),
         defaultValues: {
@@ -976,7 +1044,7 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
             mindset: "",
         },
     });
-    
+
     useEffect(() => {
         if (typeof window !== "undefined") {
             const draft = localStorage.getItem("ec_trade_plan_draft");
@@ -994,11 +1062,41 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
             }
         }
     }, [form, toast]);
+    
+    const applyTemplate = (templateId: string) => {
+        const template = planTemplates.find(t => t.id === templateId);
+        if (!template || template.id === 'custom_soon') return;
+
+        const defaultValues = {
+            direction: "Long", entryType: "Limit", leverage: 10, accountCapital: 10000,
+            riskPercent: 1, strategyId: '', instrument: "", notes: "", justification: "",
+            entryPrice: '', stopLoss: '', takeProfit: '', mindset: ""
+        };
+
+        form.reset({
+            ...defaultValues, // Reset to defaults first
+            ...form.getValues(), // Keep existing values
+            ...template.values, // Overwrite with template values
+        });
+        localStorage.setItem("ec_trade_plan_last_template", templateId);
+        toast({ title: `Template applied: ${template.name}` });
+        setShowTemplateOverwriteDialog(false);
+        setPendingTemplateId(null);
+    };
+
+    const handleApplyTemplate = (templateId: string) => {
+        if (form.formState.isDirty) {
+            setPendingTemplateId(templateId);
+            setShowTemplateOverwriteDialog(true);
+        } else {
+            applyTemplate(templateId);
+        }
+    };
 
     const justificationValue = useWatch({
         control: form.control,
         name: 'justification'
-    })
+    });
 
     const onSubmit = (values: PlanFormValues) => {
         if (currentStep === 'plan') {
@@ -1102,10 +1200,25 @@ export function TradePlanningModule({ onSetModule }: TradePlanningModuleProps) {
                 </AlertDescription>
             </Alert>
             
+            <AlertDialog open={showTemplateOverwriteDialog} onOpenChange={setShowTemplateOverwriteDialog}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Apply Template?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will overwrite your current plan values with the selected template. Are you sure?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setPendingTemplateId(null)}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => pendingTemplateId && applyTemplate(pendingTemplateId)}>Yes, apply</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+            
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
 
-                    {currentStep === "plan" && <PlanStep form={form} onSetModule={onSetModule} setPlanStatus={setPlanStatus} />}
+                    {currentStep === "plan" && <PlanStep form={form} onSetModule={onSetModule} setPlanStatus={setPlanStatus} onApplyTemplate={handleApplyTemplate} />}
                     {currentStep === "review" && <ReviewStep form={form} onSetModule={onSetModule} onSetStep={setCurrentStep} arjunFeedbackAccepted={arjunFeedbackAccepted} setArjunFeedbackAccepted={setArjunFeedbackAccepted} planStatus={planStatus} />}
                     {currentStep === "execute" && <ExecuteStep form={form} onSetModule={onSetModule} onSetStep={setCurrentStep} planStatus={planStatus} />}
 
