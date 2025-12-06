@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { useForm } from "react";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -220,7 +220,6 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { e
             if (filters.mistake !== 'all' && !(entry.review.mistakesTags || '').includes(filters.mistake)) return false;
             if (filters.strategy !== 'all' && entry.technical.strategy !== filters.strategy) return false;
             
-            // Date filter (mocked)
             const entryDate = new Date(entry.timestamps.executedAt);
             const now = new Date();
             if (filters.timeRange === '7d' && now.getTime() - entryDate.getTime() > 7 * 24 * 60 * 60 * 1000) return false;
@@ -523,5 +522,3 @@ export function TradeJournalModule({ onSetModule, draftId }: TradeJournalModuleP
         </div>
     );
 }
-
-    
