@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Info, CheckCircle, Circle, AlertTriangle, FileText, ArrowRight, Gauge, ShieldCheck, XCircle, X, Lock, Loader2, Bookmark, Copy, RefreshCw, Sparkles, Clock } from "lucide-react";
+import { Bot, Info, CheckCircle, Circle, AlertTriangle, FileText, ArrowRight, Gauge, ShieldCheck, XCircle, X, Lock, Loader2, Bookmark, Copy, RefreshCw, Sparkles, Clock, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
@@ -809,165 +809,167 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, planConte
 
     return (
          <div className="grid lg:grid-cols-3 gap-8 items-start">
-            <Card className="lg:col-span-2 bg-muted/30 border-border/50">
-                <CardHeader className="flex-row items-start justify-between">
-                    <CardTitle>Plan details</CardTitle>
-                    {planContext && (
-                        <Badge variant="secondary" className="bg-primary/10 text-primary">
-                            <Sparkles className="h-3 w-3 mr-1.5" />
-                            Context: From {planContext.origin}
-                        </Badge>
-                    )}
-                </CardHeader>
-                <CardContent className="space-y-6">
-                    {draftToResume && (
-                        <Card className="border-primary/30 bg-muted/50">
-                            <CardHeader className="flex-row items-center gap-4 space-y-0">
-                                <Clock className="h-5 w-5 text-primary" />
-                                <div>
-                                    <CardTitle className="text-base">Resume where you left off?</CardTitle>
-                                    <CardDescription>
-                                        You have an unfinished plan from {formatDistanceToNow(new Date(draftToResume.timestamp), { addSuffix: true })}.
-                                    </CardDescription>
-                                </div>
-                            </CardHeader>
-                            <CardContent className="flex gap-2">
-                                <Button onClick={onResume}>Resume Draft</Button>
-                                <Button variant="ghost" onClick={onDiscard}>Discard</Button>
-                            </CardContent>
-                        </Card>
-                    )}
-                    {/* Template Selector */}
-                    <div className="p-4 bg-muted/50 rounded-lg space-y-2 border-b border-border/50">
-                        <Label htmlFor="plan-template">Start from template</Label>
-                        <Select onValueChange={handleTemplateChange} value={selectedTemplate}>
-                            <SelectTrigger id="plan-template">
-                                <SelectValue placeholder="Select a template" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {planTemplates.map(template => (
-                                    <SelectItem 
-                                        key={template.id} 
-                                        value={template.id}
-                                        disabled={template.id === 'custom_soon'}
-                                    >
-                                        <div className="flex items-center gap-2">
-                                            <Copy className="h-4 w-4 text-muted-foreground" />
-                                            <span>{template.name}</span>
-                                        </div>
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-
-                    {/* Group A */}
-                    <div className="p-4 bg-muted/50 rounded-lg space-y-4">
-                        <h3 className="text-sm font-semibold text-muted-foreground">Market & Direction</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <FormField control={form.control} name="instrument" render={({ field }) => (
-                                <FormItem><FormLabel>Trading Pair*</FormLabel><FormControl><Input placeholder="e.g., BTC-PERP" {...field} /></FormControl><FormMessage /></FormItem>
-                            )}/>
-                            <FormField control={form.control} name="direction" render={({ field }) => (
-                                <FormItem><FormLabel>Direction</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} value={field.value} className="flex pt-2 gap-4">
-                                <Label className="flex items-center gap-2 p-2 rounded-md border border-transparent has-[:checked]:border-primary/50 has-[:checked]:bg-primary/5 cursor-pointer"><FormControl><RadioGroupItem value="Long" /></FormControl><span>Long</span></Label>
-                                <Label className="flex items-center gap-2 p-2 rounded-md border border-transparent has-[:checked]:border-primary/50 has-[:checked]:bg-primary/5 cursor-pointer"><FormControl><RadioGroupItem value="Short" /></FormControl><span>Short</span></Label>
-                                </RadioGroup></FormControl><FormMessage /></FormItem>
-                            )}/>
-                            <FormField control={form.control} name="entryType" render={({ field }) => (
-                                <FormItem><FormLabel>Entry Type</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} value={field.value} className="flex pt-2 gap-4">
-                                <Label className="flex items-center gap-2 p-2 rounded-md border border-transparent has-[:checked]:border-primary/50 has-[:checked]:bg-primary/5 cursor-pointer"><FormControl><RadioGroupItem value="Limit" /></FormControl><span>Limit</span></Label>
-                                <Label className="flex items-center gap-2 p-2 rounded-md border border-transparent has-[:checked]:border-primary/50 has-[:checked]:bg-primary/5 cursor-pointer"><FormControl><RadioGroupItem value="Market" /></FormControl><span>Market</span></Label>
-                                </RadioGroup></FormControl><FormMessage /></FormItem>
-                            )}/>
-                        </div>
-                        <FormDescription className="text-xs italic">Be honest – is this following your plan, or chasing a move?</FormDescription>
-                    </div>
-
-                    {/* Group B */}
-                    <div className="p-4 bg-muted/50 rounded-lg space-y-4">
-                        <h3 className="text-sm font-semibold text-muted-foreground">Risk Anchors</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {entryType === 'Limit' ? (
-                                <FormField control={form.control} name="entryPrice" render={({ field }) => (
-                                    <FormItem><FormLabel>Entry Price*</FormLabel><FormControl><Input type="number" placeholder="0.00" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
-                                )}/>
-                            ) : (
-                                <FormItem>
-                                    <FormLabel>Current Price (from Delta)</FormLabel>
-                                    <FormControl><Input readOnly value="68543.21 (mock)" className="bg-muted" /></FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                            <div />
-                            <FormField control={form.control} name="stopLoss" render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Stop Loss Price (your promised exit)*</FormLabel>
-                                    <FormControl><Input type="number" placeholder="0.00" {...field} value={field.value || ''} /></FormControl>
-                                    <FormDescription className="text-xs">Your invalidation point. Where you promise to exit if wrong.</FormDescription>
-                                    <FormMessage />
-                                </FormItem>
-                            )}/>
-                            <FormField control={form.control} name="takeProfit" render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Take Profit Price (TP)</FormLabel>
-                                    <FormControl><Input type="number" placeholder="0.00" {...field} value={field.value || ''} /></FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}/>
-                        </div>
-                    </div>
-                    
-                    {/* Group C */}
-                    <div className="p-4 bg-muted/50 rounded-lg space-y-4">
-                        <h3 className="text-sm font-semibold text-muted-foreground">Account & Risk</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <FormField control={form.control} name="accountCapital" render={({ field }) => (
-                                <FormItem><FormLabel>Account Capital ($)*</FormLabel><FormControl><Input type="number" placeholder="10000" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
-                            )}/>
-                            <FormField control={form.control} name="riskPercent" render={({ field }) => (
-                                <FormItem><FormLabel>Risk per Trade (% of account)*</FormLabel><FormControl><Input type="number" placeholder="1" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
-                            )}/>
-                            <FormField control={form.control} name="leverage" render={({ field }) => (
-                                <FormItem><FormLabel>Leverage</FormLabel><Select onValueChange={(v) => field.onChange(Number(v))} defaultValue={String(field.value)}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="5">5x</SelectItem><SelectItem value="10">10x</SelectItem><SelectItem value="20">20x</SelectItem><SelectItem value="50">50x</SelectItem></SelectContent></Select><FormMessage /></FormItem>
-                            )}/>
-                        </div>
-                        {isNewUser && (
-                             <Alert variant="default" className="mt-4 bg-muted/50 border-border/50">
-                                <Info className="h-4 w-4" />
-                                <AlertDescription className="text-xs">
-                                In the real product, this step would send orders to a testnet or paper trading account first, not a live one.
-                                </AlertDescription>
-                            </Alert>
+            <div className="lg:col-span-2 space-y-6">
+                <Card className="bg-muted/30 border-border/50">
+                    <CardHeader className="flex-row items-start justify-between">
+                        <CardTitle>Plan details</CardTitle>
+                        {planContext && (
+                            <Badge variant="secondary" className="bg-primary/10 text-primary">
+                                <Sparkles className="h-3 w-3 mr-1.5" />
+                                Context: From {planContext.origin}
+                            </Badge>
                         )}
-                        <Separator className="mt-4" />
-                        <WhatIfRiskSlider control={form.control} form={form} />
-                    </div>
-
-                    <Separator />
-                    
-                    {/* Group D */}
-                     <div className="p-4 bg-muted/50 rounded-lg space-y-4">
-                        <h3 className="text-sm font-semibold text-muted-foreground">Strategy & Reasoning</h3>
-                         <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] items-end gap-2">
-                            <FormField control={form.control} name="strategyId" render={({ field }) => (
-                                <FormItem><FormLabel>Strategy*</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select from your playbook"/></SelectTrigger></FormControl><SelectContent>{mockStrategies.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
-                            )}/>
-                             <Button type="button" variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => setIsStrategyDrawerOpen(true)} disabled={!strategyId}>
-                                View strategy details <ArrowRight className="ml-1 h-3 w-3" />
-                            </Button>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        {draftToResume && (
+                            <Card className="border-primary/30 bg-muted/50">
+                                <CardHeader className="flex-row items-center gap-4 space-y-0">
+                                    <Clock className="h-5 w-5 text-primary" />
+                                    <div>
+                                        <CardTitle className="text-base">Resume where you left off?</CardTitle>
+                                        <CardDescription>
+                                            You have an unfinished plan from {formatDistanceToNow(new Date(draftToResume.timestamp), { addSuffix: true })}.
+                                        </CardDescription>
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="flex gap-2">
+                                    <Button onClick={onResume}>Resume Draft</Button>
+                                    <Button variant="ghost" onClick={onDiscard}>Discard</Button>
+                                </CardContent>
+                            </Card>
+                        )}
+                        {/* Template Selector */}
+                        <div className="p-4 bg-muted/50 rounded-lg space-y-2 border-b border-border/50">
+                            <Label htmlFor="plan-template">Start from template</Label>
+                            <Select onValueChange={handleTemplateChange} value={selectedTemplate}>
+                                <SelectTrigger id="plan-template">
+                                    <SelectValue placeholder="Select a template" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {planTemplates.map(template => (
+                                        <SelectItem 
+                                            key={template.id} 
+                                            value={template.id}
+                                            disabled={template.id === 'custom_soon'}
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <Copy className="h-4 w-4 text-muted-foreground" />
+                                                <span>{template.name}</span>
+                                            </div>
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
-                        <FormField control={form.control} name="notes" render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Trade Rationale</FormLabel>
-                                <FormControl><Textarea placeholder="Why are you taking this trade? What conditions must be true?" {...field} /></FormControl>
-                                <FormDescription className="text-xs italic">This will be saved to your journal. Write it for your future self to review.</FormDescription>
-                                <FormMessage />
-                            </FormItem>
-                        )}/>
-                    </div>
-                </CardContent>
-            </Card>
+
+                        {/* Group A */}
+                        <div className="p-4 bg-muted/50 rounded-lg space-y-4">
+                            <h3 className="text-sm font-semibold text-muted-foreground">Market & Direction</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <FormField control={form.control} name="instrument" render={({ field }) => (
+                                    <FormItem><FormLabel>Trading Pair*</FormLabel><FormControl><Input placeholder="e.g., BTC-PERP" {...field} /></FormControl><FormMessage /></FormItem>
+                                )}/>
+                                <FormField control={form.control} name="direction" render={({ field }) => (
+                                    <FormItem><FormLabel>Direction</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} value={field.value} className="flex pt-2 gap-4">
+                                    <Label className="flex items-center gap-2 p-2 rounded-md border border-transparent has-[:checked]:border-primary/50 has-[:checked]:bg-primary/5 cursor-pointer"><FormControl><RadioGroupItem value="Long" /></FormControl><span>Long</span></Label>
+                                    <Label className="flex items-center gap-2 p-2 rounded-md border border-transparent has-[:checked]:border-primary/50 has-[:checked]:bg-primary/5 cursor-pointer"><FormControl><RadioGroupItem value="Short" /></FormControl><span>Short</span></Label>
+                                    </RadioGroup></FormControl><FormMessage /></FormItem>
+                                )}/>
+                                <FormField control={form.control} name="entryType" render={({ field }) => (
+                                    <FormItem><FormLabel>Entry Type</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} value={field.value} className="flex pt-2 gap-4">
+                                    <Label className="flex items-center gap-2 p-2 rounded-md border border-transparent has-[:checked]:border-primary/50 has-[:checked]:bg-primary/5 cursor-pointer"><FormControl><RadioGroupItem value="Limit" /></FormControl><span>Limit</span></Label>
+                                    <Label className="flex items-center gap-2 p-2 rounded-md border border-transparent has-[:checked]:border-primary/50 has-[:checked]:bg-primary/5 cursor-pointer"><FormControl><RadioGroupItem value="Market" /></FormControl><span>Market</span></Label>
+                                    </RadioGroup></FormControl><FormMessage /></FormItem>
+                                )}/>
+                            </div>
+                            <FormDescription className="text-xs italic">Be honest – is this following your plan, or chasing a move?</FormDescription>
+                        </div>
+
+                        {/* Group B */}
+                        <div className="p-4 bg-muted/50 rounded-lg space-y-4">
+                            <h3 className="text-sm font-semibold text-muted-foreground">Risk Anchors</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {entryType === 'Limit' ? (
+                                    <FormField control={form.control} name="entryPrice" render={({ field }) => (
+                                        <FormItem><FormLabel>Entry Price*</FormLabel><FormControl><Input type="number" placeholder="0.00" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                                    )}/>
+                                ) : (
+                                    <FormItem>
+                                        <FormLabel>Current Price (from Delta)</FormLabel>
+                                        <FormControl><Input readOnly value="68543.21 (mock)" className="bg-muted" /></FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                                <div />
+                                <FormField control={form.control} name="stopLoss" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Stop Loss Price (your promised exit)*</FormLabel>
+                                        <FormControl><Input type="number" placeholder="0.00" {...field} value={field.value || ''} /></FormControl>
+                                        <FormDescription className="text-xs">Your invalidation point. Where you promise to exit if wrong.</FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}/>
+                                <FormField control={form.control} name="takeProfit" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Take Profit Price (TP)</FormLabel>
+                                        <FormControl><Input type="number" placeholder="0.00" {...field} value={field.value || ''} /></FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}/>
+                            </div>
+                        </div>
+                        
+                        {/* Group C */}
+                        <div className="p-4 bg-muted/50 rounded-lg space-y-4">
+                            <h3 className="text-sm font-semibold text-muted-foreground">Account & Risk</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <FormField control={form.control} name="accountCapital" render={({ field }) => (
+                                    <FormItem><FormLabel>Account Capital ($)*</FormLabel><FormControl><Input type="number" placeholder="10000" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                                )}/>
+                                <FormField control={form.control} name="riskPercent" render={({ field }) => (
+                                    <FormItem><FormLabel>Risk per Trade (% of account)*</FormLabel><FormControl><Input type="number" placeholder="1" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                                )}/>
+                                <FormField control={form.control} name="leverage" render={({ field }) => (
+                                    <FormItem><FormLabel>Leverage</FormLabel><Select onValueChange={(v) => field.onChange(Number(v))} defaultValue={String(field.value)}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="5">5x</SelectItem><SelectItem value="10">10x</SelectItem><SelectItem value="20">20x</SelectItem><SelectItem value="50">50x</SelectItem></SelectContent></Select><FormMessage /></FormItem>
+                                )}/>
+                            </div>
+                            {isNewUser && (
+                                <Alert variant="default" className="mt-4 bg-muted/50 border-border/50">
+                                    <Info className="h-4 w-4" />
+                                    <AlertDescription className="text-xs">
+                                    In the real product, this step would send orders to a testnet or paper trading account first, not a live one.
+                                    </AlertDescription>
+                                </Alert>
+                            )}
+                            <Separator className="mt-4" />
+                            <WhatIfRiskSlider control={form.control} form={form} />
+                        </div>
+
+                        <Separator />
+                        
+                        {/* Group D */}
+                        <div className="p-4 bg-muted/50 rounded-lg space-y-4">
+                            <h3 className="text-sm font-semibold text-muted-foreground">Strategy & Reasoning</h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] items-end gap-2">
+                                <FormField control={form.control} name="strategyId" render={({ field }) => (
+                                    <FormItem><FormLabel>Strategy*</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select from your playbook"/></SelectTrigger></FormControl><SelectContent>{mockStrategies.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
+                                )}/>
+                                <Button type="button" variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => setIsStrategyDrawerOpen(true)} disabled={!strategyId}>
+                                    View strategy details <ArrowRight className="ml-1 h-3 w-3" />
+                                </Button>
+                            </div>
+                            <FormField control={form.control} name="notes" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Trade Rationale</FormLabel>
+                                    <FormControl><Textarea placeholder="Why are you taking this trade? What conditions must be true?" {...field} /></FormControl>
+                                    <FormDescription className="text-xs italic">This will be saved to your journal. Write it for your future self to review.</FormDescription>
+                                    <FormMessage />
+                                </FormItem>
+                            )}/>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
 
             <div className="lg:col-span-1 space-y-6 sticky top-24">
                 <SessionChecklist currentStep={currentStep} />
@@ -1409,6 +1411,62 @@ function TradePlanningSkeleton() {
     );
 }
 
+function ScenarioWalkthrough({ isOpen, onOpenChange, onDemoSelect }: { isOpen: boolean, onOpenChange: (open: boolean) => void, onDemoSelect: (scenario: 'conservative' | 'risky') => void }) {
+    const walkthroughSteps = [
+        { icon: FileText, title: "Step 1: Plan", description: "Define your Entry, Stop Loss, Take Profit, risk, and link the trade to one of your strategies." },
+        { icon: Bot, title: "Step 2: Review", description: "Let Arjun check your plan against your own rules, best practices, and your current psychological state." },
+        { icon: ShieldCheck, title: "Step 3: Execute", description: "Lock the plan, simulate execution, and automatically create a draft in your trade journal to complete later." },
+    ];
+    
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div 
+                className="absolute inset-0 bg-background/90 backdrop-blur-sm animate-in fade-in"
+                onClick={() => onOpenChange(false)}
+            />
+            <Card className="relative z-10 w-full max-w-4xl bg-muted/80 border-border/50 animate-in fade-in zoom-in-95">
+                <CardHeader>
+                    <CardTitle className="text-2xl flex items-center justify-between">
+                        <span>Trade Planning Walkthrough</span>
+                         <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} className="-mr-2" aria-label="Close walkthrough">
+                            <X className="h-4 w-4" />
+                        </Button>
+                    </CardTitle>
+                    <CardDescription>The 3-step process to ensure every trade is disciplined.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-8">
+                    <div className="grid md:grid-cols-3 gap-6 text-center">
+                        {walkthroughSteps.map((step, index) => (
+                            <div key={step.title} className="relative">
+                                <Card className="h-full bg-muted/50 p-6">
+                                    <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">
+                                        <step.icon className="h-6 w-6" />
+                                    </div>
+                                    <h3 className="font-semibold text-foreground">{step.title}</h3>
+                                    <p className="text-xs text-muted-foreground mt-1">{step.description}</p>
+                                </Card>
+                                {index < walkthroughSteps.length - 1 && (
+                                    <ArrowRight className="absolute top-1/2 -right-3 -translate-y-1/2 h-6 w-6 text-border hidden md:block" />
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                     <Separator />
+                     <div className="text-center">
+                        <h3 className="font-semibold text-foreground mb-4">Try a demo scenario</h3>
+                        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                            <Button onClick={() => onDemoSelect('conservative')}>Demo: Conservative Plan</Button>
+                            <Button variant="outline" onClick={() => onDemoSelect('risky')}>Demo: Risky Plan (breaks rules)</Button>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
+    )
+}
+
 export function TradePlanningModule({ onSetModule, planContext }: TradePlanningModuleProps) {
     const { toast } = useToast();
     const [isPlanningLoading, setIsPlanningLoading] = useState(true);
@@ -1421,6 +1479,7 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
     const [isNewUser, setIsNewUser] = useState(false);
     const [showValidationBanner, setShowValidationBanner] = useState(false);
     const [draftToResume, setDraftToResume] = useState<SavedDraft | null>(null);
+    const [isWalkthroughOpen, setIsWalkthroughOpen] = useState(false);
 
     const form = useForm<PlanFormValues>({
         resolver: zodResolver(planSchema),
@@ -1473,6 +1532,12 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
                   title: "Context applied",
                   description: `Planning a trade for ${planContext.instrument} from the ${planContext.origin}.`,
               });
+            }
+
+            const walkthroughSeen = localStorage.getItem('ec_trade_plan_walkthrough_seen');
+            if (!walkthroughSeen) {
+                setIsWalkthroughOpen(true);
+                localStorage.setItem('ec_trade_plan_walkthrough_seen', 'true');
             }
         }
 
@@ -1528,6 +1593,43 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
         } else {
             applyTemplate(templateId);
         }
+    };
+    
+    const handleDemoSelect = (scenario: 'conservative' | 'risky') => {
+        const conservativePlan = {
+            instrument: "BTC-PERP",
+            direction: "Long",
+            entryType: "Limit",
+            entryPrice: 68000,
+            stopLoss: 67500,
+            takeProfit: 69500,
+            riskPercent: 1,
+            accountCapital: 10000,
+            strategyId: "2",
+            leverage: 10
+        };
+
+        const riskyPlan = {
+            instrument: "MEME-COIN",
+            direction: "Long",
+            entryType: "Market",
+            entryPrice: 1.2,
+            stopLoss: 1.15,
+            takeProfit: 1.22,
+            riskPercent: 5,
+            accountCapital: 10000,
+            strategyId: "1",
+            leverage: 50,
+        };
+
+        if (scenario === 'conservative') {
+            form.reset(conservativePlan);
+            setCurrentStep('review');
+        } else {
+            form.reset(riskyPlan);
+            setCurrentStep('plan');
+        }
+        setIsWalkthroughOpen(false);
     };
 
     const justificationValue = useWatch({
@@ -1604,12 +1706,25 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
 
     return (
         <div className="space-y-8">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <ScenarioWalkthrough isOpen={isWalkthroughOpen} onOpenChange={setIsWalkthroughOpen} onDemoSelect={handleDemoSelect} />
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight text-foreground">Trade Planning</h1>
                     <p className="text-muted-foreground">The heart of disciplined trading inside EdgeCipher.</p>
                 </div>
                 <div className="flex items-center gap-2">
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button variant="outline" size="icon" onClick={() => setIsWalkthroughOpen(true)}>
+                                    <HelpCircle className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Open walkthrough</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
                     {(Object.keys(stepConfig) as TradePlanStep[]).map((step, index) => (
                         <Badge
                             key={step}
