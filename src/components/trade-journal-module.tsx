@@ -141,18 +141,26 @@ const useJournal = () => {
                 const completed = JSON.parse(localStorage.getItem("ec_journal_entries") || "[]");
                 localStorage.setItem("ec_journal_entries", JSON.stringify([updatedEntry, ...completed]));
                 addLog(`Journal entry completed: ${updatedEntry.technical.instrument}`);
+                 toast({
+                    title: "Journal Completed",
+                    description: "Arjun can now use this in your growth plan.",
+                });
             } else if (!isDraft) {
                 // Update a completed entry
                 const completed = JSON.parse(localStorage.getItem("ec_journal_entries") || "[]");
                 const newCompleted = completed.map((e: any) => e.id === updatedEntry.id ? updatedEntry : e);
                 localStorage.setItem("ec_journal_entries", JSON.stringify(newCompleted));
                 addLog(`Journal entry updated: ${updatedEntry.technical.instrument}`);
+                 toast({
+                    title: "Journal Entry Saved",
+                    description: "Your review has been logged successfully.",
+                });
+            } else if (isDraft) {
+                // Just update the draft
+                 const drafts = JSON.parse(localStorage.getItem("ec_journal_drafts") || "[]");
+                const newDrafts = drafts.map((d: any) => d.id === updatedEntry.id ? updatedEntry : d);
+                localStorage.setItem("ec_journal_drafts", JSON.stringify(newDrafts));
             }
-            
-            toast({
-                title: "Journal Entry Saved",
-                description: "Your review has been logged successfully.",
-            });
 
             return newEntries;
         });
@@ -362,7 +370,7 @@ function JournalReviewForm({ entry, onSubmit }: { entry: JournalEntry; onSubmit:
                     </p>
                 )}
                  <div className="flex justify-end pt-4">
-                    <Button type="submit">Complete Journal Entry</Button>
+                    <Button type="submit">Mark Journal as Completed</Button>
                 </div>
             </form>
         </Form>
