@@ -13,10 +13,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Calendar, Bookmark, ArrowRight, Edit, AlertCircle, CheckCircle, Filter, X, XCircle, Circle, BrainCircuit } from "lucide-react";
+import { Bot, Calendar, Bookmark, ArrowRight, Edit, AlertCircle, CheckCircle, Filter, X, XCircle, Circle, BrainCircuit, Trophy } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Calendar as CalendarComponent } from "./ui/calendar";
-import { format } from "date-fns";
+import { format, isToday, isYesterday, differenceInCalendarDays } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -109,7 +109,7 @@ const mockJournalEntries: JournalEntry[] = [
       technical: { instrument: 'BTC-PERP', direction: 'Long', entryPrice: 68500, stopLoss: 68000, takeProfit: 69500, leverage: 20, positionSize: 0.5, riskPercent: 1, rrRatio: 2, strategy: "BTC Trend Breakout" },
       planning: { planNotes: "Clean breakout above resistance. Good follow-through.", mindset: "Confident, Calm" },
       review: { pnl: 234.75, exitPrice: 68969.5, emotionalNotes: "Felt good, stuck to the plan.", emotionsTags: "Confident,Focused", mistakesTags: "None (disciplined)", learningNotes: "Trust the plan when the setup is clean.", newsContextTags: "Post-CPI" },
-      meta: { journalingCompletedAt: new Date().toISOString(), ruleAdherenceSummary: { followedEntryRules: true, movedSL: false, exitedEarly: false, rrBelowMin: false } }
+      meta: { journalingCompletedAt: new Date(Date.now() - 86400000 * 2).toISOString(), ruleAdherenceSummary: { followedEntryRules: true, movedSL: false, exitedEarly: false, rrBelowMin: false } }
     },
     {
       id: 'completed-2',
@@ -119,7 +119,7 @@ const mockJournalEntries: JournalEntry[] = [
       technical: { instrument: 'ETH-PERP', direction: 'Short', entryPrice: 3605, stopLoss: 3625, leverage: 50, positionSize: 12, riskPercent: 2, rrRatio: 1, strategy: "London Reversal" },
       planning: { planNotes: "Fading what looks like a sweep of the high.", mindset: "Anxious" },
       review: { pnl: -240, exitPrice: 3625, emotionalNotes: "Market kept pushing, I felt like I was fighting a trend. Should have waited for more confirmation.", emotionsTags: "Anxious,Revenge", mistakesTags: "Forced Entry,Moved SL", learningNotes: "Don't fight a strong trend, even if it looks like a sweep.", newsContextTags: "News-driven day" },
-      meta: { journalingCompletedAt: new Date().toISOString(), ruleAdherenceSummary: { followedEntryRules: false, movedSL: true, exitedEarly: false, rrBelowMin: true } }
+      meta: { journalingCompletedAt: new Date(Date.now() - 86400000).toISOString(), ruleAdherenceSummary: { followedEntryRules: false, movedSL: true, exitedEarly: false, rrBelowMin: true } }
     },
 ];
 
@@ -469,7 +469,7 @@ function RuleAdherenceSummary({ entry }: { entry: JournalEntry }) {
 
 function JournalPatternsSidebar({ entries, onSetModule }: { entries: JournalEntry[]; onSetModule: TradeJournalModuleProps['onSetModule'] }) {
     const { topEmotions, topMistakes, journalingHabits } = useMemo(() => {
-        const completed = entries.filter(e => e.status === 'completed');
+        const completed = entries.filter(e => e.status === 'completed' && e.meta.journalingCompletedAt);
         
         const emotionCounts = completed.flatMap(e => (e.review.emotionsTags || "").split(',').filter(Boolean))
             .reduce((acc, tag) => ({ ...acc, [tag]: (acc[tag] || 0) + 1 }), {} as Record<string, number>);
@@ -495,6 +495,32 @@ function JournalPatternsSidebar({ entries, onSetModule }: { entries: JournalEntr
         const completedCount = completed.length;
         const completionRate = totalTrades > 0 ? (completedCount / totalTrades) * 100 : 0;
         
+        // Streak calculation
+        const completedDates = completed
+            .map(e => new Date(e.meta.journalingCompletedAt!))
+            .sort((a, b) => b.getTime() - a.getTime());
+            
+        const uniqueDates = [...new Set(completedDates.map(d => d.toISOString().split('T')[0]))]
+            .map(d => new Date(d))
+            .sort((a,b) => b.getTime() - a.getTime());
+
+        let currentJournalStreak = 0;
+        if (uniqueDates.length > 0 && (isToday(uniqueDates[0]) || isYesterday(uniqueDates[0]))) {
+            currentJournalStreak = 1;
+            for (let i = 1; i < uniqueDates.length; i++) {
+                const diff = differenceInCalendarDays(uniqueDates[i-1], uniqueDates[i]);
+                if (diff === 1) {
+                    currentJournalStreak++;
+                } else {
+                    break;
+                }
+            }
+        }
+        
+        const now = new Date();
+        const thirtyDaysAgo = new Date(now.setDate(now.getDate() - 30));
+        const journalDaysLast30 = uniqueDates.filter(d => d >= thirtyDaysAgo).length;
+
         return { 
             topEmotions, 
             topMistakes, 
@@ -502,6 +528,8 @@ function JournalPatternsSidebar({ entries, onSetModule }: { entries: JournalEntr
                 completionRate: completionRate.toFixed(0),
                 total: totalTrades,
                 completed: completedCount,
+                currentJournalStreak,
+                journalDaysLast30
             }
         };
     }, [entries]);
@@ -550,11 +578,25 @@ function JournalPatternsSidebar({ entries, onSetModule }: { entries: JournalEntr
                     <Separator />
                      <div>
                         <h4 className="font-semibold text-foreground text-sm mb-3">Journaling Habits</h4>
-                         <div className="flex justify-between items-center">
-                            <p className="text-sm text-muted-foreground">Completion Rate (30d)</p>
-                            <p className="font-mono font-bold text-lg">{journalingHabits.completionRate}%</p>
+                         <div className="space-y-3">
+                            <div className="flex justify-between items-center">
+                                <p className="text-sm text-muted-foreground">Completion Rate (30d)</p>
+                                <p className="font-mono font-bold text-lg">{journalingHabits.completionRate}%</p>
+                            </div>
+                            <div className="flex justify-between items-center">
+                                <p className="text-sm text-muted-foreground">Current Streak</p>
+                                <p className="font-mono font-bold text-lg">{journalingHabits.currentJournalStreak} day(s)</p>
+                            </div>
+                            {journalingHabits.currentJournalStreak >= 5 && (
+                                <Badge className="bg-green-500/20 text-green-300 border-green-500/30 w-full justify-center">
+                                    <Trophy className="mr-2 h-4 w-4" /> 5-day consistency badge!
+                                </Badge>
+                            )}
+                             <p className="text-xs text-muted-foreground mt-1">You've journaled on {journalingHabits.journalDaysLast30} of the last 30 days.</p>
+                             {journalingHabits.currentJournalStreak === 0 && journalingHabits.completed > 0 &&(
+                                 <p className="text-xs text-primary/80">Start a new streak: journal today’s trades.</p>
+                             )}
                         </div>
-                         <p className="text-xs text-muted-foreground mt-1">You've journaled {journalingHabits.completed} out of {journalingHabits.total} closed trades.</p>
                     </div>
 
                     <div className="pt-4">
