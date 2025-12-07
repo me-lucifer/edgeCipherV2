@@ -153,9 +153,16 @@ export const useJournal = () => {
                 const completed = JSON.parse(localStorage.getItem("ec_journal_entries") || "[]");
                 localStorage.setItem("ec_journal_entries", JSON.stringify([updatedEntry, ...completed]));
                 addLog(`Journal entry completed: ${updatedEntry.technical.instrument}`);
-                 toast({
+                
+                const completionMessages = [
+                    "Nice — this reflection is what sharpens your edge.",
+                    "Journal updated. Arjun can now use this to refine your Growth Plan.",
+                    "Good discipline. Most traders skip this part; they also stay stuck."
+                ];
+                
+                toast({
                     title: "Journal Completed",
-                    description: "Arjun can now use this in your growth plan.",
+                    description: completionMessages[Math.floor(Math.random() * completionMessages.length)],
                 });
             } else if (!isDraft) {
                 // Update a completed entry
@@ -518,7 +525,7 @@ function JournalPatternsSidebar({ entries, onSetModule }: { entries: JournalEntr
         }
         
         const now = new Date();
-        const thirtyDaysAgo = new Date(now.setDate(now.getDate() - 30));
+        const thirtyDaysAgo = new Date(new Date().setDate(now.getDate() - 30));
         const journalDaysLast30 = uniqueDates.filter(d => d >= thirtyDaysAgo).length;
 
         return { 
