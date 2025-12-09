@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Calendar, Bookmark, ArrowRight, Edit, AlertCircle, CheckCircle, Filter, X, XCircle, Circle, BrainCircuit, Trophy, NotebookPen, TrendingUp, TrendingDown, Sparkles } from "lucide-react";
+import { Bot, Calendar, Bookmark, ArrowRight, Edit, AlertCircle, CheckCircle, Filter, X, XCircle, Circle, BrainCircuit, Trophy, NotebookPen, TrendingUp, TrendingDown, Sparkles, ChevronUp } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Calendar as CalendarComponent } from "./ui/calendar";
 import { format, isToday, isYesterday, differenceInCalendarDays } from "date-fns";
@@ -1043,6 +1043,8 @@ function getReviewPriority(entry: JournalEntry): ReviewPriority {
 
 function PendingReviewTab({ entries, onSetModule, updateEntry }: { entries: JournalEntry[]; onSetModule: TradeJournalModuleProps['onSetModule'], updateEntry: (entry: JournalEntry) => void; }) {
     const { toast } = useToast();
+    const [expandedEntryId, setExpandedEntryId] = useState<string | null>(null);
+
     const draftEntries = useMemo(() => {
         const drafts = entries
             .filter(e => e.status === 'pending')
@@ -1085,6 +1087,10 @@ function PendingReviewTab({ entries, onSetModule, updateEntry }: { entries: Jour
         });
     };
 
+    const handleToggleExpand = (entryId: string) => {
+        setExpandedEntryId(currentId => currentId === entryId ? null : entryId);
+    };
+
     if (draftEntries.length === 0) {
         return (
             <Card className="bg-muted/30 border-border/50 text-center py-12">
@@ -1113,55 +1119,105 @@ function PendingReviewTab({ entries, onSetModule, updateEntry }: { entries: Jour
                             priorityInfo.priority === 'Low' && 'border-green-500',
                         )}
                     >
-                        <CardContent className="p-4 grid md:grid-cols-[1fr_auto] items-center gap-4">
-                           <div className="space-y-3">
-                                <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                                     <h3 className="font-bold text-lg text-foreground">{entry.technical.instrument} &ndash; <span className={cn(entry.technical.direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{entry.technical.direction}</span></h3>
-                                     <Badge variant="outline" className="text-xs border-amber-500/30 text-amber-300">Pending journal</Badge>
+                        <CardContent className="p-4 cursor-pointer" onClick={() => handleToggleExpand(entry.id)}>
+                            <div className="grid md:grid-cols-[1fr_auto] items-center gap-4">
+                                <div className="space-y-3">
+                                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                                        <h3 className="font-bold text-lg text-foreground">{entry.technical.instrument} &ndash; <span className={cn(entry.technical.direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{entry.technical.direction}</span></h3>
+                                        <Badge variant="outline" className="text-xs border-amber-500/30 text-amber-300">Pending journal</Badge>
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                                        <p>Executed: {entry.timestamps ? format(new Date(entry.timestamps.executedAt), "PPP 'at' p") : "No date"}</p>
+                                        <p>Strategy: <Badge variant="secondary" className="text-xs">{entry.technical.strategy}</Badge></p>
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-2 pt-2">
+                                        <Badge variant="outline" className={cn("text-xs",
+                                            priorityInfo.priority === 'High' && 'border-red-500/50 text-red-300',
+                                            priorityInfo.priority === 'Medium' && 'border-amber-500/50 text-amber-300',
+                                            priorityInfo.priority === 'Low' && 'border-green-500/50 text-green-300',
+                                        )}>
+                                            Arjun Priority: {priorityInfo.priority}
+                                        </Badge>
+                                        <p className="text-xs text-muted-foreground italic">
+                                            {priorityInfo.reasons.join('; ')}
+                                        </p>
+                                    </div>
                                 </div>
-                                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                                    <p>Executed: {entry.timestamps ? format(new Date(entry.timestamps.executedAt), "PPP 'at' p") : "No date"}</p>
-                                    <p>Strategy: <Badge variant="secondary" className="text-xs">{entry.technical.strategy}</Badge></p>
+                                <div className="flex flex-col gap-2 w-full md:w-auto" onClick={(e) => e.stopPropagation()}>
+                                    <Button 
+                                        className="w-full"
+                                        onClick={() => handleToggleExpand(entry.id)}
+                                    >
+                                       {expandedEntryId === entry.id ? 'Collapse' : 'Complete Review'}
+                                       {expandedEntryId === entry.id ? <ChevronUp className="ml-2 h-4 w-4" /> : <ArrowRight className="ml-2 h-4 w-4" />}
+                                    </Button>
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="sm"
+                                                    className="w-full text-xs text-muted-foreground"
+                                                    onClick={() => handleMarkAsClean(entry)}
+                                                >
+                                                    <Sparkles className="mr-2 h-3 w-3" /> Mark as clean trade
+                                                </Button>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p className="max-w-xs">No major emotions or mistakes. I executed the plan as intended.</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
                                 </div>
-                                <div className="flex flex-wrap items-center gap-2 pt-2">
-                                    <Badge variant="outline" className={cn("text-xs",
-                                        priorityInfo.priority === 'High' && 'border-red-500/50 text-red-300',
-                                        priorityInfo.priority === 'Medium' && 'border-amber-500/50 text-amber-300',
-                                        priorityInfo.priority === 'Low' && 'border-green-500/50 text-green-300',
-                                    )}>
-                                        Arjun Priority: {priorityInfo.priority}
-                                    </Badge>
-                                    <p className="text-xs text-muted-foreground italic">
-                                        {priorityInfo.reasons.join('; ')}
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="flex flex-col gap-2 w-full md:w-auto">
-                                <Button 
-                                    className="w-full"
-                                    onClick={() => onSetModule('tradeJournal', { draftId: entry.id })}
-                                >
-                                   Complete Review <ArrowRight className="ml-2 h-4 w-4" />
-                                </Button>
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                             <Button 
-                                                variant="ghost" 
-                                                size="sm"
-                                                className="w-full text-xs text-muted-foreground"
-                                                onClick={() => handleMarkAsClean(entry)}
-                                            >
-                                                <Sparkles className="mr-2 h-3 w-3" /> Mark as clean trade
-                                            </Button>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p className="max-w-xs">No major emotions or mistakes. I executed the plan as intended.</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
                             </div>
                         </CardContent>
+                        
+                        {expandedEntryId === entry.id && (
+                           <CardContent className="border-t border-border/50 pt-6">
+                                <div className="grid md:grid-cols-2 gap-8">
+                                    <Card className="bg-muted/50 border-border/50">
+                                        <CardHeader>
+                                            <CardTitle className="text-base">Trade Summary</CardTitle>
+                                        </CardHeader>
+                                        <CardContent className="space-y-6">
+                                            <div>
+                                                <h4 className="text-sm font-semibold text-foreground mb-2">Technical Details</h4>
+                                                <div className="space-y-2 text-sm">
+                                                    <div className="flex justify-between"><span className="text-muted-foreground">Pair/Direction:</span> <span className={cn("font-mono", entry.technical.direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{entry.technical.instrument} {entry.technical.direction}</span></div>
+                                                    <div className="flex justify-between"><span className="text-muted-foreground">Entry / SL / TP:</span> <span className="font-mono">{entry.technical.entryPrice} / {entry.technical.stopLoss} / {entry.technical.takeProfit || 'N/A'}</span></div>
+                                                    <div className="flex justify-between"><span className="text-muted-foreground">Risk % / R:R:</span> <span className="font-mono">{entry.technical.riskPercent}% / {entry.technical.rrRatio?.toFixed(2) || 'N/A'}</span></div>
+                                                </div>
+                                            </div>
+                                             <Separator />
+                                            <div>
+                                                <h4 className="text-sm font-semibold text-foreground mb-2">Planning Notes</h4>
+                                                <p className="text-sm text-muted-foreground p-3 bg-muted rounded-lg border italic">"{entry.planning.planNotes || 'No plan notes were entered.'}"</p>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                    
+                                    <Card className="bg-muted/50 border-border/50">
+                                        <CardHeader>
+                                            <CardTitle className="text-base">Psychological Review</CardTitle>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <JournalReviewForm 
+                                                entry={entry} 
+                                                onSubmit={(values) => {
+                                                    updateEntry(values);
+                                                    setExpandedEntryId(null);
+                                                }} 
+                                                onSetModule={onSetModule}
+                                                onSaveDraft={() => {
+                                                    updateEntry(entry);
+                                                    setExpandedEntryId(null);
+                                                }}
+                                            />
+                                        </CardContent>
+                                    </Card>
+                                </div>
+                            </CardContent>
+                        )}
                     </Card>
                 </div>
             ))}
@@ -1228,8 +1284,10 @@ export function TradeJournalModule({ onSetModule, draftId }: TradeJournalModuleP
         } else {
             // If there are no pending drafts, default to the 'all' tab
             const hasPending = entries.some(e => e.status === 'pending');
-            if (!hasPending) {
+            if (!hasPending && entries.length > 0) {
                 setActiveTab('all');
+            } else {
+                setActiveTab('pending');
             }
         }
     }, [draftId, entries]);
