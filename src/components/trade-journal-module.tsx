@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Calendar, Bookmark, ArrowRight, Edit, AlertCircle, CheckCircle, Filter, X, XCircle, Circle, BrainCircuit, Trophy } from "lucide-react";
+import { Bot, Calendar, Bookmark, ArrowRight, Edit, AlertCircle, CheckCircle, Filter, X, XCircle, Circle, BrainCircuit, Trophy, NotebookPen } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Calendar as CalendarComponent } from "./ui/calendar";
 import { format, isToday, isYesterday, differenceInCalendarDays } from "date-fns";
@@ -288,7 +288,10 @@ function JournalReviewForm({ entry, onSubmit, onSetModule, onSaveDraft }: { entr
                                 <FormItem className="mt-4">
                                     <FormLabel className="text-xs text-muted-foreground">Emotional notes (optional but powerful)</FormLabel>
                                     <FormControl>
-                                        <Textarea placeholder="Example: ‘Got anxious when price moved against me, almost closed early.’” {...field} />
+                                    <Textarea 
+                                        placeholder="Example: ‘Got anxious when price moved against me, almost closed early.’”" 
+                                        {...field} 
+                                    />
                                     </FormControl>
                                 </FormItem>
                             )}
@@ -355,11 +358,10 @@ function JournalReviewForm({ entry, onSubmit, onSetModule, onSaveDraft }: { entr
                             render={({ field }) => (
                                 <FormItem>
                                     <FormControl>
-                                        <Textarea
-                                            placeholder="Example: ‘I respected my SL but rushed my TP. Next time I’ll keep a partial position for the original target.’”
-                                            className="min-h-[100px]"
-                                            {...field}
-                                        />
+                                    <Textarea
+                                        placeholder="Example: 'I respected my SL but rushed my TP. Next time I’ll keep a partial position for the original target.'"
+                                        {...field}
+                                    />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
@@ -626,10 +628,22 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { e
         mistake: 'all',
         strategy: 'all',
     });
+    const [showUnjournaledOnly, setShowUnjournaledOnly] = useState(false);
+
+    const isMissingPsychData = (entry: JournalEntry) => {
+      return !entry.review.emotionsTags && !entry.review.learningNotes;
+    }
+
+    const unjournaledCount = useMemo(() => {
+        return entries.filter(entry => entry.status === 'pending' || (entry.status === 'completed' && isMissingPsychData(entry))).length;
+    }, [entries]);
 
     const filteredEntries = useMemo(() => {
+        if (showUnjournaledOnly) {
+            return entries.filter(entry => entry.status === 'pending' || (entry.status === 'completed' && isMissingPsychData(entry)));
+        }
+
         return entries.filter(entry => {
-            if (!entry.timestamps) return false;
             if (filters.result !== 'all' && entry.status === 'completed') {
                 const isWin = entry.review.pnl > 0;
                 if (filters.result === 'win' && !isWin) return false;
@@ -639,6 +653,7 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { e
             if (filters.mistake !== 'all' && !(entry.review.mistakesTags || '').includes(filters.mistake)) return false;
             if (filters.strategy !== 'all' && entry.technical.strategy !== filters.strategy) return false;
             
+            if(!entry.timestamps) return false;
             const entryDate = new Date(entry.timestamps.executedAt);
             const now = new Date();
             if (filters.timeRange === '7d' && now.getTime() - entryDate.getTime() > 7 * 24 * 60 * 60 * 1000) return false;
@@ -646,10 +661,11 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { e
             
             return true;
         });
-    }, [entries, filters]);
+    }, [entries, filters, showUnjournaledOnly]);
 
     const clearFilters = () => {
         setFilters({ timeRange: '30d', result: 'all', emotion: 'all', mistake: 'all', strategy: 'all' });
+        setShowUnjournaledOnly(false);
     }
 
     const uniqueStrats = [...new Set(entries.map(e => e.technical.strategy))];
@@ -787,8 +803,19 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { e
                                 <Button variant="ghost" size="sm" onClick={clearFilters}><X className="mr-2 h-4 w-4"/>Clear Filters</Button>
                             </div>
                         </CardHeader>
-                        <CardContent className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-                            <div className="flex items-center gap-1 rounded-full bg-muted p-1">
+                        <CardContent className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                           <div className="col-span-2 lg:col-span-3">
+                                <Button
+                                    variant={showUnjournaledOnly ? 'secondary' : 'outline'}
+                                    onClick={() => setShowUnjournaledOnly(!showUnjournaledOnly)}
+                                    className="w-full"
+                                >
+                                    <NotebookPen className="mr-2 h-4 w-4" />
+                                    Show unjournaled only
+                                    {unjournaledCount > 0 && <span className="ml-2 font-mono bg-primary/20 text-primary rounded-full h-5 w-5 flex items-center justify-center text-xs">{unjournaledCount}</span>}
+                                </Button>
+                            </div>
+                            <div className={cn("flex items-center gap-1 rounded-full bg-muted p-1", showUnjournaledOnly && "opacity-50 pointer-events-none")}>
                                 {(['today', '7d', '30d'] as const).map(range => (
                                     <Button
                                         key={range}
@@ -796,12 +823,13 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { e
                                         variant={filters.timeRange === range ? 'secondary' : 'ghost'}
                                         onClick={() => setFilters(f => ({ ...f, timeRange: range }))}
                                         className="rounded-full h-8 px-3 text-xs w-full"
+                                        disabled={showUnjournaledOnly}
                                     >
                                         {range === 'today' ? 'Today' : range.toUpperCase()}
                                     </Button>
                                 ))}
                             </div>
-                            <div className="flex items-center gap-1 rounded-full bg-muted p-1">
+                            <div className={cn("flex items-center gap-1 rounded-full bg-muted p-1", showUnjournaledOnly && "opacity-50 pointer-events-none")}>
                                 {(['all', 'win', 'loss'] as const).map(res => (
                                     <Button
                                         key={res}
@@ -809,27 +837,28 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { e
                                         variant={filters.result === res ? 'secondary' : 'ghost'}
                                         onClick={() => setFilters(f => ({ ...f, result: res }))}
                                         className="rounded-full h-8 px-3 text-xs w-full capitalize"
+                                        disabled={showUnjournaledOnly}
                                     >
                                         {res}
                                     </Button>
                                 ))}
                             </div>
-                            <Select value={filters.strategy} onValueChange={(v) => setFilters(f => ({ ...f, strategy: v }))}>
-                                <SelectTrigger><SelectValue placeholder="Filter by strategy..." /></SelectTrigger>
+                            <Select value={filters.strategy} onValueChange={(v) => setFilters(f => ({ ...f, strategy: v }))} disabled={showUnjournaledOnly}>
+                                <SelectTrigger disabled={showUnjournaledOnly}><SelectValue placeholder="Filter by strategy..." /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="all">All Strategies</SelectItem>
                                     {uniqueStrats.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                                 </SelectContent>
                             </Select>
-                            <Select value={filters.emotion} onValueChange={(v) => setFilters(f => ({ ...f, emotion: v }))}>
-                                <SelectTrigger><SelectValue placeholder="Filter by emotion..." /></SelectTrigger>
+                            <Select value={filters.emotion} onValueChange={(v) => setFilters(f => ({ ...f, emotion: v }))} disabled={showUnjournaledOnly}>
+                                <SelectTrigger disabled={showUnjournaledOnly}><SelectValue placeholder="Filter by emotion..." /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="all">All Emotions</SelectItem>
                                     {uniqueEmotions.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
                                 </SelectContent>
                             </Select>
-                            <Select value={filters.mistake} onValueChange={(v) => setFilters(f => ({ ...f, mistake: v }))}>
-                                <SelectTrigger><SelectValue placeholder="Filter by mistake..." /></SelectTrigger>
+                            <Select value={filters.mistake} onValueChange={(v) => setFilters(f => ({ ...f, mistake: v }))} disabled={showUnjournaledOnly}>
+                                <SelectTrigger disabled={showUnjournaledOnly}><SelectValue placeholder="Filter by mistake..." /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="all">All Mistakes</SelectItem>
                                     {uniqueMistakes.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
@@ -854,7 +883,7 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { e
                                             entry.status === 'completed' ? 'bg-green-500/20 text-green-300 border-green-500/30' : 'border-amber-500/30 text-amber-300'
                                         )}>{entry.status}</Badge>
                                     </div>
-                                    <CardDescription>{format(new Date(entry.timestamps.executedAt), "PPP 'at' p")}</CardDescription>
+                                    <CardDescription>{entry.timestamps ? format(new Date(entry.timestamps.executedAt), "PPP 'at' p") : "No date"}</CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-4 flex-1 flex flex-col">
                                     <div className="flex-1 space-y-2">
@@ -990,7 +1019,7 @@ function PendingReviewTab({ entries, onSetModule }: { entries: JournalEntry[]; o
                                 <p className={cn("text-sm font-mono", entry.technical.direction === 'Long' ? "text-green-400" : "text-red-400")}>{entry.technical.direction}</p>
                             </div>
                             <div className="col-span-2 md:col-span-1">
-                                <p className="text-xs text-muted-foreground">{format(new Date(entry.timestamps.executedAt), "PPP 'at' p")}</p>
+                                <p className="text-xs text-muted-foreground">{entry.timestamps ? format(new Date(entry.timestamps.executedAt), "PPP 'at' p") : "No date"}</p>
                                 <div className="flex flex-wrap gap-2 mt-2">
                                     {priorityInfo.reasons.map(reason => (
                                         <Badge key={reason} variant="outline" className={cn("text-xs",
