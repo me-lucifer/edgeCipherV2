@@ -281,14 +281,14 @@ function JournalReviewForm({ entry, onSubmit, onSetModule, onSaveDraft }: { entr
                                 </FormItem>
                             )}
                         />
-                        <FormField
+                         <FormField
                             control={form.control}
                             name="review.emotionalNotes"
                             render={({ field }) => (
                                 <FormItem className="mt-4">
                                     <FormLabel className="text-xs text-muted-foreground">Emotional notes (optional but powerful)</FormLabel>
                                     <FormControl>
-                                        <Textarea placeholder="Example: ‘Got anxious when price moved against me, almost closed early.’" {...field} />
+                                        <Textarea placeholder="Example: ‘Got anxious when price moved against me, almost closed early.’” {...field} />
                                     </FormControl>
                                 </FormItem>
                             )}
@@ -356,7 +356,7 @@ function JournalReviewForm({ entry, onSubmit, onSetModule, onSaveDraft }: { entr
                                 <FormItem>
                                     <FormControl>
                                         <Textarea
-                                            placeholder="Example: ‘I respected my SL but rushed my TP. Next time I’ll keep a partial position for the original target.’"
+                                            placeholder="Example: ‘I respected my SL but rushed my TP. Next time I’ll keep a partial position for the original target.’”
                                             className="min-h-[100px]"
                                             {...field}
                                         />
@@ -629,6 +629,7 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { e
 
     const filteredEntries = useMemo(() => {
         return entries.filter(entry => {
+            if (!entry.timestamps) return false;
             if (filters.result !== 'all' && entry.status === 'completed') {
                 const isWin = entry.review.pnl > 0;
                 if (filters.result === 'win' && !isWin) return false;
