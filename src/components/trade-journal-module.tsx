@@ -715,7 +715,7 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { e
             }
             if (filters.emotion !== 'all' && !(entry.review.emotionsTags || '').includes(filters.emotion)) return false;
             if (filters.mistake !== 'all' && !(entry.review.mistakesTags || '').includes(filters.mistake)) return false;
-            if (filters.strategy !== 'all' && entry.technical.strategy !== filters.strategy) return false;
+            if (filters.strategy !== 'all' && entry.technical && entry.technical.strategy !== filters.strategy) return false;
             
             const entryDate = new Date(entry.timestamps.executedAt);
             const now = new Date();
@@ -731,7 +731,7 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { e
         setShowUnjournaledOnly(false);
     }
 
-    const uniqueStrats = [...new Set(entries.map(e => e.technical.strategy))];
+    const uniqueStrats = [...new Set(entries.map(e => e.technical?.strategy).filter(Boolean))];
     const uniqueEmotions = [...new Set(entries.flatMap(e => (e.review.emotionsTags || "").split(',')).filter(Boolean))];
     const uniqueMistakes = [...new Set(entries.flatMap(e => (e.review.mistakesTags || "").split(',')).filter(Boolean))];
 
