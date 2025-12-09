@@ -1,14 +1,16 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart as BarChartIcon, Brain, Calendar, Filter, AlertCircle } from "lucide-react";
-import { format } from "date-fns";
+import { BarChart as BarChartIcon, Brain, Calendar, Filter, AlertCircle, Info, TrendingUp, TrendingDown } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, CartesianGrid, XAxis, YAxis, Bar } from "recharts";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
+import { Badge } from "./ui/badge";
+import { cn } from "@/lib/utils";
 
 interface PerformanceAnalyticsModuleProps {
     onSetModule: (module: any, context?: any) => void;
@@ -118,15 +120,110 @@ function ByStrategyTab() {
 }
 
 function ByBehaviourTab() {
-     return (
-        <div className="text-center py-12 border-2 border-dashed border-border/50 rounded-lg">
-             <AlertCircle className="mx-auto h-12 w-12 text-muted-foreground" />
-            <h3 className="mt-4 text-lg font-semibold text-foreground">Analysis by Behaviour Coming Soon</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-                This is a prototype. The full version will connect your journal emotion tags to your PnL.
+    const [analyticsData, setAnalyticsData] = useState<any>(null);
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const data = localStorage.getItem('ec_journal_analytics');
+            if (data) {
+                setAnalyticsData(JSON.parse(data));
+            }
+        }
+    }, []);
+
+    if (!analyticsData) {
+        return (
+            <div className="text-center py-12 border-2 border-dashed border-border/50 rounded-lg">
+                 <AlertCircle className="mx-auto h-12 w-12 text-muted-foreground" />
+                <h3 className="mt-4 text-lg font-semibold text-foreground">No Journal Data Found</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                    Complete some journal entries to see your behavioral patterns here.
+                </p>
+            </div>
+        )
+    }
+
+    const { emotionTagCounts, mistakeTagCounts } = analyticsData;
+    const emotionData = Object.entries(emotionTagCounts).map(([tag, count]) => ({
+        tag,
+        count,
+        winRate: (Math.random() * 30 + 40).toFixed(1), // Mock
+        avgR: (Math.random() * 2 - 1).toFixed(2), // Mock
+    }));
+
+    const mistakeData = Object.entries(mistakeTagCounts).map(([tag, count]) => ({
+        tag,
+        count,
+        winRate: (Math.random() * 20 + 20).toFixed(1), // Mock
+        avgR: (Math.random() * -1.5 - 0.2).toFixed(2), // Mock
+    }));
+
+    return (
+       <div className="space-y-8">
+            <p className="text-sm text-muted-foreground flex items-center gap-2">
+                <Info className="h-4 w-4" /> Data shown here is derived from tags in your Trade Journal.
             </p>
-        </div>
-    )
+            <div className="grid lg:grid-cols-2 gap-8">
+                <Card className="bg-muted/30 border-border/50">
+                    <CardHeader>
+                        <CardTitle>By Emotion</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Emotion Tag</TableHead>
+                                    <TableHead>Count</TableHead>
+                                    <TableHead>Win Rate</TableHead>
+                                    <TableHead>Avg. R</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {emotionData.map(d => (
+                                    <TableRow key={d.tag}>
+                                        <TableCell><Badge variant="outline" className="border-amber-500/30 text-amber-300">{d.tag}</Badge></TableCell>
+                                        <TableCell>{d.count as number}</TableCell>
+                                        <TableCell>{d.winRate}%</TableCell>
+                                        <TableCell className={cn(Number(d.avgR) >= 0 ? 'text-green-400' : 'text-red-400')}>{d.avgR}R</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+                 <Card className="bg-muted/30 border-border/50">
+                    <CardHeader>
+                        <CardTitle>By Mistake</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Mistake Tag</TableHead>
+                                    <TableHead>Count</TableHead>
+                                    <TableHead>Win Rate</TableHead>
+                                    <TableHead>Avg. R</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {mistakeData.map(d => (
+                                    <TableRow key={d.tag}>
+                                        <TableCell><Badge variant="destructive">{d.tag}</Badge></TableCell>
+                                        <TableCell>{d.count as number}</TableCell>
+                                        <TableCell>{d.winRate}%</TableCell>
+                                        <TableCell className={cn(Number(d.avgR) >= 0 ? 'text-green-400' : 'text-red-400')}>{d.avgR}R</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+            </div>
+             <p className="text-xs text-muted-foreground/80 italic text-center pt-4">
+                Prototype: Win Rate and Avg. R numbers are simulated, but the pipeline reflects how the real system would use your Journal data.
+            </p>
+       </div>
+   )
 }
 
 export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalyticsModuleProps) {

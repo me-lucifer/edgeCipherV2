@@ -138,14 +138,38 @@ export const useJournal = () => {
         }
     }, []);
 
+    const updateAnalytics = (allEntries: JournalEntry[]) => {
+        const completedEntries = allEntries.filter(e => e.status === 'completed');
+        const emotionTagCounts = completedEntries.flatMap(e => (e.review.emotionsTags || "").split(',').filter(Boolean))
+            .reduce((acc, tag) => ({ ...acc, [tag]: (acc[tag] || 0) + 1 }), {} as Record<string, number>);
+
+        const mistakeTagCounts = completedEntries.flatMap(e => (e.review.mistakesTags || "").split(',').filter(Boolean))
+            .reduce((acc, tag) => ({ ...acc, [tag]: (acc[tag] || 0) + 1 }), {} as Record<string, number>);
+
+        const totalTrades = allEntries.length;
+        const completedCount = completedEntries.length;
+        const journalingCompletionRate = totalTrades > 0 ? Math.round((completedCount / totalTrades) * 100) : 0;
+
+        const analytics = {
+            emotionTagCounts,
+            mistakeTagCounts,
+            journalingCompletionRate,
+            pnlByEmotionTag: {}, // Mock
+            pnlByMistakeTag: {}, // Mock
+        };
+
+        localStorage.setItem("ec_journal_analytics", JSON.stringify(analytics));
+        addLog("Journal analytics updated.");
+    };
+
     const updateEntry = (updatedEntry: JournalEntry) => {
+        let newEntries: JournalEntry[] = [];
         setEntries(prev => {
-            const newEntries = prev.map(e => e.id === updatedEntry.id ? updatedEntry : e);
+            newEntries = prev.map(e => e.id === updatedEntry.id ? updatedEntry : e);
             
             const isDraft = updatedEntry.id.startsWith('draft-');
             
             if (isDraft && updatedEntry.status === 'completed') {
-                // Move from drafts to entries
                 const drafts = JSON.parse(localStorage.getItem("ec_journal_drafts") || "[]");
                 const newDrafts = drafts.filter((d: any) => d.id !== updatedEntry.id);
                 localStorage.setItem("ec_journal_drafts", JSON.stringify(newDrafts));
@@ -165,7 +189,6 @@ export const useJournal = () => {
                     description: completionMessages[Math.floor(Math.random() * completionMessages.length)],
                 });
             } else if (!isDraft) {
-                // Update a completed entry
                 const completed = JSON.parse(localStorage.getItem("ec_journal_entries") || "[]");
                 const newCompleted = completed.map((e: any) => e.id === updatedEntry.id ? updatedEntry : e);
                 localStorage.setItem("ec_journal_entries", JSON.stringify(newCompleted));
@@ -175,12 +198,12 @@ export const useJournal = () => {
                     description: "Your review has been logged successfully.",
                 });
             } else if (isDraft) {
-                // Just update the draft
                  const drafts = JSON.parse(localStorage.getItem("ec_journal_drafts") || "[]");
                 const newDrafts = drafts.map((d: any) => d.id === updatedEntry.id ? updatedEntry : d);
                 localStorage.setItem("ec_journal_drafts", JSON.stringify(newDrafts));
             }
 
+            updateAnalytics(newEntries);
             return newEntries;
         });
     };
@@ -1019,6 +1042,7 @@ function PendingReviewTab({ entries, onSetModule }: { entries: JournalEntry[]; o
         drafts.sort((a, b) => {
             const priorityDiff = priorityOrder[a.priorityInfo.priority] - priorityOrder[b.priorityInfo.priority];
             if (priorityDiff !== 0) return priorityDiff;
+            if (!a.entry.timestamps || !b.entry.timestamps) return 0;
             return new Date(b.entry.timestamps.executedAt).getTime() - new Date(a.entry.timestamps.executedAt).getTime();
         });
         
