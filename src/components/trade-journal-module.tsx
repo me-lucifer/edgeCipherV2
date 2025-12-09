@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Calendar, Bookmark, ArrowRight, Edit, AlertCircle, CheckCircle, Filter, X, XCircle, Circle, BrainCircuit, Trophy, NotebookPen, TrendingUp, TrendingDown } from "lucide-react";
+import { Bot, Calendar, Bookmark, ArrowRight, Edit, AlertCircle, CheckCircle, Filter, X, XCircle, Circle, BrainCircuit, Trophy, NotebookPen, TrendingUp, TrendingDown, Sparkles } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Calendar as CalendarComponent } from "./ui/calendar";
 import { format, isToday, isYesterday, differenceInCalendarDays } from "date-fns";
@@ -35,6 +35,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Tooltip, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 
 
 interface TradeJournalModuleProps {
@@ -268,7 +269,7 @@ function JournalReviewForm({ entry, onSubmit, onSetModule, onSaveDraft }: { entr
                     <Separator />
 
                     {/* Emotions */}
-                    <div className="space-y-4">
+                     <div className="space-y-4">
                         <h4 className="font-semibold text-foreground">Emotions during this trade</h4>
                         <FormField
                             control={form.control}
@@ -304,7 +305,7 @@ function JournalReviewForm({ entry, onSubmit, onSetModule, onSaveDraft }: { entr
                                 </FormItem>
                             )}
                         />
-                         <FormField
+                        <FormField
                             control={form.control}
                             name="review.emotionalNotes"
                             render={({ field }) => (
@@ -1040,7 +1041,8 @@ function getReviewPriority(entry: JournalEntry): ReviewPriority {
     return { priority, reasons };
 }
 
-function PendingReviewTab({ entries, onSetModule }: { entries: JournalEntry[]; onSetModule: TradeJournalModuleProps['onSetModule'] }) {
+function PendingReviewTab({ entries, onSetModule, updateEntry }: { entries: JournalEntry[]; onSetModule: TradeJournalModuleProps['onSetModule'], updateEntry: (entry: JournalEntry) => void; }) {
+    const { toast } = useToast();
     const draftEntries = useMemo(() => {
         const drafts = entries
             .filter(e => e.status === 'pending')
@@ -1060,6 +1062,28 @@ function PendingReviewTab({ entries, onSetModule }: { entries: JournalEntry[]; o
         
         return drafts;
     }, [entries]);
+
+    const handleMarkAsClean = (entry: JournalEntry) => {
+        const updatedEntry: JournalEntry = {
+            ...entry,
+            status: 'completed',
+            review: {
+                ...entry.review,
+                emotionsTags: "Calm,Focused",
+                mistakesTags: "None (disciplined)",
+                learningNotes: "Executed according to plan. No major deviations.",
+            },
+            meta: {
+                ...entry.meta,
+                journalingCompletedAt: new Date().toISOString(),
+            }
+        };
+        updateEntry(updatedEntry);
+        toast({
+            title: "Logged as clean trade",
+            description: "Great – not every trade needs a long essay.",
+        });
+    };
 
     if (draftEntries.length === 0) {
         return (
@@ -1112,12 +1136,31 @@ function PendingReviewTab({ entries, onSetModule }: { entries: JournalEntry[]; o
                                     </p>
                                 </div>
                             </div>
-                            <Button 
-                                className="w-full md:w-auto"
-                                onClick={() => onSetModule('tradeJournal', { draftId: entry.id })}
-                            >
-                               Complete Review <ArrowRight className="ml-2 h-4 w-4" />
-                            </Button>
+                            <div className="flex flex-col gap-2 w-full md:w-auto">
+                                <Button 
+                                    className="w-full"
+                                    onClick={() => onSetModule('tradeJournal', { draftId: entry.id })}
+                                >
+                                   Complete Review <ArrowRight className="ml-2 h-4 w-4" />
+                                </Button>
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                             <Button 
+                                                variant="ghost" 
+                                                size="sm"
+                                                className="w-full text-xs text-muted-foreground"
+                                                onClick={() => handleMarkAsClean(entry)}
+                                            >
+                                                <Sparkles className="mr-2 h-3 w-3" /> Mark as clean trade
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p className="max-w-xs">No major emotions or mistakes. I executed the plan as intended.</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            </div>
                         </CardContent>
                     </Card>
                 </div>
@@ -1211,7 +1254,7 @@ export function TradeJournalModule({ onSetModule, draftId }: TradeJournalModuleP
                     <TabsTrigger value="all">All Trades &amp; Filters</TabsTrigger>
                 </TabsList>
                 <TabsContent value="pending" className="pt-6">
-                    <PendingReviewTab entries={entries} onSetModule={onSetModule} />
+                    <PendingReviewTab entries={entries} onSetModule={onSetModule} updateEntry={updateEntry} />
                 </TabsContent>
                 <TabsContent value="all" className="pt-6">
                     <AllTradesTab entries={entries} updateEntry={updateEntry} onSetModule={onSetModule} initialDraftId={draftId} />
