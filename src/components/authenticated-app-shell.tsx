@@ -37,6 +37,16 @@ import { DashboardDemoHelper } from './dashboard-demo-helper';
 import { Badge } from './ui/badge';
 import { useEventLog } from '@/context/event-log-provider';
 import { DemoControls } from './demo-controls';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export type Module = 
   | 'dashboard' 
@@ -359,9 +369,12 @@ export function AuthenticatedAppShell() {
   const [isInitialLoading, setInitialLoading] = useState(true);
   const [isDemoHelperOpen, setDemoHelperOpen] = useState(false);
   const sequenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [showJournalLockout, setShowJournalLockout] = useState(false);
+  const [pendingNav, setPendingNav] = useState<{ id: Module, context?: ModuleContext } | null>(null);
 
   const { entries: journalEntries } = useJournal();
-  const hasPendingJournals = journalEntries.some(e => e.status === 'pending');
+  const pendingJournalCount = journalEntries.filter(e => e.status === 'pending').length;
+  const hasPendingJournals = pendingJournalCount > 0;
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -419,7 +432,7 @@ export function AuthenticatedAppShell() {
     };
   }, []);
 
-  const handleSetModule = (id: Module, context?: ModuleContext) => {
+  const navigateTo = (id: Module, context?: ModuleContext) => {
     setCurrentModule(id);
     setMobileNavOpen(false);
     setModuleContext(context || null);
@@ -427,80 +440,120 @@ export function AuthenticatedAppShell() {
       // Clear context if not navigating to trade planning
       setModuleContext(current => current ? { ...current, planContext: undefined } : null);
     }
+  };
+
+  const handleSetModule = (id: Module, context?: ModuleContext) => {
+    if (id === 'tradePlanning' && pendingJournalCount >= 3) {
+      setPendingNav({ id, context });
+      setShowJournalLockout(true);
+    } else {
+      navigateTo(id, context);
+    }
   }
 
   const handleOpenJournal = () => {
     handleSetModule('tradeJournal');
   }
+  
+  const handleContinueToPlanning = () => {
+      if (pendingNav) {
+          navigateTo(pendingNav.id, pendingNav.context);
+      }
+      setShowJournalLockout(false);
+      setPendingNav(null);
+  };
 
   return (
     <TooltipProvider>
-    <div className="flex min-h-screen w-full bg-background">
-        <aside className={cn(
-            "fixed inset-y-0 left-0 z-30 hidden flex-col border-r border-border/50 bg-muted/30 transition-all duration-300 md:flex",
-            isSidebarOpen ? "w-64" : "w-20"
-        )}>
-            <div className={cn("flex h-16 items-center border-b border-border/50 px-6", !isSidebarOpen && "justify-center px-2")}>
-                <a href="#" className="flex items-center gap-2 font-semibold text-foreground">
-                    <Cpu className="h-6 w-6 text-primary" />
-                    {isSidebarOpen && <span>EdgeCipher</span>}
-                </a>
-            </div>
-            
-            <SidebarNav currentModule={currentModule} handleSetModule={handleSetModule} isSidebarOpen={isSidebarOpen} />
+      <AlertDialog open={showJournalLockout} onOpenChange={setShowJournalLockout}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Too many unjournaled trades</AlertDialogTitle>
+            <AlertDialogDescription>
+              Arjun recommends journaling your recent trades before planning new ones. Skipping this step makes it harder to improve.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPendingNav(null)}>Cancel</AlertDialogCancel>
+            <Button variant="outline" onClick={handleContinueToPlanning}>
+                Continue anyway (Prototype)
+            </Button>
+            <AlertDialogAction onClick={() => {
+              setShowJournalLockout(false);
+              setPendingNav(null);
+              navigateTo('tradeJournal');
+            }}>
+              Go to Journal
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <div className="flex min-h-screen w-full bg-background">
+          <aside className={cn(
+              "fixed inset-y-0 left-0 z-30 hidden flex-col border-r border-border/50 bg-muted/30 transition-all duration-300 md:flex",
+              isSidebarOpen ? "w-64" : "w-20"
+          )}>
+              <div className={cn("flex h-16 items-center border-b border-border/50 px-6", !isSidebarOpen && "justify-center px-2")}>
+                  <a href="#" className="flex items-center gap-2 font-semibold text-foreground">
+                      <Cpu className="h-6 w-6 text-primary" />
+                      {isSidebarOpen && <span>EdgeCipher</span>}
+                  </a>
+              </div>
+              
+              <SidebarNav currentModule={currentModule} handleSetModule={handleSetModule} isSidebarOpen={isSidebarOpen} />
 
-             <div className="border-t border-border/50 p-2">
-                 <Tooltip>
-                    <TooltipTrigger asChild>
-                         <Button variant="ghost" onClick={() => setSidebarOpen(!isSidebarOpen)} className={cn("w-full justify-start gap-3 px-3", !isSidebarOpen && "h-10 w-10 justify-center p-0")} aria-label={isSidebarOpen ? "Collapse sidebar" : "Expand sidebar"}>
-                            <PanelLeft className={cn("h-5 w-5 transition-transform", !isSidebarOpen && "rotate-180")} />
-                            {isSidebarOpen && <span className="text-sm">Collapse</span>}
-                        </Button>
-                    </TooltipTrigger>
-                    {!isSidebarOpen && (
-                        <TooltipContent side="right">
-                            Expand sidebar
-                        </TooltipContent>
-                    )}
-                </Tooltip>
-            </div>
-        </aside>
-        
-        <div className={cn(
-            "flex flex-1 flex-col transition-all duration-300",
-            isSidebarOpen ? "md:pl-64" : "md:pl-20"
-        )}>
-            <AppHeader onSetModule={handleSetModule} onOpenMobileNav={() => setMobileNavOpen(true)} />
-            
-            <Sheet open={isMobileNavOpen} onOpenChange={setMobileNavOpen}>
-                <SheetContent side="left" className="w-64 p-0">
-                    <div className="flex h-16 items-center border-b border-border/50 px-6">
-                        <a href="#" className="flex items-center gap-2 font-semibold text-foreground">
-                            <Cpu className="h-6 w-6 text-primary" />
-                            <span>EdgeCipher</span>
-                        </a>
-                    </div>
-                    <SidebarNav currentModule={currentModule} handleSetModule={handleSetModule} />
-                </SheetContent>
-            </Sheet>
+              <div className="border-t border-border/50 p-2">
+                  <Tooltip>
+                      <TooltipTrigger asChild>
+                          <Button variant="ghost" onClick={() => setSidebarOpen(!isSidebarOpen)} className={cn("w-full justify-start gap-3 px-3", !isSidebarOpen && "h-10 w-10 justify-center p-0")} aria-label={isSidebarOpen ? "Collapse sidebar" : "Expand sidebar"}>
+                              <PanelLeft className={cn("h-5 w-5 transition-transform", !isSidebarOpen && "rotate-180")} />
+                              {isSidebarOpen && <span className="text-sm">Collapse</span>}
+                          </Button>
+                      </TooltipTrigger>
+                      {!isSidebarOpen && (
+                          <TooltipContent side="right">
+                              Expand sidebar
+                          </TooltipContent>
+                      )}
+                  </Tooltip>
+              </div>
+          </aside>
+          
+          <div className={cn(
+              "flex flex-1 flex-col transition-all duration-300",
+              isSidebarOpen ? "md:pl-64" : "md:pl-20"
+          )}>
+              <AppHeader onSetModule={handleSetModule} onOpenMobileNav={() => setMobileNavOpen(true)} />
+              
+              <Sheet open={isMobileNavOpen} onOpenChange={setMobileNavOpen}>
+                  <SheetContent side="left" className="w-64 p-0">
+                      <div className="flex h-16 items-center border-b border-border/50 px-6">
+                          <a href="#" className="flex items-center gap-2 font-semibold text-foreground">
+                              <Cpu className="h-6 w-6 text-primary" />
+                              <span>EdgeCipher</span>
+                          </a>
+                      </div>
+                      <SidebarNav currentModule={currentModule} handleSetModule={handleSetModule} />
+                  </SheetContent>
+              </Sheet>
 
-            <main className="flex-1 overflow-y-auto">
-                <div className="mx-auto max-w-7xl h-full p-4 sm:p-6 lg:p-8">
-                    <ModuleView 
-                        currentModule={currentModule} 
-                        onSetModule={handleSetModule} 
-                        moduleContext={moduleContext}
-                        isLoading={isInitialLoading && currentModule === 'dashboard'} 
-                    />
-                </div>
-            </main>
-        </div>
-        {currentModule === 'dashboard' && <DemoControls />}
-         {currentModule === 'dashboard' && !isInitialLoading && (
-            <DashboardDemoHelper isOpen={isDemoHelperOpen} onOpenChange={setDemoHelperOpen} />
-        )}
-        {hasPendingJournals && <PendingJournalBanner onOpenJournal={handleOpenJournal} />}
-    </div>
+              <main className="flex-1 overflow-y-auto">
+                  <div className="mx-auto max-w-7xl h-full p-4 sm:p-6 lg:p-8">
+                      <ModuleView 
+                          currentModule={currentModule} 
+                          onSetModule={handleSetModule} 
+                          moduleContext={moduleContext}
+                          isLoading={isInitialLoading && currentModule === 'dashboard'} 
+                      />
+                  </div>
+              </main>
+          </div>
+          {currentModule === 'dashboard' && <DemoControls />}
+          {currentModule === 'dashboard' && !isInitialLoading && (
+              <DashboardDemoHelper isOpen={isDemoHelperOpen} onOpenChange={setDemoHelperOpen} />
+          )}
+          {hasPendingJournals && <PendingJournalBanner onOpenJournal={handleOpenJournal} />}
+      </div>
     </TooltipProvider>
   );
 }
