@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Calendar, Bookmark, ArrowRight, Edit, AlertCircle, CheckCircle, Filter, X, XCircle, Circle, BrainCircuit, Trophy, NotebookPen } from "lucide-react";
+import { Bot, Calendar, Bookmark, ArrowRight, Edit, AlertCircle, CheckCircle, Filter, X, XCircle, Circle, BrainCircuit, Trophy, NotebookPen, TrendingUp, TrendingDown } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Calendar as CalendarComponent } from "./ui/calendar";
 import { format, isToday, isYesterday, differenceInCalendarDays } from "date-fns";
@@ -245,8 +245,8 @@ function JournalReviewForm({ entry, onSubmit, onSetModule, onSaveDraft }: { entr
                     <Separator />
 
                     {/* Emotions */}
-                    <div>
-                        <h4 className="font-semibold text-foreground mb-3">Emotions during this trade</h4>
+                    <div className="space-y-4">
+                        <h4 className="font-semibold text-foreground">Emotions during this trade</h4>
                         <FormField
                             control={form.control}
                             name="review.emotionsTags"
@@ -277,7 +277,7 @@ function JournalReviewForm({ entry, onSubmit, onSetModule, onSaveDraft }: { entr
                                             })}
                                         </div>
                                     </FormControl>
-                                    <FormMessage />
+                                    <FormMessage className="pt-2" />
                                 </FormItem>
                             )}
                         />
@@ -285,7 +285,7 @@ function JournalReviewForm({ entry, onSubmit, onSetModule, onSaveDraft }: { entr
                             control={form.control}
                             name="review.emotionalNotes"
                             render={({ field }) => (
-                                <FormItem className="mt-4">
+                                <FormItem>
                                     <FormLabel className="text-xs text-muted-foreground">Emotional notes (optional but powerful)</FormLabel>
                                     <FormControl>
                                     <Textarea 
@@ -619,6 +619,44 @@ function JournalPatternsSidebar({ entries, onSetModule }: { entries: JournalEntr
     );
 }
 
+function EmotionResultSnapshot() {
+    const mockEmotionResults = [
+        { emotion: "FOMO", avgR: -1.2 },
+        { emotion: "Calm", avgR: 0.8 },
+        { emotion: "Fear", avgR: -0.6 },
+        { emotion: "Focused", avgR: 1.1 },
+    ];
+
+    return (
+        <Card className="bg-muted/30 border-border/50">
+            <CardHeader className="pb-4">
+                <CardTitle className="text-base">Emotion vs. Result Snapshot</CardTitle>
+                <CardDescription className="text-xs">Based on last 30 completed trades.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="flex flex-wrap gap-3">
+                    {mockEmotionResults.map(({ emotion, avgR }) => {
+                        const isWin = avgR >= 0;
+                        const Icon = isWin ? TrendingUp : TrendingDown;
+                        return (
+                            <div key={emotion} className="flex items-center gap-2 p-2 rounded-md bg-muted border border-border/50">
+                                <Badge variant="outline" className="text-xs border-amber-500/30 text-amber-300">{emotion}</Badge>
+                                <div className={cn(
+                                    "flex items-center gap-1 text-xs font-mono font-semibold px-2 py-1 rounded",
+                                    isWin ? "bg-green-500/10 text-green-400" : "bg-red-500/10 text-red-400"
+                                )}>
+                                    <Icon className="h-3 w-3" />
+                                    <span>avg {isWin ? '+' : ''}{avgR.toFixed(1)}R</span>
+                                </div>
+                            </div>
+                        )
+                    })}
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
 function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { entries: JournalEntry[], updateEntry: (entry: JournalEntry) => void, onSetModule: TradeJournalModuleProps['onSetModule'], initialDraftId?: string }) {
     const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);
     const [filters, setFilters] = useState({
@@ -644,6 +682,8 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { e
         }
 
         return entries.filter(entry => {
+            if (!entry.timestamps) return false;
+            
             if (filters.result !== 'all' && entry.status === 'completed') {
                 const isWin = entry.review.pnl > 0;
                 if (filters.result === 'win' && !isWin) return false;
@@ -653,7 +693,6 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { e
             if (filters.mistake !== 'all' && !(entry.review.mistakesTags || '').includes(filters.mistake)) return false;
             if (filters.strategy !== 'all' && entry.technical.strategy !== filters.strategy) return false;
             
-            if(!entry.timestamps) return false;
             const entryDate = new Date(entry.timestamps.executedAt);
             const now = new Date();
             if (filters.timeRange === '7d' && now.getTime() - entryDate.getTime() > 7 * 24 * 60 * 60 * 1000) return false;
@@ -866,6 +905,8 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { e
                             </Select>
                         </CardContent>
                     </Card>
+
+                    <EmotionResultSnapshot />
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                         {filteredEntries.map(entry => (
