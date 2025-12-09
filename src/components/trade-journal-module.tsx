@@ -1002,23 +1002,35 @@ function getReviewPriority(entry: JournalEntry): ReviewPriority {
     const reasons: string[] = [];
     let priority: Priority = 'Low';
 
-    const potentialLoss = (entry.technical.riskPercent / 100) * 10000; // Mocking 10k capital
-    const rValue = (entry.technical.entryPrice && entry.technical.stopLoss) ? Math.abs(potentialLoss / (entry.technical.entryPrice - entry.technical.stopLoss)) : 0;
-    const potentialLossInR = rValue > 0 ? entry.technical.riskPercent * rValue / 100 : 0;
-    
-    if (potentialLossInR > 2) {
-        reasons.push('Big loss');
-        priority = 'High';
+    if (entry.status === 'completed') {
+        const pnl = entry.review.pnl;
+        const riskAmount = entry.technical.riskPercent / 100 * 10000; // Mock 10k capital
+        const rValue = pnl / riskAmount;
+
+        if (rValue < -1) {
+            reasons.push(`Significant loss (${rValue.toFixed(1)}R)`);
+            priority = 'High';
+        }
     }
 
     if (entry.planning.ruleOverridesJustification) {
         reasons.push('Rule breach');
         if (priority !== 'High') priority = 'High';
     }
+
+    if ((entry.review.mistakesTags || '').includes('Revenge')) {
+        reasons.push('Revenge trade');
+        priority = 'High';
+    }
     
     if (priority === 'Low' && (entry.planning.mindset || "").toLowerCase().includes("anxious")) {
         reasons.push('Emotional trade');
         priority = 'Medium';
+    }
+    
+    if (entry.status === 'pending' && priority !== 'High') {
+        priority = 'Medium';
+        reasons.push('Pending final result');
     }
 
     if (reasons.length === 0) {
@@ -1065,44 +1077,50 @@ function PendingReviewTab({ entries, onSetModule }: { entries: JournalEntry[]; o
     }
 
     return (
-        <div className="space-y-6">
+        <div className="relative space-y-8">
+             <div className="absolute left-4 top-0 bottom-0 w-px bg-border/50 hidden md:block" />
             {draftEntries.map(({ entry, priorityInfo }) => (
-                <Card key={entry.id} className={cn("bg-muted/30 border-l-4 transition-colors hover:bg-muted/40", 
-                    priorityInfo.priority === 'High' && 'border-red-500',
-                    priorityInfo.priority === 'Medium' && 'border-amber-500',
-                    priorityInfo.priority === 'Low' && 'border-green-500',
-                )}>
-                    <CardContent className="p-4 grid md:grid-cols-[1fr_auto] items-center gap-4">
-                        <div className="grid grid-cols-[auto_1fr] md:grid-cols-[auto_1fr_1fr] gap-x-4 gap-y-2 items-center">
-                            <div className={cn("w-2 h-10 rounded-full",
-                                priorityInfo.priority === 'High' && 'bg-red-500',
-                                priorityInfo.priority === 'Medium' && 'bg-amber-500',
-                                priorityInfo.priority === 'Low' && 'bg-green-500',
-                            )} />
-                            <div>
-                                <h3 className="font-semibold text-foreground">{entry.technical.instrument}</h3>
-                                <p className={cn("text-sm font-mono", entry.technical.direction === 'Long' ? "text-green-400" : "text-red-400")}>{entry.technical.direction}</p>
-                            </div>
-                            <div className="col-span-2 md:col-span-1">
-                                <p className="text-xs text-muted-foreground">{entry.timestamps ? format(new Date(entry.timestamps.executedAt), "PPP 'at' p") : "No date"}</p>
-                                <div className="flex flex-wrap gap-2 mt-2">
-                                    {priorityInfo.reasons.map(reason => (
-                                        <Badge key={reason} variant="outline" className={cn("text-xs",
-                                           priorityInfo.priority === 'High' && 'border-red-500/50 text-red-300',
-                                           priorityInfo.priority === 'Medium' && 'border-amber-500/50 text-amber-300',
-                                        )}>{reason}</Badge>
-                                    ))}
+                <div key={entry.id} className="md:pl-12 relative">
+                    <div className="absolute left-4 top-5 -translate-x-1/2 w-3 h-3 bg-primary rounded-full border-2 border-muted hidden md:block" />
+                    <Card 
+                        className={cn("bg-muted/30 border-l-4 transition-colors hover:bg-muted/40", 
+                            priorityInfo.priority === 'High' && 'border-red-500',
+                            priorityInfo.priority === 'Medium' && 'border-amber-500',
+                            priorityInfo.priority === 'Low' && 'border-green-500',
+                        )}
+                    >
+                        <CardContent className="p-4 grid md:grid-cols-[1fr_auto] items-center gap-4">
+                           <div className="space-y-3">
+                                <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                                     <h3 className="font-bold text-lg text-foreground">{entry.technical.instrument} &ndash; <span className={cn(entry.technical.direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{entry.technical.direction}</span></h3>
+                                     <Badge variant="outline" className="text-xs border-amber-500/30 text-amber-300">Pending journal</Badge>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                                    <p>Executed: {entry.timestamps ? format(new Date(entry.timestamps.executedAt), "PPP 'at' p") : "No date"}</p>
+                                    <p>Strategy: <Badge variant="secondary" className="text-xs">{entry.technical.strategy}</Badge></p>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-2 pt-2">
+                                    <Badge variant="outline" className={cn("text-xs",
+                                        priorityInfo.priority === 'High' && 'border-red-500/50 text-red-300',
+                                        priorityInfo.priority === 'Medium' && 'border-amber-500/50 text-amber-300',
+                                        priorityInfo.priority === 'Low' && 'border-green-500/50 text-green-300',
+                                    )}>
+                                        Arjun Priority: {priorityInfo.priority}
+                                    </Badge>
+                                    <p className="text-xs text-muted-foreground italic">
+                                        {priorityInfo.reasons.join('; ')}
+                                    </p>
                                 </div>
                             </div>
-                        </div>
-                        <Button 
-                            className="w-full md:w-auto"
-                            onClick={() => onSetModule('tradeJournal', { draftId: entry.id })}
-                        >
-                           Complete Review <ArrowRight className="ml-2 h-4 w-4" />
-                        </Button>
-                    </CardContent>
-                </Card>
+                            <Button 
+                                className="w-full md:w-auto"
+                                onClick={() => onSetModule('tradeJournal', { draftId: entry.id })}
+                            >
+                               Complete Review <ArrowRight className="ml-2 h-4 w-4" />
+                            </Button>
+                        </CardContent>
+                    </Card>
+                </div>
             ))}
         </div>
     )
