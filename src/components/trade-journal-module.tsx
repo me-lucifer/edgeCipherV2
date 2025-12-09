@@ -141,10 +141,10 @@ export const useJournal = () => {
 
     const updateAnalytics = (allEntries: JournalEntry[]) => {
         const completedEntries = allEntries.filter(e => e.status === 'completed');
-        const emotionTagCounts = completedEntries.flatMap(e => (e.review.emotionsTags || "").split(',').filter(Boolean))
+        const emotionTagCounts = completedEntries.flatMap(e => (e.review?.emotionsTags || "").split(',').filter(Boolean))
             .reduce((acc, tag) => ({ ...acc, [tag]: (acc[tag] || 0) + 1 }), {} as Record<string, number>);
 
-        const mistakeTagCounts = completedEntries.flatMap(e => (e.review.mistakesTags || "").split(',').filter(Boolean))
+        const mistakeTagCounts = completedEntries.flatMap(e => (e.review?.mistakesTags || "").split(',').filter(Boolean))
             .reduce((acc, tag) => ({ ...acc, [tag]: (acc[tag] || 0) + 1 }), {} as Record<string, number>);
 
         const totalTrades = allEntries.length;
@@ -504,19 +504,19 @@ function JournalPatternsSidebar({ entries, onSetModule }: { entries: JournalEntr
     const { topEmotions, topMistakes, journalingHabits } = useMemo(() => {
         const completed = entries.filter(e => e.status === 'completed' && e.meta.journalingCompletedAt);
         
-        const emotionCounts = completed.flatMap(e => (e.review.emotionsTags || "").split(',').filter(Boolean))
+        const emotionCounts = completed.flatMap(e => (e.review?.emotionsTags || "").split(',').filter(Boolean))
             .reduce((acc, tag) => ({ ...acc, [tag]: (acc[tag] || 0) + 1 }), {} as Record<string, number>);
 
         const topEmotions = Object.entries(emotionCounts)
             .sort((a, b) => b[1] - a[1])
             .slice(0, 3)
             .map(([tag, count]) => {
-                const wins = completed.filter(e => (e.review.emotionsTags || "").includes(tag) && e.review.pnl > 0).length;
-                const losses = completed.filter(e => (e.review.emotionsTags || "").includes(tag) && e.review.pnl < 0).length;
+                const wins = completed.filter(e => (e.review?.emotionsTags || "").includes(tag) && e.review?.pnl > 0).length;
+                const losses = completed.filter(e => (e.review?.emotionsTags || "").includes(tag) && e.review?.pnl < 0).length;
                 return { tag, count, wins, losses };
             });
 
-        const mistakeCounts = completed.flatMap(e => (e.review.mistakesTags || "").split(',').filter(Boolean))
+        const mistakeCounts = completed.flatMap(e => (e.review?.mistakesTags || "").split(',').filter(Boolean))
             .reduce((acc, tag) => ({ ...acc, [tag]: (acc[tag] || 0) + 1 }), {} as Record<string, number>);
         
         const topMistakes = Object.entries(mistakeCounts)
@@ -693,7 +693,7 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { e
     const [showUnjournaledOnly, setShowUnjournaledOnly] = useState(false);
 
     const isMissingPsychData = (entry: JournalEntry) => {
-      return !entry.review.emotionsTags && !entry.review.learningNotes;
+      return !entry.review?.emotionsTags && !entry.review?.learningNotes;
     }
 
     const unjournaledCount = useMemo(() => {
@@ -706,15 +706,15 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { e
         }
 
         return entries.filter(entry => {
-            if (!entry.timestamps) return false;
+            if (!entry.timestamps) return false; // This was my previous fix for a similar error.
             
             if (filters.result !== 'all' && entry.status === 'completed') {
-                const isWin = entry.review.pnl > 0;
+                const isWin = entry.review?.pnl > 0;
                 if (filters.result === 'win' && !isWin) return false;
                 if (filters.result === 'loss' && isWin) return false;
             }
-            if (filters.emotion !== 'all' && !(entry.review.emotionsTags || '').includes(filters.emotion)) return false;
-            if (filters.mistake !== 'all' && !(entry.review.mistakesTags || '').includes(filters.mistake)) return false;
+            if (filters.emotion !== 'all' && !(entry.review?.emotionsTags || '').includes(filters.emotion)) return false;
+            if (filters.mistake !== 'all' && !(entry.review?.mistakesTags || '').includes(filters.mistake)) return false;
             if (filters.strategy !== 'all' && entry.technical && entry.technical.strategy !== filters.strategy) return false;
             
             const entryDate = new Date(entry.timestamps.executedAt);
@@ -732,8 +732,8 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { e
     }
 
     const uniqueStrats = [...new Set(entries.map(e => e.technical?.strategy).filter(Boolean))];
-    const uniqueEmotions = [...new Set(entries.flatMap(e => (e.review.emotionsTags || "").split(',')).filter(Boolean))];
-    const uniqueMistakes = [...new Set(entries.flatMap(e => (e.review.mistakesTags || "").split(',')).filter(Boolean))];
+    const uniqueEmotions = [...new Set(entries.flatMap(e => (e.review?.emotionsTags || "").split(',')).filter(Boolean))];
+    const uniqueMistakes = [...new Set(entries.flatMap(e => (e.review?.mistakesTags || "").split(',')).filter(Boolean))];
 
 
     useEffect(() => {
@@ -938,8 +938,8 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { e
                                 <CardHeader>
                                     <div className="flex justify-between items-start">
                                         <div>
-                                            <h3 className={cn("font-bold text-lg", entry.status === 'completed' && (entry.review.pnl >= 0 ? 'text-green-400' : 'text-red-400'))}>
-                                                {entry.technical.instrument} &bull; {entry.status === 'completed' ? `${entry.review.pnl >= 0 ? '+' : ''}${entry.review.pnl.toFixed(2)}` : 'Pending'}
+                                            <h3 className={cn("font-bold text-lg", entry.status === 'completed' && (entry.review?.pnl >= 0 ? 'text-green-400' : 'text-red-400'))}>
+                                                {entry.technical.instrument} &bull; {entry.status === 'completed' ? `${entry.review?.pnl >= 0 ? '+' : ''}${entry.review?.pnl.toFixed(2)}` : 'Pending'}
                                             </h3>
                                             <p className="text-sm text-muted-foreground">{entry.technical.direction}</p>
                                         </div>
@@ -953,12 +953,12 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { e
                                 <CardContent className="space-y-4 flex-1 flex flex-col">
                                     <div className="flex-1 space-y-2">
                                         <div className="flex flex-wrap gap-2">
-                                            {(entry.review.emotionsTags || "").split(',').filter(Boolean).map(tag => (
+                                            {(entry.review?.emotionsTags || "").split(',').filter(Boolean).map(tag => (
                                                 <Badge key={tag} variant="outline" className="text-xs border-amber-500/30 text-amber-300">{tag}</Badge>
                                             ))}
                                         </div>
                                         <div className="flex flex-wrap gap-2">
-                                            {(entry.review.mistakesTags || "").split(',').filter(Boolean).map(tag => (
+                                            {(entry.review?.mistakesTags || "").split(',').filter(Boolean).map(tag => (
                                                 <Badge key={tag} variant="outline" className="text-xs border-red-500/30 text-red-300">{tag}</Badge>
                                             ))}
                                         </div>
@@ -1004,9 +1004,9 @@ function getReviewPriority(entry: JournalEntry): ReviewPriority {
     let priority: Priority = 'Low';
 
     if (entry.status === 'completed') {
-        const pnl = entry.review.pnl;
+        const pnl = entry.review?.pnl;
         const riskAmount = entry.technical.riskPercent / 100 * 10000; // Mock 10k capital
-        const rValue = pnl / riskAmount;
+        const rValue = pnl ? pnl / riskAmount : 0;
 
         if (rValue < -1) {
             reasons.push(`Significant loss (${rValue.toFixed(1)}R)`);
@@ -1019,7 +1019,7 @@ function getReviewPriority(entry: JournalEntry): ReviewPriority {
         if (priority !== 'High') priority = 'High';
     }
 
-    if ((entry.review.mistakesTags || '').includes('Revenge')) {
+    if ((entry.review?.mistakesTags || '').includes('Revenge')) {
         reasons.push('Revenge trade');
         priority = 'High';
     }
