@@ -1,5 +1,4 @@
 
-
       "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
@@ -13,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Calendar, Bookmark, ArrowRight, Edit, AlertCircle, CheckCircle, Filter, X, XCircle, Circle, BrainCircuit, Trophy, NotebookPen, TrendingUp, TrendingDown, Sparkles, ChevronUp, ChevronRightIcon, Star, Search, Layers } from "lucide-react";
+import { Bot, Calendar, Bookmark, ArrowRight, Edit, AlertCircle, CheckCircle, Filter, X, XCircle, Circle, BrainCircuit, Trophy, NotebookPen, TrendingUp, TrendingDown, Sparkles, ChevronUp, ChevronRightIcon, Star, Search, Layers, HelpCircle } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Calendar as CalendarComponent } from "./ui/calendar";
 import { format, isToday, isYesterday, differenceInCalendarDays, startOfDay } from "date-fns";
@@ -534,7 +533,7 @@ function JournalPatternsSidebar({ entries, onSetModule }: { entries: JournalEntr
             .map(([tag, count]) => ({ tag, count, avgPnl: -150 })); // Mock PnL
 
         const totalTrades = entries.length;
-        const completedCount = completed.length;
+        const completedCount = completedEntries.length;
         const completionRate = totalTrades > 0 ? (completedCount / totalTrades) * 100 : 0;
         
         // Streak calculation
@@ -781,8 +780,8 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filte
     }
 
     const uniqueStrats = [...new Set(entries.map(e => e.technical?.strategy).filter(Boolean) as string[])];
-    const uniqueEmotions = [...new Set(entries.flatMap(e => e.review?.emotionsTags?.split(',') || []).filter(Boolean))];
-    const uniqueMistakes = [...new Set(entries.flatMap(e => e.review?.mistakesTags?.split(',') || []).filter(Boolean))];
+    const uniqueEmotions = [...new Set(entries.flatMap(e => e.review?.emotionsTags?.split(',').filter(Boolean) || []))];
+    const uniqueMistakes = [...new Set(entries.flatMap(e => e.review?.mistakesTags?.split(',').filter(Boolean) || []))];
 
 
     useEffect(() => {
@@ -1355,13 +1354,13 @@ function PendingReviewTab({ entries, onSetModule, updateEntry }: { entries: Jour
             <Card className="bg-muted/30 border-border/50 text-center py-12">
                 <CardHeader>
                     <Bookmark className="mx-auto h-12 w-12 text-muted-foreground" />
-                    <CardTitle>Journal Inbox Zero</CardTitle>
+                    <CardTitle>Nothing waiting on your desk.</CardTitle>
                     <CardDescription>You've completed all your pending journal entries. Great work!</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <p className="text-sm text-muted-foreground">Every trade you close will appear here for review.</p>
+                    <p className="text-sm text-muted-foreground">Every trade you close from now on will appear here automatically for review.</p>
                     <Button variant="secondary" className="mt-4" onClick={() => onSetModule('dashboard')}>
-                        Go to Dashboard
+                        Open Dashboard
                     </Button>
                 </CardContent>
             </Card>
@@ -1406,7 +1405,7 @@ function PendingReviewTab({ entries, onSetModule, updateEntry }: { entries: Jour
                                         </p>
                                     </div>
                                 </div>
-                                <div className="flex flex-col gap-2 w-full md:w-auto" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex flex-col gap-2 w-full md:w-auto" onClick={(e) => {e.stopPropagation()}}>
                                     <Button 
                                         className="w-full"
                                         onClick={() => handleToggleExpand(entry.id)}
@@ -1436,8 +1435,8 @@ function PendingReviewTab({ entries, onSetModule, updateEntry }: { entries: Jour
                         </CardContent>
                         
                         {expandedEntryId === entry.id && (
-                           <CardContent className="border-t border-border/50 pt-6" aria-labelledby={`journal-entry-title-${entry.id}`}>
-                                <h2 id={`journal-entry-title-${entry.id}`} ref={detailHeadingRef} tabIndex={-1} className="sr-only">
+                           <CardContent className="border-t border-border/50 pt-6" role="region" aria-labelledby={`journal-entry-title-${entry.id}`}>
+                                <h2 id={`journal-entry-title-${entry.id}`} ref={detailHeadingRef} tabIndex={-1} className="sr-only focus:outline-none">
                                   Journal entry details for {entry.technical.instrument}
                                 </h2>
                                 <div className="grid md:grid-cols-2 gap-8">
@@ -1554,6 +1553,66 @@ function JournalSkeleton() {
     );
 }
 
+function JournalWalkthrough({ isOpen, onOpenChange, onDemoSelect }: { isOpen: boolean, onOpenChange: (open: boolean) => void, onDemoSelect: (demo: 'high-emotion' | 'clean') => void }) {
+    const walkthroughSteps = [
+        { icon: NotebookPen, title: "Why Journal?", description: "This isn’t a diary. It’s where you turn trades into data-driven lessons to stop repeating mistakes." },
+        { icon: Star, title: "Pending Review", description: "Every executed trade lands here as a draft. Your job: fill in emotions, mistakes, and what you learned." },
+        { icon: Filter, title: "All Trades & Patterns", description: "Use filters and the patterns sidebar to see *when* you trade best and worst, and *why*." },
+    ];
+    
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div 
+                className="absolute inset-0 bg-background/90 backdrop-blur-sm animate-in fade-in"
+                onClick={() => onOpenChange(false)}
+            />
+            <Card className="relative z-10 w-full max-w-4xl bg-muted/80 border-border/50 animate-in fade-in zoom-in-95">
+                <CardHeader>
+                    <CardTitle className="text-2xl flex items-center justify-between">
+                        <span>How to Use the Journal</span>
+                         <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} className="-mr-2" aria-label="Close walkthrough">
+                            <X className="h-4 w-4" />
+                        </Button>
+                    </CardTitle>
+                    <CardDescription>The 3-step process to ensure every trade is disciplined.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-8">
+                    <div className="grid md:grid-cols-3 gap-6 text-center">
+                        {walkthroughSteps.map((step, index) => (
+                            <div key={step.title} className="relative">
+                                <Card className="h-full bg-muted/50 p-6">
+                                    <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">
+                                        <step.icon className="h-6 w-6" />
+                                    </div>
+                                    <h3 className="font-semibold text-foreground">{step.title}</h3>
+                                    <p className="text-xs text-muted-foreground mt-1">{step.description}</p>
+                                </Card>
+                            </div>
+                        ))}
+                    </div>
+                     <Separator />
+                     <div className="grid md:grid-cols-2 gap-6">
+                        <div className="text-center">
+                            <h3 className="font-semibold text-foreground mb-4">Try a demo entry</h3>
+                            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                                <Button onClick={() => onDemoSelect('high-emotion')}>Demo: High-emotion loss</Button>
+                                <Button variant="outline" onClick={() => onDemoSelect('clean')}>Demo: Clean, disciplined trade</Button>
+                            </div>
+                        </div>
+                        <div className="text-center md:text-left">
+                             <p className="text-sm text-muted-foreground pt-4">
+                                This walkthrough will show again until you close it.
+                            </p>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
+    )
+}
+
 
 export function TradeJournalModule({ onSetModule, draftId, journalEntries, updateJournalEntry }: TradeJournalModuleProps) {
     const [activeTab, setActiveTab] = useState('pending');
@@ -1563,11 +1622,19 @@ export function TradeJournalModule({ onSetModule, draftId, journalEntries, updat
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
     const [isLoading, setIsLoading] = useState(true);
+    const [isWalkthroughOpen, setIsWalkthroughOpen] = useState(false);
 
     useEffect(() => {
         const timer = setTimeout(() => {
             setIsLoading(false);
         }, 1000);
+
+         const walkthroughSeen = localStorage.getItem('ec_journal_tour_seen');
+        if (!walkthroughSeen) {
+            setIsWalkthroughOpen(true);
+            localStorage.setItem('ec_journal_tour_seen', 'true');
+        }
+
         return () => clearTimeout(timer);
     }, []);
 
@@ -1625,6 +1692,30 @@ export function TradeJournalModule({ onSetModule, draftId, journalEntries, updat
         setSearchQuery('');
         setGroupBy('none');
     }
+    
+    const handleDemoSelect = (demoType: 'high-emotion' | 'clean') => {
+        let entryId;
+        if (demoType === 'high-emotion') {
+            entryId = 'completed-2';
+        } else {
+            entryId = 'completed-1';
+        }
+
+        if (activeTab !== 'all') {
+            setActiveTab('all');
+        }
+        
+        // This is a bit of a hack for the prototype to ensure the tab switch has rendered
+        setTimeout(() => {
+            const entryToEdit = journalEntries.find(e => e.id === entryId);
+            if (entryToEdit) {
+                const event = new CustomEvent('set-journal-editing', { detail: entryToEdit });
+                window.dispatchEvent(event);
+            }
+        }, 100);
+
+        setIsWalkthroughOpen(false);
+    };
 
     if (isLoading) {
         return <JournalSkeleton />;
@@ -1632,9 +1723,18 @@ export function TradeJournalModule({ onSetModule, draftId, journalEntries, updat
     
     return (
         <div className="space-y-8">
-            <div className="text-center md:text-left">
-                <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-3 justify-center md:justify-start"><Bookmark className="h-6 w-6"/>Trade Journal</h1>
-                <p className="text-muted-foreground mt-2">Low-effort trade logging. High-impact psychology.</p>
+            <JournalWalkthrough isOpen={isWalkthroughOpen} onOpenChange={setIsWalkthroughOpen} onDemoSelect={handleDemoSelect} />
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                 <div className="text-center md:text-left">
+                    <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-3 justify-center md:justify-start"><Bookmark className="h-6 w-6"/>Trade Journal</h1>
+                    <p className="text-muted-foreground mt-2">Low-effort trade logging. High-impact psychology.</p>
+                </div>
+                <div>
+                     <Button variant="outline" size="sm" onClick={() => setIsWalkthroughOpen(true)}>
+                        <HelpCircle className="mr-2 h-4 w-4" />
+                        How this works
+                    </Button>
+                </div>
             </div>
             
             <ArjunJournalSummary entries={journalEntries} />
