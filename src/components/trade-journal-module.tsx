@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Calendar, Bookmark, ArrowRight, Edit, AlertCircle, CheckCircle, Filter, X, XCircle, Circle, BrainCircuit, Trophy, NotebookPen, TrendingUp, TrendingDown, Sparkles, ChevronUp, ChevronRightIcon, Star } from "lucide-react";
+import { Bot, Calendar, Bookmark, ArrowRight, Edit, AlertCircle, CheckCircle, Filter, X, XCircle, Circle, BrainCircuit, Trophy, NotebookPen, TrendingUp, TrendingDown, Sparkles, ChevronUp, ChevronRightIcon, Star, Search } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Calendar as CalendarComponent } from "./ui/calendar";
 import { format, isToday, isYesterday, differenceInCalendarDays } from "date-fns";
@@ -693,7 +693,7 @@ const initialFilters = {
     strategy: 'all',
 };
 
-function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filters, setFilters, showUnjournaledOnly, setShowUnjournaledOnly }: { entries: JournalEntry[], updateEntry: (entry: JournalEntry) => void, onSetModule: TradeJournalModuleProps['onSetModule'], initialDraftId?: string, filters: typeof initialFilters, setFilters: (filters: typeof initialFilters) => void, showUnjournaledOnly: boolean, setShowUnjournaledOnly: (show: boolean) => void }) {
+function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filters, setFilters, showUnjournaledOnly, setShowUnjournaledOnly, searchQuery, setSearchQuery }: { entries: JournalEntry[], updateEntry: (entry: JournalEntry) => void, onSetModule: TradeJournalModuleProps['onSetModule'], initialDraftId?: string, filters: typeof initialFilters, setFilters: (filters: typeof initialFilters) => void, showUnjournaledOnly: boolean, setShowUnjournaledOnly: (show: boolean) => void, searchQuery: string, setSearchQuery: (query: string) => void }) {
     const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);
 
     const isMissingPsychData = (entry: JournalEntry) => {
@@ -705,11 +705,24 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filte
     }, [entries]);
 
     const filteredEntries = useMemo(() => {
+        let baseEntries = entries;
+
+        if (searchQuery) {
+            const lowerCaseQuery = searchQuery.toLowerCase();
+            baseEntries = entries.filter(entry => {
+                const inInstrument = entry.technical.instrument.toLowerCase().includes(lowerCaseQuery);
+                const inStrategy = entry.technical.strategy.toLowerCase().includes(lowerCaseQuery);
+                const inLearningNotes = (entry.review?.learningNotes || "").toLowerCase().includes(lowerCaseQuery);
+                const inEmotionalNotes = (entry.review?.emotionalNotes || "").toLowerCase().includes(lowerCaseQuery);
+                return inInstrument || inStrategy || inLearningNotes || inEmotionalNotes;
+            });
+        }
+        
         if (showUnjournaledOnly) {
-            return entries.filter(entry => entry.status === 'pending' || (entry.status === 'completed' && isMissingPsychData(entry)));
+            return baseEntries.filter(entry => entry.status === 'pending' || (entry.status === 'completed' && isMissingPsychData(entry)));
         }
 
-        return entries.filter(entry => {
+        return baseEntries.filter(entry => {
             if (!entry.timestamps) return false;
             
             if (filters.result !== 'all' && entry.status === 'completed' && entry.review) {
@@ -728,16 +741,17 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filte
             
             return true;
         });
-    }, [entries, filters, showUnjournaledOnly]);
+    }, [entries, filters, showUnjournaledOnly, searchQuery]);
 
     const clearFilters = () => {
         setFilters(initialFilters);
         setShowUnjournaledOnly(false);
+        setSearchQuery('');
     }
 
     const uniqueStrats = [...new Set(entries.map(e => e.technical?.strategy).filter(Boolean) as string[])];
-    const uniqueEmotions = [...new Set(entries.flatMap(e => (e.review?.emotionsTags || "").split(',')).filter(Boolean))];
-    const uniqueMistakes = [...new Set(entries.flatMap(e => (e.review?.mistakesTags || "").split(',')).filter(Boolean))];
+    const uniqueEmotions = [...new Set(entries.flatMap(e => e.review?.emotionsTags?.split(',') || []).filter(Boolean))];
+    const uniqueMistakes = [...new Set(entries.flatMap(e => e.review?.mistakesTags?.split(',') || []).filter(Boolean))];
 
 
     useEffect(() => {
@@ -957,67 +971,78 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filte
                                 <Button variant="ghost" size="sm" onClick={clearFilters}><X className="mr-2 h-4 w-4"/>Clear Filters</Button>
                             </div>
                         </CardHeader>
-                        <CardContent className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                           <div className="col-span-2 lg:col-span-3">
-                                <Button
-                                    variant={showUnjournaledOnly ? 'secondary' : 'outline'}
-                                    onClick={() => setShowUnjournaledOnly(!showUnjournaledOnly)}
-                                    className="w-full"
-                                >
-                                    <NotebookPen className="mr-2 h-4 w-4" />
-                                    Show unjournaled only
-                                    {unjournaledCount > 0 && <span className="ml-2 font-mono bg-primary/20 text-primary rounded-full h-5 w-5 flex items-center justify-center text-xs">{unjournaledCount}</span>}
-                                </Button>
+                        <CardContent className="space-y-4">
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input 
+                                    placeholder="Search by pair, strategy, or notes..."
+                                    className="pl-9"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                />
                             </div>
-                            <div className={cn("flex items-center gap-1 rounded-full bg-muted p-1", showUnjournaledOnly && "opacity-50 pointer-events-none")}>
-                                {(['today', '7d', '30d'] as const).map(range => (
+                           <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                               <div className="col-span-2 lg:col-span-3">
                                     <Button
-                                        key={range}
-                                        size="sm"
-                                        variant={filters.timeRange === range ? 'secondary' : 'ghost'}
-                                        onClick={() => setFilters({ ...filters, timeRange: range })}
-                                        className="rounded-full h-8 px-3 text-xs w-full"
-                                        disabled={showUnjournaledOnly}
+                                        variant={showUnjournaledOnly ? 'secondary' : 'outline'}
+                                        onClick={() => setShowUnjournaledOnly(!showUnjournaledOnly)}
+                                        className="w-full"
                                     >
-                                        {range === 'today' ? 'Today' : range.toUpperCase()}
+                                        <NotebookPen className="mr-2 h-4 w-4" />
+                                        Show unjournaled only
+                                        {unjournaledCount > 0 && <span className="ml-2 font-mono bg-primary/20 text-primary rounded-full h-5 w-5 flex items-center justify-center text-xs">{unjournaledCount}</span>}
                                     </Button>
-                                ))}
+                                </div>
+                                <div className={cn("flex items-center gap-1 rounded-full bg-muted p-1", showUnjournaledOnly && "opacity-50 pointer-events-none")}>
+                                    {(['today', '7d', '30d'] as const).map(range => (
+                                        <Button
+                                            key={range}
+                                            size="sm"
+                                            variant={filters.timeRange === range ? 'secondary' : 'ghost'}
+                                            onClick={() => setFilters({ ...filters, timeRange: range })}
+                                            className="rounded-full h-8 px-3 text-xs w-full"
+                                            disabled={showUnjournaledOnly}
+                                        >
+                                            {range === 'today' ? 'Today' : range.toUpperCase()}
+                                        </Button>
+                                    ))}
+                                </div>
+                                <div className={cn("flex items-center gap-1 rounded-full bg-muted p-1", showUnjournaledOnly && "opacity-50 pointer-events-none")}>
+                                    {(['all', 'win', 'loss'] as const).map(res => (
+                                        <Button
+                                            key={res}
+                                            size="sm"
+                                            variant={filters.result === res ? 'secondary' : 'ghost'}
+                                            onClick={() => setFilters({ ...filters, result: res })}
+                                            className="rounded-full h-8 px-3 text-xs w-full capitalize"
+                                            disabled={showUnjournaledOnly}
+                                        >
+                                            {res}
+                                        </Button>
+                                    ))}
+                                </div>
+                                <Select value={filters.strategy} onValueChange={(v) => setFilters({ ...filters, strategy: v })} disabled={showUnjournaledOnly}>
+                                    <SelectTrigger disabled={showUnjournaledOnly}><SelectValue placeholder="Filter by strategy..." /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Strategies</SelectItem>
+                                        {uniqueStrats.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                                <Select value={filters.emotion} onValueChange={(v) => setFilters({ ...filters, emotion: v })} disabled={showUnjournaledOnly}>
+                                    <SelectTrigger disabled={showUnjournaledOnly}><SelectValue placeholder="Filter by emotion..." /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Emotions</SelectItem>
+                                        {uniqueEmotions.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                                <Select value={filters.mistake} onValueChange={(v) => setFilters({ ...filters, mistake: v })} disabled={showUnjournaledOnly}>
+                                    <SelectTrigger disabled={showUnjournaledOnly}><SelectValue placeholder="Filter by mistake..." /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Mistakes</SelectItem>
+                                        {uniqueMistakes.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
                             </div>
-                            <div className={cn("flex items-center gap-1 rounded-full bg-muted p-1", showUnjournaledOnly && "opacity-50 pointer-events-none")}>
-                                {(['all', 'win', 'loss'] as const).map(res => (
-                                    <Button
-                                        key={res}
-                                        size="sm"
-                                        variant={filters.result === res ? 'secondary' : 'ghost'}
-                                        onClick={() => setFilters({ ...filters, result: res })}
-                                        className="rounded-full h-8 px-3 text-xs w-full capitalize"
-                                        disabled={showUnjournaledOnly}
-                                    >
-                                        {res}
-                                    </Button>
-                                ))}
-                            </div>
-                            <Select value={filters.strategy} onValueChange={(v) => setFilters({ ...filters, strategy: v })} disabled={showUnjournaledOnly}>
-                                <SelectTrigger disabled={showUnjournaledOnly}><SelectValue placeholder="Filter by strategy..." /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All Strategies</SelectItem>
-                                    {uniqueStrats.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                            <Select value={filters.emotion} onValueChange={(v) => setFilters({ ...filters, emotion: v })} disabled={showUnjournaledOnly}>
-                                <SelectTrigger disabled={showUnjournaledOnly}><SelectValue placeholder="Filter by emotion..." /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All Emotions</SelectItem>
-                                    {uniqueEmotions.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                            <Select value={filters.mistake} onValueChange={(v) => setFilters({ ...filters, mistake: v })} disabled={showUnjournaledOnly}>
-                                <SelectTrigger disabled={showUnjournaledOnly}><SelectValue placeholder="Filter by mistake..." /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All Mistakes</SelectItem>
-                                    {uniqueMistakes.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
                         </CardContent>
                     </Card>
 
@@ -1393,15 +1418,29 @@ export function TradeJournalModule({ onSetModule, draftId }: TradeJournalModuleP
     const [activeTab, setActiveTab] = useState('pending');
     const [filters, setFilters] = useState(initialFilters);
     const [showUnjournaledOnly, setShowUnjournaledOnly] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedSearchQuery(searchQuery);
+        }, 300);
+
+        return () => {
+            clearTimeout(handler);
+        };
+    }, [searchQuery]);
 
      useEffect(() => {
         if (typeof window !== "undefined") {
             const savedState = localStorage.getItem("ec_journal_ui_state");
             if (savedState) {
                 try {
-                    const { activeTab: savedTab, filters: savedFilters } = JSON.parse(savedState);
+                    const { activeTab: savedTab, filters: savedFilters, searchQuery: savedQuery } = JSON.parse(savedState);
                     setActiveTab(savedTab || 'pending');
                     setFilters(savedFilters || initialFilters);
+                    setSearchQuery(savedQuery || '');
+                    setDebouncedSearchQuery(savedQuery || '');
                 } catch (e) {
                     console.error("Failed to parse journal UI state", e);
                 }
@@ -1420,10 +1459,10 @@ export function TradeJournalModule({ onSetModule, draftId }: TradeJournalModuleP
 
     useEffect(() => {
         if (typeof window !== "undefined") {
-            const stateToSave = JSON.stringify({ activeTab, filters });
+            const stateToSave = JSON.stringify({ activeTab, filters, searchQuery });
             localStorage.setItem("ec_journal_ui_state", stateToSave);
         }
-    }, [activeTab, filters]);
+    }, [activeTab, filters, searchQuery]);
 
     const pendingCount = useMemo(() => entries.filter(e => e.status === 'pending').length, [entries]);
 
@@ -1432,6 +1471,7 @@ export function TradeJournalModule({ onSetModule, draftId }: TradeJournalModuleP
         // Reset filters when switching tabs for a cleaner experience
         setFilters(initialFilters);
         setShowUnjournaledOnly(false);
+        setSearchQuery('');
     }
     
     return (
@@ -1464,6 +1504,8 @@ export function TradeJournalModule({ onSetModule, draftId }: TradeJournalModuleP
                         setFilters={setFilters}
                         showUnjournaledOnly={showUnjournaledOnly}
                         setShowUnjournaledOnly={setShowUnjournaledOnly}
+                        searchQuery={searchQuery}
+                        setSearchQuery={setSearchQuery}
                     />
                 </TabsContent>
             </Tabs>
@@ -1471,3 +1513,20 @@ export function TradeJournalModule({ onSetModule, draftId }: TradeJournalModuleP
     );
 }
 
+// Rename the existing AllTradesTab component to use the new debounced query
+const DebouncedAllTradesTab = (props: {
+    entries: JournalEntry[];
+    updateEntry: (entry: JournalEntry) => void;
+    onSetModule: TradeJournalModuleProps['onSetModule'];
+    initialDraftId?: string;
+    filters: typeof initialFilters;
+    setFilters: (filters: typeof initialFilters) => void;
+    showUnjournaledOnly: boolean;
+    setShowUnjournaledOnly: (show: boolean) => void;
+    searchQuery: string;
+}) => {
+    // The implementation of AllTradesTab uses `searchQuery` directly, which is now the debounced value.
+    return <AllTradesTab {...props} setSearchQuery={() => {}} />;
+};
+
+    
