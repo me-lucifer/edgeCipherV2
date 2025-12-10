@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Calendar, Bookmark, ArrowRight, Edit, AlertCircle, CheckCircle, Filter, X, XCircle, Circle, BrainCircuit, Trophy, NotebookPen, TrendingUp, TrendingDown, Sparkles, ChevronUp } from "lucide-react";
+import { Bot, Calendar, Bookmark, ArrowRight, Edit, AlertCircle, CheckCircle, Filter, X, XCircle, Circle, BrainCircuit, Trophy, NotebookPen, TrendingUp, TrendingDown, Sparkles, ChevronUp, ChevronRightIcon } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Calendar as CalendarComponent } from "./ui/calendar";
 import { format, isToday, isYesterday, differenceInCalendarDays } from "date-fns";
@@ -271,7 +271,7 @@ function JournalReviewForm({ entry, onSubmit, onSetModule, onSaveDraft }: { entr
                     {/* Emotions */}
                      <div className="space-y-4">
                         <h4 className="font-semibold text-foreground">Emotions during this trade</h4>
-                        <FormField
+                         <FormField
                             control={form.control}
                             name="review.emotionsTags"
                             render={({ field }) => (
@@ -874,6 +874,65 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { e
         )
     }
 
+    const PnLCell = ({ entry }: { entry: JournalEntry }) => {
+        if (entry.status === 'pending') {
+            return <span className="text-muted-foreground">Pending</span>
+        }
+        const pnl = entry.review.pnl;
+        const isWin = pnl >= 0;
+        
+        // Mock calculation of R value
+        const riskAmount = (entry.technical.riskPercent / 100) * 10000;
+        const rValue = riskAmount > 0 ? pnl / riskAmount : 0;
+
+        return (
+            <div className={cn("font-mono font-semibold", isWin ? 'text-green-400' : 'text-red-400')}>
+                {rValue.toFixed(1)}R
+            </div>
+        )
+    };
+    
+    const TagCell = ({ tags, variant }: { tags?: string; variant: 'emotion' | 'mistake' }) => {
+        if (!tags) return <span className="text-muted-foreground/50">-</span>;
+        
+        const tagList = tags.split(',').filter(Boolean);
+        const colors = {
+            emotion: {
+                "FOMO": "border-amber-500/50 text-amber-400",
+                "Fear": "border-red-500/50 text-red-400",
+                "Anxiety": "border-yellow-500/50 text-yellow-400",
+                "Overconfidence": "border-purple-500/50 text-purple-400",
+                "Calm": "border-blue-500/50 text-blue-400",
+                "Focused": "border-green-500/50 text-green-400",
+                "default": "border-border"
+            },
+            mistake: {
+                "Moved SL": "bg-red-500/20 text-red-300",
+                "Exited early": "bg-yellow-500/20 text-yellow-300",
+                "Oversized risk": "bg-red-500/20 text-red-300",
+                "None (disciplined)": "bg-green-500/20 text-green-300",
+                "default": "bg-secondary"
+            }
+        };
+
+        return (
+            <div className="flex flex-wrap gap-1">
+                {tagList.map(tag => (
+                    <Badge 
+                        key={tag} 
+                        variant={variant === 'mistake' ? "destructive" : "outline"}
+                        className={cn(
+                            "text-xs", 
+                            colors[variant][tag as keyof typeof colors[typeof variant]] || colors[variant].default
+                        )}
+                    >
+                        {tag}
+                    </Badge>
+                ))}
+            </div>
+        )
+    }
+
     return (
         <div className="space-y-8">
             <div className="grid lg:grid-cols-3 gap-8 items-start">
@@ -951,64 +1010,51 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { e
 
                     <EmotionResultSnapshot />
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                        {filteredEntries.map(entry => (
-                            <Card key={entry.id} className="bg-muted/30 border-border/50 hover:border-primary/40 transition-colors flex flex-col">
-                                <CardHeader>
-                                    <div className="flex justify-between items-start">
-                                        <div>
-                                            <h3 className={cn("font-bold text-lg", entry.status === 'completed' && (entry.review?.pnl >= 0 ? 'text-green-400' : 'text-red-400'))}>
-                                                {entry.technical.instrument} &bull; {entry.status === 'completed' ? `${entry.review?.pnl >= 0 ? '+' : ''}${entry.review?.pnl.toFixed(2)}` : 'Pending'}
-                                            </h3>
-                                            <p className="text-sm text-muted-foreground">{entry.technical.direction}</p>
-                                        </div>
-                                        <Badge variant={entry.status === 'completed' ? 'secondary' : 'outline'} className={cn(
-                                            'text-xs',
-                                            entry.status === 'completed' ? 'bg-green-500/20 text-green-300 border-green-500/30' : 'border-amber-500/30 text-amber-300'
-                                        )}>{entry.status}</Badge>
-                                    </div>
-                                    <CardDescription>{entry.timestamps ? format(new Date(entry.timestamps.executedAt), "PPP 'at' p") : "No date"}</CardDescription>
-                                </CardHeader>
-                                <CardContent className="space-y-4 flex-1 flex flex-col">
-                                    <div className="flex-1 space-y-2">
-                                        <div className="flex flex-wrap gap-2">
-                                            {(entry.review?.emotionsTags || "").split(',').filter(Boolean).map(tag => (
-                                                <Badge key={tag} variant="outline" className="text-xs border-amber-500/30 text-amber-300">{tag}</Badge>
-                                            ))}
-                                        </div>
-                                        <div className="flex flex-wrap gap-2">
-                                            {(entry.review?.mistakesTags || "").split(',').filter(Boolean).map(tag => (
-                                                <Badge key={tag} variant="outline" className="text-xs border-red-500/30 text-red-300">{tag}</Badge>
-                                            ))}
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <Button className="w-full" variant="outline" size="sm" onClick={() => setEditingEntry(entry)}>
-                                            {entry.status === 'pending' ? 'Review' : 'View'}
-                                        </Button>
-                                        {entry.status === 'completed' && (
-                                            <Button className="w-full" variant="secondary" size="sm" onClick={() => discussWithArjun(entry)}>
-                                                <Bot className="mr-2 h-4 w-4" /> Discuss
-                                            </Button>
-                                        )}
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ))}
-                        {filteredEntries.length === 0 && (
-                             <Card className="md:col-span-2 xl:col-span-3 bg-muted/30 border-border/50 text-center py-12">
-                                <CardHeader>
-                                    <CardTitle>No Trades Match Filters</CardTitle>
-                                    <CardDescription>Try widening your date range or removing some tags.</CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    <Button variant="secondary" onClick={clearFilters}>
-                                        Clear Filters
-                                    </Button>
-                                </CardContent>
-                            </Card>
-                        )}
-                    </div>
+                    <Card className="bg-muted/30 border-border/50">
+                        <CardHeader><CardTitle>Trade Log</CardTitle></CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Date</TableHead>
+                                        <TableHead>Trade</TableHead>
+                                        <TableHead>Result (R)</TableHead>
+                                        <TableHead>Emotions</TableHead>
+                                        <TableHead>Mistakes</TableHead>
+                                        <TableHead>Strategy</TableHead>
+                                        <TableHead className="text-right">Action</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {filteredEntries.map(entry => (
+                                        <TableRow key={entry.id} className="group cursor-pointer" onClick={() => setEditingEntry(entry)}>
+                                            <TableCell className="text-xs text-muted-foreground">{entry.timestamps ? format(new Date(entry.timestamps.executedAt), "MMM d") : 'N/A'}</TableCell>
+                                            <TableCell>
+                                                <div className="font-semibold">{entry.technical.instrument}</div>
+                                                <div className={cn("text-xs", entry.technical.direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{entry.technical.direction}</div>
+                                            </TableCell>
+                                            <TableCell><PnLCell entry={entry} /></TableCell>
+                                            <TableCell><TagCell tags={entry.review?.emotionsTags} variant="emotion" /></TableCell>
+                                            <TableCell><TagCell tags={entry.review?.mistakesTags} variant="mistake" /></TableCell>
+                                            <TableCell><Badge variant="secondary" className="text-xs">{entry.technical.strategy}</Badge></TableCell>
+                                            <TableCell className="text-right">
+                                                <div className="flex items-center justify-end gap-2 text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <span>Open</span>
+                                                    <ChevronRightIcon className="h-4 w-4" />
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                             {filteredEntries.length === 0 && (
+                                <div className="text-center py-12">
+                                    <p className="text-muted-foreground">No trades match your filters.</p>
+                                    <Button variant="link" size="sm" className="mt-2" onClick={clearFilters}>Clear filters</Button>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
                 </div>
                 <JournalPatternsSidebar entries={entries} onSetModule={onSetModule} />
             </div>
