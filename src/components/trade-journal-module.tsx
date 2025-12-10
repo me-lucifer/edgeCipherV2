@@ -2,7 +2,7 @@
 
       "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -1293,6 +1293,14 @@ function getReviewPriority(entry: JournalEntry): ReviewPriority {
 function PendingReviewTab({ entries, onSetModule, updateEntry }: { entries: JournalEntry[]; onSetModule: TradeJournalModuleProps['onSetModule'], updateEntry: (entry: JournalEntry) => void; }) {
     const { toast } = useToast();
     const [expandedEntryId, setExpandedEntryId] = useState<string | null>(null);
+    const detailHeadingRef = useRef<HTMLHeadingElement>(null);
+
+
+    useEffect(() => {
+        if (expandedEntryId && detailHeadingRef.current) {
+            detailHeadingRef.current.focus();
+        }
+    }, [expandedEntryId]);
 
     const draftEntries = useMemo(() => {
         const drafts = entries
@@ -1321,7 +1329,7 @@ function PendingReviewTab({ entries, onSetModule, updateEntry }: { entries: Jour
             review: {
                 ...entry.review,
                 pnl: entry.review?.pnl ?? 0,
-                exitPrice: entry.review?.exitPrice ?? entry.technical.stopLoss,
+                exitPrice: entry.review?.exitPrice ?? (entry.technical?.stopLoss || 0),
                 emotionsTags: "Calm,Focused",
                 mistakesTags: "None (disciplined)",
                 learningNotes: "Executed according to plan. No major deviations.",
@@ -1413,7 +1421,7 @@ function PendingReviewTab({ entries, onSetModule, updateEntry }: { entries: Jour
                                                     variant="ghost" 
                                                     size="sm"
                                                     className="w-full text-xs text-muted-foreground"
-                                                    onClick={() => handleMarkAsClean(entry)}
+                                                    onClick={(e) => { e.stopPropagation(); handleMarkAsClean(entry); }}
                                                 >
                                                     <Sparkles className="mr-2 h-3 w-3" /> Mark as clean trade
                                                 </Button>
@@ -1428,7 +1436,10 @@ function PendingReviewTab({ entries, onSetModule, updateEntry }: { entries: Jour
                         </CardContent>
                         
                         {expandedEntryId === entry.id && (
-                           <CardContent className="border-t border-border/50 pt-6">
+                           <CardContent className="border-t border-border/50 pt-6" aria-labelledby={`journal-entry-title-${entry.id}`}>
+                                <h2 id={`journal-entry-title-${entry.id}`} ref={detailHeadingRef} tabIndex={-1} className="sr-only">
+                                  Journal entry details for {entry.technical.instrument}
+                                </h2>
                                 <div className="grid md:grid-cols-2 gap-8">
                                     <Card className="bg-muted/50 border-border/50">
                                         <CardHeader>
