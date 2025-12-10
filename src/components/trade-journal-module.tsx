@@ -1,6 +1,5 @@
 
-
-"use client";
+      "use client";
 
 import { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
@@ -13,10 +12,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Calendar, Bookmark, ArrowRight, Edit, AlertCircle, CheckCircle, Filter, X, XCircle, Circle, BrainCircuit, Trophy, NotebookPen, TrendingUp, TrendingDown, Sparkles, ChevronUp, ChevronRightIcon, Star, Search } from "lucide-react";
+import { Bot, Calendar, Bookmark, ArrowRight, Edit, AlertCircle, CheckCircle, Filter, X, XCircle, Circle, BrainCircuit, Trophy, NotebookPen, TrendingUp, TrendingDown, Sparkles, ChevronUp, ChevronRightIcon, Star, Search, Layers } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Calendar as CalendarComponent } from "./ui/calendar";
-import { format, isToday, isYesterday, differenceInCalendarDays } from "date-fns";
+import { format, isToday, isYesterday, differenceInCalendarDays, startOfDay } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -36,6 +35,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
 
 
 interface TradeJournalModuleProps {
@@ -90,6 +90,7 @@ const journalEntrySchema = z.object({
   })
 }).refine(data => {
     if (data.status === 'pending') return true; // Don't validate for pending drafts
+    if (!data.review) return false;
     const hasEmotionTag = data.review?.emotionsTags && data.review.emotionsTags.trim() !== '';
     const hasEmotionNote = data.review?.emotionalNotes && data.review.emotionalNotes.trim() !== '';
     return hasEmotionTag || hasEmotionNote;
@@ -685,6 +686,8 @@ function EmotionResultSnapshot() {
     );
 }
 
+type GroupingOption = 'none' | 'day' | 'strategy';
+
 const initialFilters = {
     timeRange: '30d',
     result: 'all',
@@ -693,10 +696,11 @@ const initialFilters = {
     strategy: 'all',
 };
 
-function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filters, setFilters, showUnjournaledOnly, setShowUnjournaledOnly, searchQuery, setSearchQuery }: { entries: JournalEntry[], updateEntry: (entry: JournalEntry) => void, onSetModule: TradeJournalModuleProps['onSetModule'], initialDraftId?: string, filters: typeof initialFilters, setFilters: (filters: typeof initialFilters) => void, showUnjournaledOnly: boolean, setShowUnjournaledOnly: (show: boolean) => void, searchQuery: string, setSearchQuery: (query: string) => void }) {
+function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filters, setFilters, showUnjournaledOnly, setShowUnjournaledOnly, searchQuery, setSearchQuery, groupBy, setGroupBy }: { entries: JournalEntry[], updateEntry: (entry: JournalEntry) => void, onSetModule: TradeJournalModuleProps['onSetModule'], initialDraftId?: string, filters: typeof initialFilters, setFilters: (filters: typeof initialFilters) => void, showUnjournaledOnly: boolean, setShowUnjournaledOnly: (show: boolean) => void, searchQuery: string, setSearchQuery: (query: string) => void, groupBy: GroupingOption, setGroupBy: (groupBy: GroupingOption) => void }) {
     const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);
 
     const isMissingPsychData = (entry: JournalEntry) => {
+      if (!entry.review) return true;
       return !entry.review?.emotionsTags && !entry.review?.learningNotes;
     }
 
@@ -710,8 +714,8 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filte
         if (searchQuery) {
             const lowerCaseQuery = searchQuery.toLowerCase();
             baseEntries = entries.filter(entry => {
-                const inInstrument = entry.technical.instrument.toLowerCase().includes(lowerCaseQuery);
-                const inStrategy = entry.technical.strategy.toLowerCase().includes(lowerCaseQuery);
+                const inInstrument = entry.technical?.instrument.toLowerCase().includes(lowerCaseQuery);
+                const inStrategy = entry.technical?.strategy.toLowerCase().includes(lowerCaseQuery);
                 const inLearningNotes = (entry.review?.learningNotes || "").toLowerCase().includes(lowerCaseQuery);
                 const inEmotionalNotes = (entry.review?.emotionalNotes || "").toLowerCase().includes(lowerCaseQuery);
                 return inInstrument || inStrategy || inLearningNotes || inEmotionalNotes;
@@ -742,11 +746,34 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filte
             return true;
         });
     }, [entries, filters, showUnjournaledOnly, searchQuery]);
+    
+    const groupedEntries = useMemo(() => {
+        if (groupBy === 'none') return null;
+
+        const groups = filteredEntries.reduce((acc, entry) => {
+            let key: string;
+            if (groupBy === 'day') {
+                key = entry.timestamps ? format(startOfDay(new Date(entry.timestamps.executedAt)), "yyyy-MM-dd") : 'unknown-date';
+            } else { // strategy
+                key = entry.technical?.strategy || 'Uncategorized';
+            }
+            if (!acc[key]) {
+                acc[key] = [];
+            }
+            acc[key].push(entry);
+            return acc;
+        }, {} as Record<string, JournalEntry[]>);
+        
+        return Object.entries(groups).sort((a,b) => a[0] > b[0] ? -1 : 1);
+
+    }, [groupBy, filteredEntries]);
+
 
     const clearFilters = () => {
         setFilters(initialFilters);
         setShowUnjournaledOnly(false);
         setSearchQuery('');
+        setGroupBy('none');
     }
 
     const uniqueStrats = [...new Set(entries.map(e => e.technical?.strategy).filter(Boolean) as string[])];
@@ -907,7 +934,6 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filte
         const pnl = entry.review.pnl;
         const isWin = pnl >= 0;
         
-        // Mock calculation of R value
         const riskAmount = (entry.technical.riskPercent / 100) * 10000;
         const rValue = riskAmount > 0 ? pnl / riskAmount : 0;
 
@@ -960,6 +986,124 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filte
         )
     }
 
+    const renderGroupHeader = (groupKey: string, groupEntries: JournalEntry[]) => {
+        if (groupBy === 'day') {
+            const netR = groupEntries.reduce((acc, entry) => {
+                if (entry.status !== 'completed' || !entry.review) return acc;
+                const riskAmount = (entry.technical.riskPercent / 100) * 10000;
+                return acc + (riskAmount > 0 ? entry.review.pnl / riskAmount : 0);
+            }, 0);
+
+            const topEmotions = groupEntries
+                .flatMap(e => (e.review?.emotionsTags || "").split(',').filter(Boolean))
+                .reduce((acc, tag) => ({...acc, [tag]: (acc[tag] || 0) + 1}), {} as Record<string, number>);
+            const sortedEmotions = Object.entries(topEmotions).sort((a,b) => b[1] - a[1]).slice(0,2).map(([tag]) => tag).join(', ');
+
+            return (
+                <div className="flex items-center gap-4 text-sm">
+                    <h3 className="font-semibold text-foreground">{format(new Date(groupKey), "PPP")} ({groupEntries.length} trades)</h3>
+                    <Separator orientation="vertical" className="h-4" />
+                    <p className="text-muted-foreground">Net: <span className={cn("font-mono", netR >= 0 ? 'text-green-400' : 'text-red-400')}>{netR >= 0 ? '+' : ''}{netR.toFixed(1)}R</span></p>
+                    {sortedEmotions && <p className="text-muted-foreground hidden sm:block">Emotions: <span className="font-semibold">{sortedEmotions}</span></p>}
+                </div>
+            );
+        }
+
+        if (groupBy === 'strategy') {
+            const wins = groupEntries.filter(e => e.status === 'completed' && e.review && e.review.pnl > 0).length;
+            const totalCompleted = groupEntries.filter(e => e.status === 'completed').length;
+            const winRate = totalCompleted > 0 ? (wins / totalCompleted) * 100 : 0;
+             const netR = groupEntries.reduce((acc, entry) => {
+                if (entry.status !== 'completed' || !entry.review) return acc;
+                const riskAmount = (entry.technical.riskPercent / 100) * 10000;
+                return acc + (riskAmount > 0 ? entry.review.pnl / riskAmount : 0);
+            }, 0);
+            const avgR = totalCompleted > 0 ? netR / totalCompleted : 0;
+
+            return (
+                 <div className="flex items-center gap-4 text-sm">
+                    <h3 className="font-semibold text-foreground">{groupKey} ({groupEntries.length} trades)</h3>
+                    <Separator orientation="vertical" className="h-4" />
+                    <p className="text-muted-foreground">Win Rate: <span className="font-mono">{winRate.toFixed(0)}%</span></p>
+                    <p className="text-muted-foreground hidden sm:block">Avg Result: <span className={cn("font-mono", avgR >= 0 ? 'text-green-400' : 'text-red-400')}>{avgR >= 0 ? '+' : ''}{avgR.toFixed(1)}R</span></p>
+                </div>
+            )
+        }
+    };
+
+    const renderEntries = (entriesToRender: JournalEntry[]) => (
+        <>
+            {/* Mobile Card View */}
+            <div className="space-y-4 md:hidden">
+                {entriesToRender.map(entry => (
+                        <Card key={entry.id} className="bg-muted/30 border-border/50" onClick={() => setEditingEntry(entry)}>
+                        <CardContent className="p-4 space-y-3">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <p className="font-semibold">{entry.technical?.instrument} <span className={cn(entry.technical?.direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{entry.technical?.direction}</span></p>
+                                    <p className="text-xs text-muted-foreground">{entry.timestamps ? format(new Date(entry.timestamps.executedAt), "MMM d, yyyy") : 'N/A'}</p>
+                                </div>
+                                <PnLCell entry={entry} />
+                            </div>
+                            <div className="space-y-2">
+                                <TagCell tags={entry.review?.emotionsTags} variant="emotion" />
+                                <TagCell tags={entry.review?.mistakesTags} variant="mistake" />
+                            </div>
+                            <Button variant="outline" size="sm" className="w-full">
+                                {entry.status === 'pending' ? 'Complete Journal' : 'View Details'}
+                                <ArrowRight className="ml-2 h-4 w-4" />
+                            </Button>
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden md:block">
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Trade</TableHead>
+                            <TableHead>Result (R)</TableHead>
+                            <TableHead>Emotions</TableHead>
+                            <TableHead>Mistakes</TableHead>
+                            <TableHead>Strategy</TableHead>
+                            <TableHead className="text-right">Action</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {entriesToRender.map(entry => (
+                            <TableRow key={entry.id} className="group cursor-pointer" onClick={() => setEditingEntry(entry)}>
+                                <TableCell className="text-xs text-muted-foreground">{entry.timestamps ? format(new Date(entry.timestamps.executedAt), "MMM d") : 'N/A'}</TableCell>
+                                <TableCell>
+                                    <div className="font-semibold">{entry.technical?.instrument}</div>
+                                    <div className={cn("text-xs", entry.technical?.direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{entry.technical?.direction}</div>
+                                </TableCell>
+                                <TableCell><PnLCell entry={entry} /></TableCell>
+                                <TableCell><TagCell tags={entry.review?.emotionsTags} variant="emotion" /></TableCell>
+                                <TableCell><TagCell tags={entry.review?.mistakesTags} variant="mistake" /></TableCell>
+                                <TableCell><Badge variant="secondary" className="text-xs">{entry.technical?.strategy || 'N/A'}</Badge></TableCell>
+                                <TableCell className="text-right">
+                                    <div className="flex items-center justify-end gap-2 text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <span>Open</span>
+                                        <ChevronRightIcon className="h-4 w-4" />
+                                    </div>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+                    {entriesToRender.length === 0 && (
+                    <div className="text-center py-12">
+                        <p className="text-muted-foreground">No trades match your filters.</p>
+                        <Button variant="link" size="sm" className="mt-2" onClick={clearFilters}>Clear filters</Button>
+                    </div>
+                )}
+            </div>
+        </>
+    );
+
     return (
         <div className="space-y-8">
             <div className="grid lg:grid-cols-3 gap-8 items-start">
@@ -982,45 +1126,59 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filte
                                 />
                             </div>
                            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                               <div className="col-span-2 lg:col-span-3">
-                                    <Button
-                                        variant={showUnjournaledOnly ? 'secondary' : 'outline'}
-                                        onClick={() => setShowUnjournaledOnly(!showUnjournaledOnly)}
-                                        className="w-full"
-                                    >
-                                        <NotebookPen className="mr-2 h-4 w-4" />
-                                        Show unjournaled only
-                                        {unjournaledCount > 0 && <span className="ml-2 font-mono bg-primary/20 text-primary rounded-full h-5 w-5 flex items-center justify-center text-xs">{unjournaledCount}</span>}
-                                    </Button>
+                               <div className={cn("grid grid-cols-2 gap-4 col-span-2 lg:col-span-3", showUnjournaledOnly && "opacity-50 pointer-events-none")}>
+                                    <div className="flex items-center gap-1 rounded-full bg-muted p-1">
+                                        {(['today', '7d', '30d'] as const).map(range => (
+                                            <Button
+                                                key={range}
+                                                size="sm"
+                                                variant={filters.timeRange === range ? 'secondary' : 'ghost'}
+                                                onClick={() => setFilters({ ...filters, timeRange: range })}
+                                                className="rounded-full h-8 px-3 text-xs w-full"
+                                                disabled={showUnjournaledOnly}
+                                            >
+                                                {range === 'today' ? 'Today' : range.toUpperCase()}
+                                            </Button>
+                                        ))}
+                                    </div>
+                                    <div className="flex items-center gap-1 rounded-full bg-muted p-1">
+                                        {(['all', 'win', 'loss'] as const).map(res => (
+                                            <Button
+                                                key={res}
+                                                size="sm"
+                                                variant={filters.result === res ? 'secondary' : 'ghost'}
+                                                onClick={() => setFilters({ ...filters, result: res })}
+                                                className="rounded-full h-8 px-3 text-xs w-full capitalize"
+                                                disabled={showUnjournaledOnly}
+                                            >
+                                                {res}
+                                            </Button>
+                                        ))}
+                                    </div>
                                 </div>
-                                <div className={cn("flex items-center gap-1 rounded-full bg-muted p-1", showUnjournaledOnly && "opacity-50 pointer-events-none")}>
-                                    {(['today', '7d', '30d'] as const).map(range => (
-                                        <Button
-                                            key={range}
-                                            size="sm"
-                                            variant={filters.timeRange === range ? 'secondary' : 'ghost'}
-                                            onClick={() => setFilters({ ...filters, timeRange: range })}
-                                            className="rounded-full h-8 px-3 text-xs w-full"
-                                            disabled={showUnjournaledOnly}
-                                        >
-                                            {range === 'today' ? 'Today' : range.toUpperCase()}
-                                        </Button>
-                                    ))}
-                                </div>
-                                <div className={cn("flex items-center gap-1 rounded-full bg-muted p-1", showUnjournaledOnly && "opacity-50 pointer-events-none")}>
-                                    {(['all', 'win', 'loss'] as const).map(res => (
-                                        <Button
-                                            key={res}
-                                            size="sm"
-                                            variant={filters.result === res ? 'secondary' : 'ghost'}
-                                            onClick={() => setFilters({ ...filters, result: res })}
-                                            className="rounded-full h-8 px-3 text-xs w-full capitalize"
-                                            disabled={showUnjournaledOnly}
-                                        >
-                                            {res}
-                                        </Button>
-                                    ))}
-                                </div>
+                                
+                                <Button
+                                    variant={showUnjournaledOnly ? 'secondary' : 'outline'}
+                                    onClick={() => setShowUnjournaledOnly(!showUnjournaledOnly)}
+                                    className="col-span-2 lg:col-span-1"
+                                >
+                                    <NotebookPen className="mr-2 h-4 w-4" />
+                                    Show unjournaled only
+                                    {unjournaledCount > 0 && <span className="ml-2 font-mono bg-primary/20 text-primary rounded-full h-5 w-5 flex items-center justify-center text-xs">{unjournaledCount}</span>}
+                                </Button>
+
+                                <Select value={groupBy} onValueChange={(v) => setGroupBy(v as GroupingOption)} disabled={showUnjournaledOnly}>
+                                    <SelectTrigger className="items-center gap-2" disabled={showUnjournaledOnly}>
+                                        <Layers className="h-4 w-4 text-muted-foreground" />
+                                        <SelectValue placeholder="Group by..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="none">No grouping</SelectItem>
+                                        <SelectItem value="day">Group by Day</SelectItem>
+                                        <SelectItem value="strategy">Group by Strategy</SelectItem>
+                                    </SelectContent>
+                                </Select>
+
                                 <Select value={filters.strategy} onValueChange={(v) => setFilters({ ...filters, strategy: v })} disabled={showUnjournaledOnly}>
                                     <SelectTrigger disabled={showUnjournaledOnly}><SelectValue placeholder="Filter by strategy..." /></SelectTrigger>
                                     <SelectContent>
@@ -1048,74 +1206,27 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filte
 
                     <EmotionResultSnapshot />
 
-                    {/* Mobile Card View */}
-                    <div className="space-y-4 md:hidden">
-                        {filteredEntries.map(entry => (
-                             <Card key={entry.id} className="bg-muted/30 border-border/50" onClick={() => setEditingEntry(entry)}>
-                                <CardContent className="p-4 space-y-3">
-                                    <div className="flex justify-between items-start">
-                                        <div>
-                                            <p className="font-semibold">{entry.technical.instrument} <span className={cn(entry.technical.direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{entry.technical.direction}</span></p>
-                                            <p className="text-xs text-muted-foreground">{entry.timestamps ? format(new Date(entry.timestamps.executedAt), "MMM d, yyyy") : 'N/A'}</p>
-                                        </div>
-                                        <PnLCell entry={entry} />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <TagCell tags={entry.review?.emotionsTags} variant="emotion" />
-                                        <TagCell tags={entry.review?.mistakesTags} variant="mistake" />
-                                    </div>
-                                    <Button variant="outline" size="sm" className="w-full">
-                                        {entry.status === 'pending' ? 'Complete Journal' : 'View Details'}
-                                        <ArrowRight className="ml-2 h-4 w-4" />
-                                    </Button>
-                                </CardContent>
-                            </Card>
-                        ))}
-                    </div>
-
-                    {/* Desktop Table View */}
-                    <Card className="bg-muted/30 border-border/50 hidden md:block">
-                        <CardHeader><CardTitle>Trade Log</CardTitle></CardHeader>
+                    <Card className="bg-muted/30 border-border/50">
+                        <CardHeader>
+                            <CardTitle>Trade Log</CardTitle>
+                        </CardHeader>
                         <CardContent>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Date</TableHead>
-                                        <TableHead>Trade</TableHead>
-                                        <TableHead>Result (R)</TableHead>
-                                        <TableHead>Emotions</TableHead>
-                                        <TableHead>Mistakes</TableHead>
-                                        <TableHead>Strategy</TableHead>
-                                        <TableHead className="text-right">Action</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {filteredEntries.map(entry => (
-                                        <TableRow key={entry.id} className="group cursor-pointer" onClick={() => setEditingEntry(entry)}>
-                                            <TableCell className="text-xs text-muted-foreground">{entry.timestamps ? format(new Date(entry.timestamps.executedAt), "MMM d") : 'N/A'}</TableCell>
-                                            <TableCell>
-                                                <div className="font-semibold">{entry.technical.instrument}</div>
-                                                <div className={cn("text-xs", entry.technical.direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{entry.technical.direction}</div>
-                                            </TableCell>
-                                            <TableCell><PnLCell entry={entry} /></TableCell>
-                                            <TableCell><TagCell tags={entry.review?.emotionsTags} variant="emotion" /></TableCell>
-                                            <TableCell><TagCell tags={entry.review?.mistakesTags} variant="mistake" /></TableCell>
-                                            <TableCell><Badge variant="secondary" className="text-xs">{entry.technical.strategy}</Badge></TableCell>
-                                            <TableCell className="text-right">
-                                                <div className="flex items-center justify-end gap-2 text-primary opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <span>Open</span>
-                                                    <ChevronRightIcon className="h-4 w-4" />
-                                                </div>
-                                            </TableCell>
-                                        </TableRow>
+                            {groupedEntries ? (
+                                <div className="space-y-6">
+                                    {groupedEntries.map(([groupKey, groupEntries]) => (
+                                        <Collapsible key={groupKey} defaultOpen>
+                                            <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg bg-muted p-3">
+                                                {renderGroupHeader(groupKey, groupEntries)}
+                                                <ChevronUp className="h-4 w-4 shrink-0 transition-transform duration-200" />
+                                            </CollapsibleTrigger>
+                                            <CollapsibleContent className="py-4">
+                                                {renderEntries(groupEntries)}
+                                            </CollapsibleContent>
+                                        </Collapsible>
                                     ))}
-                                </TableBody>
-                            </Table>
-                             {filteredEntries.length === 0 && (
-                                <div className="text-center py-12">
-                                    <p className="text-muted-foreground">No trades match your filters.</p>
-                                    <Button variant="link" size="sm" className="mt-2" onClick={clearFilters}>Clear filters</Button>
                                 </div>
+                            ) : (
+                                renderEntries(filteredEntries)
                             )}
                         </CardContent>
                     </Card>
@@ -1417,6 +1528,7 @@ export function TradeJournalModule({ onSetModule, draftId }: TradeJournalModuleP
     const { entries, updateEntry } = useJournal();
     const [activeTab, setActiveTab] = useState('pending');
     const [filters, setFilters] = useState(initialFilters);
+    const [groupBy, setGroupBy] = useState<GroupingOption>('none');
     const [showUnjournaledOnly, setShowUnjournaledOnly] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
@@ -1436,11 +1548,12 @@ export function TradeJournalModule({ onSetModule, draftId }: TradeJournalModuleP
             const savedState = localStorage.getItem("ec_journal_ui_state");
             if (savedState) {
                 try {
-                    const { activeTab: savedTab, filters: savedFilters, searchQuery: savedQuery } = JSON.parse(savedState);
+                    const { activeTab: savedTab, filters: savedFilters, searchQuery: savedQuery, groupBy: savedGroupBy } = JSON.parse(savedState);
                     setActiveTab(savedTab || 'pending');
                     setFilters(savedFilters || initialFilters);
                     setSearchQuery(savedQuery || '');
                     setDebouncedSearchQuery(savedQuery || '');
+                    setGroupBy(savedGroupBy || 'none');
                 } catch (e) {
                     console.error("Failed to parse journal UI state", e);
                 }
@@ -1459,10 +1572,10 @@ export function TradeJournalModule({ onSetModule, draftId }: TradeJournalModuleP
 
     useEffect(() => {
         if (typeof window !== "undefined") {
-            const stateToSave = JSON.stringify({ activeTab, filters, searchQuery });
+            const stateToSave = JSON.stringify({ activeTab, filters, searchQuery, groupBy });
             localStorage.setItem("ec_journal_ui_state", stateToSave);
         }
-    }, [activeTab, filters, searchQuery]);
+    }, [activeTab, filters, searchQuery, groupBy]);
 
     const pendingCount = useMemo(() => entries.filter(e => e.status === 'pending').length, [entries]);
 
@@ -1472,6 +1585,7 @@ export function TradeJournalModule({ onSetModule, draftId }: TradeJournalModuleP
         setFilters(initialFilters);
         setShowUnjournaledOnly(false);
         setSearchQuery('');
+        setGroupBy('none');
     }
     
     return (
@@ -1504,8 +1618,10 @@ export function TradeJournalModule({ onSetModule, draftId }: TradeJournalModuleP
                         setFilters={setFilters}
                         showUnjournaledOnly={showUnjournaledOnly}
                         setShowUnjournaledOnly={setShowUnjournaledOnly}
-                        searchQuery={searchQuery}
+                        searchQuery={debouncedSearchQuery}
                         setSearchQuery={setSearchQuery}
+                        groupBy={groupBy}
+                        setGroupBy={setGroupBy}
                     />
                 </TabsContent>
             </Tabs>
@@ -1526,7 +1642,5 @@ const DebouncedAllTradesTab = (props: {
     searchQuery: string;
 }) => {
     // The implementation of AllTradesTab uses `searchQuery` directly, which is now the debounced value.
-    return <AllTradesTab {...props} setSearchQuery={() => {}} />;
+    return <AllTradesTab {...props} setSearchQuery={() => {}} groupBy="none" setGroupBy={() => {}} />;
 };
-
-    
