@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -12,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Calendar, Bookmark, ArrowRight, Edit, AlertCircle, CheckCircle, Filter, X, XCircle, Circle, BrainCircuit, Trophy, NotebookPen, TrendingUp, TrendingDown, Sparkles, ChevronUp, ChevronRightIcon } from "lucide-react";
+import { Bot, Calendar, Bookmark, ArrowRight, Edit, AlertCircle, CheckCircle, Filter, X, XCircle, Circle, BrainCircuit, Trophy, NotebookPen, TrendingUp, TrendingDown, Sparkles, ChevronUp, ChevronRightIcon, Star } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Calendar as CalendarComponent } from "./ui/calendar";
 import { format, isToday, isYesterday, differenceInCalendarDays } from "date-fns";
@@ -77,7 +78,7 @@ const journalEntrySchema = z.object({
     mistakesTags: z.string().optional(),
     learningNotes: z.string().optional(),
     newsContextTags: z.string().optional(),
-  }),
+  }).optional(),
   meta: z.object({
     ruleAdherenceSummary: z.object({
       followedEntryRules: z.boolean().default(true),
@@ -250,7 +251,7 @@ function JournalReviewForm({ entry, onSubmit, onSetModule, onSaveDraft }: { entr
     }
 
     const discussWithArjun = (entry: JournalEntry) => {
-        const question = `Arjun, can we review this trade? ${entry.technical.direction} ${entry.technical.instrument} on ${format(new Date(entry.timestamps.executedAt), "PPP")}. The result was a ${entry.review.pnl > 0 ? 'win' : 'loss'} of $${Math.abs(entry.review.pnl)}. My notes say: "${entry.planning.planNotes}". What can I learn from this?`;
+        const question = `Arjun, can we review this trade? ${entry.technical.direction} ${entry.technical.instrument} on ${format(new Date(entry.timestamps.executedAt), "PPP")}. The result was a ${entry.review?.pnl && entry.review.pnl > 0 ? 'win' : 'loss'} of $${entry.review?.pnl ? Math.abs(entry.review.pnl) : 0}. My notes say: "${entry.planning.planNotes}". What can I learn from this?`;
         onSetModule('aiCoaching', { initialMessage: question });
     }
 
@@ -476,7 +477,10 @@ const RuleAdherenceCheck = ({ label, passed, note }: { label: string; passed: bo
 };
 
 function RuleAdherenceSummary({ entry }: { entry: JournalEntry }) {
-    const summary = entry.meta.ruleAdherenceSummary || { followedEntryRules: true, movedSL: false, exitedEarly: false, rrBelowMin: false };
+    if (!entry.meta.ruleAdherenceSummary) {
+        return null;
+    }
+    const summary = entry.meta.ruleAdherenceSummary;
     const mistakes = entry.review?.mistakesTags || "";
 
     const checks = [
@@ -510,8 +514,9 @@ function JournalPatternsSidebar({ entries, onSetModule }: { entries: JournalEntr
             .sort((a, b) => b[1] - a[1])
             .slice(0, 3)
             .map(([tag, count]) => {
-                const wins = completed.filter(e => (e.review?.emotionsTags || "").includes(tag) && e.review?.pnl > 0).length;
-                const losses = completed.filter(e => (e.review?.emotionsTags || "").includes(tag) && e.review?.pnl < 0).length;
+                const tradesWithTag = completed.filter(e => (e.review?.emotionsTags || "").includes(tag));
+                const wins = tradesWithTag.filter(e => e.review?.pnl && e.review.pnl > 0).length;
+                const losses = tradesWithTag.length - wins;
                 return { tag, count, wins, losses };
             });
 
@@ -707,8 +712,8 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filte
         return entries.filter(entry => {
             if (!entry.timestamps) return false;
             
-            if (filters.result !== 'all' && entry.status === 'completed') {
-                const isWin = entry.review?.pnl > 0;
+            if (filters.result !== 'all' && entry.status === 'completed' && entry.review) {
+                const isWin = entry.review.pnl > 0;
                 if (filters.result === 'win' && !isWin) return false;
                 if (filters.result === 'loss' && isWin) return false;
             }
@@ -730,7 +735,7 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filte
         setShowUnjournaledOnly(false);
     }
 
-    const uniqueStrats = [...new Set(entries.map(e => e.technical?.strategy).filter(Boolean))];
+    const uniqueStrats = [...new Set(entries.map(e => e.technical?.strategy).filter(Boolean) as string[])];
     const uniqueEmotions = [...new Set(entries.flatMap(e => (e.review?.emotionsTags || "").split(',')).filter(Boolean))];
     const uniqueMistakes = [...new Set(entries.flatMap(e => (e.review?.mistakesTags || "").split(',')).filter(Boolean))];
 
@@ -743,7 +748,7 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filte
     }, [initialDraftId, entries]);
 
     const discussWithArjun = (entry: JournalEntry) => {
-        const question = `Arjun, can we review this trade? ${entry.technical.direction} ${entry.technical.instrument} on ${format(new Date(entry.timestamps.executedAt), "PPP")}. The result was a ${entry.review.pnl > 0 ? 'win' : 'loss'} of $${Math.abs(entry.review.pnl)}. My notes say: "${entry.planning.planNotes}". What can I learn from this?`;
+        const question = `Arjun, can we review this trade? ${entry.technical.direction} ${entry.technical.instrument} on ${format(new Date(entry.timestamps.executedAt), "PPP")}. The result was a ${entry.review?.pnl && entry.review.pnl > 0 ? 'win' : 'loss'} of $${entry.review?.pnl ? Math.abs(entry.review.pnl) : 0}. My notes say: "${entry.planning.planNotes}". What can I learn from this?`;
         onSetModule('aiCoaching', { initialMessage: question });
     }
 
@@ -787,16 +792,20 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filte
                             <CardDescription>The "what" of your trade (read-only).</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
-                            <div>
-                                <h4 className="text-sm font-semibold text-foreground mb-2">Technical Details</h4>
-                                <div className="space-y-2 text-sm">
-                                    <div className="flex justify-between"><span className="text-muted-foreground">Pair/Direction:</span> <span className={cn("font-mono", editingEntry.technical.direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{editingEntry.technical.instrument} {editingEntry.technical.direction}</span></div>
-                                    <div className="flex justify-between"><span className="text-muted-foreground">Entry / SL / TP:</span> <span className="font-mono">{editingEntry.technical.entryPrice} / {editingEntry.technical.stopLoss} / {editingEntry.technical.takeProfit || 'N/A'}</span></div>
-                                    <div className="flex justify-between"><span className="text-muted-foreground">Risk % / R:R:</span> <span className="font-mono">{editingEntry.technical.riskPercent}% / {editingEntry.technical.rrRatio?.toFixed(2) || 'N/A'}</span></div>
-                                    <div className="flex justify-between"><span className="text-muted-foreground">Strategy:</span> <span className="font-mono">{editingEntry.technical.strategy}</span></div>
-                                </div>
-                            </div>
-                             <Separator />
+                             {editingEntry.technical && (
+                                <>
+                                    <div>
+                                        <h4 className="text-sm font-semibold text-foreground mb-2">Technical Details</h4>
+                                        <div className="space-y-2 text-sm">
+                                            <div className="flex justify-between"><span className="text-muted-foreground">Pair/Direction:</span> <span className={cn("font-mono", editingEntry.technical.direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{editingEntry.technical.instrument} {editingEntry.technical.direction}</span></div>
+                                            <div className="flex justify-between"><span className="text-muted-foreground">Entry / SL / TP:</span> <span className="font-mono">{editingEntry.technical.entryPrice} / {editingEntry.technical.stopLoss} / {editingEntry.technical.takeProfit || 'N/A'}</span></div>
+                                            <div className="flex justify-between"><span className="text-muted-foreground">Risk % / R:R:</span> <span className="font-mono">{editingEntry.technical.riskPercent}% / {editingEntry.technical.rrRatio?.toFixed(2) || 'N/A'}</span></div>
+                                            <div className="flex justify-between"><span className="text-muted-foreground">Strategy:</span> <span className="font-mono">{editingEntry.technical.strategy}</span></div>
+                                        </div>
+                                    </div>
+                                    <Separator />
+                                </>
+                            )}
                             <div>
                                 <h4 className="text-sm font-semibold text-foreground mb-2">Planning & Mindset</h4>
                                 <div className="space-y-3">
@@ -810,8 +819,12 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filte
                                     </div>
                                 </div>
                             </div>
-                             <Separator />
-                            <RuleAdherenceSummary entry={editingEntry} />
+                            {editingEntry.meta.ruleAdherenceSummary && (
+                                <>
+                                    <Separator />
+                                    <RuleAdherenceSummary entry={editingEntry} />
+                                </>
+                            )}
                         </CardContent>
                     </Card>
                     
@@ -834,7 +847,7 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filte
                                         setEditingEntry(null);
                                     }}
                                 />
-                            ) : (
+                            ) : editingEntry.review ? (
                                 <div className="space-y-6">
                                      <div className="flex justify-between font-mono text-sm"><span className="text-muted-foreground">Final PnL:</span> <span className={cn(editingEntry.review.pnl >= 0 ? 'text-green-400' : 'text-red-400')}>{editingEntry.review.pnl >= 0 ? '+' : ''}{editingEntry.review.pnl.toFixed(2)}$</span></div>
                                      <div className="flex justify-between font-mono text-sm"><span className="text-muted-foreground">Exit Price:</span> <span>{editingEntry.review.exitPrice}</span></div>
@@ -865,7 +878,7 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filte
                                         <Button className="w-full" onClick={() => discussWithArjun(editingEntry)}><Bot className="mr-2 h-4 w-4"/>Discuss with Arjun</Button>
                                     </div>
                                 </div>
-                            )}
+                            ) : null}
                         </CardContent>
                     </Card>
                 </CardContent>
@@ -874,7 +887,7 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filte
     }
 
     const PnLCell = ({ entry }: { entry: JournalEntry }) => {
-        if (entry.status === 'pending') {
+        if (entry.status === 'pending' || !entry.review) {
             return <span className="text-muted-foreground">Pending</span>
         }
         const pnl = entry.review.pnl;
@@ -916,7 +929,7 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filte
 
         return (
             <div className="flex flex-wrap gap-1">
-                {tagList.map(tag => (
+                {tagList.slice(0, 2).map(tag => (
                     <Badge 
                         key={tag} 
                         variant={variant === 'mistake' ? "destructive" : "outline"}
@@ -928,6 +941,7 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filte
                         {tag}
                     </Badge>
                 ))}
+                {tagList.length > 2 && <Badge variant="outline" className="text-xs">+{tagList.length - 2}</Badge>}
             </div>
         )
     }
@@ -1009,7 +1023,33 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filte
 
                     <EmotionResultSnapshot />
 
-                    <Card className="bg-muted/30 border-border/50">
+                    {/* Mobile Card View */}
+                    <div className="space-y-4 md:hidden">
+                        {filteredEntries.map(entry => (
+                             <Card key={entry.id} className="bg-muted/30 border-border/50" onClick={() => setEditingEntry(entry)}>
+                                <CardContent className="p-4 space-y-3">
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <p className="font-semibold">{entry.technical.instrument} <span className={cn(entry.technical.direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{entry.technical.direction}</span></p>
+                                            <p className="text-xs text-muted-foreground">{entry.timestamps ? format(new Date(entry.timestamps.executedAt), "MMM d, yyyy") : 'N/A'}</p>
+                                        </div>
+                                        <PnLCell entry={entry} />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <TagCell tags={entry.review?.emotionsTags} variant="emotion" />
+                                        <TagCell tags={entry.review?.mistakesTags} variant="mistake" />
+                                    </div>
+                                    <Button variant="outline" size="sm" className="w-full">
+                                        {entry.status === 'pending' ? 'Complete Journal' : 'View Details'}
+                                        <ArrowRight className="ml-2 h-4 w-4" />
+                                    </Button>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
+
+                    {/* Desktop Table View */}
+                    <Card className="bg-muted/30 border-border/50 hidden md:block">
                         <CardHeader><CardTitle>Trade Log</CardTitle></CardHeader>
                         <CardContent>
                             <Table>
@@ -1071,10 +1111,10 @@ function getReviewPriority(entry: JournalEntry): ReviewPriority {
     const reasons: string[] = [];
     let priority: Priority = 'Low';
 
-    if (entry.status === 'completed') {
+    if (entry.status === 'completed' && entry.review) {
         const pnl = entry.review?.pnl;
         const riskAmount = entry.technical.riskPercent / 100 * 10000; // Mock 10k capital
-        const rValue = pnl ? pnl / riskAmount : 0;
+        const rValue = pnl && riskAmount > 0 ? pnl / riskAmount : 0;
 
         if (rValue < -1) {
             reasons.push(`Significant loss (${rValue.toFixed(1)}R)`);
@@ -1139,6 +1179,8 @@ function PendingReviewTab({ entries, onSetModule, updateEntry }: { entries: Jour
             status: 'completed',
             review: {
                 ...entry.review,
+                pnl: entry.review?.pnl ?? 0,
+                exitPrice: entry.review?.exitPrice ?? entry.technical.stopLoss,
                 emotionsTags: "Calm,Focused",
                 mistakesTags: "None (disciplined)",
                 learningNotes: "Executed according to plan. No major deviations.",
@@ -1190,8 +1232,8 @@ function PendingReviewTab({ entries, onSetModule, updateEntry }: { entries: Jour
                             priorityInfo.priority === 'Low' && 'border-green-500',
                         )}
                     >
-                        <CardContent className="p-4 cursor-pointer" onClick={() => handleToggleExpand(entry.id)}>
-                            <div className="grid md:grid-cols-[1fr_auto] items-center gap-4">
+                        <CardContent className="p-4" >
+                            <div className="grid md:grid-cols-[1fr_auto] items-center gap-4 cursor-pointer" onClick={() => handleToggleExpand(entry.id)}>
                                 <div className="space-y-3">
                                     <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                                         <h3 className="font-bold text-lg text-foreground">{entry.technical.instrument} &ndash; <span className={cn(entry.technical.direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{entry.technical.direction}</span></h3>
@@ -1207,7 +1249,8 @@ function PendingReviewTab({ entries, onSetModule, updateEntry }: { entries: Jour
                                             priorityInfo.priority === 'Medium' && 'border-amber-500/50 text-amber-300',
                                             priorityInfo.priority === 'Low' && 'border-green-500/50 text-green-300',
                                         )}>
-                                            Arjun Priority: {priorityInfo.priority}
+                                            <Star className="mr-1 h-3 w-3" />
+                                            Priority: {priorityInfo.priority}
                                         </Badge>
                                         <p className="text-xs text-muted-foreground italic">
                                             {priorityInfo.reasons.join('; ')}
@@ -1428,4 +1471,3 @@ export function TradeJournalModule({ onSetModule, draftId }: TradeJournalModuleP
     );
 }
 
-    
