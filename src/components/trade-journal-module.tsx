@@ -1,4 +1,5 @@
 
+
       "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -36,6 +37,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
+import { Skeleton } from "./ui/skeleton";
 
 
 interface TradeJournalModuleProps {
@@ -936,6 +938,7 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filte
         const pnl = entry.review.pnl;
         const isWin = pnl >= 0;
         
+        if (!entry.technical) return null;
         const riskAmount = (entry.technical.riskPercent / 100) * 10000;
         const rValue = riskAmount > 0 ? pnl / riskAmount : 0;
 
@@ -991,7 +994,7 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filte
     const renderGroupHeader = (groupKey: string, groupEntries: JournalEntry[]) => {
         if (groupBy === 'day') {
             const netR = groupEntries.reduce((acc, entry) => {
-                if (entry.status !== 'completed' || !entry.review) return acc;
+                if (entry.status !== 'completed' || !entry.review || !entry.technical) return acc;
                 const riskAmount = (entry.technical.riskPercent / 100) * 10000;
                 return acc + (riskAmount > 0 ? entry.review.pnl / riskAmount : 0);
             }, 0);
@@ -1016,7 +1019,7 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filte
             const totalCompleted = groupEntries.filter(e => e.status === 'completed').length;
             const winRate = totalCompleted > 0 ? (wins / totalCompleted) * 100 : 0;
              const netR = groupEntries.reduce((acc, entry) => {
-                if (entry.status !== 'completed' || !entry.review) return acc;
+                if (entry.status !== 'completed' || !entry.review || !entry.technical) return acc;
                 const riskAmount = (entry.technical.riskPercent / 100) * 10000;
                 return acc + (riskAmount > 0 ? entry.review.pnl / riskAmount : 0);
             }, 0);
@@ -1249,7 +1252,7 @@ function getReviewPriority(entry: JournalEntry): ReviewPriority {
     const reasons: string[] = [];
     let priority: Priority = 'Low';
 
-    if (entry.status === 'completed' && entry.review) {
+    if (entry.status === 'completed' && entry.review && entry.technical) {
         const pnl = entry.review?.pnl;
         const riskAmount = entry.technical.riskPercent / 100 * 10000; // Mock 10k capital
         const rValue = pnl && riskAmount > 0 ? pnl / riskAmount : 0;
@@ -1526,6 +1529,21 @@ function ArjunJournalSummary({ entries }: { entries: JournalEntry[] }) {
     );
 }
 
+function JournalSkeleton() {
+    return (
+        <div className="space-y-8 animate-pulse">
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-10 w-64" />
+            <div className="space-y-4">
+                <Skeleton className="h-24 w-full" />
+                <Skeleton className="h-24 w-full" />
+                <Skeleton className="h-24 w-full" />
+            </div>
+        </div>
+    );
+}
+
+
 export function TradeJournalModule({ onSetModule, draftId, journalEntries, updateJournalEntry }: TradeJournalModuleProps) {
     const [activeTab, setActiveTab] = useState('pending');
     const [filters, setFilters] = useState(initialFilters);
@@ -1533,6 +1551,14 @@ export function TradeJournalModule({ onSetModule, draftId, journalEntries, updat
     const [showUnjournaledOnly, setShowUnjournaledOnly] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setIsLoading(false);
+        }, 1000);
+        return () => clearTimeout(timer);
+    }, []);
 
     useEffect(() => {
         const handler = setTimeout(() => {
@@ -1588,6 +1614,10 @@ export function TradeJournalModule({ onSetModule, draftId, journalEntries, updat
         setSearchQuery('');
         setGroupBy('none');
     }
+
+    if (isLoading) {
+        return <JournalSkeleton />;
+    }
     
     return (
         <div className="space-y-8">
@@ -1619,7 +1649,7 @@ export function TradeJournalModule({ onSetModule, draftId, journalEntries, updat
                         setFilters={setFilters}
                         showUnjournaledOnly={showUnjournaledOnly}
                         setShowUnjournaledOnly={setShowUnjournaledOnly}
-                        searchQuery={searchQuery}
+                        searchQuery={debouncedSearchQuery}
                         setSearchQuery={setSearchQuery}
                         groupBy={groupBy}
                         setGroupBy={setGroupBy}
