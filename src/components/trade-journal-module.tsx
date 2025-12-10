@@ -1,4 +1,5 @@
 
+
       "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
@@ -132,14 +133,20 @@ export const useJournal = () => {
     const { toast } = useToast();
     const { addLog } = useEventLog();
     const [entries, setEntries] = useState<JournalEntry[]>([]);
+    const [isInitialLoad, setIsInitialLoad] = useState(true);
 
     useEffect(() => {
         if (typeof window !== "undefined") {
             const saved = localStorage.getItem("ec_journal_entries");
             const drafts = localStorage.getItem("ec_journal_drafts");
-            const parsedEntries = saved ? JSON.parse(saved) : mockJournalEntries;
-            const parsedDrafts = drafts ? JSON.parse(drafts) : [];
-            setEntries([...parsedDrafts, ...parsedEntries]);
+            
+            // Simulate fetch
+            setTimeout(() => {
+                const parsedEntries = saved ? JSON.parse(saved) : mockJournalEntries;
+                const parsedDrafts = drafts ? JSON.parse(drafts) : [];
+                setEntries([...parsedDrafts, ...parsedEntries]);
+                setIsInitialLoad(false);
+            }, 800);
         }
     }, []);
 
@@ -213,7 +220,7 @@ export const useJournal = () => {
         });
     };
 
-    return { entries, updateEntry };
+    return { entries, updateEntry, isLoading: isInitialLoad };
 }
 
 const presetEmotions = ["FOMO", "Fear", "Anxiety", "Overconfidence", "Revenge", "Boredom", "Calm", "Focused", "Curious"];
@@ -452,7 +459,7 @@ function JournalReviewForm({ entry, onSubmit, onSetModule, onSaveDraft }: { entr
                 </form>
             </Form>
             <AlertDialog open={showCompletionDialog} onOpenChange={setShowCompletionDialog}>
-                <AlertDialogContent>
+                <AlertDialogContent role="dialog" aria-modal="true">
                     <AlertDialogHeader>
                         <AlertDialogTitle>Journal is Empty</AlertDialogTitle>
                         <AlertDialogDescription>
@@ -509,22 +516,22 @@ function RuleAdherenceSummary({ entry }: { entry: JournalEntry }) {
 
 function JournalPatternsSidebar({ entries, onSetModule }: { entries: JournalEntry[]; onSetModule: TradeJournalModuleProps['onSetModule'] }) {
     const { topEmotions, topMistakes, journalingHabits } = useMemo(() => {
-        const completed = entries.filter(e => e.status === 'completed' && e.meta.journalingCompletedAt);
+        const completedEntries = entries.filter(e => e.status === 'completed' && e.meta.journalingCompletedAt);
         
-        const emotionCounts = completed.flatMap(e => (e.review?.emotionsTags || "").split(',').filter(Boolean))
+        const emotionCounts = completedEntries.flatMap(e => (e.review?.emotionsTags || "").split(',').filter(Boolean))
             .reduce((acc, tag) => ({ ...acc, [tag]: (acc[tag] || 0) + 1 }), {} as Record<string, number>);
 
         const topEmotions = Object.entries(emotionCounts)
             .sort((a, b) => b[1] - a[1])
             .slice(0, 3)
             .map(([tag, count]) => {
-                const tradesWithTag = completed.filter(e => (e.review?.emotionsTags || "").includes(tag));
+                const tradesWithTag = completedEntries.filter(e => (e.review?.emotionsTags || "").includes(tag));
                 const wins = tradesWithTag.filter(e => e.review?.pnl && e.review.pnl > 0).length;
                 const losses = tradesWithTag.length - wins;
                 return { tag, count, wins, losses };
             });
 
-        const mistakeCounts = completed.flatMap(e => (e.review?.mistakesTags || "").split(',').filter(Boolean))
+        const mistakeCounts = completedEntries.flatMap(e => (e.review?.mistakesTags || "").split(',').filter(Boolean))
             .reduce((acc, tag) => ({ ...acc, [tag]: (acc[tag] || 0) + 1 }), {} as Record<string, number>);
         
         const topMistakes = Object.entries(mistakeCounts)
@@ -537,7 +544,7 @@ function JournalPatternsSidebar({ entries, onSetModule }: { entries: JournalEntr
         const completionRate = totalTrades > 0 ? (completedCount / totalTrades) * 100 : 0;
         
         // Streak calculation
-        const completedDates = completed
+        const completedDates = completedEntries
             .map(e => e.meta.journalingCompletedAt ? new Date(e.meta.journalingCompletedAt) : null)
             .filter(Boolean) as Date[];
             
@@ -718,7 +725,7 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filte
             const lowerCaseQuery = searchQuery.toLowerCase();
             baseEntries = entries.filter(entry => {
                 const inInstrument = entry.technical?.instrument.toLowerCase().includes(lowerCaseQuery);
-                const inStrategy = entry.technical?.strategy.toLowerCase().includes(lowerCaseQuery);
+                const inStrategy = entry.technical?.strategy?.toLowerCase().includes(lowerCaseQuery);
                 const inLearningNotes = (entry.review?.learningNotes || "").toLowerCase().includes(lowerCaseQuery);
                 const inEmotionalNotes = (entry.review?.emotionalNotes || "").toLowerCase().includes(lowerCaseQuery);
                 return inInstrument || inStrategy || inLearningNotes || inEmotionalNotes;
@@ -789,6 +796,17 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filte
         if (entryToEdit) {
             setEditingEntry(entryToEdit);
         }
+
+        const handleSetEditing = (e: Event) => {
+            const detail = (e as CustomEvent).detail;
+            if (detail) {
+                setEditingEntry(detail);
+            }
+        };
+
+        window.addEventListener('set-journal-editing', handleSetEditing);
+        return () => window.removeEventListener('set-journal-editing', handleSetEditing);
+
     }, [initialDraftId, entries]);
 
     const discussWithArjun = (entry: JournalEntry) => {
@@ -1040,7 +1058,7 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filte
             {/* Mobile Card View */}
             <div className="space-y-4 md:hidden">
                 {entriesToRender.map(entry => (
-                        <Card key={entry.id} className="bg-muted/30 border-border/50" onClick={() => setEditingEntry(entry)}>
+                    <Card key={entry.id} className="bg-muted/30 border-border/50" onClick={() => setEditingEntry(entry)}>
                         <CardContent className="p-4 space-y-3">
                             <div className="flex justify-between items-start">
                                 <div>
@@ -1568,7 +1586,7 @@ function JournalWalkthrough({ isOpen, onOpenChange, onDemoSelect }: { isOpen: bo
                 className="absolute inset-0 bg-background/90 backdrop-blur-sm animate-in fade-in"
                 onClick={() => onOpenChange(false)}
             />
-            <Card className="relative z-10 w-full max-w-4xl bg-muted/80 border-border/50 animate-in fade-in zoom-in-95">
+            <Card className="relative z-10 w-full max-w-4xl bg-muted/80 border-border/50 animate-in fade-in zoom-in-95" role="dialog" aria-modal="true">
                 <CardHeader>
                     <CardTitle className="text-2xl flex items-center justify-between">
                         <span>How to Use the Journal</span>
@@ -1627,7 +1645,7 @@ export function TradeJournalModule({ onSetModule, draftId, journalEntries, updat
     useEffect(() => {
         const timer = setTimeout(() => {
             setIsLoading(false);
-        }, 1000);
+        }, 1200);
 
          const walkthroughSeen = localStorage.getItem('ec_journal_tour_seen');
         if (!walkthroughSeen) {
@@ -1770,19 +1788,3 @@ export function TradeJournalModule({ onSetModule, draftId, journalEntries, updat
         </div>
     );
 }
-
-// Rename the existing AllTradesTab component to use the new debounced query
-const DebouncedAllTradesTab = (props: {
-    entries: JournalEntry[];
-    updateEntry: (entry: JournalEntry) => void;
-    onSetModule: TradeJournalModuleProps['onSetModule'];
-    initialDraftId?: string;
-    filters: typeof initialFilters;
-    setFilters: (filters: typeof initialFilters) => void;
-    showUnjournaledOnly: boolean;
-    setShowUnjournaledOnly: (show: boolean) => void;
-    searchQuery: string;
-}) => {
-    // The implementation of AllTradesTab uses `searchQuery` directly, which is now the debounced value.
-    return <AllTradesTab {...props} setSearchQuery={() => {}} groupBy="none" setGroupBy={() => {}} />;
-};
