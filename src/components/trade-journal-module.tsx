@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -90,8 +89,8 @@ const journalEntrySchema = z.object({
   })
 }).refine(data => {
     if (data.status === 'pending') return true; // Don't validate for pending drafts
-    const hasEmotionTag = data.review.emotionsTags && data.review.emotionsTags.trim() !== '';
-    const hasEmotionNote = data.review.emotionalNotes && data.review.emotionalNotes.trim() !== '';
+    const hasEmotionTag = data.review?.emotionsTags && data.review.emotionsTags.trim() !== '';
+    const hasEmotionNote = data.review?.emotionalNotes && data.review.emotionalNotes.trim() !== '';
     return hasEmotionTag || hasEmotionNote;
 }, {
     message: "Pick at least one emotion or write a note so Arjun can understand your mindset.",
@@ -240,8 +239,8 @@ function JournalReviewForm({ entry, onSubmit, onSetModule, onSaveDraft }: { entr
 
     const handleAttemptSubmit = () => {
         const values = form.getValues();
-        const hasEmotionTag = values.review.emotionsTags && values.review.emotionsTags.trim() !== '';
-        const hasLearningNote = values.review.learningNotes && values.review.learningNotes.trim() !== '';
+        const hasEmotionTag = values.review?.emotionsTags && values.review.emotionsTags.trim() !== '';
+        const hasLearningNote = values.review?.learningNotes && values.review.learningNotes.trim() !== '';
 
         if (!hasEmotionTag && !hasLearningNote) {
             setShowCompletionDialog(true);
@@ -478,7 +477,7 @@ const RuleAdherenceCheck = ({ label, passed, note }: { label: string; passed: bo
 
 function RuleAdherenceSummary({ entry }: { entry: JournalEntry }) {
     const summary = entry.meta.ruleAdherenceSummary || { followedEntryRules: true, movedSL: false, exitedEarly: false, rrBelowMin: false };
-    const mistakes = entry.review.mistakesTags || "";
+    const mistakes = entry.review?.mistakesTags || "";
 
     const checks = [
         { label: "Followed Entry Rules", passed: summary.followedEntryRules, note: "" },
@@ -530,8 +529,8 @@ function JournalPatternsSidebar({ entries, onSetModule }: { entries: JournalEntr
         
         // Streak calculation
         const completedDates = completed
-            .map(e => new Date(e.meta.journalingCompletedAt!))
-            .sort((a, b) => b.getTime() - a.getTime());
+            .map(e => e.meta.journalingCompletedAt ? new Date(e.meta.journalingCompletedAt) : null)
+            .filter(Boolean) as Date[];
             
         const uniqueDates = [...new Set(completedDates.map(d => d.toISOString().split('T')[0]))]
             .map(d => new Date(d))
@@ -681,16 +680,16 @@ function EmotionResultSnapshot() {
     );
 }
 
-function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { entries: JournalEntry[], updateEntry: (entry: JournalEntry) => void, onSetModule: TradeJournalModuleProps['onSetModule'], initialDraftId?: string }) {
+const initialFilters = {
+    timeRange: '30d',
+    result: 'all',
+    emotion: 'all',
+    mistake: 'all',
+    strategy: 'all',
+};
+
+function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filters, setFilters, showUnjournaledOnly, setShowUnjournaledOnly }: { entries: JournalEntry[], updateEntry: (entry: JournalEntry) => void, onSetModule: TradeJournalModuleProps['onSetModule'], initialDraftId?: string, filters: typeof initialFilters, setFilters: (filters: typeof initialFilters) => void, showUnjournaledOnly: boolean, setShowUnjournaledOnly: (show: boolean) => void }) {
     const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);
-    const [filters, setFilters] = useState({
-        timeRange: '30d',
-        result: 'all',
-        emotion: 'all',
-        mistake: 'all',
-        strategy: 'all',
-    });
-    const [showUnjournaledOnly, setShowUnjournaledOnly] = useState(false);
 
     const isMissingPsychData = (entry: JournalEntry) => {
       return !entry.review?.emotionsTags && !entry.review?.learningNotes;
@@ -727,7 +726,7 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { e
     }, [entries, filters, showUnjournaledOnly]);
 
     const clearFilters = () => {
-        setFilters({ timeRange: '30d', result: 'all', emotion: 'all', mistake: 'all', strategy: 'all' });
+        setFilters(initialFilters);
         setShowUnjournaledOnly(false);
     }
 
@@ -843,23 +842,23 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { e
                                      <div>
                                         <h4 className="font-semibold mb-2 text-sm">Emotions During Trade</h4>
                                         <div className="flex flex-wrap gap-2">
-                                            {(editingEntry.review.emotionsTags || "None").split(',').filter(Boolean).map(tag => <Badge key={tag} variant="outline" className="border-amber-500/30 text-amber-300">{tag}</Badge>)}
+                                            {(editingEntry.review?.emotionsTags || "None").split(',').filter(Boolean).map(tag => <Badge key={tag} variant="outline" className="border-amber-500/30 text-amber-300">{tag}</Badge>)}
                                         </div>
                                     </div>
                                      <div>
                                         <h4 className="font-semibold mb-2 text-sm">Mistakes (if any)</h4>
                                          <div className="flex flex-wrap gap-2">
-                                            {(editingEntry.review.mistakesTags || "None").split(',').filter(Boolean).map(tag => <Badge key={tag} variant="destructive" className="bg-red-500/20 border-red-500/30 text-red-300">{tag}</Badge>)}
+                                            {(editingEntry.review?.mistakesTags || "None").split(',').filter(Boolean).map(tag => <Badge key={tag} variant="destructive" className="bg-red-500/20 border-red-500/30 text-red-300">{tag}</Badge>)}
                                         </div>
                                     </div>
                                     <div>
                                         <h4 className="font-semibold mb-2 text-sm">Learning Notes</h4>
-                                        <p className="text-sm text-muted-foreground p-3 bg-muted rounded-lg border italic">"{editingEntry.review.learningNotes || "No learning notes."}"</p>
+                                        <p className="text-sm text-muted-foreground p-3 bg-muted rounded-lg border italic">"{editingEntry.review?.learningNotes || "No learning notes."}"</p>
                                     </div>
                                      <div>
                                         <h4 className="font-semibold mb-2 text-sm">Context Tags</h4>
                                         <div className="flex flex-wrap gap-2">
-                                            {(editingEntry.review.newsContextTags || "None").split(',').filter(Boolean).map(tag => <Badge key={tag} variant="outline">{tag}</Badge>)}
+                                            {(editingEntry.review?.newsContextTags || "None").split(',').filter(Boolean).map(tag => <Badge key={tag} variant="outline">{tag}</Badge>)}
                                         </div>
                                     </div>
                                     <div className="pt-4">
@@ -962,7 +961,7 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { e
                                         key={range}
                                         size="sm"
                                         variant={filters.timeRange === range ? 'secondary' : 'ghost'}
-                                        onClick={() => setFilters(f => ({ ...f, timeRange: range }))}
+                                        onClick={() => setFilters({ ...filters, timeRange: range })}
                                         className="rounded-full h-8 px-3 text-xs w-full"
                                         disabled={showUnjournaledOnly}
                                     >
@@ -976,7 +975,7 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { e
                                         key={res}
                                         size="sm"
                                         variant={filters.result === res ? 'secondary' : 'ghost'}
-                                        onClick={() => setFilters(f => ({ ...f, result: res }))}
+                                        onClick={() => setFilters({ ...filters, result: res })}
                                         className="rounded-full h-8 px-3 text-xs w-full capitalize"
                                         disabled={showUnjournaledOnly}
                                     >
@@ -984,21 +983,21 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { e
                                     </Button>
                                 ))}
                             </div>
-                            <Select value={filters.strategy} onValueChange={(v) => setFilters(f => ({ ...f, strategy: v }))} disabled={showUnjournaledOnly}>
+                            <Select value={filters.strategy} onValueChange={(v) => setFilters({ ...filters, strategy: v })} disabled={showUnjournaledOnly}>
                                 <SelectTrigger disabled={showUnjournaledOnly}><SelectValue placeholder="Filter by strategy..." /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="all">All Strategies</SelectItem>
                                     {uniqueStrats.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                                 </SelectContent>
                             </Select>
-                            <Select value={filters.emotion} onValueChange={(v) => setFilters(f => ({ ...f, emotion: v }))} disabled={showUnjournaledOnly}>
+                            <Select value={filters.emotion} onValueChange={(v) => setFilters({ ...filters, emotion: v })} disabled={showUnjournaledOnly}>
                                 <SelectTrigger disabled={showUnjournaledOnly}><SelectValue placeholder="Filter by emotion..." /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="all">All Emotions</SelectItem>
                                     {uniqueEmotions.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
                                 </SelectContent>
                             </Select>
-                            <Select value={filters.mistake} onValueChange={(v) => setFilters(f => ({ ...f, mistake: v }))} disabled={showUnjournaledOnly}>
+                            <Select value={filters.mistake} onValueChange={(v) => setFilters({ ...filters, mistake: v })} disabled={showUnjournaledOnly}>
                                 <SelectTrigger disabled={showUnjournaledOnly}><SelectValue placeholder="Filter by mistake..." /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="all">All Mistakes</SelectItem>
@@ -1348,24 +1347,50 @@ function ArjunJournalSummary({ entries }: { entries: JournalEntry[] }) {
 
 export function TradeJournalModule({ onSetModule, draftId }: TradeJournalModuleProps) {
     const { entries, updateEntry } = useJournal();
-    const [activeTab, setActiveTab] = useState(draftId ? 'all' : 'pending');
+    const [activeTab, setActiveTab] = useState('pending');
+    const [filters, setFilters] = useState(initialFilters);
+    const [showUnjournaledOnly, setShowUnjournaledOnly] = useState(false);
 
      useEffect(() => {
+        if (typeof window !== "undefined") {
+            const savedState = localStorage.getItem("ec_journal_ui_state");
+            if (savedState) {
+                try {
+                    const { activeTab: savedTab, filters: savedFilters } = JSON.parse(savedState);
+                    setActiveTab(savedTab || 'pending');
+                    setFilters(savedFilters || initialFilters);
+                } catch (e) {
+                    console.error("Failed to parse journal UI state", e);
+                }
+            } else {
+                 const hasPending = entries.some(e => e.status === 'pending');
+                 if (!hasPending && entries.length > 0) {
+                     setActiveTab('all');
+                 }
+            }
+        }
+
         if (draftId) {
             setActiveTab('all');
-        } else {
-            // If there are no pending drafts, default to the 'all' tab
-            const hasPending = entries.some(e => e.status === 'pending');
-            if (!hasPending && entries.length > 0) {
-                setActiveTab('all');
-            } else {
-                setActiveTab('pending');
-            }
         }
     }, [draftId, entries]);
 
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            const stateToSave = JSON.stringify({ activeTab, filters });
+            localStorage.setItem("ec_journal_ui_state", stateToSave);
+        }
+    }, [activeTab, filters]);
+
     const pendingCount = useMemo(() => entries.filter(e => e.status === 'pending').length, [entries]);
 
+    const handleTabChange = (newTab: string) => {
+        setActiveTab(newTab);
+        // Reset filters when switching tabs for a cleaner experience
+        setFilters(initialFilters);
+        setShowUnjournaledOnly(false);
+    }
+    
     return (
         <div className="space-y-8">
             <div className="text-center md:text-left">
@@ -1375,7 +1400,7 @@ export function TradeJournalModule({ onSetModule, draftId }: TradeJournalModuleP
             
             <ArjunJournalSummary entries={entries} />
 
-             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+             <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
                 <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto md:mx-0">
                     <TabsTrigger value="pending">
                         Pending Review 
@@ -1387,9 +1412,20 @@ export function TradeJournalModule({ onSetModule, draftId }: TradeJournalModuleP
                     <PendingReviewTab entries={entries} onSetModule={onSetModule} updateEntry={updateEntry} />
                 </TabsContent>
                 <TabsContent value="all" className="pt-6">
-                    <AllTradesTab entries={entries} updateEntry={updateEntry} onSetModule={onSetModule} initialDraftId={draftId} />
+                    <AllTradesTab 
+                        entries={entries} 
+                        updateEntry={updateEntry} 
+                        onSetModule={onSetModule} 
+                        initialDraftId={draftId}
+                        filters={filters}
+                        setFilters={setFilters}
+                        showUnjournaledOnly={showUnjournaledOnly}
+                        setShowUnjournaledOnly={setShowUnjournaledOnly}
+                    />
                 </TabsContent>
             </Tabs>
         </div>
     );
 }
+
+    
