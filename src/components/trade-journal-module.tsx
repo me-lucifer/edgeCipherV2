@@ -706,7 +706,7 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { e
         }
 
         return entries.filter(entry => {
-            if (!entry.timestamps) return false; // This was my previous fix for a similar error.
+            if (!entry.timestamps) return false;
             
             if (filters.result !== 'all' && entry.status === 'completed') {
                 const isWin = entry.review?.pnl > 0;
@@ -715,7 +715,7 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { e
             }
             if (filters.emotion !== 'all' && !(entry.review?.emotionsTags || '').includes(filters.emotion)) return false;
             if (filters.mistake !== 'all' && !(entry.review?.mistakesTags || '').includes(filters.mistake)) return false;
-            if (filters.strategy !== 'all' && entry.technical && entry.technical.strategy !== filters.strategy) return false;
+            if (filters.strategy !== 'all' && entry.technical?.strategy !== filters.strategy) return false;
             
             const entryDate = new Date(entry.timestamps.executedAt);
             const now = new Date();
@@ -746,6 +746,25 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { e
     const discussWithArjun = (entry: JournalEntry) => {
         const question = `Arjun, can we review this trade? ${entry.technical.direction} ${entry.technical.instrument} on ${format(new Date(entry.timestamps.executedAt), "PPP")}. The result was a ${entry.review.pnl > 0 ? 'win' : 'loss'} of $${Math.abs(entry.review.pnl)}. My notes say: "${entry.planning.planNotes}". What can I learn from this?`;
         onSetModule('aiCoaching', { initialMessage: question });
+    }
+
+    if (entries.length === 0) {
+        return (
+            <Card className="bg-muted/30 border-border/50 text-center py-12">
+                <CardHeader>
+                    <CardTitle>Your journal is empty</CardTitle>
+                    <CardDescription>
+                        Once you execute your first trade from Trade Planning, it will appear here as a draft journal entry.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-xs text-muted-foreground">Remember: journaling starts from your very first trade, not your 100th.</p>
+                    <Button variant="secondary" className="mt-4" onClick={() => onSetModule('tradePlanning')}>
+                        Plan your first trade
+                    </Button>
+                </CardContent>
+            </Card>
+        );
     }
 
     if (editingEntry) {
@@ -977,11 +996,15 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId }: { e
                             </Card>
                         ))}
                         {filteredEntries.length === 0 && (
-                            <Card className="md:col-span-2 lg:col-span-3 bg-muted/30 border-border/50 text-center py-12">
-                                <CardHeader><CardTitle>No Entries Found</CardTitle></CardHeader>
+                             <Card className="md:col-span-2 xl:col-span-3 bg-muted/30 border-border/50 text-center py-12">
+                                <CardHeader>
+                                    <CardTitle>No Trades Match Filters</CardTitle>
+                                    <CardDescription>Try widening your date range or removing some tags.</CardDescription>
+                                </CardHeader>
                                 <CardContent>
-                                    <p className="text-muted-foreground">No journal entries match your current filters.</p>
-                                    <Button variant="secondary" className="mt-4" onClick={clearFilters}>Clear filters</Button>
+                                    <Button variant="secondary" onClick={clearFilters}>
+                                        Clear Filters
+                                    </Button>
                                 </CardContent>
                             </Card>
                         )}
@@ -1097,10 +1120,13 @@ function PendingReviewTab({ entries, onSetModule, updateEntry }: { entries: Jour
                 <CardHeader>
                     <Bookmark className="mx-auto h-12 w-12 text-muted-foreground" />
                     <CardTitle>Journal Inbox Zero</CardTitle>
+                    <CardDescription>You've completed all your pending journal entries. Great work!</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <p className="text-muted-foreground">You've completed all your pending journal entries. Great work!</p>
-                    <Button variant="secondary" className="mt-4" onClick={() => onSetModule('tradePlanning')}>Plan new trade</Button>
+                    <p className="text-sm text-muted-foreground">Every trade you close will appear here for review.</p>
+                    <Button variant="secondary" className="mt-4" onClick={() => onSetModule('dashboard')}>
+                        Go to Dashboard
+                    </Button>
                 </CardContent>
             </Card>
         )
