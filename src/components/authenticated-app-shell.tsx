@@ -76,13 +76,14 @@ interface NavItem {
   label: string;
   icon: React.ElementType;
   comingSoon?: boolean;
+  badgeCount?: number;
 }
 
-const mainNavItems: NavItem[] = [
+const mainNavItems: (pendingJournalCount: number) => NavItem[] = (pendingJournalCount) => [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'aiCoaching', label: 'AI Coaching', icon: Bot },
   { id: 'tradePlanning', label: 'Trade Planning', icon: FileText },
-  { id: 'tradeJournal', label: 'Trade Journal', icon: Book },
+  { id: 'tradeJournal', label: 'Trade Journal', icon: Book, badgeCount: pendingJournalCount },
 ];
 
 const analyticsNavItems: NavItem[] = [
@@ -118,7 +119,7 @@ const NavItemGroup: React.FC<{
                         variant={currentModule === item.id ? "secondary" : "ghost"}
                         onClick={() => onItemClick(item.id)}
                         className={cn(
-                            "w-full justify-start gap-3",
+                            "w-full justify-start gap-3 relative",
                             !isSidebarOpen && "h-10 w-10 justify-center p-0"
                         )}
                         disabled={item.comingSoon}
@@ -126,21 +127,31 @@ const NavItemGroup: React.FC<{
                         <item.icon className={cn("h-5 w-5", currentModule === item.id ? "text-primary" : "text-muted-foreground group-hover:text-foreground")} />
                         {isSidebarOpen && <span>{item.label}</span>}
                         {item.comingSoon && isSidebarOpen && <span className="ml-auto text-xs text-muted-foreground/70">Soon</span>}
+                         {isSidebarOpen && item.badgeCount && item.badgeCount > 0 && (
+                            <Badge className="ml-auto bg-amber-500/80 text-white hover:bg-amber-500">
+                                {item.badgeCount > 9 ? '9+' : item.badgeCount}
+                            </Badge>
+                        )}
+                         {!isSidebarOpen && item.badgeCount && item.badgeCount > 0 && (
+                            <span className="absolute top-1 right-1 flex h-2 w-2">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+                            </span>
+                        )}
                     </Button>
                 </TooltipTrigger>
-                {!isSidebarOpen && (
-                    <TooltipContent side="right">
-                        <p>{item.label}</p>
-                        {item.comingSoon && <p className="text-xs text-muted-foreground">(Coming Soon)</p>}
-                    </TooltipContent>
-                )}
+                <TooltipContent side="right">
+                    <p>{item.label}</p>
+                    {item.comingSoon && <p className="text-xs text-muted-foreground">(Coming Soon)</p>}
+                    {item.badgeCount && item.badgeCount > 0 && <p className="text-xs text-amber-400">{item.badgeCount} trades pending journaling</p>}
+                </TooltipContent>
             </Tooltip>
         ))}
     </>
 );
 
 
-function ModuleView({ currentModule, onSetModule, moduleContext, isLoading }: { currentModule: Module; onSetModule: (module: Module, context?: ModuleContext) => void; moduleContext: ModuleContext | null; isLoading: boolean }) {
+function ModuleView({ currentModule, onSetModule, moduleContext, isLoading, journalEntries, updateJournalEntry }: { currentModule: Module; onSetModule: (module: Module, context?: ModuleContext) => void; moduleContext: ModuleContext | null; isLoading: boolean, journalEntries: any[], updateJournalEntry: (entry: any) => void }) {
     if (currentModule === 'dashboard') {
         return <DashboardModule onSetModule={onSetModule} isLoading={isLoading} />;
     }
@@ -154,7 +165,7 @@ function ModuleView({ currentModule, onSetModule, moduleContext, isLoading }: { 
     }
 
     if (currentModule === 'tradeJournal') {
-      return <TradeJournalModule onSetModule={onSetModule} draftId={moduleContext?.draftId} />;
+      return <TradeJournalModule onSetModule={onSetModule} draftId={moduleContext?.draftId} journalEntries={journalEntries} updateJournalEntry={updateJournalEntry} />;
     }
     
     if (currentModule === 'analytics') {
@@ -185,7 +196,7 @@ function ModuleView({ currentModule, onSetModule, moduleContext, isLoading }: { 
       return <ProfileSettingsModule onSetModule={onSetModule} />;
     }
 
-    const allNavItems = [...mainNavItems, ...analyticsNavItems, ...marketNavItems, ...communityNavItems, ...settingsNavItems];
+    const allNavItems = [...mainNavItems(0), ...analyticsNavItems, ...marketNavItems, ...communityNavItems, ...settingsNavItems];
     const item = allNavItems.find(item => item.id === currentModule);
 
     return (
@@ -318,11 +329,11 @@ function AppHeader({ onSetModule, onOpenMobileNav }: { onSetModule: (module: Mod
   );
 }
 
-function SidebarNav({ currentModule, handleSetModule, isSidebarOpen }: { currentModule: Module, handleSetModule: (id: Module) => void, isSidebarOpen?: boolean }) {
+function SidebarNav({ currentModule, handleSetModule, isSidebarOpen, pendingJournalCount }: { currentModule: Module, handleSetModule: (id: Module) => void, isSidebarOpen?: boolean, pendingJournalCount: number }) {
   return (
     <nav className="flex flex-1 flex-col gap-4 p-2">
       <div className="flex flex-col gap-1">
-          <NavItemGroup items={mainNavItems} currentModule={currentModule} isSidebarOpen={isSidebarOpen} onItemClick={handleSetModule} />
+          <NavItemGroup items={mainNavItems(pendingJournalCount)} currentModule={currentModule} isSidebarOpen={isSidebarOpen} onItemClick={handleSetModule} />
       </div>
       <Separator className={cn('my-2', !isSidebarOpen && 'mx-auto w-1/2')} />
       <div className="flex flex-col gap-1">
@@ -372,7 +383,7 @@ export function AuthenticatedAppShell() {
   const [showJournalLockout, setShowJournalLockout] = useState(false);
   const [pendingNav, setPendingNav] = useState<{ id: Module, context?: ModuleContext } | null>(null);
 
-  const { entries: journalEntries } = useJournal();
+  const { entries: journalEntries, updateEntry: updateJournalEntry } = useJournal();
   const pendingJournalCount = journalEntries.filter(e => e.status === 'pending').length;
   const hasPendingJournals = pendingJournalCount > 0;
 
@@ -500,7 +511,7 @@ export function AuthenticatedAppShell() {
                   </a>
               </div>
               
-              <SidebarNav currentModule={currentModule} handleSetModule={handleSetModule} isSidebarOpen={isSidebarOpen} />
+              <SidebarNav currentModule={currentModule} handleSetModule={handleSetModule} isSidebarOpen={isSidebarOpen} pendingJournalCount={pendingJournalCount} />
 
               <div className="border-t border-border/50 p-2">
                   <Tooltip>
@@ -533,7 +544,7 @@ export function AuthenticatedAppShell() {
                               <span>EdgeCipher</span>
                           </a>
                       </div>
-                      <SidebarNav currentModule={currentModule} handleSetModule={handleSetModule} />
+                      <SidebarNav currentModule={currentModule} handleSetModule={handleSetModule} pendingJournalCount={pendingJournalCount} />
                   </SheetContent>
               </Sheet>
 
@@ -544,6 +555,8 @@ export function AuthenticatedAppShell() {
                           onSetModule={handleSetModule} 
                           moduleContext={moduleContext}
                           isLoading={isInitialLoading && currentModule === 'dashboard'} 
+                          journalEntries={journalEntries}
+                          updateJournalEntry={updateJournalEntry}
                       />
                   </div>
               </main>

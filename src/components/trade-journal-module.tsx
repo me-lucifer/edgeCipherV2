@@ -41,6 +41,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collap
 interface TradeJournalModuleProps {
     onSetModule: (module: any, context?: any) => void;
     draftId?: string;
+    journalEntries: JournalEntry[];
+    updateJournalEntry: (entry: JournalEntry) => void;
 }
 
 const journalEntrySchema = z.object({
@@ -1372,7 +1374,7 @@ function PendingReviewTab({ entries, onSetModule, updateEntry }: { entries: Jour
                             <div className="grid md:grid-cols-[1fr_auto] items-center gap-4 cursor-pointer" onClick={() => handleToggleExpand(entry.id)}>
                                 <div className="space-y-3">
                                     <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                                        <h3 className="font-bold text-lg text-foreground">{entry.technical.instrument} &ndash; <span className={cn(entry.technical.direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{entry.technical.direction}</span></h3>
+                                        <h3 className="font-bold text-lg text-foreground">{entry.technical.instrument} – <span className={cn(entry.technical.direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{entry.technical.direction}</span></h3>
                                         <Badge variant="outline" className="text-xs border-amber-500/30 text-amber-300">Pending journal</Badge>
                                     </div>
                                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
@@ -1524,8 +1526,7 @@ function ArjunJournalSummary({ entries }: { entries: JournalEntry[] }) {
     );
 }
 
-export function TradeJournalModule({ onSetModule, draftId }: TradeJournalModuleProps) {
-    const { entries, updateEntry } = useJournal();
+export function TradeJournalModule({ onSetModule, draftId, journalEntries, updateJournalEntry }: TradeJournalModuleProps) {
     const [activeTab, setActiveTab] = useState('pending');
     const [filters, setFilters] = useState(initialFilters);
     const [groupBy, setGroupBy] = useState<GroupingOption>('none');
@@ -1558,8 +1559,8 @@ export function TradeJournalModule({ onSetModule, draftId }: TradeJournalModuleP
                     console.error("Failed to parse journal UI state", e);
                 }
             } else {
-                 const hasPending = entries.some(e => e.status === 'pending');
-                 if (!hasPending && entries.length > 0) {
+                 const hasPending = journalEntries.some(e => e.status === 'pending');
+                 if (!hasPending && journalEntries.length > 0) {
                      setActiveTab('all');
                  }
             }
@@ -1568,7 +1569,7 @@ export function TradeJournalModule({ onSetModule, draftId }: TradeJournalModuleP
         if (draftId) {
             setActiveTab('all');
         }
-    }, [draftId, entries]);
+    }, [draftId, journalEntries]);
 
     useEffect(() => {
         if (typeof window !== "undefined") {
@@ -1577,7 +1578,7 @@ export function TradeJournalModule({ onSetModule, draftId }: TradeJournalModuleP
         }
     }, [activeTab, filters, searchQuery, groupBy]);
 
-    const pendingCount = useMemo(() => entries.filter(e => e.status === 'pending').length, [entries]);
+    const pendingCount = useMemo(() => journalEntries.filter(e => e.status === 'pending').length, [journalEntries]);
 
     const handleTabChange = (newTab: string) => {
         setActiveTab(newTab);
@@ -1595,7 +1596,7 @@ export function TradeJournalModule({ onSetModule, draftId }: TradeJournalModuleP
                 <p className="text-muted-foreground mt-2">Low-effort trade logging. High-impact psychology.</p>
             </div>
             
-            <ArjunJournalSummary entries={entries} />
+            <ArjunJournalSummary entries={journalEntries} />
 
              <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
                 <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto md:mx-0">
@@ -1606,19 +1607,19 @@ export function TradeJournalModule({ onSetModule, draftId }: TradeJournalModuleP
                     <TabsTrigger value="all">All Trades &amp; Filters</TabsTrigger>
                 </TabsList>
                 <TabsContent value="pending" className="pt-6">
-                    <PendingReviewTab entries={entries} onSetModule={onSetModule} updateEntry={updateEntry} />
+                    <PendingReviewTab entries={journalEntries} onSetModule={onSetModule} updateEntry={updateJournalEntry} />
                 </TabsContent>
                 <TabsContent value="all" className="pt-6">
                     <AllTradesTab 
-                        entries={entries} 
-                        updateEntry={updateEntry} 
+                        entries={journalEntries} 
+                        updateEntry={updateJournalEntry} 
                         onSetModule={onSetModule} 
                         initialDraftId={draftId}
                         filters={filters}
                         setFilters={setFilters}
                         showUnjournaledOnly={showUnjournaledOnly}
                         setShowUnjournaledOnly={setShowUnjournaledOnly}
-                        searchQuery={debouncedSearchQuery}
+                        searchQuery={searchQuery}
                         setSearchQuery={setSearchQuery}
                         groupBy={groupBy}
                         setGroupBy={setGroupBy}
