@@ -35,7 +35,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Tooltip, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
+import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "./ui/tooltip";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
 import { Skeleton } from "./ui/skeleton";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerClose } from "./ui/drawer";
@@ -551,22 +551,22 @@ function RuleAdherenceSummary({ entry }: { entry: JournalEntry }) {
 
 function JournalPatternsSidebar({ entries, onSetModule }: { entries: JournalEntry[]; onSetModule: TradeJournalModuleProps['onSetModule'] }) {
     const { topEmotions, topMistakes, journalingHabits } = useMemo(() => {
-        const completed = entries.filter(e => e.status === 'completed' && e.meta.journalingCompletedAt);
+        const completedEntries = entries.filter(e => e.status === 'completed' && e.meta.journalingCompletedAt);
         
-        const emotionCounts = completed.flatMap(e => (e.review?.emotionsTags || "").split(',').filter(Boolean))
+        const emotionCounts = completedEntries.flatMap(e => (e.review?.emotionsTags || "").split(',').filter(Boolean))
             .reduce((acc, tag) => ({ ...acc, [tag]: (acc[tag] || 0) + 1 }), {} as Record<string, number>);
 
         const topEmotions = Object.entries(emotionCounts)
             .sort((a, b) => b[1] - a[1])
             .slice(0, 3)
             .map(([tag, count]) => {
-                const tradesWithTag = completed.filter(e => (e.review?.emotionsTags || "").includes(tag));
+                const tradesWithTag = completedEntries.filter(e => (e.review?.emotionsTags || "").includes(tag));
                 const wins = tradesWithTag.filter(e => e.review?.pnl && e.review.pnl > 0).length;
                 const losses = tradesWithTag.length - wins;
                 return { tag, count, wins, losses };
             });
 
-        const mistakeCounts = completed.flatMap(e => (e.review?.mistakesTags || "").split(',').filter(Boolean))
+        const mistakeCounts = completedEntries.flatMap(e => (e.review?.mistakesTags || "").split(',').filter(Boolean))
             .reduce((acc, tag) => ({ ...acc, [tag]: (acc[tag] || 0) + 1 }), {} as Record<string, number>);
         
         const topMistakes = Object.entries(mistakeCounts)
@@ -575,11 +575,11 @@ function JournalPatternsSidebar({ entries, onSetModule }: { entries: JournalEntr
             .map(([tag, count]) => ({ tag, count, avgPnl: -150 })); // Mock PnL
 
         const totalTrades = entries.length;
-        const completedCount = completed.length;
+        const completedCount = completedEntries.length;
         const completionRate = totalTrades > 0 ? (completedCount / totalTrades) * 100 : 0;
         
         // Streak calculation
-        const completedDates = completed
+        const completedDates = completedEntries
             .map(e => e.meta.journalingCompletedAt ? new Date(e.meta.journalingCompletedAt) : null)
             .filter(Boolean) as Date[];
             
