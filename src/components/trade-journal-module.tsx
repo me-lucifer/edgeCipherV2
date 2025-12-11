@@ -965,45 +965,47 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filte
     
     const TagCell = ({ tags, variant }: { tags?: string; variant: 'emotion' | 'mistake' }) => {
         if (!tags) return <span className="text-muted-foreground/50">-</span>;
-        
+    
         const tagList = tags.split(',').filter(Boolean);
-        const colors = {
-            emotion: {
-                "FOMO": "border-amber-500/50 text-amber-400",
-                "Fear": "border-red-500/50 text-red-400",
-                "Anxiety": "border-yellow-500/50 text-yellow-400",
-                "Overconfidence": "border-purple-500/50 text-purple-400",
-                "Calm": "border-blue-500/50 text-blue-400",
-                "Focused": "border-green-500/50 text-green-400",
-                "default": "border-border"
-            },
-            mistake: {
-                "Moved SL": "bg-red-500/20 text-red-300",
-                "Exited early": "bg-yellow-500/20 text-yellow-300",
-                "Oversized risk": "bg-red-500/20 text-red-300",
-                "None (disciplined)": "bg-green-500/20 text-green-300",
-                "default": "bg-secondary"
+        const emotionColorMapping: { [key: string]: string } = {
+            "FOMO": "border-amber-500/50 text-amber-400",
+            "Fear": "border-red-500/50 text-red-400",
+            "Anxiety": "border-yellow-500/50 text-yellow-400",
+            "Overconfidence": "border-purple-500/50 text-purple-400",
+            "Calm": "border-blue-500/50 text-blue-400",
+            "Focused": "border-primary/50 text-primary",
+        };
+    
+        const mistakeColorMapping: { [key: string]: string } = {
+            "None (disciplined)": "bg-green-500/20 border-green-500/30 text-green-300",
+            "default": "bg-destructive/20 text-destructive-foreground border-destructive/30"
+        };
+    
+        const getColorClass = (tag: string, type: 'emotion' | 'mistake') => {
+            if (type === 'emotion') {
+                return emotionColorMapping[tag] || "border-border";
             }
+            if (type === 'mistake') {
+                return mistakeColorMapping[tag] || mistakeColorMapping.default;
+            }
+            return "";
         };
 
         return (
             <div className="flex flex-wrap gap-1">
                 {tagList.slice(0, 2).map(tag => (
-                    <Badge 
-                        key={tag} 
-                        variant={variant === 'mistake' ? "destructive" : "outline"}
-                        className={cn(
-                            "text-xs", 
-                            colors[variant][tag as keyof typeof colors[typeof variant]] || colors[variant].default
-                        )}
+                    <Badge
+                        key={tag}
+                        variant={variant === 'mistake' ? 'destructive' : 'outline'}
+                        className={cn("text-xs", getColorClass(tag, variant))}
                     >
                         {tag}
                     </Badge>
                 ))}
                 {tagList.length > 2 && <Badge variant="outline" className="text-xs">+{tagList.length - 2}</Badge>}
             </div>
-        )
-    }
+        );
+    };
 
     const renderGroupHeader = (groupKey: string, groupEntries: JournalEntry[]) => {
         if (groupBy === 'day') {
@@ -1387,7 +1389,7 @@ function PendingReviewTab({ entries, onSetModule, updateEntry }: { entries: Jour
              <div className="absolute left-4 top-0 bottom-0 w-px bg-border/50 hidden md:block" />
             {draftEntries.map(({ entry, priorityInfo }) => (
                 <div key={entry.id} className="md:pl-12 relative">
-                    <div className="absolute left-4 top-5 -translate-x-1/2 w-3 h-3 bg-primary rounded-full border-2 border-muted hidden md:block" />
+                    <div className="absolute left-4 top-5 -translate-x-1/2 w-3 h-3 bg-primary rounded-full border-2 border-background hidden md:block" />
                     <Card 
                         className={cn("bg-muted/30 border-l-4 transition-colors hover:bg-muted/40", 
                             priorityInfo.priority === 'High' && 'border-red-500',
@@ -1421,8 +1423,8 @@ function PendingReviewTab({ entries, onSetModule, updateEntry }: { entries: Jour
                                     </div>
                                 </div>
                                 <div className="flex flex-col gap-2 w-full md:w-auto" onClick={(e) => {
-    e.stopPropagation();
-}}>
+                                    e.stopPropagation();
+                                }}>
                                     <Button 
                                         className="w-full"
                                         onClick={() => handleToggleExpand(entry.id)}
@@ -1736,8 +1738,10 @@ export function TradeJournalModule({ onSetModule, draftId, journalEntries, updat
                     }
                 }
                 
-                clearTimeout(sequenceTimeoutRef.current);
-                sequenceTimeoutRef.current = null;
+                if (sequenceTimeoutRef.current) {
+                    clearTimeout(sequenceTimeoutRef.current);
+                    sequenceTimeoutRef.current = null;
+                }
             }
         };
         
