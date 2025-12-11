@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Calendar, Bookmark, ArrowRight, Edit, AlertCircle, CheckCircle, Filter, X, XCircle, Circle, BrainCircuit, Trophy, NotebookPen, TrendingUp, TrendingDown, Sparkles, ChevronUp, ChevronRightIcon, Star, Search, Layers, HelpCircle, Info, Keyboard } from "lucide-react";
+import { Bot, Calendar, Bookmark, ArrowRight, Edit, AlertCircle, CheckCircle, Filter, X, XCircle, Circle, BrainCircuit, Trophy, NotebookPen, TrendingUp, TrendingDown, Sparkles, ChevronUp, ChevronRightIcon, Star, Search, Layers, HelpCircle, Info, Keyboard, Presentation } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Calendar as CalendarComponent } from "./ui/calendar";
 import { format, isToday, isYesterday, differenceInCalendarDays, startOfDay } from "date-fns";
@@ -38,6 +38,7 @@ import {
 import { Tooltip, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
 import { Skeleton } from "./ui/skeleton";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerClose } from "./ui/drawer";
 
 
 interface TradeJournalModuleProps {
@@ -294,7 +295,11 @@ function JournalReviewForm({ entry, onSubmit, onSetModule, onSaveDraft }: { entr
                                                         type="button"
                                                         variant={selected ? "secondary" : "outline"}
                                                         size="sm"
-                                                        className="h-8 text-xs rounded-full"
+                                                        className={cn("h-8 text-xs rounded-full",
+                                                            selected && emotion === 'FOMO' && 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+                                                            selected && (emotion === 'Fear' || emotion === 'Anxiety' || emotion === 'Revenge') && 'bg-red-500/20 text-red-300 border-red-500/30',
+                                                            selected && (emotion === 'Calm' || emotion === 'Focused') && 'bg-blue-500/20 text-blue-300 border-blue-500/30',
+                                                        )}
                                                         onClick={() => {
                                                             const currentTags = (field.value || "").split(',').filter(Boolean);
                                                             const newTags = selected
@@ -1720,6 +1725,36 @@ function JournalWalkthrough({ isOpen, onOpenChange, onDemoSelect }: { isOpen: bo
     )
 }
 
+function DemoScriptPanel({ isOpen, onOpenChange }: { isOpen: boolean, onOpenChange: (open: boolean) => void }) {
+  const steps = [
+    "Show Pending review tab: these are trades auto-imported from Trade Planning.",
+    "Open a big-loss trade (e.g., the ETH Short). Note the 'High' priority.",
+    "Walk through filling out the psychological review: tag 'Anxious' and 'Revenge'.",
+    "Complete the journal entry. Note the success toast.",
+    "Switch to All Trades tab. Show the new completed entry.",
+    "Use filters to isolate losing trades or trades tagged with 'Revenge'.",
+    "Show the Patterns sidebar, pointing out how the new tags are reflected.",
+    "Click 'Discuss these patterns with Arjun' to show the handoff to AI Coaching.",
+    "Jump to Performance Analytics > By Behaviour to show the full data pipeline.",
+  ];
+
+  return (
+    <Drawer open={isOpen} onOpenChange={onOpenChange}>
+      <DrawerContent>
+        <DrawerHeader>
+          <DrawerTitle>Journal Demo Script</DrawerTitle>
+          <DrawerDescription>A presenter's guide to showcasing the journal workflow.</DrawerDescription>
+        </DrawerHeader>
+        <div className="px-4 pb-4">
+          <ul className="space-y-3 list-decimal list-inside text-sm text-muted-foreground">
+            {steps.map((step, i) => <li key={i}>{step}</li>)}
+          </ul>
+        </div>
+      </DrawerContent>
+    </Drawer>
+  );
+}
+
 
 export function TradeJournalModule({ onSetModule, draftId, journalEntries, updateJournalEntry }: TradeJournalModuleProps) {
     const [activeTab, setActiveTab] = useState('pending');
@@ -1731,6 +1766,10 @@ export function TradeJournalModule({ onSetModule, draftId, journalEntries, updat
     const [isLoading, setIsLoading] = useState(true);
     const [isWalkthroughOpen, setIsWalkthroughOpen] = useState(false);
     const sequenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const [isDemoPanelOpen, setIsDemoPanelOpen] = useState(false);
+
+    // This flag can be set to false or tied to an env variable to hide the demo script button.
+    const isDemoMode = true;
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -1874,16 +1913,31 @@ export function TradeJournalModule({ onSetModule, draftId, journalEntries, updat
     return (
         <div className="space-y-8">
             <JournalWalkthrough isOpen={isWalkthroughOpen} onOpenChange={setIsWalkthroughOpen} onDemoSelect={handleDemoSelect} />
+            <DemoScriptPanel isOpen={isDemoPanelOpen} onOpenChange={setIsDemoPanelOpen} />
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                  <div className="text-center md:text-left">
                     <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-3 justify-center md:justify-start"><Bookmark className="h-6 w-6"/>Trade Journal</h1>
                     <p className="text-muted-foreground mt-2">Low-effort trade logging. High-impact psychology.</p>
                 </div>
-                <div>
+                <div className="flex items-center gap-2">
                      <Button variant="outline" size="sm" onClick={() => setIsWalkthroughOpen(true)}>
                         <HelpCircle className="mr-2 h-4 w-4" />
                         How this works
                     </Button>
+                    {isDemoMode && (
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button variant="outline" size="icon" onClick={() => setIsDemoPanelOpen(true)}>
+                                        <Presentation className="h-4 w-4" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Open Demo Script</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    )}
                 </div>
             </div>
             
