@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Calendar, Bookmark, ArrowRight, Edit, AlertCircle, CheckCircle, Filter, X, XCircle, Circle, BrainCircuit, Trophy, NotebookPen, TrendingUp, TrendingDown, Sparkles, ChevronUp, ChevronRightIcon, Star, Search, Layers, HelpCircle } from "lucide-react";
+import { Bot, Calendar, Bookmark, ArrowRight, Edit, AlertCircle, CheckCircle, Filter, X, XCircle, Circle, BrainCircuit, Trophy, NotebookPen, TrendingUp, TrendingDown, Sparkles, ChevronUp, ChevronRightIcon, Star, Search, Layers, HelpCircle, Info, Keyboard } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Calendar as CalendarComponent } from "./ui/calendar";
 import { format, isToday, isYesterday, differenceInCalendarDays, startOfDay } from "date-fns";
@@ -250,15 +250,7 @@ function JournalReviewForm({ entry, onSubmit, onSetModule, onSaveDraft }: { entr
     };
 
     const handleAttemptSubmit = () => {
-        const values = form.getValues();
-        const hasEmotionTag = values.review?.emotionsTags && values.review.emotionsTags.trim() !== '';
-        const hasLearningNote = values.review?.learningNotes && values.review.learningNotes.trim() !== '';
-
-        if (!hasEmotionTag && !hasLearningNote) {
-            setShowCompletionDialog(true);
-        } else {
-            form.handleSubmit(handleSubmit)();
-        }
+        form.handleSubmit(handleSubmit)();
     }
 
     const discussWithArjun = (entry: JournalEntry) => {
@@ -271,7 +263,12 @@ function JournalReviewForm({ entry, onSubmit, onSetModule, onSaveDraft }: { entr
     return (
         <>
             <Form {...form}>
-                <form onSubmit={(e) => { e.preventDefault(); handleAttemptSubmit(); }} className="space-y-6">
+                <form onSubmit={(e) => {
+                    e.preventDefault();
+                    if (e.nativeEvent instanceof KeyboardEvent && (e.nativeEvent.ctrlKey || e.nativeEvent.metaKey)) {
+                        handleAttemptSubmit();
+                    }
+                }} className="space-y-6">
                     {/* Final PnL and Exit Price */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField control={form.control} name="review.pnl" render={({ field }) => (<FormItem><FormLabel>Final PnL ($)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
@@ -451,7 +448,7 @@ function JournalReviewForm({ entry, onSubmit, onSetModule, onSaveDraft }: { entr
                     )}
                     <div className="flex justify-end pt-4 gap-2">
                         <Button type="button" variant="ghost" onClick={onSaveDraft}>Save and finish later</Button>
-                        <Button type="submit">Mark journal as completed</Button>
+                        <Button type="button" onClick={handleAttemptSubmit}>Mark journal as completed</Button>
                     </div>
                      <div className="pt-4 border-t border-border/50">
                         <Button className="w-full" variant="outline" onClick={() => discussWithArjun(form.getValues())}><Bot className="mr-2 h-4 w-4"/>Discuss this trade with Arjun</Button>
@@ -1577,6 +1574,13 @@ function JournalWalkthrough({ isOpen, onOpenChange, onDemoSelect }: { isOpen: bo
         { icon: Star, title: "Pending Review", description: "Every executed trade lands here as a draft. Your job: fill in emotions, mistakes, and what you learned." },
         { icon: Filter, title: "All Trades & Patterns", description: "Use filters and the patterns sidebar to see *when* you trade best and worst, and *why*." },
     ];
+
+    const shortcuts = [
+        { keys: ['j', 'p'], label: 'Go to Pending tab' },
+        { keys: ['j', 'a'], label: 'Go to All trades tab' },
+        { keys: ['j', 'n'], label: 'Open next pending review' },
+        { keys: ['Ctrl', 'Enter'], label: 'Complete journal entry (in form)' },
+    ];
     
     if (!isOpen) return null;
 
@@ -1612,17 +1616,27 @@ function JournalWalkthrough({ isOpen, onOpenChange, onDemoSelect }: { isOpen: bo
                     </div>
                      <Separator />
                      <div className="grid md:grid-cols-2 gap-6">
-                        <div className="text-center">
-                            <h3 className="font-semibold text-foreground mb-4">Try a demo entry</h3>
-                            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                        <div>
+                            <h3 className="font-semibold text-foreground mb-4 text-center md:text-left">Try a demo entry</h3>
+                            <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
                                 <Button onClick={() => onDemoSelect('high-emotion')}>Demo: High-emotion loss</Button>
                                 <Button variant="outline" onClick={() => onDemoSelect('clean')}>Demo: Clean, disciplined trade</Button>
                             </div>
                         </div>
-                        <div className="text-center md:text-left">
-                             <p className="text-sm text-muted-foreground pt-4">
-                                This walkthrough will show again until you close it.
-                            </p>
+                        <div>
+                            <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2"><Keyboard className="h-4 w-4" />Shortcuts</h3>
+                            <div className="space-y-2 text-sm text-muted-foreground">
+                                {shortcuts.map((shortcut, index) => (
+                                    <div key={index} className="flex justify-between items-center">
+                                        <span>{shortcut.label}</span>
+                                        <div className="flex items-center gap-1">
+                                            {shortcut.keys.map(key => (
+                                                <kbd key={key} className="px-2 py-0.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-md">{key}</kbd>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </div>
                 </CardContent>
@@ -1641,6 +1655,7 @@ export function TradeJournalModule({ onSetModule, draftId, journalEntries, updat
     const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [isWalkthroughOpen, setIsWalkthroughOpen] = useState(false);
+    const sequenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -1692,6 +1707,46 @@ export function TradeJournalModule({ onSetModule, draftId, journalEntries, updat
             setActiveTab('all');
         }
     }, [draftId, journalEntries]);
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (document.activeElement && ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+                return;
+            }
+
+            if (e.key === 'j' && !sequenceTimeoutRef.current) {
+                sequenceTimeoutRef.current = setTimeout(() => {
+                    sequenceTimeoutRef.current = null;
+                }, 1500);
+            } else if (sequenceTimeoutRef.current) {
+                const navMap: Record<string, 'pending' | 'all'> = {
+                    'p': 'pending',
+                    'a': 'all',
+                };
+                if (navMap[e.key]) {
+                    handleTabChange(navMap[e.key]);
+                }
+                
+                if (e.key === 'n' && activeTab === 'pending') {
+                    const firstPending = document.querySelector('[data-radix-collection-item]');
+                    if (firstPending instanceof HTMLElement) {
+                        firstPending.click();
+                    }
+                }
+                
+                clearTimeout(sequenceTimeoutRef.current);
+                sequenceTimeoutRef.current = null;
+            }
+        };
+        
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            if (sequenceTimeoutRef.current) {
+                clearTimeout(sequenceTimeoutRef.current);
+            }
+        };
+    }, [activeTab]);
 
     useEffect(() => {
         if (typeof window !== "undefined") {
