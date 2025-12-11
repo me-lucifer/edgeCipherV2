@@ -349,7 +349,10 @@ function JournalReviewForm({ entry, onSubmit, onSetModule, onSaveDraft }: { entr
                                                         type="button"
                                                         variant={selected ? "secondary" : "outline"}
                                                         size="sm"
-                                                        className="h-8 text-xs rounded-full"
+                                                        className={cn("h-8 text-xs rounded-full",
+                                                            selected && mistake === "None (disciplined)" && "bg-green-500/20 text-green-300 border-green-500/30",
+                                                            selected && mistake !== "None (disciplined)" && "bg-red-500/20 text-red-300 border-red-500/30",
+                                                        )}
                                                         onClick={() => {
                                                             let currentTags = (field.value || "").split(',').filter(Boolean);
                                                             if (mistake === 'None (disciplined)') {
@@ -513,22 +516,22 @@ function RuleAdherenceSummary({ entry }: { entry: JournalEntry }) {
 
 function JournalPatternsSidebar({ entries, onSetModule }: { entries: JournalEntry[]; onSetModule: TradeJournalModuleProps['onSetModule'] }) {
     const { topEmotions, topMistakes, journalingHabits } = useMemo(() => {
-        const completed = entries.filter(e => e.status === 'completed' && e.meta.journalingCompletedAt);
+        const completedEntries = entries.filter(e => e.status === 'completed' && e.meta.journalingCompletedAt);
         
-        const emotionCounts = completed.flatMap(e => (e.review?.emotionsTags || "").split(',').filter(Boolean))
+        const emotionCounts = completedEntries.flatMap(e => (e.review?.emotionsTags || "").split(',').filter(Boolean))
             .reduce((acc, tag) => ({ ...acc, [tag]: (acc[tag] || 0) + 1 }), {} as Record<string, number>);
 
         const topEmotions = Object.entries(emotionCounts)
             .sort((a, b) => b[1] - a[1])
             .slice(0, 3)
             .map(([tag, count]) => {
-                const tradesWithTag = completed.filter(e => (e.review?.emotionsTags || "").includes(tag));
+                const tradesWithTag = completedEntries.filter(e => (e.review?.emotionsTags || "").includes(tag));
                 const wins = tradesWithTag.filter(e => e.review?.pnl && e.review.pnl > 0).length;
                 const losses = tradesWithTag.length - wins;
                 return { tag, count, wins, losses };
             });
 
-        const mistakeCounts = completed.flatMap(e => (e.review?.mistakesTags || "").split(',').filter(Boolean))
+        const mistakeCounts = completedEntries.flatMap(e => (e.review?.mistakesTags || "").split(',').filter(Boolean))
             .reduce((acc, tag) => ({ ...acc, [tag]: (acc[tag] || 0) + 1 }), {} as Record<string, number>);
         
         const topMistakes = Object.entries(mistakeCounts)
@@ -537,11 +540,11 @@ function JournalPatternsSidebar({ entries, onSetModule }: { entries: JournalEntr
             .map(([tag, count]) => ({ tag, count, avgPnl: -150 })); // Mock PnL
 
         const totalTrades = entries.length;
-        const completedEntries = completed.length;
-        const completionRate = totalTrades > 0 ? (completedEntries / totalTrades) * 100 : 0;
+        const completedCount = completedEntries.length;
+        const completionRate = totalTrades > 0 ? (completedCount / totalTrades) * 100 : 0;
         
         // Streak calculation
-        const completedDates = completed
+        const completedDates = completedEntries
             .map(e => e.meta.journalingCompletedAt ? new Date(e.meta.journalingCompletedAt) : null)
             .filter(Boolean) as Date[];
             
@@ -572,7 +575,7 @@ function JournalPatternsSidebar({ entries, onSetModule }: { entries: JournalEntr
             journalingHabits: {
                 completionRate: completionRate.toFixed(0),
                 total: totalTrades,
-                completed: completedEntries,
+                completed: completedCount,
                 currentJournalStreak,
                 journalDaysLast30
             }
@@ -588,7 +591,7 @@ function JournalPatternsSidebar({ entries, onSetModule }: { entries: JournalEntr
         <div className="lg:col-span-1 space-y-6 sticky top-24">
             <Card className="bg-muted/30 border-border/50">
                 <CardHeader>
-                    <CardTitle className="text-base flex items-center gap-2"><BrainCircuit className="h-5 w-5" />Patterns Arjun is Watching</CardTitle>
+                    <CardTitle className="text-base flex items-center gap-2"><BrainCircuit className="h-5 w-5 text-primary" />Patterns Arjun is Watching</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
                     <div>
@@ -676,7 +679,11 @@ function EmotionResultSnapshot() {
                         const Icon = isWin ? TrendingUp : TrendingDown;
                         return (
                             <div key={emotion} className="flex items-center gap-2 p-2 rounded-md bg-muted border border-border/50">
-                                <Badge variant="outline" className="text-xs border-amber-500/30 text-amber-300">{emotion}</Badge>
+                                <Badge variant="outline" className={cn("text-xs",
+                                emotion === 'FOMO' && 'border-amber-500/30 text-amber-300',
+                                (emotion === 'Fear' || emotion === 'Anxious') && 'border-red-500/30 text-red-300',
+                                (emotion === 'Calm' || emotion === 'Focused') && 'border-blue-500/30 text-blue-300',
+                                )}>{emotion}</Badge>
                                 <div className={cn(
                                     "flex items-center gap-1 text-xs font-mono font-semibold px-2 py-1 rounded",
                                     isWin ? "bg-green-500/10 text-green-400" : "bg-red-500/10 text-red-400"
@@ -970,7 +977,7 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filte
         const emotionColorMapping: { [key: string]: string } = {
             "FOMO": "border-amber-500/50 text-amber-400",
             "Fear": "border-red-500/50 text-red-400",
-            "Anxiety": "border-yellow-500/50 text-yellow-400",
+            "Anxious": "border-yellow-500/50 text-yellow-400",
             "Overconfidence": "border-purple-500/50 text-purple-400",
             "Calm": "border-blue-500/50 text-blue-400",
             "Focused": "border-primary/50 text-primary",
@@ -996,7 +1003,7 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filte
                 {tagList.slice(0, 2).map(tag => (
                     <Badge
                         key={tag}
-                        variant={variant === 'mistake' ? 'destructive' : 'outline'}
+                        variant={variant === 'mistake' && tag !== "None (disciplined)" ? 'destructive' : 'outline'}
                         className={cn("text-xs", getColorClass(tag, variant))}
                     >
                         {tag}
@@ -1306,17 +1313,69 @@ function getReviewPriority(entry: JournalEntry): ReviewPriority {
     return { priority, reasons };
 }
 
+function JournalDetailSkeleton() {
+    return (
+        <CardContent className="border-t border-border/50 pt-6 animate-pulse" role="status" aria-live="polite" aria-label="Loading journal details">
+            <div className="grid md:grid-cols-2 gap-8">
+                <Card className="bg-muted/50 border-border/50">
+                    <CardHeader>
+                        <Skeleton className="h-5 w-1/2" />
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <div className="space-y-2">
+                            <Skeleton className="h-4 w-3/4" />
+                            <Skeleton className="h-4 w-1/2" />
+                            <Skeleton className="h-4 w-2/3" />
+                        </div>
+                        <Separator />
+                        <div className="space-y-2">
+                             <Skeleton className="h-4 w-1/3" />
+                             <Skeleton className="h-12 w-full" />
+                        </div>
+                    </CardContent>
+                </Card>
+                 <Card className="bg-muted/50 border-border/50">
+                    <CardHeader>
+                        <Skeleton className="h-5 w-1/2" />
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <div className="grid grid-cols-2 gap-4">
+                            <Skeleton className="h-10 w-full" />
+                            <Skeleton className="h-10 w-full" />
+                        </div>
+                        <Separator />
+                        <div className="space-y-2">
+                            <Skeleton className="h-4 w-1/3" />
+                            <div className="flex flex-wrap gap-2">
+                                <Skeleton className="h-8 w-16 rounded-full" />
+                                <Skeleton className="h-8 w-20 rounded-full" />
+                                <Skeleton className="h-8 w-24 rounded-full" />
+                            </div>
+                        </div>
+                         <div className="space-y-2">
+                            <Skeleton className="h-4 w-1/3" />
+                            <Skeleton className="h-20 w-full" />
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+        </CardContent>
+    );
+}
+
+
 function PendingReviewTab({ entries, onSetModule, updateEntry }: { entries: JournalEntry[]; onSetModule: TradeJournalModuleProps['onSetModule'], updateEntry: (entry: JournalEntry) => void; }) {
     const { toast } = useToast();
     const [expandedEntryId, setExpandedEntryId] = useState<string | null>(null);
+    const [isDetailLoading, setIsDetailLoading] = useState(false);
     const detailHeadingRef = useRef<HTMLHeadingElement>(null);
 
 
     useEffect(() => {
-        if (expandedEntryId && detailHeadingRef.current) {
+        if (expandedEntryId && !isDetailLoading && detailHeadingRef.current) {
             detailHeadingRef.current.focus();
         }
-    }, [expandedEntryId]);
+    }, [expandedEntryId, isDetailLoading]);
 
     const draftEntries = useMemo(() => {
         const drafts = entries
@@ -1363,7 +1422,15 @@ function PendingReviewTab({ entries, onSetModule, updateEntry }: { entries: Jour
     };
 
     const handleToggleExpand = (entryId: string) => {
-        setExpandedEntryId(currentId => currentId === entryId ? null : entryId);
+        if (expandedEntryId === entryId) {
+            setExpandedEntryId(null);
+        } else {
+            setIsDetailLoading(true);
+            setExpandedEntryId(entryId);
+            setTimeout(() => {
+                setIsDetailLoading(false);
+            }, 500);
+        }
     };
 
     if (draftEntries.length === 0) {
@@ -1454,8 +1521,11 @@ function PendingReviewTab({ entries, onSetModule, updateEntry }: { entries: Jour
                         </CardContent>
                         
                         {expandedEntryId === entry.id && (
-                           <CardContent className="border-t border-border/50 pt-6" role="region" aria-labelledby={`journal-entry-title-${entry.id}`}>
-                                <h2 id={`journal-entry-title-${entry.id}`} ref={detailHeadingRef} tabIndex={-1} className="sr-only focus:outline-none">
+                           isDetailLoading ? (
+                                <JournalDetailSkeleton />
+                           ) : (
+                            <CardContent className="border-t border-border/50 pt-6" role="region" aria-labelledby={`journal-entry-title-${entry.id}`}>
+                                <h2 id={`journal-entry-title-${entry.id}`} ref={detailHeadingRef} tabIndex={-1} className="sr-only focus:outline-none focus:ring-2 focus:ring-ring rounded-sm">
                                   Journal entry details for {entry.technical.instrument}
                                 </h2>
                                 <div className="grid md:grid-cols-2 gap-8">
@@ -1501,6 +1571,7 @@ function PendingReviewTab({ entries, onSetModule, updateEntry }: { entries: Jour
                                     </Card>
                                 </div>
                             </CardContent>
+                           )
                         )}
                     </Card>
                 </div>
