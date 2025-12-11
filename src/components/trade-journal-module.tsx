@@ -138,41 +138,62 @@ export const useJournal = () => {
 
     useEffect(() => {
         if (typeof window !== "undefined") {
-            const saved = localStorage.getItem("ec_journal_entries");
-            const drafts = localStorage.getItem("ec_journal_drafts");
-            
             // Simulate fetch
             setTimeout(() => {
-                const parsedEntries = saved ? JSON.parse(saved) : mockJournalEntries;
-                const parsedDrafts = drafts ? JSON.parse(drafts) : [];
-                setEntries([...parsedDrafts, ...parsedEntries]);
-                setIsInitialLoad(false);
+                try {
+                    const saved = localStorage.getItem("ec_journal_entries");
+                    const drafts = localStorage.getItem("ec_journal_drafts");
+                    const parsedEntries = saved ? JSON.parse(saved) : mockJournalEntries;
+                    const parsedDrafts = drafts ? JSON.parse(drafts) : [];
+                    setEntries([...parsedDrafts, ...parsedEntries]);
+                } catch (error) {
+                    console.error("Failed to parse journal data from localStorage:", error);
+                    toast({
+                        variant: "destructive",
+                        title: "Journal data corrupted",
+                        description: "Your journal has been reset. Please contact support if this persists.",
+                    });
+                    localStorage.removeItem("ec_journal_entries");
+                    localStorage.removeItem("ec_journal_drafts");
+                    setEntries(mockJournalEntries); // Fallback to mock data
+                } finally {
+                    setIsInitialLoad(false);
+                }
             }, 800);
         }
-    }, []);
+    }, [toast]);
 
     const updateAnalytics = (allEntries: JournalEntry[]) => {
-        const completedEntries = allEntries.filter(e => e.status === 'completed');
-        const emotionTagCounts = completedEntries.flatMap(e => (e.review?.emotionsTags || "").split(',').filter(Boolean))
-            .reduce((acc, tag) => ({ ...acc, [tag]: (acc[tag] || 0) + 1 }), {} as Record<string, number>);
+        try {
+            const completedEntries = allEntries.filter(e => e.status === 'completed');
+            const emotionTagCounts = completedEntries.flatMap(e => (e.review?.emotionsTags || "").split(',').filter(Boolean))
+                .reduce((acc, tag) => ({ ...acc, [tag]: (acc[tag] || 0) + 1 }), {} as Record<string, number>);
 
-        const mistakeTagCounts = completedEntries.flatMap(e => (e.review?.mistakesTags || "").split(',').filter(Boolean))
-            .reduce((acc, tag) => ({ ...acc, [tag]: (acc[tag] || 0) + 1 }), {} as Record<string, number>);
+            const mistakeTagCounts = completedEntries.flatMap(e => (e.review?.mistakesTags || "").split(',').filter(Boolean))
+                .reduce((acc, tag) => ({ ...acc, [tag]: (acc[tag] || 0) + 1 }), {} as Record<string, number>);
 
-        const totalTrades = allEntries.length;
-        const completedCount = completedEntries.length;
-        const journalingCompletionRate = totalTrades > 0 ? Math.round((completedCount / totalTrades) * 100) : 0;
+            const totalTrades = allEntries.length;
+            const completedCount = completedEntries.length;
+            const journalingCompletionRate = totalTrades > 0 ? Math.round((completedCount / totalTrades) * 100) : 0;
 
-        const analytics = {
-            emotionTagCounts,
-            mistakeTagCounts,
-            journalingCompletionRate,
-            pnlByEmotionTag: {}, // Mock
-            pnlByMistakeTag: {}, // Mock
-        };
+            const analytics = {
+                emotionTagCounts,
+                mistakeTagCounts,
+                journalingCompletionRate,
+                pnlByEmotionTag: {}, // Mock
+                pnlByMistakeTag: {}, // Mock
+            };
 
-        localStorage.setItem("ec_journal_analytics", JSON.stringify(analytics));
-        addLog("Journal analytics updated.");
+            localStorage.setItem("ec_journal_analytics", JSON.stringify(analytics));
+            addLog("Journal analytics updated.");
+        } catch (error) {
+             console.error("Failed to save journal analytics to localStorage:", error);
+            toast({
+                variant: "destructive",
+                title: "Storage Error",
+                description: "Could not save analytics. Your data will not be persisted this session.",
+            });
+        }
     };
 
     const updateEntry = (updatedEntry: JournalEntry) => {
@@ -180,43 +201,52 @@ export const useJournal = () => {
         setEntries(prev => {
             newEntries = prev.map(e => e.id === updatedEntry.id ? updatedEntry : e);
             
-            const isDraft = updatedEntry.id.startsWith('draft-');
-            
-            if (isDraft && updatedEntry.status === 'completed') {
-                const drafts = JSON.parse(localStorage.getItem("ec_journal_drafts") || "[]");
-                const newDrafts = drafts.filter((d: any) => d.id !== updatedEntry.id);
-                localStorage.setItem("ec_journal_drafts", JSON.stringify(newDrafts));
+            try {
+                const isDraft = updatedEntry.id.startsWith('draft-');
+                
+                if (isDraft && updatedEntry.status === 'completed') {
+                    const drafts = JSON.parse(localStorage.getItem("ec_journal_drafts") || "[]");
+                    const newDrafts = drafts.filter((d: any) => d.id !== updatedEntry.id);
+                    localStorage.setItem("ec_journal_drafts", JSON.stringify(newDrafts));
 
-                const completed = JSON.parse(localStorage.getItem("ec_journal_entries") || "[]");
-                localStorage.setItem("ec_journal_entries", JSON.stringify([updatedEntry, ...completed]));
-                addLog(`Journal entry completed: ${updatedEntry.technical.instrument}`);
-                
-                const completionMessages = [
-                    "Nice — this reflection is what sharpens your edge.",
-                    "Journal updated. Arjun can now use this to refine your Growth Plan.",
-                    "Good discipline. Most traders skip this part; they also stay stuck."
-                ];
-                
+                    const completed = JSON.parse(localStorage.getItem("ec_journal_entries") || "[]");
+                    localStorage.setItem("ec_journal_entries", JSON.stringify([updatedEntry, ...completed]));
+                    addLog(`Journal entry completed: ${updatedEntry.technical.instrument}`);
+                    
+                    const completionMessages = [
+                        "Nice — this reflection is what sharpens your edge.",
+                        "Journal updated. Arjun can now use this to refine your Growth Plan.",
+                        "Good discipline. Most traders skip this part; they also stay stuck."
+                    ];
+                    
+                    toast({
+                        title: "Journal Completed",
+                        description: completionMessages[Math.floor(Math.random() * completionMessages.length)],
+                    });
+                } else if (!isDraft) {
+                    const completed = JSON.parse(localStorage.getItem("ec_journal_entries") || "[]");
+                    const newCompleted = completed.map((e: any) => e.id === updatedEntry.id ? updatedEntry : e);
+                    localStorage.setItem("ec_journal_entries", JSON.stringify(newCompleted));
+                    addLog(`Journal entry updated: ${updatedEntry.technical.instrument}`);
+                     toast({
+                        title: "Journal Entry Saved",
+                        description: "Your review has been logged successfully.",
+                    });
+                } else if (isDraft) {
+                     const drafts = JSON.parse(localStorage.getItem("ec_journal_drafts") || "[]");
+                    const newDrafts = drafts.map((d: any) => d.id === updatedEntry.id ? updatedEntry : d);
+                    localStorage.setItem("ec_journal_drafts", JSON.stringify(newDrafts));
+                }
+
+                updateAnalytics(newEntries);
+            } catch (error) {
+                console.error("Failed to save journal to localStorage:", error);
                 toast({
-                    title: "Journal Completed",
-                    description: completionMessages[Math.floor(Math.random() * completionMessages.length)],
+                    variant: "destructive",
+                    title: "Storage Error",
+                    description: "Could not save journal entry. It will be kept only for this session.",
                 });
-            } else if (!isDraft) {
-                const completed = JSON.parse(localStorage.getItem("ec_journal_entries") || "[]");
-                const newCompleted = completed.map((e: any) => e.id === updatedEntry.id ? updatedEntry : e);
-                localStorage.setItem("ec_journal_entries", JSON.stringify(newCompleted));
-                addLog(`Journal entry updated: ${updatedEntry.technical.instrument}`);
-                 toast({
-                    title: "Journal Entry Saved",
-                    description: "Your review has been logged successfully.",
-                });
-            } else if (isDraft) {
-                 const drafts = JSON.parse(localStorage.getItem("ec_journal_drafts") || "[]");
-                const newDrafts = drafts.map((d: any) => d.id === updatedEntry.id ? updatedEntry : d);
-                localStorage.setItem("ec_journal_drafts", JSON.stringify(newDrafts));
             }
-
-            updateAnalytics(newEntries);
             return newEntries;
         });
     };
@@ -521,22 +551,22 @@ function RuleAdherenceSummary({ entry }: { entry: JournalEntry }) {
 
 function JournalPatternsSidebar({ entries, onSetModule }: { entries: JournalEntry[]; onSetModule: TradeJournalModuleProps['onSetModule'] }) {
     const { topEmotions, topMistakes, journalingHabits } = useMemo(() => {
-        const completedEntries = entries.filter(e => e.status === 'completed' && e.meta.journalingCompletedAt);
+        const completed = entries.filter(e => e.status === 'completed' && e.meta.journalingCompletedAt);
         
-        const emotionCounts = completedEntries.flatMap(e => (e.review?.emotionsTags || "").split(',').filter(Boolean))
+        const emotionCounts = completed.flatMap(e => (e.review?.emotionsTags || "").split(',').filter(Boolean))
             .reduce((acc, tag) => ({ ...acc, [tag]: (acc[tag] || 0) + 1 }), {} as Record<string, number>);
 
         const topEmotions = Object.entries(emotionCounts)
             .sort((a, b) => b[1] - a[1])
             .slice(0, 3)
             .map(([tag, count]) => {
-                const tradesWithTag = completedEntries.filter(e => (e.review?.emotionsTags || "").includes(tag));
+                const tradesWithTag = completed.filter(e => (e.review?.emotionsTags || "").includes(tag));
                 const wins = tradesWithTag.filter(e => e.review?.pnl && e.review.pnl > 0).length;
                 const losses = tradesWithTag.length - wins;
                 return { tag, count, wins, losses };
             });
 
-        const mistakeCounts = completedEntries.flatMap(e => (e.review?.mistakesTags || "").split(',').filter(Boolean))
+        const mistakeCounts = completed.flatMap(e => (e.review?.mistakesTags || "").split(',').filter(Boolean))
             .reduce((acc, tag) => ({ ...acc, [tag]: (acc[tag] || 0) + 1 }), {} as Record<string, number>);
         
         const topMistakes = Object.entries(mistakeCounts)
@@ -545,11 +575,11 @@ function JournalPatternsSidebar({ entries, onSetModule }: { entries: JournalEntr
             .map(([tag, count]) => ({ tag, count, avgPnl: -150 })); // Mock PnL
 
         const totalTrades = entries.length;
-        const completedCount = completedEntries.length;
+        const completedCount = completed.length;
         const completionRate = totalTrades > 0 ? (completedCount / totalTrades) * 100 : 0;
         
         // Streak calculation
-        const completedDates = completedEntries
+        const completedDates = completed
             .map(e => e.meta.journalingCompletedAt ? new Date(e.meta.journalingCompletedAt) : null)
             .filter(Boolean) as Date[];
             
@@ -1152,7 +1182,7 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filte
                             <div className="relative">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                 <Input 
-                                    placeholder="Search by pair, strategy, or notes..."
+                                    placeholder="Search by pair, strategy, or notes…"
                                     className="pl-9"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -1797,23 +1827,24 @@ export function TradeJournalModule({ onSetModule, draftId, journalEntries, updat
 
      useEffect(() => {
         if (typeof window !== "undefined") {
-            const savedState = localStorage.getItem("ec_journal_ui_state");
-            if (savedState) {
-                try {
+            try {
+                const savedState = localStorage.getItem("ec_journal_ui_state");
+                if (savedState) {
                     const { activeTab: savedTab, filters: savedFilters, searchQuery: savedQuery, groupBy: savedGroupBy } = JSON.parse(savedState);
                     setActiveTab(savedTab || 'pending');
                     setFilters(savedFilters || initialFilters);
                     setSearchQuery(savedQuery || '');
                     setDebouncedSearchQuery(savedQuery || '');
                     setGroupBy(savedGroupBy || 'none');
-                } catch (e) {
-                    console.error("Failed to parse journal UI state", e);
+                } else {
+                     const hasPending = journalEntries.some(e => e.status === 'pending');
+                     if (!hasPending && journalEntries.length > 0) {
+                         setActiveTab('all');
+                     }
                 }
-            } else {
-                 const hasPending = journalEntries.some(e => e.status === 'pending');
-                 if (!hasPending && journalEntries.length > 0) {
-                     setActiveTab('all');
-                 }
+            } catch (error) {
+                console.error("Failed to parse journal UI state from localStorage", error);
+                // State will fall back to defaults
             }
         }
 
@@ -1866,8 +1897,12 @@ export function TradeJournalModule({ onSetModule, draftId, journalEntries, updat
 
     useEffect(() => {
         if (typeof window !== "undefined") {
-            const stateToSave = JSON.stringify({ activeTab, filters, searchQuery, groupBy });
-            localStorage.setItem("ec_journal_ui_state", stateToSave);
+            try {
+                const stateToSave = JSON.stringify({ activeTab, filters, searchQuery, groupBy });
+                localStorage.setItem("ec_journal_ui_state", stateToSave);
+            } catch (error) {
+                 console.error("Failed to save journal UI state to localStorage", error);
+            }
         }
     }, [activeTab, filters, searchQuery, groupBy]);
 
