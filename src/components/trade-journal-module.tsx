@@ -513,22 +513,22 @@ function RuleAdherenceSummary({ entry }: { entry: JournalEntry }) {
 
 function JournalPatternsSidebar({ entries, onSetModule }: { entries: JournalEntry[]; onSetModule: TradeJournalModuleProps['onSetModule'] }) {
     const { topEmotions, topMistakes, journalingHabits } = useMemo(() => {
-        const completedEntries = entries.filter(e => e.status === 'completed' && e.meta.journalingCompletedAt);
+        const completed = entries.filter(e => e.status === 'completed' && e.meta.journalingCompletedAt);
         
-        const emotionCounts = completedEntries.flatMap(e => (e.review?.emotionsTags || "").split(',').filter(Boolean))
+        const emotionCounts = completed.flatMap(e => (e.review?.emotionsTags || "").split(',').filter(Boolean))
             .reduce((acc, tag) => ({ ...acc, [tag]: (acc[tag] || 0) + 1 }), {} as Record<string, number>);
 
         const topEmotions = Object.entries(emotionCounts)
             .sort((a, b) => b[1] - a[1])
             .slice(0, 3)
             .map(([tag, count]) => {
-                const tradesWithTag = completedEntries.filter(e => (e.review?.emotionsTags || "").includes(tag));
+                const tradesWithTag = completed.filter(e => (e.review?.emotionsTags || "").includes(tag));
                 const wins = tradesWithTag.filter(e => e.review?.pnl && e.review.pnl > 0).length;
                 const losses = tradesWithTag.length - wins;
                 return { tag, count, wins, losses };
             });
 
-        const mistakeCounts = completedEntries.flatMap(e => (e.review?.mistakesTags || "").split(',').filter(Boolean))
+        const mistakeCounts = completed.flatMap(e => (e.review?.mistakesTags || "").split(',').filter(Boolean))
             .reduce((acc, tag) => ({ ...acc, [tag]: (acc[tag] || 0) + 1 }), {} as Record<string, number>);
         
         const topMistakes = Object.entries(mistakeCounts)
@@ -537,11 +537,11 @@ function JournalPatternsSidebar({ entries, onSetModule }: { entries: JournalEntr
             .map(([tag, count]) => ({ tag, count, avgPnl: -150 })); // Mock PnL
 
         const totalTrades = entries.length;
-        const completedCount = completedEntries.length;
-        const completionRate = totalTrades > 0 ? (completedCount / totalTrades) * 100 : 0;
+        const completedEntries = completed.length;
+        const completionRate = totalTrades > 0 ? (completedEntries / totalTrades) * 100 : 0;
         
         // Streak calculation
-        const completedDates = completedEntries
+        const completedDates = completed
             .map(e => e.meta.journalingCompletedAt ? new Date(e.meta.journalingCompletedAt) : null)
             .filter(Boolean) as Date[];
             
@@ -572,7 +572,7 @@ function JournalPatternsSidebar({ entries, onSetModule }: { entries: JournalEntr
             journalingHabits: {
                 completionRate: completionRate.toFixed(0),
                 total: totalTrades,
-                completed: completedCount,
+                completed: completedEntries,
                 currentJournalStreak,
                 journalDaysLast30
             }
@@ -612,7 +612,7 @@ function JournalPatternsSidebar({ entries, onSetModule }: { entries: JournalEntr
                            {topMistakes.map(({ tag, count, avgPnl }) => (
                                <div key={tag}>
                                     <div className="flex justify-between items-center">
-                                        <Badge variant="destructive" className="bg-red-500/20 border-red-500/30 text-red-300">{tag}</Badge>
+                                        <Badge variant="destructive" className={cn(tag === "None (disciplined)" ? "bg-green-500/20 border-green-500/30 text-green-300" : "bg-red-500/20 border-red-500/30 text-red-300")}>{tag}</Badge>
                                         <span className="text-xs font-mono">{count} times</span>
                                     </div>
                                     <p className="text-xs text-muted-foreground mt-1">Avg result: <span className="font-mono text-red-400">${avgPnl.toFixed(2)}</span></p>
@@ -920,7 +920,7 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filte
                                      <div>
                                         <h4 className="font-semibold mb-2 text-sm">Mistakes (if any)</h4>
                                          <div className="flex flex-wrap gap-2">
-                                            {(editingEntry.review?.mistakesTags || "None").split(',').filter(Boolean).map(tag => <Badge key={tag} variant="destructive" className="bg-red-500/20 border-red-500/30 text-red-300">{tag}</Badge>)}
+                                            {(editingEntry.review?.mistakesTags || "None").split(',').filter(Boolean).map(tag => <Badge key={tag} variant="destructive" className={cn(tag === "None (disciplined)" ? "bg-green-500/20 border-green-500/30 text-green-300" : "bg-red-500/20 border-red-500/30 text-red-300")}>{tag}</Badge>)}
                                         </div>
                                     </div>
                                     <div>
@@ -1420,7 +1420,9 @@ function PendingReviewTab({ entries, onSetModule, updateEntry }: { entries: Jour
                                         </p>
                                     </div>
                                 </div>
-                                <div className="flex flex-col gap-2 w-full md:w-auto" onClick={(e) => {e.stopPropagation()}}>
+                                <div className="flex flex-col gap-2 w-full md:w-auto" onClick={(e) => {
+    e.stopPropagation();
+}}>
                                     <Button 
                                         className="w-full"
                                         onClick={() => handleToggleExpand(entry.id)}
@@ -1816,7 +1818,7 @@ export function TradeJournalModule({ onSetModule, draftId, journalEntries, updat
                 <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto md:mx-0">
                     <TabsTrigger value="pending">
                         Pending Review 
-                        {pendingCount > 0 && <Badge className="ml-2 bg-amber-500/80 text-white">{pendingCount}</Badge>}
+                        {pendingCount > 0 && <Badge className="ml-2 bg-amber-500/80 text-white hover:bg-amber-500">{pendingCount}</Badge>}
                     </TabsTrigger>
                     <TabsTrigger value="all">All Trades &amp; Filters</TabsTrigger>
                 </TabsList>
