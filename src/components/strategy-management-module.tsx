@@ -142,7 +142,7 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
                                         {selectedStrategy.riskRules.map((item, i) => <li key={i}>{item}</li>)}
                                     </ul>
                                 </div>
-                                <Button variant="link" className="px-0 text-primary/90 hover:text-primary" onClick={() => onSetModule('tradeJournal')}>
+                                <Button variant="link" className="px-0 text-primary/90 hover:text-primary" onClick={() => onSetModule('tradeJournal', { filters: { strategy: selectedStrategy.name } })}>
                                     View trades using this strategy <ArrowRight className="ml-2 h-4 w-4" />
                                 </Button>
                             </CardContent>
@@ -160,5 +160,3 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
         </div>
     );
 }
-
-    

@@ -353,7 +353,7 @@ function PerformanceSummary({ dailyPnl7d, dailyPnl30d, performanceState, hasHist
                                 <Bar dataKey="pnl" radius={2} />
                             </BarChart>
                         </ChartContainer>
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground mt-4">
+                        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-xs text-muted-foreground mt-4">
                             <p>
                                 <span className="font-semibold text-foreground">Arjun's view:</span> {getArjunPerformanceView()}
                                 <Button 
@@ -369,6 +369,11 @@ function PerformanceSummary({ dailyPnl7d, dailyPnl30d, performanceState, hasHist
                         </div>
                     </CardContent>
                 </Card>
+                <div className="text-right">
+                    <Button variant="link" className="text-xs text-muted-foreground" onClick={() => onSetModule('tradeJournal')}>
+                        View underlying journal entries <ArrowRight className="ml-2 h-3 w-3" />
+                    </Button>
+                </div>
             </CardContent>
         </Card>
     );

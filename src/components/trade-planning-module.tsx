@@ -1198,19 +1198,13 @@ function ExecutionOptions({ form, onSetModule, executionHeadingRef }: { form: an
                     <Separator />
                     <div className="space-y-3 pt-2">
                         <p className="text-sm font-semibold text-foreground">
-                            A draft journal entry has been created.
+                            A journal draft has been created.
                         </p>
                         <p className="text-xs text-muted-foreground">
-                            Update it now with screenshots and final thoughts, or come back to it later from the Journal module.
+                            A draft for this trade has been created. You can <Button variant="link" size="sm" className="p-0 h-auto text-xs" onClick={() => onSetModule('tradeJournal', { draftId: executionResult.draftId })}>view it in your journal</Button> to add notes and psychological context.
                         </p>
                         <div className="flex flex-col sm:flex-row gap-2 pt-2">
-                             <Button 
-                                className="w-full"
-                                onClick={() => onSetModule('tradeJournal', { draftId: executionResult.draftId })}
-                            >
-                                Open in Journal
-                            </Button>
-                             <Button 
+                            <Button 
                                 variant="outline" 
                                 className="w-full"
                                 onClick={() => {
@@ -1221,10 +1215,6 @@ function ExecutionOptions({ form, onSetModule, executionHeadingRef }: { form: an
                                 Back to Dashboard
                             </Button>
                         </div>
-                         <Button variant="link" size="sm" className="text-xs text-muted-foreground h-auto p-0" onClick={() => onSetModule('tradeJournal')}>
-                            <Bookmark className="mr-1 h-3 w-3" />
-                            View all journal entries
-                        </Button>
                     </div>
                 </CardContent>
             </Card>
