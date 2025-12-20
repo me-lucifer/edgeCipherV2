@@ -90,18 +90,48 @@ function ChartWidgetShell({ tvSymbol, interval, chartTheme }: { tvSymbol: string
     }
     
     return (
-        <>
-            <div className="flex flex-col items-center justify-center text-center text-muted-foreground flex-1">
-                <LineChart className="mx-auto h-24 w-24 opacity-10" />
-                <p className="mt-4">TradingView Widget Placeholder</p>
+        <div className="relative w-full h-full overflow-hidden">
+            {/* Grid background */}
+            <div className="absolute inset-0 bg-transparent bg-[linear-gradient(to_right,hsl(var(--border)_/_0.2)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--border)_/_0.2)_1px,transparent_1px)] bg-[size:2rem_2rem]"></div>
+            
+            {/* Mock Y-axis labels */}
+            <div className="absolute top-0 bottom-0 right-0 w-16 flex flex-col justify-around text-xs text-muted-foreground/50 text-right pr-2 pointer-events-none">
+                <span>69,000</span>
+                <span>68,500</span>
+                <span>68,000</span>
+                <span>67,500</span>
             </div>
-             <p className="absolute bottom-4 left-4 text-xs text-muted-foreground/50">
+
+            {/* Mock X-axis labels */}
+            <div className="absolute bottom-0 left-0 right-16 h-8 flex justify-around items-center text-xs text-muted-foreground/50 pointer-events-none">
+                <span>09:00</span>
+                <span>12:00</span>
+                <span>15:00</span>
+                <span>18:00</span>
+            </div>
+            
+            {/* Mock Candles */}
+            <div className="absolute inset-0 flex items-end justify-around px-8 pointer-events-none">
+                <div className="w-4 h-[40%] bg-green-500/30 rounded-t-sm" />
+                <div className="w-4 h-[30%] bg-red-500/30 rounded-t-sm" />
+                <div className="w-4 h-[60%] bg-green-500/30 rounded-t-sm" />
+                <div className="w-4 h-[50%] bg-green-500/30 rounded-t-sm" />
+                <div className="w-4 h-[70%] bg-red-500/30 rounded-t-sm" />
+                <div className="w-4 h-[55%] bg-green-500/30 rounded-t-sm" />
+            </div>
+
+            {/* Mock Moving Average */}
+            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                <path d="M 0 60 Q 20 50, 40 65 T 80 55 T 100 70" stroke="hsl(var(--primary) / 0.4)" fill="transparent" strokeWidth="0.5" />
+            </svg>
+
+            <p className="absolute bottom-4 left-4 text-xs text-muted-foreground/50">
                 Recreated for {tvSymbol} · {interval} · {chartTheme}
             </p>
-            <p className="absolute bottom-4 right-4 text-xs text-muted-foreground/50">
+            <p className="absolute bottom-4 right-20 text-xs text-muted-foreground/50">
                 Phase 1 prototype: replace this box with real TradingView widget integration.
             </p>
-        </>
+        </div>
     );
 }
 
@@ -612,3 +642,5 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
 
     
 }
+
+    
