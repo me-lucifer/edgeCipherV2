@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { BarChartHorizontal, Check, ChevronsUpDown, Send, Sun, Moon, Maximize, Minimize, LineChart, Bot, AlertTriangle, Loader2, RefreshCw, ArrowRight, Info, XCircle, X } from "lucide-react";
 import { Card, CardContent } from "./ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -40,12 +40,35 @@ const multiTimeframeIntervals = [
     { label: "Micro: 1m", value: "1" },
 ]
 
-const arjunTips = [
-    "Mark major swing highs and lows before planning a trade.",
-    "Check multiple timeframes before committing.",
-    "Combine chart with your Strategy rules — no random trades.",
-    "Use this chart to spot clean, logical setups, not to chase candles.",
-]
+const arjunTipSets = {
+    general: [
+        "Mark major swing highs and lows before planning a trade.",
+        "Check multiple timeframes before committing.",
+        "Combine chart with your Strategy rules — no random trades.",
+        "Use this chart to spot clean, logical setups, not to chase candles.",
+    ],
+    low_tf: [
+        "Lower timeframes have more noise. Is this move significant on the 1-hour?",
+        "Scalping requires extreme discipline. Stick to your plan, exit when invalidated.",
+        "Avoid chasing small wicks on the 1-minute chart. Wait for clear structure."
+    ],
+    high_tf: [
+        "On higher timeframes, be patient. Setups can take hours or days to form.",
+        "Your SL might need to be wider here to account for volatility.",
+        "A 4h candle closing against you is a strong signal. Respect it."
+    ],
+    high_vol: [
+        "Wicks will be violent in high volatility. Place SL where it survives chaos, not hope.",
+        "Consider reducing your size until the market calms down.",
+        "Wait for clearer confirmation. Breakouts can easily fail in this environment."
+    ],
+    drawdown: [
+        "When in a drawdown, focus on only A+ setups. Skip marginal charts, even if they ‘look interesting’.",
+        "Protect your capital. The goal is to stop the bleeding, not to make it all back in one trade.",
+        "Review your journal for past trades in similar conditions. What worked? What didn't?"
+    ]
+};
+
 
 function ChartWidgetShell({ tvSymbol, interval, chartTheme }: { tvSymbol: string; interval: string; chartTheme: 'dark' | 'light' }) {
     const [isLoading, setIsLoading] = useState(true);
@@ -311,6 +334,28 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
         'drawdown': "In Drawdown",
         'no_positions': "New User"
     }[scenario];
+
+    const arjunTips = useMemo(() => {
+        let selectedTips: string[] = [...arjunTipSets.general];
+        const numInterval = Number(interval);
+
+        if (scenario === 'high_vol') {
+            selectedTips = [...selectedTips, ...arjunTipSets.high_vol];
+        } else if (scenario === 'drawdown') {
+            selectedTips = [...selectedTips, ...arjunTipSets.drawdown];
+        }
+
+        if (!isNaN(numInterval)) {
+            if (numInterval <= 15) {
+                selectedTips = [...selectedTips, ...arjunTipSets.low_tf];
+            } else if (numInterval >= 240) {
+                 selectedTips = [...selectedTips, ...arjunTipSets.high_tf];
+            }
+        }
+        // Return a shuffled and unique set of tips, prioritizing contextual ones
+        return [...new Set(selectedTips)].sort(() => 0.5 - Math.random()).slice(0, 4);
+    }, [interval, scenario]);
+
 
     return (
         <div className={cn("flex flex-col h-full space-y-4 transition-all duration-300", isFullscreen && "fixed inset-0 bg-background z-50 p-4")}>
