@@ -2,6 +2,7 @@
 "use client";
 
 import { BarChartHorizontal } from "lucide-react";
+import { Card } from "./ui/card";
 
 interface ChartModuleProps {
     onSetModule: (module: any, context?: any) => void;
@@ -9,20 +10,26 @@ interface ChartModuleProps {
 
 export function ChartModule({ onSetModule }: ChartModuleProps) {
     return (
-        <div className="flex flex-1 items-center justify-center p-4 sm:p-6 lg:p-8 h-full">
-            <div className="text-center max-w-md mx-auto">
-                <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-6 border border-dashed border-border">
-                    <BarChartHorizontal className="h-8 w-8 text-muted-foreground" />
-                </div>
-                <h2 className="text-2xl font-bold text-foreground">
-                    Chart
-                </h2>
-                <p className="mt-2 text-muted-foreground">
-                    Visual workspace to identify setups before trade planning.
+        <div className="flex flex-col h-full space-y-8">
+            <div>
+                <h1 className="text-2xl font-bold tracking-tight text-foreground">Chart</h1>
+                <p className="text-muted-foreground">
+                    Use the chart to analyze, then hand off to Trade Planning.
                 </p>
-                <p className="mt-4 text-sm font-semibold text-primary/80">
-                    This feature is coming soon!
-                </p>
+            </div>
+            
+            <Card className="h-16 bg-muted/30 border-border/50">
+                {/* Toolbar will go here */}
+            </Card>
+
+            <div className="flex-1 min-h-0">
+                <Card className="h-full bg-muted/30 border-border/50 flex items-center justify-center border-2 border-dashed">
+                    <div className="text-center text-muted-foreground">
+                        <BarChartHorizontal className="mx-auto h-12 w-12" />
+                        <p className="mt-4">Chart container area</p>
+                        <p className="text-xs">TradingView chart will be loaded here.</p>
+                    </div>
+                </Card>
             </div>
         </div>
     );
