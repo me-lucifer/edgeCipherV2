@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -183,11 +184,11 @@ function WorkflowHintBar({ isVisible, onDismiss }: { isVisible: boolean, onDismi
         <Alert className="bg-primary/10 border-primary/20 text-foreground flex items-center justify-between">
             <div className="flex items-center gap-3">
                 <Info className="h-4 w-4 text-primary" />
-                <AlertDescription className="text-xs text-primary-light">
+                <AlertDescription className="text-xs text-primary/80">
                     <span className="font-semibold">Step 1:</span> Analyze here. <span className="font-semibold">Step 2:</span> Click ‘Send to Trade Planning’ to structure your trade.
                 </AlertDescription>
             </div>
-            <Button variant="ghost" size="sm" className="text-xs h-auto py-1 px-2 text-primary-light hover:text-primary" onClick={onDismiss}>
+            <Button variant="ghost" size="sm" className="text-xs h-auto py-1 px-2 text-primary/80 hover:text-primary" onClick={onDismiss}>
                 Hide
             </Button>
         </Alert>
@@ -549,7 +550,7 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
                     
                      {/* Theme Toggle */}
                     <div className="flex items-center space-x-2">
-                        <Label htmlFor="chart-theme" className="text-sm text-muted-foreground">Theme</Label>
+                        <Label htmlFor="chart-theme" className="text-sm text-muted-foreground">Chart Theme</Label>
                         <Switch id="chart-theme" checked={chartTheme === 'dark'} onCheckedChange={handleThemeChange} />
                         {chartTheme === 'dark' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
                     </div>
@@ -712,5 +713,3 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
 
     
 }
-
-    
