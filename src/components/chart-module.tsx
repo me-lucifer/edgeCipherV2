@@ -187,16 +187,18 @@ function Phase1InfoBox({ onDismiss }: { onDismiss: () => void }) {
 function WorkflowHintBar({ isVisible, onDismiss }: { isVisible: boolean, onDismiss: () => void }) {
     if (!isVisible) return null;
     return (
-        <Alert className="bg-primary/10 border-primary/20 text-foreground flex items-center justify-between">
-            <div className="flex items-center gap-3">
-                <Info className="h-4 w-4 text-primary" />
-                <AlertDescription className="text-sm">
-                    <span className="font-semibold text-primary">Step 1:</span> Analyze here. <span className="font-semibold text-primary">Step 2:</span> Click ‘Send to Trade Planning’ to structure your trade.
-                </AlertDescription>
+        <Alert className="bg-primary/10 border-primary/20 text-foreground">
+             <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <Info className="h-4 w-4 text-primary" />
+                    <AlertDescription className="text-sm">
+                        <span className="font-semibold text-primary">Step 1:</span> Analyze here. <span className="font-semibold text-primary">Step 2:</span> Click ‘Send to Trade Planning’ to structure your trade.
+                    </AlertDescription>
+                </div>
+                <Button variant="ghost" size="sm" className="text-xs h-auto py-1 px-2 text-primary hover:text-primary" onClick={onDismiss}>
+                    Hide
+                </Button>
             </div>
-            <Button variant="ghost" size="sm" className="text-xs h-auto py-1 px-2 text-primary hover:text-primary" onClick={onDismiss}>
-                Hide
-            </Button>
         </Alert>
     );
 }
@@ -676,17 +678,25 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
                 <Card className="h-full bg-muted/30 border-border/50 flex flex-col items-center justify-center relative border-2 border-dashed">
                      {selectedProduct ? (
                         <>
-                            {chartAvailability === 'unavailable' && (
-                                <div className="absolute top-0 inset-x-0 z-10 p-2 bg-amber-900/90 text-amber-200 text-center text-sm">
-                                    <div className="flex items-center justify-center gap-2">
-                                        <AlertTriangle className="h-4 w-4" />
-                                        <div>
-                                            <p className="font-semibold">Chart not available for this instrument.</p>
-                                            <p className="text-xs">You can still proceed with Trade Planning.</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
+                           {chartAvailability === 'unavailable' && (
+                               <div className="absolute inset-0 z-10 flex items-center justify-center bg-muted/90 p-4">
+                                   <Alert variant="default" className="bg-amber-950/70 border-amber-500/30 text-amber-300 max-w-lg">
+                                       <AlertTriangle className="h-4 w-4 text-amber-400" />
+                                       <AlertTitle className="text-amber-400">Chart not available for this instrument</AlertTitle>
+                                       <AlertDescription>
+                                            <p>This can happen for certain pairs on the free TradingView widget. You can still plan a trade manually.</p>
+                                            <div className="mt-4 flex gap-2">
+                                                <Button variant="secondary" onClick={handleSendToPlanning}>
+                                                    Proceed to Trade Planning
+                                                </Button>
+                                                <Button variant="outline" onClick={() => instrumentSelectorRef.current?.click()}>
+                                                    Pick another instrument
+                                                </Button>
+                                            </div>
+                                       </AlertDescription>
+                                   </Alert>
+                               </div>
+                           )}
 
                             <div className={cn("absolute top-4 left-4 text-left p-2 rounded-lg bg-background/50 backdrop-blur-sm z-10", isFullscreen && "hidden")}>
                                 <h3 className="font-semibold text-foreground text-sm">{tvSymbol} · {selectedIntervalLabel}</h3>
@@ -705,11 +715,6 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
                                     interval={selectedIntervalLabel}
                                     chartTheme={chartTheme}
                                 />
-                            ) : chartAvailability === 'unavailable' ? (
-                                <div className="flex flex-col items-center justify-center text-center text-muted-foreground flex-1">
-                                    <BarChartHorizontal className="mx-auto h-16 w-16 opacity-10" />
-                                    <p className="mt-4">No chart data available for this instrument.</p>
-                                </div>
                             ) : null}
                         </>
                     ) : (
