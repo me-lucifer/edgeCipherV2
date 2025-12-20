@@ -787,7 +787,7 @@ function WhatIfRiskSlider({ control, form }: { control: any; form: ReturnType<ty
     );
 }
 
-function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, planContext, isNewUser, currentStep, draftToResume, onResume, onDiscard }: { form: any, onSetModule: any, setPlanStatus: any, onApplyTemplate: (templateId: string) => void, planContext?: TradePlanningModuleProps['planContext'], isNewUser: boolean, currentStep: TradePlanStep, draftToResume: SavedDraft | null, onResume: () => void, onDiscard: () => void }) {
+function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser, currentStep, draftToResume, onResume, onDiscard }: { form: any, onSetModule: any, setPlanStatus: any, onApplyTemplate: (templateId: string) => void, isNewUser: boolean, currentStep: TradePlanStep, draftToResume: SavedDraft | null, onResume: () => void, onDiscard: () => void }) {
     const entryType = useWatch({ control: form.control, name: 'entryType' });
     const strategyId = useWatch({ control: form.control, name: 'strategyId' });
     
@@ -976,6 +976,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, planConte
                         <div className="mx-auto w-full max-w-2xl p-4 md:p-6" role="dialog" aria-modal="true" aria-labelledby="strategy-drawer-title">
                             <DrawerHeader>
                                 <DrawerTitle className="text-2xl" id="strategy-drawer-title">{viewedStrategy.name}</DrawerTitle>
+
                                 <DrawerDescription>{viewedStrategy.description}</DrawerDescription>
                             </DrawerHeader>
                             <div className="px-4 py-6 space-y-6">
@@ -1531,6 +1532,9 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
                 const parsedContext = JSON.parse(storedContext);
                 setInitialContext(parsedContext);
                 form.setValue('instrument', parsedContext.instrument);
+                if (parsedContext.direction) {
+                  form.setValue('direction', parsedContext.direction);
+                }
                 localStorage.removeItem('ec_trade_planning_context');
             } else if (planContext) {
                 setInitialContext(planContext);
@@ -1856,7 +1860,7 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onValidSubmit, onInvalidSubmit)} className="space-y-8">
 
-                    {currentStep === "plan" && <PlanStep form={form} onSetModule={onSetModule} setPlanStatus={setPlanStatus} onApplyTemplate={handleApplyTemplate} planContext={planContext} isNewUser={isNewUser} currentStep={currentStep} draftToResume={draftToResume} onResume={handleResumeDraft} onDiscard={handleDiscardDraft} />}
+                    {currentStep === "plan" && <PlanStep form={form} onSetModule={onSetModule} setPlanStatus={setPlanStatus} onApplyTemplate={handleApplyTemplate} isNewUser={isNewUser} currentStep={currentStep} draftToResume={draftToResume} onResume={handleResumeDraft} onDiscard={handleDiscardDraft} />}
                     {currentStep === "review" && <ReviewStep form={form} onSetModule={onSetModule} onSetStep={setCurrentStep} arjunFeedbackAccepted={arjunFeedbackAccepted} setArjunFeedbackAccepted={setArjunFeedbackAccepted} planStatus={planStatus} reviewHeadingRef={reviewHeadingRef} />}
                     {currentStep === "execute" && <ExecuteStep form={form} onSetModule={onSetModule} onSetStep={setCurrentStep} planStatus={planStatus} executionHeadingRef={executionHeadingRef} />}
 
@@ -1894,5 +1898,3 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
         </div>
     );
 }
-
-    
