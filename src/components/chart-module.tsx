@@ -2,9 +2,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { BarChartHorizontal, Check, ChevronsUpDown, Send, Sun, Moon, Maximize, Minimize, LineChart } from "lucide-react";
+import { BarChartHorizontal, Check, ChevronsUpDown, Send, Sun, Moon, Maximize, Minimize, LineChart, Bot } from "lucide-react";
 import { Card, CardContent } from "./ui/card";
-import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
@@ -37,6 +37,13 @@ const intervals = [
     { label: "4h", value: "240" },
     { label: "1D", value: "D" },
 ];
+
+const arjunTips = [
+    "Mark major swing highs and lows before planning a trade.",
+    "Check multiple timeframes before committing.",
+    "Combine chart with your Strategy rules — no random trades.",
+    "Use this chart to spot clean, logical setups, not to chase candles.",
+]
 
 export function ChartModule({ onSetModule }: ChartModuleProps) {
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -251,8 +258,25 @@ export function ChartModule({ onSetModule }: ChartModuleProps) {
                             <p className="mt-4">Choose an instrument from the toolbar to load its chart.</p>
                         </div>
                     )}
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button variant="outline" size="icon" className="absolute bottom-4 left-4 z-10 rounded-full shadow-lg bg-background/50 backdrop-blur-sm">
+                                <Bot className="h-5 w-5 text-primary" />
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent side="top" align="start" className="w-80">
+                            <div className="space-y-4">
+                                <h4 className="font-semibold leading-none">Arjun's Chart Tips</h4>
+                                <ul className="space-y-2 text-sm text-muted-foreground list-disc list-inside">
+                                    {arjunTips.map((tip, i) => <li key={i}>{tip}</li>)}
+                                </ul>
+                                <p className="text-xs text-muted-foreground/80 italic">In future phases, Arjun will analyze your charts and volatility for you.</p>
+                            </div>
+                        </PopoverContent>
+                    </Popover>
                 </Card>
             </div>
         </div>
     );
-}
+
+    
