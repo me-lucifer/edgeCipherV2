@@ -19,6 +19,16 @@ import type { ModuleContext } from "./authenticated-app-shell";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import type { DemoScenario } from "./dashboard-module";
 import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 interface ChartModuleProps {
     onSetModule: (module: any, context?: ModuleContext) => void;
@@ -198,7 +208,8 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
     const [scenario, setScenario] = useState<DemoScenario>('normal');
     const [chartInstanceKey, setChartInstanceKey] = useState(0);
     const { toast } = useToast();
-
+    const [showThemeChangeDialog, setShowThemeChangeDialog] = useState(false);
+    const [pendingTheme, setPendingTheme] = useState<"dark" | "light" | null>(null);
 
     useEffect(() => {
         if (typeof window !== "undefined") {
@@ -372,8 +383,23 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
         const intervalLabel = intervals.find(i => i.value === newInterval)?.label || newInterval;
         toast({
             title: `Interval changed to: ${intervalLabel}`,
+            description: "Note: In this prototype, changing interval resets drawings."
         })
     }
+
+    const handleThemeChange = (checked: boolean) => {
+        const newTheme = checked ? 'dark' : 'light';
+        setPendingTheme(newTheme);
+        setShowThemeChangeDialog(true);
+    };
+
+    const confirmThemeChange = () => {
+        if (pendingTheme) {
+            setChartTheme(pendingTheme);
+        }
+        setShowThemeChangeDialog(false);
+        setPendingTheme(null);
+    };
 
     const selectedIntervalLabel = intervals.find(i => i.value === interval)?.label || interval;
     const scenarioLabel = {
@@ -407,6 +433,20 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
 
     return (
         <div className={cn("flex flex-col h-full space-y-4 transition-all duration-300", isFullscreen && "fixed inset-0 bg-background z-50 p-4")}>
+            <AlertDialog open={showThemeChangeDialog} onOpenChange={setShowThemeChangeDialog}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Switch chart theme?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will reload the chart widget and reset any drawings you've made (Phase 1 prototype limitation).
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setPendingTheme(null)}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={confirmThemeChange}>Switch theme</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
             <div className={cn("flex items-center justify-between", !isFullscreen && "hidden")}>
                 {selectedProduct && (
                     <div className="text-left">
@@ -510,7 +550,7 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
                      {/* Theme Toggle */}
                     <div className="flex items-center space-x-2">
                         <Label htmlFor="chart-theme" className="text-sm text-muted-foreground">Theme</Label>
-                        <Switch id="chart-theme" checked={chartTheme === 'dark'} onCheckedChange={(checked) => setChartTheme(checked ? 'dark' : 'light')} />
+                        <Switch id="chart-theme" checked={chartTheme === 'dark'} onCheckedChange={handleThemeChange} />
                         {chartTheme === 'dark' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
                     </div>
 
