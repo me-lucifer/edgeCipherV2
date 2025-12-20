@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { BarChartHorizontal, Check, ChevronsUpDown, Send, Sun, Moon, Maximize, Minimize, LineChart, Bot, AlertTriangle, Loader2, RefreshCw } from "lucide-react";
+import { BarChartHorizontal, Check, ChevronsUpDown, Send, Sun, Moon, Maximize, Minimize, LineChart, Bot, AlertTriangle, Loader2, RefreshCw, ArrowRight } from "lucide-react";
 import { Card, CardContent } from "./ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -15,9 +15,11 @@ import { Badge } from "./ui/badge";
 import { useDeltaProducts, type Product } from "@/hooks/use-delta-products";
 import { Skeleton } from "./ui/skeleton";
 import { formatDistanceToNow } from "date-fns";
+import type { ModuleContext } from "./authenticated-app-shell";
 
 interface ChartModuleProps {
-    onSetModule: (module: any, context?: any) => void;
+    onSetModule: (module: any, context?: ModuleContext) => void;
+    planContext?: ModuleContext['planContext'];
 }
 
 const intervals = [
@@ -71,7 +73,7 @@ function ChartWidgetShell({ tvSymbol, interval, chartTheme }: { tvSymbol: string
     );
 }
 
-export function ChartModule({ onSetModule }: ChartModuleProps) {
+export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
     const { products, isLoading: isProductsLoading, error: productsError, loadProducts, cacheInfo } = useDeltaProducts();
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
     const [tvSymbol, setTvSymbol] = useState<string>("");
@@ -83,24 +85,38 @@ export function ChartModule({ onSetModule }: ChartModuleProps) {
 
 
     useEffect(() => {
-        if (typeof window !== "undefined" && products.length > 0 && !selectedProduct) {
-            const savedProduct = localStorage.getItem("ec_chart_last_product");
-            const savedInterval = localStorage.getItem("ec_chart_last_interval");
-            const savedTheme = localStorage.getItem("ec_chart_theme") as "dark" | "light";
-
-            let productToSet = products[0];
-            if (savedProduct) {
-                try {
-                    const parsedProduct = JSON.parse(savedProduct);
-                    const foundProduct = products.find(p => p.id === parsedProduct.id);
-                    if (foundProduct) {
-                        productToSet = foundProduct;
-                    }
-                } catch (e) {
-                    // Fallback to default
+        if (typeof window !== "undefined" && products.length > 0) {
+            let productToSet: Product | null = null;
+            
+            // 1. Check for context from another module
+            if (planContext?.instrument) {
+                const productFromContext = products.find(p => p.id === planContext.instrument);
+                if (productFromContext) {
+                    productToSet = productFromContext;
                 }
             }
-            handleProductSelect(productToSet);
+            
+            // 2. If no context, check localStorage
+            if (!productToSet) {
+                const savedProduct = localStorage.getItem("ec_chart_last_product");
+                if (savedProduct) {
+                    try {
+                        const parsedProduct = JSON.parse(savedProduct);
+                        const foundProduct = products.find(p => p.id === parsedProduct.id);
+                        if (foundProduct) {
+                            productToSet = foundProduct;
+                        }
+                    } catch (e) { /* fallback to default */ }
+                }
+            }
+            
+            // 3. Set the product (or do nothing if none is found/set)
+            if (productToSet) {
+                handleProductSelect(productToSet);
+            }
+
+            const savedInterval = localStorage.getItem("ec_chart_last_interval");
+            const savedTheme = localStorage.getItem("ec_chart_theme") as "dark" | "light";
             
             if (savedInterval && intervals.some(i => i.value === savedInterval)) {
                 setInterval(savedInterval);
@@ -111,7 +127,7 @@ export function ChartModule({ onSetModule }: ChartModuleProps) {
             }
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [products]);
+    }, [products, planContext]);
 
     useEffect(() => {
         if (typeof window !== "undefined" && selectedProduct) {
@@ -164,6 +180,13 @@ export function ChartModule({ onSetModule }: ChartModuleProps) {
                     origin: 'Chart Module'
                 }
             });
+        }
+    };
+    
+    const handleSelectDefault = () => {
+        const btcProduct = products.find(p => p.id === 'BTC-PERP');
+        if (btcProduct) {
+            handleProductSelect(btcProduct);
         }
     };
 
@@ -341,7 +364,7 @@ export function ChartModule({ onSetModule }: ChartModuleProps) {
                             ) : null}
                         </>
                     ) : (
-                        <div className="text-center text-muted-foreground">
+                        <div className="text-center text-muted-foreground p-8">
                             {isProductsLoading ? (
                                 <>
                                     <Loader2 className="mx-auto h-12 w-12 animate-spin" />
@@ -349,8 +372,17 @@ export function ChartModule({ onSetModule }: ChartModuleProps) {
                                 </>
                             ) : (
                                 <>
-                                    <BarChartHorizontal className="mx-auto h-12 w-12" />
-                                    <p className="mt-4">Choose an instrument from the toolbar to load its chart.</p>
+                                    <BarChartHorizontal className="mx-auto h-12 w-12 opacity-50" />
+                                    <h3 className="mt-4 text-lg font-semibold text-foreground">No instrument selected</h3>
+                                    <p className="mt-1 text-sm">
+                                        Pick an instrument from the toolbar to load its TradingView chart.
+                                    </p>
+                                    <div className="mt-6 flex justify-center gap-2">
+                                        <Button onClick={handleSelectDefault}>Use BTC-PERP (default)</Button>
+                                        <Button variant="ghost" onClick={() => onSetModule('dashboard')}>
+                                            Back to Dashboard <ArrowRight className="ml-2 h-4 w-4" />
+                                        </Button>
+                                    </div>
                                 </>
                             )}
                         </div>
@@ -378,3 +410,5 @@ export function ChartModule({ onSetModule }: ChartModuleProps) {
 
     
 }
+
+    

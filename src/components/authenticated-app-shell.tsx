@@ -172,7 +172,7 @@ function ModuleView({ currentModule, onSetModule, moduleContext, isLoading, jour
     }
     
     if (currentModule === 'chart') {
-      return <ChartModule onSetModule={onSetModule} />;
+      return <ChartModule onSetModule={onSetModule} planContext={moduleContext?.planContext} />;
     }
 
     if (currentModule === 'analytics') {
@@ -577,3 +577,5 @@ export function AuthenticatedAppShell() {
     </TooltipProvider>
   );
 }
+
+    
