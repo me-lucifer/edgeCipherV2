@@ -12,22 +12,11 @@ import { Label } from "./ui/label";
 import { Switch } from "./ui/switch";
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { Badge } from "./ui/badge";
+import { useDeltaProducts, type Product } from "@/hooks/use-delta-products";
 
 interface ChartModuleProps {
     onSetModule: (module: any, context?: any) => void;
 }
-
-type Product = {
-    id: string;
-    symbol: string;
-    name?: string;
-};
-
-const mockProducts: Product[] = [
-    { id: "BTC-PERP", symbol: "BTCUSDT", name: "Bitcoin Perpetual" },
-    { id: "ETH-PERP", symbol: "ETHUSDT", name: "Ethereum Perpetual" },
-    { id: "SOL-PERP", symbol: "SOLUSDT", name: "Solana Perpetual" },
-];
 
 const intervals = [
     { label: "1m", value: "1" },
@@ -46,36 +35,33 @@ const arjunTips = [
 ]
 
 export function ChartModule({ onSetModule }: ChartModuleProps) {
+    const { products, isLoading: isProductsLoading, error: productsError } = useDeltaProducts();
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
     const [tvSymbol, setTvSymbol] = useState<string>("");
     const [interval, setInterval] = useState<string>("60");
     const [chartTheme, setChartTheme] = useState<"dark" | "light">("dark");
     const [isFullscreen, setIsFullscreen] = useState(false);
-    const [isProductsLoading, setIsProductsLoading] = useState(false);
-    const [productsError, setProductsError] = useState<string | null>(null);
     const [isSelectorOpen, setIsSelectorOpen] = useState(false);
 
     useEffect(() => {
-        if (typeof window !== "undefined") {
+        if (typeof window !== "undefined" && products.length > 0) {
             const savedProduct = localStorage.getItem("ec_chart_last_product");
             const savedInterval = localStorage.getItem("ec_chart_last_interval");
             const savedTheme = localStorage.getItem("ec_chart_theme") as "dark" | "light";
 
+            let productToSet = products[0];
             if (savedProduct) {
                 try {
-                    const product = JSON.parse(savedProduct);
-                    if (mockProducts.find(p => p.id === product.id)) {
-                        setSelectedProduct(product);
-                        setTvSymbol(`BINANCE:${product.symbol}`);
-                    } else {
-                         handleProductSelect(mockProducts[0]);
+                    const parsedProduct = JSON.parse(savedProduct);
+                    const foundProduct = products.find(p => p.id === parsedProduct.id);
+                    if (foundProduct) {
+                        productToSet = foundProduct;
                     }
                 } catch (e) {
-                    handleProductSelect(mockProducts[0]);
+                    // Fallback to default
                 }
-            } else {
-                 handleProductSelect(mockProducts[0]);
             }
+            handleProductSelect(productToSet);
             
             if (savedInterval && intervals.some(i => i.value === savedInterval)) {
                 setInterval(savedInterval);
@@ -86,7 +72,7 @@ export function ChartModule({ onSetModule }: ChartModuleProps) {
             }
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [products]);
 
     useEffect(() => {
         if (typeof window !== "undefined" && selectedProduct) {
@@ -158,8 +144,9 @@ export function ChartModule({ onSetModule }: ChartModuleProps) {
                                 role="combobox"
                                 aria-expanded={isSelectorOpen}
                                 className="w-[200px] justify-between"
+                                disabled={isProductsLoading}
                             >
-                                {selectedProduct ? selectedProduct.name : "Select instrument..."}
+                                {isProductsLoading ? "Loading..." : selectedProduct ? selectedProduct.name : "Select instrument..."}
                                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                             </Button>
                         </PopoverTrigger>
@@ -167,9 +154,10 @@ export function ChartModule({ onSetModule }: ChartModuleProps) {
                             <Command>
                                 <CommandInput placeholder="Search instrument..." />
                                 <CommandList>
-                                    <CommandEmpty>No products found.</CommandEmpty>
+                                    {productsError && <CommandEmpty>{productsError}</CommandEmpty>}
+                                    {!productsError && <CommandEmpty>No products found.</CommandEmpty>}
                                     <CommandGroup>
-                                        {mockProducts.map((product) => (
+                                        {products.map((product) => (
                                             <CommandItem
                                                 key={product.id}
                                                 value={product.id}
