@@ -1,6 +1,7 @@
 
 "use client";
 
+import { useState } from "react";
 import { BarChartHorizontal } from "lucide-react";
 import { Card } from "./ui/card";
 
@@ -8,7 +9,21 @@ interface ChartModuleProps {
     onSetModule: (module: any, context?: any) => void;
 }
 
+type Product = {
+    id: string;
+    symbol: string;
+    name?: string;
+};
+
 export function ChartModule({ onSetModule }: ChartModuleProps) {
+    const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+    const [tvSymbol, setTvSymbol] = useState<string>("BINANCE:BTCUSDT");
+    const [interval, setInterval] = useState<string>("60"); // 1h
+    const [chartTheme, setChartTheme] = useState<"dark" | "light">("dark");
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const [isProductsLoading, setIsProductsLoading] = useState(false);
+    const [productsError, setProductsError] = useState<string | null>(null);
+
     return (
         <div className="flex flex-col h-full space-y-8">
             <div>
