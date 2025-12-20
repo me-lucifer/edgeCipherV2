@@ -17,6 +17,7 @@ import { Skeleton } from "./ui/skeleton";
 import { formatDistanceToNow } from "date-fns";
 import type { ModuleContext } from "./authenticated-app-shell";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
+import type { DemoScenario } from "./dashboard-module";
 
 interface ChartModuleProps {
     onSetModule: (module: any, context?: ModuleContext) => void;
@@ -140,6 +141,7 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
     const [chartAvailability, setChartAvailability] = useState<'unknown' | 'ok' | 'unavailable'>('unknown');
     const [isInfoBoxVisible, setIsInfoBoxVisible] = useState(false);
     const [isHintBarVisible, setIsHintBarVisible] = useState(false);
+    const [scenario, setScenario] = useState<DemoScenario>('normal');
 
 
     useEffect(() => {
@@ -220,6 +222,24 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
         }
     }, [chartTheme]);
     
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const savedScenario = localStorage.getItem('ec_demo_scenario') as DemoScenario;
+            if (savedScenario) {
+                setScenario(savedScenario);
+            }
+            
+            const handleStorageChange = (e: StorageEvent) => {
+                if (e.key === 'ec_demo_scenario') {
+                    setScenario((e.newValue as DemoScenario) || 'normal');
+                }
+            };
+    
+            window.addEventListener('storage', handleStorageChange);
+            return () => window.removeEventListener('storage', handleStorageChange);
+        }
+    }, []);
+
     const handleProductSelect = (product: Product) => {
         setSelectedProduct(product);
         const newTvSymbol = mapDeltaToTradingView(product);
@@ -274,6 +294,12 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
     };
 
     const selectedIntervalLabel = intervals.find(i => i.value === interval)?.label || interval;
+    const scenarioLabel = {
+        'normal': "Normal Day",
+        'high_vol': "High Volatility",
+        'drawdown': "In Drawdown",
+        'no_positions': "New User"
+    }[scenario];
 
     return (
         <div className={cn("flex flex-col h-full space-y-4 transition-all duration-300", isFullscreen && "fixed inset-0 bg-background z-50 p-4")}>
@@ -446,10 +472,13 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
                                 </div>
                             )}
 
-                            <div className={cn("absolute top-4 left-4 text-left", isFullscreen && "hidden")}>
-                                <h3 className="font-semibold text-foreground">{tvSymbol}</h3>
-                                <p className="text-sm text-muted-foreground">
-                                    <Badge variant="secondary">{selectedIntervalLabel}</Badge>
+                            <div className={cn("absolute top-4 left-4 text-left p-2 rounded-lg bg-background/50 backdrop-blur-sm z-10", isFullscreen && "hidden")}>
+                                <h3 className="font-semibold text-foreground text-sm">{tvSymbol} · {selectedIntervalLabel}</h3>
+                                <p className="text-xs text-muted-foreground">
+                                    Product: {selectedProduct.id} (mock)
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                    Scenario: {scenarioLabel}
                                 </p>
                             </div>
                             
@@ -514,3 +543,5 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
 
     
 }
+
+    
