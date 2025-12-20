@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -1480,6 +1479,7 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
     const [showValidationBanner, setShowValidationBanner] = useState(false);
     const [draftToResume, setDraftToResume] = useState<SavedDraft | null>(null);
     const [isWalkthroughOpen, setIsWalkthroughOpen] = useState(false);
+    const [initialContext, setInitialContext] = useState(planContext);
 
     const reviewHeadingRef = useRef<HTMLDivElement>(null);
     const executionHeadingRef = useRef<HTMLDivElement>(null);
@@ -1520,20 +1520,24 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
             if (draftString) {
                 try {
                     const parsedDraft = JSON.parse(draftString);
-                    // Check if form is empty before showing resume banner
                     if(!form.formState.isDirty && !form.getValues('instrument')) {
                         setDraftToResume(parsedDraft);
                     }
-                } catch(e) {
-                    console.error("Could not parse trade plan draft:", e);
-                }
+                } catch(e) { console.error("Could not parse trade plan draft:", e); }
             }
 
-            if (planContext) {
-              form.setValue('instrument', planContext.instrument);
-              if (planContext.direction) {
-                form.setValue('direction', planContext.direction);
-              }
+            const storedContext = localStorage.getItem('ec_trade_planning_context');
+            if (storedContext) {
+                const parsedContext = JSON.parse(storedContext);
+                setInitialContext(parsedContext);
+                form.setValue('instrument', parsedContext.instrument);
+                localStorage.removeItem('ec_trade_planning_context');
+            } else if (planContext) {
+                setInitialContext(planContext);
+                form.setValue('instrument', planContext.instrument);
+                if (planContext.direction) {
+                    form.setValue('direction', planContext.direction);
+                }
             }
 
             const walkthroughSeen = localStorage.getItem('ec_trade_plan_walkthrough_seen');
@@ -1567,7 +1571,7 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
             window.removeEventListener('keydown', handleKeyDown);
         };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [toast, planContext, canProceedToReview, canProceedToExecution]);
+    }, [toast, canProceedToReview, canProceedToExecution]);
     
     useEffect(() => {
         if (currentStep === 'review' && reviewHeadingRef.current) {
@@ -1609,9 +1613,9 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
         };
 
         form.reset({
-            ...defaultValues, // Reset to defaults first
-            ...form.getValues(), // Keep existing values
-            ...template.values, // Overwrite with template values
+            ...defaultValues,
+            ...form.getValues(),
+            ...template.values,
         });
         localStorage.setItem("ec_trade_plan_last_template", templateId);
         toast({ title: `Template applied: ${template.name}` });
@@ -1769,12 +1773,12 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
                 </div>
             </div>
 
-            {planContext && (
+            {initialContext && (
                  <Alert variant="default" className="bg-primary/10 border-primary/20 text-primary">
                     <Sparkles className="h-4 w-4 text-primary" />
-                    <AlertTitle>Context from {planContext.origin}</AlertTitle>
+                    <AlertTitle>Context from {initialContext.origin}</AlertTitle>
                     <AlertDescription>
-                       You've been sent here to plan a trade for <strong className="font-semibold">{planContext.instrument}</strong>. All fields are pre-filled based on that context.
+                       You've been sent here to plan a trade for <strong className="font-semibold">{initialContext.instrument}</strong>.
                     </AlertDescription>
                 </Alert>
             )}
@@ -1890,3 +1894,5 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
         </div>
     );
 }
+
+    

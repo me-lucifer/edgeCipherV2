@@ -170,7 +170,7 @@ function Phase1InfoBox({ onDismiss }: { onDismiss: () => void }) {
 function WorkflowHintBar({ isVisible, onDismiss }: { isVisible: boolean, onDismiss: () => void }) {
     if (!isVisible) return null;
     return (
-        <Alert className="bg-muted/30 border-primary/20 text-foreground flex items-center justify-between">
+        <Alert className="bg-primary/10 border-primary/20 text-foreground flex items-center justify-between">
             <div className="flex items-center gap-3">
                 <Info className="h-4 w-4 text-primary" />
                 <AlertDescription className="text-xs text-primary/90">
@@ -322,14 +322,24 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
     };
 
     const handleSendToPlanning = () => {
-        if (selectedProduct) {
-            onSetModule('tradePlanning', { 
-                planContext: { 
-                    instrument: selectedProduct.id,
-                    origin: 'Chart Module'
-                }
+        if (!selectedProduct) {
+            toast({
+                variant: "destructive",
+                title: "No Instrument Selected",
+                description: "Choose an instrument before sending to Trade Planning.",
             });
+            return;
         }
+
+        const planningContext = {
+            source: 'chart',
+            instrument: selectedProduct.id,
+        };
+
+        if (typeof window !== 'undefined') {
+            localStorage.setItem("ec_trade_planning_context", JSON.stringify(planningContext));
+        }
+        onSetModule('tradePlanning', { planContext: planningContext });
     };
     
     const handleSelectDefault = () => {
@@ -412,8 +422,8 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
             
             {isInfoBoxVisible && !isFullscreen && <Phase1InfoBox onDismiss={dismissInfoBox} />}
             
-            <Card className="h-auto bg-muted/30 border-border/50">
-                <CardContent className="p-2 h-full flex flex-col md:flex-row items-start md:items-center gap-4 flex-wrap">
+            <Card className="bg-muted/30 border-border/50">
+                <CardContent className="p-2 flex flex-col md:flex-row flex-wrap items-start md:items-center gap-4">
                     {/* Instrument Selector */}
                     <Popover open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
                         <PopoverTrigger asChild>
@@ -497,10 +507,10 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
                     </div>
 
                     {/* Spacer */}
-                    <div className="flex-1" />
+                    <div className="flex-1 min-w-full md:min-w-0" />
 
                     {/* Action buttons */}
-                    <div className="flex items-center gap-2">
+                    <div className="flex w-full md:w-auto items-center gap-2">
                          <TooltipProvider>
                             <Tooltip>
                                 <TooltipTrigger asChild>
@@ -527,12 +537,21 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
                             </Tooltip>
                         </TooltipProvider>
                         
-                        <div className="text-right">
-                            <Button onClick={handleSendToPlanning} disabled={!selectedProduct}>
-                                <Send className="mr-2 h-4 w-4" />
-                                Send to Trade Planning
-                            </Button>
-                            <p className="text-xs text-muted-foreground/50 mt-1">No trading from here. All execution must pass Trade Planning first.</p>
+                        <div className="text-right flex-1">
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button onClick={handleSendToPlanning} disabled={!selectedProduct} className="w-full">
+                                            <Send className="mr-2 h-4 w-4" />
+                                            Send to Trade Planning
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>Pre-select this instrument in the Trade Planning module.</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                             <p className="text-xs text-muted-foreground/50 mt-1">No trading from here. All execution must pass Trade Planning first.</p>
                         </div>
                     </div>
 
@@ -645,3 +664,5 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
 
     
 }
+
+    
