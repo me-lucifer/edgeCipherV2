@@ -318,6 +318,11 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape' && isFullscreen) {
+                e.preventDefault();
+                setIsFullscreen(false);
+            }
+
             if (document.activeElement && ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
                 if (e.key !== 'Escape') return; // Allow escape to blur
             }
@@ -344,7 +349,7 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedProduct]);
+    }, [selectedProduct, isFullscreen]);
 
     const handleProductSelect = (product: Product) => {
         setSelectedProduct(product);
@@ -521,6 +526,7 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
                                 aria-expanded={isSelectorOpen}
                                 className="w-full sm:w-auto md:w-[200px] justify-between"
                                 disabled={isProductsLoading && products.length === 0}
+                                aria-label="Select trading instrument"
                             >
                                 {isProductsLoading && products.length === 0 ? "Loading..." : selectedProduct ? selectedProduct.name : "Select instrument..."}
                                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -573,7 +579,7 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
                     )}
 
                     {/* Interval Selector */}
-                    <div className="flex items-center gap-1 rounded-full bg-muted p-1">
+                    <div className="flex items-center gap-1 rounded-full bg-muted p-1" role="group" aria-label="Chart time interval">
                         {intervals.map(item => (
                             <Button
                                 key={item.value}
@@ -620,7 +626,7 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
                                     </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                    <p>{isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}</p>
+                                    <p>{isFullscreen ? 'Exit fullscreen (Esc)' : 'Enter fullscreen'}</p>
                                 </TooltipContent>
                             </Tooltip>
                         </TooltipProvider>
@@ -650,7 +656,7 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
             
             <div className="flex items-center gap-4">
                 <span className="text-xs font-semibold text-muted-foreground">Multi-timeframe view (manual)</span>
-                <div className="flex items-center gap-1 rounded-full bg-muted p-1">
+                <div className="flex items-center gap-1 rounded-full bg-muted p-1" role="group" aria-label="Multi-timeframe chart view">
                     {multiTimeframeIntervals.map(item => (
                         <Button
                             key={item.value}
