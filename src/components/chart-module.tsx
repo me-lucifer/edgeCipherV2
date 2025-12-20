@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { BarChartHorizontal, Check, ChevronsUpDown, Send, Sun, Moon, Maximize, Minimize, LineChart, Bot } from "lucide-react";
+import { BarChartHorizontal, Check, ChevronsUpDown, Send, Sun, Moon, Maximize, Minimize, LineChart, Bot, AlertTriangle } from "lucide-react";
 import { Card, CardContent } from "./ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -42,9 +42,11 @@ export function ChartModule({ onSetModule }: ChartModuleProps) {
     const [chartTheme, setChartTheme] = useState<"dark" | "light">("dark");
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [isSelectorOpen, setIsSelectorOpen] = useState(false);
+    const [chartAvailability, setChartAvailability] = useState<'unknown' | 'ok' | 'unavailable'>('unknown');
+
 
     useEffect(() => {
-        if (typeof window !== "undefined" && products.length > 0) {
+        if (typeof window !== "undefined" && products.length > 0 && !selectedProduct) {
             const savedProduct = localStorage.getItem("ec_chart_last_product");
             const savedInterval = localStorage.getItem("ec_chart_last_interval");
             const savedTheme = localStorage.getItem("ec_chart_theme") as "dark" | "light";
@@ -94,8 +96,16 @@ export function ChartModule({ onSetModule }: ChartModuleProps) {
     
     const handleProductSelect = (product: Product) => {
         setSelectedProduct(product);
-        setTvSymbol(mapDeltaToTradingView(product));
+        const newTvSymbol = mapDeltaToTradingView(product);
+        setTvSymbol(newTvSymbol);
         setIsSelectorOpen(false);
+
+        // Simulate availability check based on the mapped symbol
+        if (newTvSymbol.includes("UNKNOWN")) {
+            setChartAvailability('unavailable');
+        } else {
+            setChartAvailability('ok');
+        }
     };
 
     const mapDeltaToTradingView = (product: Product): string => {
@@ -106,7 +116,7 @@ export function ChartModule({ onSetModule }: ChartModuleProps) {
             const base = product.id.replace("-PERP", "");
             return `BINANCE:${base}USDT`;
         }
-        return `BINANCE:${product.symbol || product.id}`;
+        return `BINANCE:${product.symbol || "UNKNOWN"}`;
     };
 
     const handleSendToPlanning = () => {
@@ -166,7 +176,7 @@ export function ChartModule({ onSetModule }: ChartModuleProps) {
                                 <CommandInput placeholder="Search instrument..." />
                                 <CommandList>
                                     {productsError && <CommandEmpty>{productsError}</CommandEmpty>}
-                                    {!productsError && <CommandEmpty>No products found.</CommandEmpty>}
+                                    {!productsError && products.length === 0 && <CommandEmpty>No products found.</CommandEmpty>}
                                     <CommandGroup>
                                         {products.map((product) => (
                                             <CommandItem
@@ -237,16 +247,37 @@ export function ChartModule({ onSetModule }: ChartModuleProps) {
                 <Card className="h-full bg-muted/30 border-border/50 flex flex-col items-center justify-center relative border-2 border-dashed">
                      {selectedProduct ? (
                         <>
+                            {chartAvailability === 'unavailable' && (
+                                <div className="absolute top-0 inset-x-0 z-10 p-2 bg-amber-900/90 text-amber-200 text-center text-sm">
+                                    <div className="flex items-center justify-center gap-2">
+                                        <AlertTriangle className="h-4 w-4" />
+                                        <div>
+                                            <p className="font-semibold">Chart not available for this instrument.</p>
+                                            <p className="text-xs">You can still proceed with Trade Planning.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             <div className={cn("absolute top-4 left-4 text-left", isFullscreen && "hidden")}>
                                 <h3 className="font-semibold text-foreground">{tvSymbol}</h3>
                                 <p className="text-sm text-muted-foreground">
                                     <Badge variant="secondary">{selectedIntervalLabel}</Badge>
                                 </p>
                             </div>
-                            <div className="flex flex-col items-center justify-center text-center text-muted-foreground flex-1">
-                                <LineChart className="mx-auto h-24 w-24 opacity-10" />
-                                <p className="mt-4">TradingView Widget Placeholder</p>
-                            </div>
+                            
+                            {chartAvailability === 'ok' ? (
+                                <div className="flex flex-col items-center justify-center text-center text-muted-foreground flex-1">
+                                    <LineChart className="mx-auto h-24 w-24 opacity-10" />
+                                    <p className="mt-4">TradingView Widget Placeholder</p>
+                                </div>
+                            ) : chartAvailability === 'unavailable' ? (
+                                <div className="flex flex-col items-center justify-center text-center text-muted-foreground flex-1">
+                                    <BarChartHorizontal className="mx-auto h-16 w-16 opacity-10" />
+                                    <p className="mt-4">No chart data available for this instrument.</p>
+                                </div>
+                            ) : null}
+
                             <p className="absolute bottom-4 text-xs text-muted-foreground/50">
                                 Phase 1 prototype: replace this box with real TradingView widget integration.
                             </p>
@@ -277,6 +308,4 @@ export function ChartModule({ onSetModule }: ChartModuleProps) {
             </div>
         </div>
     );
-
-    
-
+}
