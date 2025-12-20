@@ -2,8 +2,8 @@
 
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { BarChartHorizontal, Check, ChevronsUpDown, Send, Sun, Moon, Maximize, Minimize, LineChart, Bot, AlertTriangle, Loader2, RefreshCw, ArrowRight, Info, XCircle, X } from "lucide-react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { BarChartHorizontal, Check, ChevronsUpDown, Send, Sun, Moon, Maximize, Minimize, LineChart, Bot, AlertTriangle, Loader2, RefreshCw, ArrowRight, Info, XCircle, X, Keyboard } from "lucide-react";
 import { Card, CardContent } from "./ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -79,6 +79,12 @@ const arjunTipSets = {
         "Review your journal for past trades in similar conditions. What worked? What didn't?"
     ]
 };
+
+const shortcuts = [
+    { keys: ["/"], label: "Focus instrument search" },
+    { keys: ["Alt", "1-6"], label: "Change time interval (1m to 1D)" },
+    { keys: ["Ctrl", "Enter"], label: "Send to Trade Planning" },
+];
 
 
 function ChartWidgetShell({ tvSymbol, interval, chartTheme }: { tvSymbol: string; interval: string; chartTheme: 'dark' | 'light' }) {
@@ -184,11 +190,11 @@ function WorkflowHintBar({ isVisible, onDismiss }: { isVisible: boolean, onDismi
         <Alert className="bg-primary/10 border-primary/20 text-foreground flex items-center justify-between">
             <div className="flex items-center gap-3">
                 <Info className="h-4 w-4 text-primary" />
-                <AlertDescription className="text-xs text-primary/80">
-                    <span className="font-semibold">Step 1:</span> Analyze here. <span className="font-semibold">Step 2:</span> Click ‘Send to Trade Planning’ to structure your trade.
+                <AlertDescription className="text-sm">
+                    <span className="font-semibold text-primary">Step 1:</span> Analyze here. <span className="font-semibold text-primary">Step 2:</span> Click ‘Send to Trade Planning’ to structure your trade.
                 </AlertDescription>
             </div>
-            <Button variant="ghost" size="sm" className="text-xs h-auto py-1 px-2 text-primary/80 hover:text-primary" onClick={onDismiss}>
+            <Button variant="ghost" size="sm" className="text-xs h-auto py-1 px-2 text-primary hover:text-primary" onClick={onDismiss}>
                 Hide
             </Button>
         </Alert>
@@ -211,6 +217,8 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
     const { toast } = useToast();
     const [showThemeChangeDialog, setShowThemeChangeDialog] = useState(false);
     const [pendingTheme, setPendingTheme] = useState<"dark" | "light" | null>(null);
+    const instrumentSelectorRef = useRef<HTMLButtonElement>(null);
+
 
     useEffect(() => {
         if (typeof window !== "undefined") {
@@ -307,6 +315,36 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
             return () => window.removeEventListener('storage', handleStorageChange);
         }
     }, []);
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (document.activeElement && ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+                if (e.key !== 'Escape') return; // Allow escape to blur
+            }
+
+            if (e.key === '/') {
+                e.preventDefault();
+                instrumentSelectorRef.current?.click();
+            }
+
+            if (e.altKey && e.key >= '1' && e.key <= '6') {
+                e.preventDefault();
+                const index = parseInt(e.key) - 1;
+                if (intervals[index]) {
+                    handleIntervalChange(intervals[index].value);
+                }
+            }
+            
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
+                handleSendToPlanning();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedProduct]);
 
     const handleProductSelect = (product: Product) => {
         setSelectedProduct(product);
@@ -477,6 +515,7 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
                     <Popover open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
                         <PopoverTrigger asChild>
                             <Button
+                                ref={instrumentSelectorRef}
                                 variant="outline"
                                 role="combobox"
                                 aria-expanded={isSelectorOpen}
@@ -698,11 +737,28 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
                         </PopoverTrigger>
                         <PopoverContent side="top" align="start" className="w-80">
                             <div className="space-y-4">
-                                <h4 className="font-semibold leading-none">Arjun's Chart Tips</h4>
-                                <ul className="space-y-2 text-sm text-muted-foreground list-disc list-inside">
-                                    {arjunTips.map((tip, i) => <li key={i}>{tip}</li>)}
-                                </ul>
-                                <p className="text-xs text-muted-foreground/80 italic">In future phases, Arjun will analyze your charts and volatility for you.</p>
+                                <div>
+                                    <h4 className="font-semibold leading-none">Arjun's Chart Tips</h4>
+                                    <ul className="mt-2 space-y-2 text-sm text-muted-foreground list-disc list-inside">
+                                        {arjunTips.map((tip, i) => <li key={i}>{tip}</li>)}
+                                    </ul>
+                                    <p className="text-xs text-muted-foreground/80 italic mt-4">In future phases, Arjun will analyze your charts and volatility for you.</p>
+                                </div>
+                                <div className="border-t pt-4">
+                                    <h4 className="font-semibold leading-none flex items-center gap-2"><Keyboard className="h-4 w-4" />Shortcuts</h4>
+                                     <div className="space-y-2 text-sm text-muted-foreground mt-2">
+                                        {shortcuts.map((shortcut, index) => (
+                                            <div key={index} className="flex justify-between items-center">
+                                                <span>{shortcut.label}</span>
+                                                <div className="flex items-center gap-1">
+                                                    {shortcut.keys.map(key => (
+                                                        <kbd key={key} className="px-2 py-0.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-md">{key}</kbd>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
                             </div>
                         </PopoverContent>
                     </Popover>
