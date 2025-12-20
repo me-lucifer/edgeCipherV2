@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { BarChartHorizontal, Check, ChevronsUpDown, Send, Sun, Moon, Maximize, Minimize, LineChart } from "lucide-react";
 import { Card, CardContent } from "./ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
@@ -39,14 +39,65 @@ const intervals = [
 ];
 
 export function ChartModule({ onSetModule }: ChartModuleProps) {
-    const [selectedProduct, setSelectedProduct] = useState<Product | null>(mockProducts[0]);
-    const [tvSymbol, setTvSymbol] = useState<string>("BINANCE:BTCUSDT");
+    const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+    const [tvSymbol, setTvSymbol] = useState<string>("");
     const [interval, setInterval] = useState<string>("60");
     const [chartTheme, setChartTheme] = useState<"dark" | "light">("dark");
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [isProductsLoading, setIsProductsLoading] = useState(false);
     const [productsError, setProductsError] = useState<string | null>(null);
     const [isSelectorOpen, setIsSelectorOpen] = useState(false);
+
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            const savedProduct = localStorage.getItem("ec_chart_last_product");
+            const savedInterval = localStorage.getItem("ec_chart_last_interval");
+            const savedTheme = localStorage.getItem("ec_chart_theme") as "dark" | "light";
+
+            if (savedProduct) {
+                try {
+                    const product = JSON.parse(savedProduct);
+                    if (mockProducts.find(p => p.id === product.id)) {
+                        setSelectedProduct(product);
+                        setTvSymbol(`BINANCE:${product.symbol}`);
+                    } else {
+                         handleProductSelect(mockProducts[0]);
+                    }
+                } catch (e) {
+                    handleProductSelect(mockProducts[0]);
+                }
+            } else {
+                 handleProductSelect(mockProducts[0]);
+            }
+            
+            if (savedInterval && intervals.some(i => i.value === savedInterval)) {
+                setInterval(savedInterval);
+            }
+
+            if (savedTheme) {
+                setChartTheme(savedTheme);
+            }
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    useEffect(() => {
+        if (typeof window !== "undefined" && selectedProduct) {
+            localStorage.setItem("ec_chart_last_product", JSON.stringify(selectedProduct));
+        }
+    }, [selectedProduct]);
+
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            localStorage.setItem("ec_chart_last_interval", interval);
+        }
+    }, [interval]);
+
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            localStorage.setItem("ec_chart_theme", chartTheme);
+        }
+    }, [chartTheme]);
     
     const handleProductSelect = (product: Product) => {
         setSelectedProduct(product);
