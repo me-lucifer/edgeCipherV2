@@ -94,8 +94,19 @@ export function ChartModule({ onSetModule }: ChartModuleProps) {
     
     const handleProductSelect = (product: Product) => {
         setSelectedProduct(product);
-        setTvSymbol(`BINANCE:${product.symbol}`);
+        setTvSymbol(mapDeltaToTradingView(product));
         setIsSelectorOpen(false);
+    };
+
+    const mapDeltaToTradingView = (product: Product): string => {
+        if (product.symbol.endsWith("USDT")) {
+            return `BINANCE:${product.symbol}`;
+        }
+        if (product.id.endsWith("-PERP")) {
+            const base = product.id.replace("-PERP", "");
+            return `BINANCE:${base}USDT`;
+        }
+        return `BINANCE:${product.symbol || product.id}`;
     };
 
     const handleSendToPlanning = () => {
