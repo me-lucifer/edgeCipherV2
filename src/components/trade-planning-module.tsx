@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Info, CheckCircle, Circle, AlertTriangle, FileText, ArrowRight, Gauge, ShieldCheck, XCircle, X, Lock, Loader2, Bookmark, Copy, RefreshCw, Sparkles, Clock, HelpCircle } from "lucide-react";
+import { Bot, Info, CheckCircle, Circle, AlertTriangle, FileText, ArrowRight, Gauge, ShieldCheck, XCircle, X, Lock, Loader2, Bookmark, Copy, RefreshCw, Sparkles, Clock, HelpCircle, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
@@ -1748,6 +1748,14 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
             <ScenarioWalkthrough isOpen={isWalkthroughOpen} onOpenChange={setIsWalkthroughOpen} onDemoSelect={handleDemoSelect} />
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                 <div>
+                    <div className="flex items-center gap-4">
+                        {initialContext?.origin === 'chart' && (
+                            <Button variant="ghost" size="sm" className="text-muted-foreground -ml-4" onClick={() => onSetModule('chart')}>
+                                <ArrowLeft className="mr-2 h-4 w-4"/>
+                                Back to Chart
+                            </Button>
+                        )}
+                    </div>
                     <h1 className="text-2xl font-bold tracking-tight text-foreground">Trade Planning</h1>
                     <p className="text-muted-foreground">The heart of disciplined trading inside EdgeCipher.</p>
                 </div>
