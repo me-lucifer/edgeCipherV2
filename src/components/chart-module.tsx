@@ -68,20 +68,26 @@ export function ChartModule({ onSetModule }: ChartModuleProps) {
     const selectedIntervalLabel = intervals.find(i => i.value === interval)?.label || interval;
 
     return (
-        <div className={cn("flex flex-col h-full space-y-4", isFullscreen && "fixed inset-0 bg-background z-50 p-4")}>
-            <div className={cn(isFullscreen && "flex justify-end")}>
-                <div className={cn(isFullscreen ? "w-full" : "w-0")}></div>
-                 <div className={cn(!isFullscreen && "hidden")}>
-                    <Button variant="ghost" size="icon" onClick={() => setIsFullscreen(false)}>
-                        <Minimize className="h-4 w-4" />
-                    </Button>
-                </div>
-                 <div className={cn(isFullscreen && "hidden")}>
-                    <h1 className="text-2xl font-bold tracking-tight text-foreground">Chart</h1>
-                    <p className="text-muted-foreground">
-                        Use the chart to analyze, then hand off to Trade Planning.
-                    </p>
-                </div>
+        <div className={cn("flex flex-col h-full space-y-4 transition-all duration-300", isFullscreen && "fixed inset-0 bg-background z-50 p-4")}>
+            <div className={cn("flex items-center justify-between", !isFullscreen && "hidden")}>
+                {selectedProduct && (
+                    <div className="text-left">
+                        <h3 className="font-semibold text-foreground">{tvSymbol}</h3>
+                        <p className="text-sm text-muted-foreground">
+                            <Badge variant="secondary">{selectedIntervalLabel}</Badge>
+                        </p>
+                    </div>
+                )}
+                 <div className="flex-1" />
+                 <Button variant="ghost" size="icon" onClick={() => setIsFullscreen(false)}>
+                    <Minimize className="h-4 w-4" />
+                </Button>
+            </div>
+             <div className={cn(isFullscreen && "hidden")}>
+                <h1 className="text-2xl font-bold tracking-tight text-foreground">Chart</h1>
+                <p className="text-muted-foreground">
+                    Use the chart to analyze, then hand off to Trade Planning.
+                </p>
             </div>
             
             <Card className="h-16 bg-muted/30 border-border/50">
@@ -174,7 +180,7 @@ export function ChartModule({ onSetModule }: ChartModuleProps) {
                 <Card className="h-full bg-muted/30 border-border/50 flex flex-col items-center justify-center relative border-2 border-dashed">
                      {selectedProduct ? (
                         <>
-                            <div className="absolute top-4 left-4 text-left">
+                            <div className={cn("absolute top-4 left-4 text-left", isFullscreen && "hidden")}>
                                 <h3 className="font-semibold text-foreground">{tvSymbol}</h3>
                                 <p className="text-sm text-muted-foreground">
                                     <Badge variant="secondary">{selectedIntervalLabel}</Badge>
