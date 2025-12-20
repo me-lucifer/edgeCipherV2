@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import { BarChartHorizontal, Check, ChevronsUpDown, Send, Sun, Moon, Maximize, Minimize } from "lucide-react";
+import { BarChartHorizontal, Check, ChevronsUpDown, Send, Sun, Moon, Maximize, Minimize, LineChart } from "lucide-react";
 import { Card, CardContent } from "./ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { Label } from "./ui/label";
 import { Switch } from "./ui/switch";
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "./ui/tooltip";
+import { Badge } from "./ui/badge";
 
 interface ChartModuleProps {
     onSetModule: (module: any, context?: any) => void;
@@ -38,7 +39,7 @@ const intervals = [
 ];
 
 export function ChartModule({ onSetModule }: ChartModuleProps) {
-    const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+    const [selectedProduct, setSelectedProduct] = useState<Product | null>(mockProducts[0]);
     const [tvSymbol, setTvSymbol] = useState<string>("BINANCE:BTCUSDT");
     const [interval, setInterval] = useState<string>("60");
     const [chartTheme, setChartTheme] = useState<"dark" | "light">("dark");
@@ -51,7 +52,6 @@ export function ChartModule({ onSetModule }: ChartModuleProps) {
         setSelectedProduct(product);
         setTvSymbol(`BINANCE:${product.symbol}`);
         setIsSelectorOpen(false);
-        // Here you would trigger chart refresh
     };
 
     const handleSendToPlanning = () => {
@@ -64,6 +64,8 @@ export function ChartModule({ onSetModule }: ChartModuleProps) {
             });
         }
     };
+
+    const selectedIntervalLabel = intervals.find(i => i.value === interval)?.label || interval;
 
     return (
         <div className={cn("flex flex-col h-full space-y-4", isFullscreen && "fixed inset-0 bg-background z-50 p-4")}>
@@ -169,12 +171,29 @@ export function ChartModule({ onSetModule }: ChartModuleProps) {
             </Card>
 
             <div className="flex-1 min-h-0">
-                <Card className="h-full bg-muted/30 border-border/50 flex items-center justify-center border-2 border-dashed">
-                    <div className="text-center text-muted-foreground">
-                        <BarChartHorizontal className="mx-auto h-12 w-12" />
-                        <p className="mt-4">Chart container area</p>
-                        <p className="text-xs">TradingView chart will be loaded here.</p>
-                    </div>
+                <Card className="h-full bg-muted/30 border-border/50 flex flex-col items-center justify-center relative border-2 border-dashed">
+                     {selectedProduct ? (
+                        <>
+                            <div className="absolute top-4 left-4 text-left">
+                                <h3 className="font-semibold text-foreground">{tvSymbol}</h3>
+                                <p className="text-sm text-muted-foreground">
+                                    <Badge variant="secondary">{selectedIntervalLabel}</Badge>
+                                </p>
+                            </div>
+                            <div className="flex flex-col items-center justify-center text-center text-muted-foreground flex-1">
+                                <LineChart className="mx-auto h-24 w-24 opacity-10" />
+                                <p className="mt-4">TradingView Widget Placeholder</p>
+                            </div>
+                            <p className="absolute bottom-4 text-xs text-muted-foreground/50">
+                                Phase 1 prototype: replace this box with real TradingView widget integration.
+                            </p>
+                        </>
+                    ) : (
+                        <div className="text-center text-muted-foreground">
+                            <BarChartHorizontal className="mx-auto h-12 w-12" />
+                            <p className="mt-4">Choose an instrument from the toolbar to load its chart.</p>
+                        </div>
+                    )}
                 </Card>
             </div>
         </div>
