@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { BarChartHorizontal, Check, ChevronsUpDown, Send, Sun, Moon, Maximize, Minimize, LineChart, Bot, AlertTriangle, Loader2, RefreshCw, ArrowRight } from "lucide-react";
+import { BarChartHorizontal, Check, ChevronsUpDown, Send, Sun, Moon, Maximize, Minimize, LineChart, Bot, AlertTriangle, Loader2, RefreshCw, ArrowRight, Info, XCircle } from "lucide-react";
 import { Card, CardContent } from "./ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -16,6 +16,7 @@ import { useDeltaProducts, type Product } from "@/hooks/use-delta-products";
 import { Skeleton } from "./ui/skeleton";
 import { formatDistanceToNow } from "date-fns";
 import type { ModuleContext } from "./authenticated-app-shell";
+import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 
 interface ChartModuleProps {
     onSetModule: (module: any, context?: ModuleContext) => void;
@@ -73,6 +74,38 @@ function ChartWidgetShell({ tvSymbol, interval, chartTheme }: { tvSymbol: string
     );
 }
 
+function Phase1InfoBox({ onDismiss }: { onDismiss: () => void }) {
+    const checkItems = [
+        { text: "Use standard TradingView tools to draw and mark levels.", isDone: true },
+        { text: "Quickly switch instruments and timeframes.", isDone: true },
+        { text: "Send the selected symbol into Trade Planning.", isDone: true },
+        { text: "Does not save drawings when you refresh.", isDone: false },
+        { text: "Does not auto-draw Entry/SL/TP yet.", isDone: false },
+    ];
+    return (
+        <Alert className="bg-muted/30 border-border/50">
+            <Info className="h-4 w-4" />
+            <div className="flex justify-between items-start">
+                <div>
+                    <AlertTitle>What this chart can do in Phase 1</AlertTitle>
+                    <AlertDescription>
+                        <ul className="mt-2 space-y-1 text-xs">
+                        {checkItems.map((item, i) => (
+                            <li key={i} className="flex items-center gap-2">
+                                {item.isDone ? <Check className="h-3 w-3 text-green-500" /> : <XCircle className="h-3 w-3 text-amber-500" />}
+                                <span>{item.text}</span>
+                            </li>
+                        ))}
+                        </ul>
+                        <p className="text-xs mt-3 italic">Later phases will connect this more deeply with Arjun and your strategies.</p>
+                    </AlertDescription>
+                </div>
+                <Button variant="ghost" size="sm" onClick={onDismiss}>Got it</Button>
+            </div>
+        </Alert>
+    );
+}
+
 export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
     const { products, isLoading: isProductsLoading, error: productsError, loadProducts, cacheInfo } = useDeltaProducts();
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -82,48 +115,56 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [isSelectorOpen, setIsSelectorOpen] = useState(false);
     const [chartAvailability, setChartAvailability] = useState<'unknown' | 'ok' | 'unavailable'>('unknown');
+    const [isInfoBoxVisible, setIsInfoBoxVisible] = useState(false);
 
 
     useEffect(() => {
-        if (typeof window !== "undefined" && products.length > 0) {
-            let productToSet: Product | null = null;
+        if (typeof window !== "undefined") {
+            const infoBoxDismissed = localStorage.getItem("ec_chart_phase1_info_dismissed");
+            if (!infoBoxDismissed) {
+                setIsInfoBoxVisible(true);
+            }
             
-            // 1. Check for context from another module
-            if (planContext?.instrument) {
-                const productFromContext = products.find(p => p.id === planContext.instrument);
-                if (productFromContext) {
-                    productToSet = productFromContext;
+            if (products.length > 0) {
+                let productToSet: Product | null = null;
+                
+                // 1. Check for context from another module
+                if (planContext?.instrument) {
+                    const productFromContext = products.find(p => p.id === planContext.instrument);
+                    if (productFromContext) {
+                        productToSet = productFromContext;
+                    }
                 }
-            }
-            
-            // 2. If no context, check localStorage
-            if (!productToSet) {
-                const savedProduct = localStorage.getItem("ec_chart_last_product");
-                if (savedProduct) {
-                    try {
-                        const parsedProduct = JSON.parse(savedProduct);
-                        const foundProduct = products.find(p => p.id === parsedProduct.id);
-                        if (foundProduct) {
-                            productToSet = foundProduct;
-                        }
-                    } catch (e) { /* fallback to default */ }
+                
+                // 2. If no context, check localStorage
+                if (!productToSet) {
+                    const savedProduct = localStorage.getItem("ec_chart_last_product");
+                    if (savedProduct) {
+                        try {
+                            const parsedProduct = JSON.parse(savedProduct);
+                            const foundProduct = products.find(p => p.id === parsedProduct.id);
+                            if (foundProduct) {
+                                productToSet = foundProduct;
+                            }
+                        } catch (e) { /* fallback to default */ }
+                    }
                 }
-            }
-            
-            // 3. Set the product (or do nothing if none is found/set)
-            if (productToSet) {
-                handleProductSelect(productToSet);
-            }
+                
+                // 3. Set the product (or do nothing if none is found/set)
+                if (productToSet) {
+                    handleProductSelect(productToSet);
+                }
 
-            const savedInterval = localStorage.getItem("ec_chart_last_interval");
-            const savedTheme = localStorage.getItem("ec_chart_theme") as "dark" | "light";
-            
-            if (savedInterval && intervals.some(i => i.value === savedInterval)) {
-                setInterval(savedInterval);
-            }
+                const savedInterval = localStorage.getItem("ec_chart_last_interval");
+                const savedTheme = localStorage.getItem("ec_chart_theme") as "dark" | "light";
+                
+                if (savedInterval && intervals.some(i => i.value === savedInterval)) {
+                    setInterval(savedInterval);
+                }
 
-            if (savedTheme) {
-                setChartTheme(savedTheme);
+                if (savedTheme) {
+                    setChartTheme(savedTheme);
+                }
             }
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -189,6 +230,11 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
             handleProductSelect(btcProduct);
         }
     };
+    
+    const dismissInfoBox = () => {
+        setIsInfoBoxVisible(false);
+        localStorage.setItem("ec_chart_phase1_info_dismissed", "true");
+    };
 
     const selectedIntervalLabel = intervals.find(i => i.value === interval)?.label || interval;
 
@@ -214,6 +260,8 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
                     Use the chart to analyze, then hand off to Trade Planning.
                 </p>
             </div>
+            
+            {isInfoBoxVisible && !isFullscreen && <Phase1InfoBox onDismiss={dismissInfoBox} />}
             
             <Card className="h-auto md:h-16 bg-muted/30 border-border/50">
                 <CardContent className="p-2 h-full flex flex-col md:flex-row items-start md:items-center gap-4">
@@ -241,7 +289,7 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
                                         {products.map((product) => (
                                             <CommandItem
                                                 key={product.id}
-                                                value={product.id}
+                                                value={product.name}
                                                 onSelect={() => handleProductSelect(product)}
                                             >
                                                 <Check className={cn("mr-2 h-4 w-4", selectedProduct?.id === product.id ? "opacity-100" : "opacity-0")} />
