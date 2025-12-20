@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useAuth } from '@/context/auth-provider';
-import { LayoutDashboard, Bot, FileText, Gauge, BarChart, Settings, HelpCircle, Bell, UserCircle, LogOut, Cpu, PanelLeft, Book, BrainCircuit, LineChart, Newspaper, Users, Sparkles, Menu, Terminal, AlertTriangle, ArrowRight } from 'lucide-react';
+import { LayoutDashboard, Bot, FileText, Gauge, BarChart, Settings, HelpCircle, Bell, UserCircle, LogOut, Cpu, PanelLeft, Book, BrainCircuit, LineChart, Newspaper, Users, Sparkles, Menu, Terminal, AlertTriangle, ArrowRight, BarChartHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DashboardModule } from './dashboard-module';
 import {
@@ -47,12 +47,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { ChartModule } from './chart-module';
 
 export type Module = 
   | 'dashboard' 
   | 'aiCoaching' 
   | 'tradePlanning' 
   | 'tradeJournal'
+  | 'chart'
   | 'analytics'
   | 'strategyManagement'
   | 'riskCenter'
@@ -87,6 +89,7 @@ const mainNavItems: (pendingJournalCount: number) => NavItem[] = (pendingJournal
 ];
 
 const analyticsNavItems: NavItem[] = [
+  { id: 'chart', label: 'Chart', icon: BarChartHorizontal, comingSoon: true },
   { id: 'analytics', label: 'Analytics', icon: BarChart },
   { id: 'strategyManagement', label: 'Strategy Mgmt', icon: BrainCircuit, comingSoon: false },
 ];
@@ -168,6 +171,10 @@ function ModuleView({ currentModule, onSetModule, moduleContext, isLoading, jour
       return <TradeJournalModule onSetModule={onSetModule} draftId={moduleContext?.draftId} journalEntries={journalEntries} updateJournalEntry={updateJournalEntry} />;
     }
     
+    if (currentModule === 'chart') {
+      return <ChartModule onSetModule={onSetModule} />;
+    }
+
     if (currentModule === 'analytics') {
       return <PerformanceAnalyticsModule onSetModule={onSetModule} />;
     }
