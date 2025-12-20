@@ -158,7 +158,7 @@ function Phase1InfoBox({ onDismiss }: { onDismiss: () => void }) {
                             </li>
                         ))}
                         </ul>
-                        <p className="text-xs mt-3 italic">This page is for analysis, not for impulsive clicks. Later phases will connect this more deeply with Arjun.</p>
+                        <p className="text-xs mt-3 italic">This page is for analysis, not for impulsive clicks.</p>
                     </AlertDescription>
                 </div>
                 <Button variant="ghost" size="sm" onClick={onDismiss}>Got it</Button>
@@ -173,11 +173,11 @@ function WorkflowHintBar({ isVisible, onDismiss }: { isVisible: boolean, onDismi
         <Alert className="bg-primary/10 border-primary/20 text-foreground flex items-center justify-between">
             <div className="flex items-center gap-3">
                 <Info className="h-4 w-4 text-primary" />
-                <AlertDescription className="text-xs text-primary/90">
+                <AlertDescription className="text-xs text-primary-light">
                     <span className="font-semibold">Step 1:</span> Analyze here. <span className="font-semibold">Step 2:</span> Click ‘Send to Trade Planning’ to structure your trade.
                 </AlertDescription>
             </div>
-            <Button variant="ghost" size="sm" className="text-xs h-auto py-1 px-2 text-primary/90 hover:text-primary" onClick={onDismiss}>
+            <Button variant="ghost" size="sm" className="text-xs h-auto py-1 px-2 text-primary-light hover:text-primary" onClick={onDismiss}>
                 Hide
             </Button>
         </Alert>
@@ -366,6 +366,14 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
             description: "Chart view has been reset (drawings would be cleared in a real integration).",
         });
     };
+    
+    const handleIntervalChange = (newInterval: string) => {
+        setInterval(newInterval);
+        const intervalLabel = intervals.find(i => i.value === newInterval)?.label || newInterval;
+        toast({
+            title: `Interval changed to: ${intervalLabel}`,
+        })
+    }
 
     const selectedIntervalLabel = intervals.find(i => i.value === interval)?.label || interval;
     const scenarioLabel = {
@@ -423,7 +431,7 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
             {isInfoBoxVisible && !isFullscreen && <Phase1InfoBox onDismiss={dismissInfoBox} />}
             
             <Card className="bg-muted/30 border-border/50">
-                <CardContent className="p-2 flex flex-col md:flex-row flex-wrap items-start md:items-center gap-4">
+                <CardContent className="p-2 flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-4">
                     {/* Instrument Selector */}
                     <Popover open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
                         <PopoverTrigger asChild>
@@ -491,7 +499,7 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
                                 key={item.value}
                                 size="sm"
                                 variant={interval === item.value ? 'secondary' : 'ghost'}
-                                onClick={() => setInterval(item.value)}
+                                onClick={() => handleIntervalChange(item.value)}
                                 className="rounded-full h-8 px-3 text-xs"
                             >
                                 {item.label}
@@ -568,7 +576,7 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
                             key={item.value}
                             size="sm"
                             variant={interval === item.value ? 'secondary' : 'ghost'}
-                            onClick={() => setInterval(item.value)}
+                            onClick={() => handleIntervalChange(item.value)}
                             className="rounded-full h-7 px-3 text-xs"
                         >
                             {item.label}
