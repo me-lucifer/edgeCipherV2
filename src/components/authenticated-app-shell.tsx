@@ -568,7 +568,7 @@ export function AuthenticatedAppShell() {
                   </div>
               </main>
           </div>
-          {currentModule === 'dashboard' && <DemoControls />}
+          {(currentModule === 'dashboard' || currentModule === 'chart') && <DemoControls />}
           {currentModule === 'dashboard' && !isInitialLoading && (
               <DashboardDemoHelper isOpen={isDemoHelperOpen} onOpenChange={setDemoHelperOpen} />
           )}
@@ -577,5 +577,3 @@ export function AuthenticatedAppShell() {
     </TooltipProvider>
   );
 }
-
-    
