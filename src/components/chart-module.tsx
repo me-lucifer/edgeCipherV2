@@ -170,14 +170,14 @@ function Phase1InfoBox({ onDismiss }: { onDismiss: () => void }) {
 function WorkflowHintBar({ isVisible, onDismiss }: { isVisible: boolean, onDismiss: () => void }) {
     if (!isVisible) return null;
     return (
-        <Alert className="bg-primary/5 border-primary/20 text-primary-foreground/80 flex items-center justify-between">
+        <Alert className="bg-muted/30 border-primary/20 text-foreground flex items-center justify-between">
             <div className="flex items-center gap-3">
                 <Info className="h-4 w-4 text-primary" />
-                <AlertDescription className="text-xs">
+                <AlertDescription className="text-xs text-primary/90">
                     <span className="font-semibold">Step 1:</span> Analyze here. <span className="font-semibold">Step 2:</span> Click ‘Send to Trade Planning’ to structure your trade.
                 </AlertDescription>
             </div>
-            <Button variant="ghost" size="sm" className="text-xs h-auto py-1 px-2" onClick={onDismiss}>
+            <Button variant="ghost" size="sm" className="text-xs h-auto py-1 px-2 text-primary/90 hover:text-primary" onClick={onDismiss}>
                 Hide
             </Button>
         </Alert>
@@ -645,5 +645,3 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
 
     
 }
-
-    
