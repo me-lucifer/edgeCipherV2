@@ -158,7 +158,7 @@ function Phase1InfoBox({ onDismiss }: { onDismiss: () => void }) {
                             </li>
                         ))}
                         </ul>
-                        <p className="text-xs mt-3 italic">Later phases will connect this more deeply with Arjun and your strategies.</p>
+                        <p className="text-xs mt-3 italic">This page is for analysis, not for impulsive clicks. Later phases will connect this more deeply with Arjun.</p>
                     </AlertDescription>
                 </div>
                 <Button variant="ghost" size="sm" onClick={onDismiss}>Got it</Button>
@@ -412,8 +412,8 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
             
             {isInfoBoxVisible && !isFullscreen && <Phase1InfoBox onDismiss={dismissInfoBox} />}
             
-            <Card className="h-auto md:h-16 bg-muted/30 border-border/50">
-                <CardContent className="p-2 h-full flex flex-col md:flex-row items-start md:items-center gap-4">
+            <Card className="h-auto bg-muted/30 border-border/50">
+                <CardContent className="p-2 h-full flex flex-col md:flex-row items-start md:items-center gap-4 flex-wrap">
                     {/* Instrument Selector */}
                     <Popover open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
                         <PopoverTrigger asChild>
@@ -421,7 +421,7 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
                                 variant="outline"
                                 role="combobox"
                                 aria-expanded={isSelectorOpen}
-                                className="w-full md:w-[200px] justify-between"
+                                className="w-full sm:w-auto md:w-[200px] justify-between"
                                 disabled={isProductsLoading && products.length === 0}
                             >
                                 {isProductsLoading && products.length === 0 ? "Loading..." : selectedProduct ? selectedProduct.name : "Select instrument..."}
@@ -526,11 +526,14 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
                                 </TooltipContent>
                             </Tooltip>
                         </TooltipProvider>
-
-                        <Button onClick={handleSendToPlanning} disabled={!selectedProduct}>
-                            <Send className="mr-2 h-4 w-4" />
-                            Send to Trade Planning
-                        </Button>
+                        
+                        <div className="text-right">
+                            <Button onClick={handleSendToPlanning} disabled={!selectedProduct}>
+                                <Send className="mr-2 h-4 w-4" />
+                                Send to Trade Planning
+                            </Button>
+                            <p className="text-xs text-muted-foreground/50 mt-1">No trading from here. All execution must pass Trade Planning first.</p>
+                        </div>
                     </div>
 
                 </CardContent>
