@@ -18,6 +18,7 @@ import { formatDistanceToNow } from "date-fns";
 import type { ModuleContext } from "./authenticated-app-shell";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import type { DemoScenario } from "./dashboard-module";
+import { useToast } from "@/hooks/use-toast";
 
 interface ChartModuleProps {
     onSetModule: (module: any, context?: ModuleContext) => void;
@@ -142,6 +143,8 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
     const [isInfoBoxVisible, setIsInfoBoxVisible] = useState(false);
     const [isHintBarVisible, setIsHintBarVisible] = useState(false);
     const [scenario, setScenario] = useState<DemoScenario>('normal');
+    const [chartInstanceKey, setChartInstanceKey] = useState(0);
+    const { toast } = useToast();
 
 
     useEffect(() => {
@@ -293,6 +296,14 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
         localStorage.setItem("ec_chart_hint_hidden", "true");
     };
 
+    const handleResetView = () => {
+        setChartInstanceKey(prev => prev + 1);
+        toast({
+            title: "Chart Reset",
+            description: "Chart view has been reset (drawings would be cleared in a real integration).",
+        });
+    };
+
     const selectedIntervalLabel = intervals.find(i => i.value === interval)?.label || interval;
     const scenarioLabel = {
         'normal': "Normal Day",
@@ -415,6 +426,19 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
 
                     {/* Action buttons */}
                     <div className="flex items-center gap-2">
+                         <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" onClick={handleResetView}>
+                                        <RefreshCw className="h-4 w-4" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Reset chart view</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+
                         <TooltipProvider>
                             <Tooltip>
                                 <TooltipTrigger asChild>
@@ -484,7 +508,7 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
                             
                             {chartAvailability === 'ok' ? (
                                 <ChartWidgetShell 
-                                    key={`${tvSymbol}_${interval}_${chartTheme}`}
+                                    key={`${tvSymbol}_${interval}_${chartTheme}_${chartInstanceKey}`}
                                     tvSymbol={tvSymbol}
                                     interval={selectedIntervalLabel}
                                     chartTheme={chartTheme}
@@ -543,5 +567,3 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
 
     
 }
-
-    
