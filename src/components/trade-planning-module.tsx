@@ -812,14 +812,8 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, planConte
          <div className="grid lg:grid-cols-3 gap-8 items-start">
             <div className="lg:col-span-2 space-y-6">
                 <Card className="bg-muted/30 border-border/50">
-                    <CardHeader className="flex-row items-start justify-between">
+                    <CardHeader>
                         <CardTitle>Plan details</CardTitle>
-                        {planContext && (
-                            <Badge variant="secondary" className="bg-primary/10 text-primary">
-                                <Sparkles className="h-3 w-3 mr-1.5" />
-                                Context: From {planContext.origin}
-                            </Badge>
-                        )}
                     </CardHeader>
                     <CardContent className="space-y-6">
                         {draftToResume && (
@@ -1540,10 +1534,6 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
               if (planContext.direction) {
                 form.setValue('direction', planContext.direction);
               }
-              toast({
-                  title: "Context applied",
-                  description: `Planning a trade for ${planContext.instrument} from the ${planContext.origin}.`,
-              });
             }
 
             const walkthroughSeen = localStorage.getItem('ec_trade_plan_walkthrough_seen');
@@ -1778,6 +1768,16 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
                     ))}
                 </div>
             </div>
+
+            {planContext && (
+                 <Alert variant="default" className="bg-primary/10 border-primary/20 text-primary">
+                    <Sparkles className="h-4 w-4 text-primary" />
+                    <AlertTitle>Context from {planContext.origin}</AlertTitle>
+                    <AlertDescription>
+                       You've been sent here to plan a trade for <strong className="font-semibold">{planContext.instrument}</strong>. All fields are pre-filled based on that context.
+                    </AlertDescription>
+                </Alert>
+            )}
 
             {showValidationBanner && (
                  <Alert variant="destructive">
