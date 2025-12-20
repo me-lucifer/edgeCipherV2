@@ -32,6 +32,12 @@ const intervals = [
     { label: "1D", value: "D" },
 ];
 
+const multiTimeframeIntervals = [
+    { label: "HTF: 4h", value: "240" },
+    { label: "Trading TF: 15m", value: "15" },
+    { label: "Micro: 1m", value: "1" },
+]
+
 const arjunTips = [
     "Mark major swing highs and lows before planning a trade.",
     "Check multiple timeframes before committing.",
@@ -406,6 +412,23 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
             </Card>
 
             <WorkflowHintBar isVisible={isHintBarVisible} onDismiss={dismissHintBar} />
+            
+            <div className="flex items-center gap-4">
+                <span className="text-xs font-semibold text-muted-foreground">Multi-timeframe view (manual)</span>
+                <div className="flex items-center gap-1 rounded-full bg-muted p-1">
+                    {multiTimeframeIntervals.map(item => (
+                        <Button
+                            key={item.value}
+                            size="sm"
+                            variant={interval === item.value ? 'secondary' : 'ghost'}
+                            onClick={() => setInterval(item.value)}
+                            className="rounded-full h-7 px-3 text-xs"
+                        >
+                            {item.label}
+                        </Button>
+                    ))}
+                </div>
+            </div>
 
             <div className="flex-1 min-h-0">
                 <Card className="h-full bg-muted/30 border-border/50 flex flex-col items-center justify-center relative border-2 border-dashed">
