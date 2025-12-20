@@ -3,8 +3,8 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
-import { BarChartHorizontal, Check, ChevronsUpDown, Send, Sun, Moon, Maximize, Minimize, LineChart, Bot, AlertTriangle, Loader2, RefreshCw, ArrowRight, Info, XCircle, X, Keyboard } from "lucide-react";
-import { Card, CardContent } from "./ui/card";
+import { BarChartHorizontal, Check, ChevronsUpDown, Send, Sun, Moon, Maximize, Minimize, LineChart, Bot, AlertTriangle, Loader2, RefreshCw, ArrowRight, Info, XCircle, X, Keyboard, HelpCircle, FileText, CheckCircle } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Button } from "./ui/button";
@@ -100,14 +100,15 @@ function ChartWidgetShell({ tvSymbol, interval, chartTheme }: { tvSymbol: string
 
     if (isLoading) {
         return (
-            <div className="flex flex-col items-center justify-center text-center text-muted-foreground flex-1 p-4">
-                <Skeleton className="h-full w-full" />
+            <div className="flex flex-col items-center justify-center text-center text-muted-foreground flex-1 p-4 animate-pulse">
+                 <Loader2 className="h-8 w-8 text-primary mb-4" />
+                <p>Loading chart for {tvSymbol}...</p>
             </div>
         );
     }
     
     return (
-        <div className="relative w-full h-full overflow-hidden">
+        <div className="relative w-full h-full overflow-hidden animate-in fade-in">
             {/* Grid background */}
             <div className="absolute inset-0 bg-transparent bg-[linear-gradient(to_right,hsl(var(--border)_/_0.2)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--border)_/_0.2)_1px,transparent_1px)] bg-[size:2rem_2rem]"></div>
             
@@ -145,43 +146,80 @@ function ChartWidgetShell({ tvSymbol, interval, chartTheme }: { tvSymbol: string
             <p className="absolute bottom-4 left-4 text-xs text-muted-foreground/50">
                 Recreated for {tvSymbol} · {interval} · {chartTheme}
             </p>
-            <p className="absolute bottom-4 right-20 text-xs text-muted-foreground/50">
-                Phase 1 prototype: replace this box with real TradingView widget integration.
-            </p>
         </div>
     );
 }
 
-function Phase1InfoBox({ onDismiss }: { onDismiss: () => void }) {
-    const checkItems = [
-        { text: "Use standard TradingView tools to draw and mark levels.", isDone: true },
-        { text: "Quickly switch instruments and timeframes.", isDone: true },
-        { text: "Send the selected symbol into Trade Planning.", isDone: true },
-        { text: "Does not save drawings when you refresh.", isDone: false },
-        { text: "Does not auto-draw Entry/SL/TP yet.", isDone: false },
+function ChartWalkthrough({ isOpen, onOpenChange, onDemoSelect }: { isOpen: boolean; onOpenChange: (open: boolean) => void; onDemoSelect: (demo: 'btc' | 'sol') => void }) {
+    const walkthroughSteps = [
+        { icon: BarChartHorizontal, title: "1. Pick an Instrument", description: "Use the search to find the crypto pair you want to analyze." },
+        { icon: FileText, title: "2. Draw Manually", description: "Use standard TradingView tools to mark trendlines, levels, and fibs." },
+        { icon: Send, title: "3. Send to Planning", description: "Once you have a thesis, send it to Trade Planning to structure your Entry, SL, and TP." },
     ];
+    
+    const limitations = [
+        "Drawings do not save on refresh.",
+        "Theme/interval changes reload the widget.",
+        "No auto Entry/SL/TP lines yet.",
+    ];
+
+    if (!isOpen) return null;
+
     return (
-        <Alert className="bg-muted/30 border-border/50">
-            <Info className="h-4 w-4" />
-            <div className="flex justify-between items-start">
-                <div>
-                    <AlertTitle>What this chart can do in Phase 1</AlertTitle>
-                    <AlertDescription>
-                        <ul className="mt-2 space-y-1 text-xs">
-                        {checkItems.map((item, i) => (
-                            <li key={i} className="flex items-center gap-2">
-                                {item.isDone ? <Check className="h-3 w-3 text-green-500" /> : <XCircle className="h-3 w-3 text-amber-500" />}
-                                <span>{item.text}</span>
-                            </li>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div 
+                className="absolute inset-0 bg-background/90 backdrop-blur-sm animate-in fade-in"
+                onClick={() => onOpenChange(false)}
+            />
+            <Card className="relative z-10 w-full max-w-4xl bg-muted/80 border-border/50 animate-in fade-in zoom-in-95" role="dialog" aria-modal="true">
+                <CardHeader>
+                    <CardTitle className="text-2xl flex items-center justify-between">
+                        <span>How to Use the Chart Module</span>
+                         <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} className="-mr-2" aria-label="Close walkthrough">
+                            <X className="h-4 w-4" />
+                        </Button>
+                    </CardTitle>
+                    <CardDescription>This is where you analyze, not where you impulse-trade.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-8">
+                    <div className="grid md:grid-cols-3 gap-6 text-center">
+                        {walkthroughSteps.map((step, index) => (
+                            <div key={step.title} className="relative">
+                                <Card className="h-full bg-muted/50 p-6">
+                                    <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">
+                                        <step.icon className="h-6 w-6" />
+                                    </div>
+                                    <h3 className="font-semibold text-foreground">{step.title}</h3>
+                                    <p className="text-xs text-muted-foreground mt-1">{step.description}</p>
+                                </Card>
+                            </div>
                         ))}
-                        </ul>
-                        <p className="text-xs mt-3 italic">This page is for analysis, not for impulsive clicks.</p>
-                    </AlertDescription>
-                </div>
-                <Button variant="ghost" size="sm" onClick={onDismiss}>Got it</Button>
-            </div>
-        </Alert>
-    );
+                    </div>
+                     <div className="grid md:grid-cols-2 gap-6">
+                        <Card className="bg-amber-950/30 border-amber-500/20">
+                            <CardHeader className="pb-4">
+                                <CardTitle className="text-base text-amber-400">Phase 1 Limitations</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <ul className="space-y-2 text-sm text-amber-300/80 list-disc list-inside">
+                                    {limitations.map(item => <li key={item}>{item}</li>)}
+                                </ul>
+                            </CardContent>
+                        </Card>
+                        <Card className="bg-muted/50">
+                            <CardHeader className="pb-4">
+                                <CardTitle className="text-base">Try a Demo Scenario</CardTitle>
+                            </CardHeader>
+                            <CardContent className="flex flex-col sm:flex-row gap-4">
+                                <Button onClick={() => onDemoSelect('btc')}>Demo: BTC-PERP setup</Button>
+                                <Button variant="outline" onClick={() => onDemoSelect('sol')}>Demo: SOL-PERP (unavailable chart)</Button>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
+    )
 }
 
 function WorkflowHintBar({ isVisible, onDismiss }: { isVisible: boolean, onDismiss: () => void }) {
@@ -212,7 +250,6 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [isSelectorOpen, setIsSelectorOpen] = useState(false);
     const [chartAvailability, setChartAvailability] = useState<'unknown' | 'ok' | 'unavailable'>('unknown');
-    const [isInfoBoxVisible, setIsInfoBoxVisible] = useState(false);
     const [isHintBarVisible, setIsHintBarVisible] = useState(false);
     const [scenario, setScenario] = useState<DemoScenario>('normal');
     const [chartInstanceKey, setChartInstanceKey] = useState(0);
@@ -220,63 +257,50 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
     const [showThemeChangeDialog, setShowThemeChangeDialog] = useState(false);
     const [pendingTheme, setPendingTheme] = useState<"dark" | "light" | null>(null);
     const instrumentSelectorRef = useRef<HTMLButtonElement>(null);
+    const [isWalkthroughOpen, setIsWalkthroughOpen] = useState(false);
 
 
     useEffect(() => {
         if (typeof window !== "undefined") {
-            const infoBoxDismissed = localStorage.getItem("ec_chart_phase1_info_dismissed");
-            if (!infoBoxDismissed) {
-                setIsInfoBoxVisible(true);
-            }
             const hintDismissed = localStorage.getItem("ec_chart_hint_hidden");
             if (!hintDismissed) {
                 setIsHintBarVisible(true);
+            }
+            const walkthroughSeen = localStorage.getItem("ec_chart_tour_seen");
+            if (!walkthroughSeen) {
+                setIsWalkthroughOpen(true);
+                localStorage.setItem("ec_chart_tour_seen", "true");
             }
             
             if (products.length > 0) {
                 let productToSet: Product | null = null;
                 
-                // 1. Check for context from another module
                 if (planContext?.instrument) {
                     const productFromContext = products.find(p => p.id === planContext.instrument);
-                    if (productFromContext) {
-                        productToSet = productFromContext;
-                    }
+                    if (productFromContext) productToSet = productFromContext;
                 }
                 
-                // 2. If no context, check localStorage
                 if (!productToSet) {
                     const savedProduct = localStorage.getItem("ec_chart_last_product");
                     if (savedProduct) {
                         try {
                             const parsedProduct = JSON.parse(savedProduct);
-                            const foundProduct = products.find(p => p.id === parsedProduct.id);
-                            if (foundProduct) {
-                                productToSet = foundProduct;
-                            }
-                        } catch (e) { /* fallback to default */ }
+                            productToSet = products.find(p => p.id === parsedProduct.id) || null;
+                        } catch (e) { /* fallback */ }
                     }
                 }
                 
-                // 3. If still nothing, default to BTC
                 if (!productToSet) {
                     productToSet = products.find(p => p.id === 'BTC-PERP') || products[0] || null;
                 }
 
-                if (productToSet) {
-                    handleProductSelect(productToSet);
-                }
+                if (productToSet) handleProductSelect(productToSet);
 
                 const savedInterval = localStorage.getItem("ec_chart_last_interval");
                 const savedTheme = localStorage.getItem("ec_chart_theme") as "dark" | "light";
                 
-                if (savedInterval && intervals.some(i => i.value === savedInterval)) {
-                    setInterval(savedInterval);
-                }
-
-                if (savedTheme) {
-                    setChartTheme(savedTheme);
-                }
+                if (savedInterval && intervals.some(i => i.value === savedInterval)) setInterval(savedInterval);
+                if (savedTheme) setChartTheme(savedTheme);
             }
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -303,14 +327,10 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
     useEffect(() => {
         if (typeof window !== 'undefined') {
             const savedScenario = localStorage.getItem('ec_demo_scenario') as DemoScenario;
-            if (savedScenario) {
-                setScenario(savedScenario);
-            }
+            if (savedScenario) setScenario(savedScenario);
             
             const handleStorageChange = (e: StorageEvent) => {
-                if (e.key === 'ec_demo_scenario') {
-                    setScenario((e.newValue as DemoScenario) || 'normal');
-                }
+                if (e.key === 'ec_demo_scenario') setScenario((e.newValue as DemoScenario) || 'normal');
             };
     
             window.addEventListener('storage', handleStorageChange);
@@ -326,7 +346,7 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
             }
 
             if (document.activeElement && ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
-                if (e.key !== 'Escape') return; // Allow escape to blur
+                if (e.key !== 'Escape') return;
             }
 
             if (e.key === '/') {
@@ -337,9 +357,7 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
             if (e.altKey && e.key >= '1' && e.key <= '6') {
                 e.preventDefault();
                 const index = parseInt(e.key) - 1;
-                if (intervals[index]) {
-                    handleIntervalChange(intervals[index].value);
-                }
+                if (intervals[index]) handleIntervalChange(intervals[index].value);
             }
             
             if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
@@ -358,23 +376,13 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
         const newTvSymbol = mapDeltaToTradingView(product);
         setTvSymbol(newTvSymbol);
         setIsSelectorOpen(false);
-
-        // Simulate availability check based on the mapped symbol
-        if (newTvSymbol.includes("UNKNOWN")) {
-            setChartAvailability('unavailable');
-        } else {
-            setChartAvailability('ok');
-        }
+        setChartAvailability(newTvSymbol.includes("UNKNOWN") ? 'unavailable' : 'ok');
     };
 
     const mapDeltaToTradingView = (product: Product): string => {
-        if (product.symbol.endsWith("USDT")) {
-            return `BINANCE:${product.symbol}`;
-        }
-        if (product.id.endsWith("-PERP")) {
-            const base = product.id.replace("-PERP", "");
-            return `BINANCE:${base}USDT`;
-        }
+        if (product.id === "SOL-PERP") return "COINBASE:SOLUSD"; // For demo purposes
+        if (product.symbol.endsWith("USDT")) return `BINANCE:${product.symbol}`;
+        if (product.id.endsWith("-PERP")) return `BINANCE:${product.id.replace("-PERP", "")}USDT`;
         return `BINANCE:${product.symbol || "UNKNOWN"}`;
     };
 
@@ -392,23 +400,13 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
             source: 'chart',
             instrument: selectedProduct.id,
         };
-
-        if (typeof window !== 'undefined') {
-            localStorage.setItem("ec_trade_planning_context", JSON.stringify(planningContext));
-        }
+        if (typeof window !== 'undefined') localStorage.setItem("ec_trade_planning_context", JSON.stringify(planningContext));
         onSetModule('tradePlanning', { planContext: planningContext });
     };
     
     const handleSelectDefault = () => {
         const btcProduct = products.find(p => p.id === 'BTC-PERP');
-        if (btcProduct) {
-            handleProductSelect(btcProduct);
-        }
-    };
-    
-    const dismissInfoBox = () => {
-        setIsInfoBoxVisible(false);
-        localStorage.setItem("ec_chart_phase1_info_dismissed", "true");
+        if (btcProduct) handleProductSelect(btcProduct);
     };
 
     const dismissHintBar = () => {
@@ -430,8 +428,8 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
         toast({
             title: `Interval changed to: ${intervalLabel}`,
             description: "Note: In this prototype, changing interval resets drawings."
-        })
-    }
+        });
+    };
 
     const handleThemeChange = (checked: boolean) => {
         const newTheme = checked ? 'dark' : 'light';
@@ -440,11 +438,15 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
     };
 
     const confirmThemeChange = () => {
-        if (pendingTheme) {
-            setChartTheme(pendingTheme);
-        }
+        if (pendingTheme) setChartTheme(pendingTheme);
         setShowThemeChangeDialog(false);
         setPendingTheme(null);
+    };
+
+    const handleDemoSelect = (demo: 'btc' | 'sol') => {
+        const product = products.find(p => p.id === (demo === 'btc' ? 'BTC-PERP' : 'SOL-PERP'));
+        if (product) handleProductSelect(product);
+        setIsWalkthroughOpen(false);
     };
 
     const selectedIntervalLabel = intervals.find(i => i.value === interval)?.label || interval;
@@ -459,26 +461,18 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
         let selectedTips: string[] = [...arjunTipSets.general];
         const numInterval = Number(interval);
 
-        if (scenario === 'high_vol') {
-            selectedTips = [...selectedTips, ...arjunTipSets.high_vol];
-        } else if (scenario === 'drawdown') {
-            selectedTips = [...selectedTips, ...arjunTipSets.drawdown];
-        }
-
-        if (!isNaN(numInterval)) {
-            if (numInterval <= 15) {
-                selectedTips = [...selectedTips, ...arjunTipSets.low_tf];
-            } else if (numInterval >= 240) {
-                 selectedTips = [...selectedTips, ...arjunTipSets.high_tf];
-            }
-        }
-        // Return a shuffled and unique set of tips, prioritizing contextual ones
+        if (scenario === 'high_vol') selectedTips.push(...arjunTipSets.high_vol);
+        if (scenario === 'drawdown') selectedTips.push(...arjunTipSets.drawdown);
+        if (!isNaN(numInterval) && numInterval <= 15) selectedTips.push(...arjunTipSets.low_tf);
+        if (!isNaN(numInterval) && numInterval >= 240) selectedTips.push(...arjunTipSets.high_tf);
+        
         return [...new Set(selectedTips)].sort(() => 0.5 - Math.random()).slice(0, 4);
     }, [interval, scenario]);
 
 
     return (
         <div className={cn("flex flex-col h-full space-y-4 transition-all duration-300", isFullscreen && "fixed inset-0 bg-background z-50 p-4")}>
+            <ChartWalkthrough isOpen={isWalkthroughOpen} onOpenChange={setIsWalkthroughOpen} onDemoSelect={handleDemoSelect} />
             <AlertDialog open={showThemeChangeDialog} onOpenChange={setShowThemeChangeDialog}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
@@ -493,33 +487,23 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-            {/* Fullscreen Header */}
             <div className={cn("flex items-center justify-between", !isFullscreen && "hidden")}>
                 {selectedProduct && (
                     <div className="text-left">
                         <h3 className="font-semibold text-foreground">{tvSymbol}</h3>
-                        <p className="text-sm text-muted-foreground">
-                            <Badge variant="secondary">{selectedIntervalLabel}</Badge>
-                        </p>
+                        <p className="text-sm text-muted-foreground"><Badge variant="secondary">{selectedIntervalLabel}</Badge></p>
                     </div>
                 )}
                  <div className="flex-1" />
-                 <Button variant="ghost" size="icon" onClick={() => setIsFullscreen(false)}>
-                    <Minimize className="h-4 w-4" />
-                </Button>
+                 <Button variant="ghost" size="icon" onClick={() => setIsFullscreen(false)}><Minimize className="h-4 w-4" /></Button>
             </div>
              <div className={cn(isFullscreen && "hidden")}>
                 <h1 className="text-2xl font-bold tracking-tight text-foreground">Chart</h1>
-                <p className="text-muted-foreground">
-                    Use the chart to analyze, then hand off to Trade Planning.
-                </p>
+                <p className="text-muted-foreground">Use the chart to analyze, then hand off to Trade Planning.</p>
             </div>
             
-            {isInfoBoxVisible && !isFullscreen && <Phase1InfoBox onDismiss={dismissInfoBox} />}
-            
             <Card className={cn("bg-muted/30 border-border/50", isFullscreen && "hidden")}>
-                <CardContent className="p-2 flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-4">
-                    {/* Instrument Selector */}
+                <CardContent className="p-2 flex flex-col sm:flex-row flex-wrap items-center gap-x-4 gap-y-2">
                     <Popover open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
                         <PopoverTrigger asChild>
                             <Button
@@ -543,11 +527,7 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
                                     {!productsError && products.length === 0 && <CommandEmpty>No products found.</CommandEmpty>}
                                     <CommandGroup>
                                         {products.map((product) => (
-                                            <CommandItem
-                                                key={product.id}
-                                                value={product.name}
-                                                onSelect={() => handleProductSelect(product)}
-                                            >
+                                            <CommandItem key={product.id} value={product.name} onSelect={() => handleProductSelect(product)}>
                                                 <Check className={cn("mr-2 h-4 w-4", selectedProduct?.id === product.id ? "opacity-100" : "opacity-0")} />
                                                 {product.name}
                                             </CommandItem>
@@ -569,86 +549,37 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
                                             {cacheInfo.isStale && ' (using cache)'}
                                         </Badge>
                                     </TooltipTrigger>
-                                    <TooltipContent>
-                                        <p className="max-w-xs">{productsError} {cacheInfo.isStale && `Displaying stale data from ${formatDistanceToNow(new Date(cacheInfo.fetchedAt!))} ago.`}</p>
-                                    </TooltipContent>
+                                    <TooltipContent><p className="max-w-xs">{productsError} {cacheInfo.isStale && `Displaying stale data from ${formatDistanceToNow(new Date(cacheInfo.fetchedAt!))} ago.`}</p></TooltipContent>
                                 </Tooltip>
                             </TooltipProvider>
-                            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => loadProducts(true)}>
-                                <RefreshCw className="mr-2 h-3 w-3" />
-                                Retry
-                            </Button>
+                            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => loadProducts(true)}><RefreshCw className="mr-2 h-3 w-3" /> Retry</Button>
                         </div>
                     )}
 
-                    {/* Interval Selector */}
                     <div className="flex items-center gap-1 rounded-full bg-muted p-1" role="group" aria-label="Chart time interval">
-                        {intervals.map(item => (
-                            <Button
-                                key={item.value}
-                                size="sm"
-                                variant={interval === item.value ? 'secondary' : 'ghost'}
-                                onClick={() => handleIntervalChange(item.value)}
-                                className="rounded-full h-8 px-3 text-xs"
-                            >
-                                {item.label}
-                            </Button>
-                        ))}
+                        {intervals.map(item => (<Button key={item.value} size="sm" variant={interval === item.value ? 'secondary' : 'ghost'} onClick={() => handleIntervalChange(item.value)} className="rounded-full h-8 px-3 text-xs">{item.label}</Button>))}
                     </div>
                     
-                     {/* Theme Toggle */}
                     <div className="flex items-center space-x-2">
                         <Label htmlFor="chart-theme" className="text-sm text-muted-foreground">Chart Theme</Label>
                         <Switch id="chart-theme" checked={chartTheme === 'dark'} onCheckedChange={handleThemeChange} />
                         {chartTheme === 'dark' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
                     </div>
 
-                    {/* Spacer */}
-                    <div className="flex-1 min-w-full md:min-w-0" />
+                    <div className="flex-1 min-w-full sm:min-w-0" />
 
-                    {/* Action buttons */}
-                    <div className="flex w-full md:w-auto items-center gap-2">
-                         <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon" onClick={handleResetView}>
-                                        <RefreshCw className="h-4 w-4" />
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    <p>Reset chart view</p>
-                                </TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
-
-                        <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon" onClick={() => setIsFullscreen(!isFullscreen)}>
-                                        {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    <p>{isFullscreen ? 'Exit fullscreen (Esc)' : 'Enter fullscreen'}</p>
-                                </TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
+                    <div className="flex w-full sm:w-auto items-center gap-2">
+                         <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={handleResetView}><RefreshCw className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>Reset chart view</p></TooltipContent></Tooltip></TooltipProvider>
+                        <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={() => setIsFullscreen(!isFullscreen)}>{isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}</Button></TooltipTrigger><TooltipContent><p>{isFullscreen ? 'Exit fullscreen (Esc)' : 'Enter fullscreen'}</p></TooltipContent></Tooltip></TooltipProvider>
+                        <TooltipProvider><Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" onClick={() => setIsWalkthroughOpen(true)}><HelpCircle className="h-4 w-4" /></Button></TooltipTrigger><TooltipContent><p>How to use chart</p></TooltipContent></Tooltip></TooltipProvider>
                         
-                        <div className="text-right flex-1">
+                        <div className="text-right flex-1 sm:flex-initial">
                             <TooltipProvider>
                                 <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <Button onClick={handleSendToPlanning} disabled={!selectedProduct} className="w-full">
-                                            <Send className="mr-2 h-4 w-4" />
-                                            Send to Trade Planning
-                                        </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        <p>Pre-select this instrument in the Trade Planning module.</p>
-                                    </TooltipContent>
+                                    <TooltipTrigger asChild><Button onClick={handleSendToPlanning} disabled={!selectedProduct} className="w-full sm:w-auto"><Send className="mr-2 h-4 w-4" /> Send to Trade Planning</Button></TooltipTrigger>
+                                    <TooltipContent><p>Pre-select this instrument in the Trade Planning module.</p></TooltipContent>
                                 </Tooltip>
                             </TooltipProvider>
-                             <p className="text-xs text-muted-foreground/50 mt-1">No trading from here. All execution must pass Trade Planning first.</p>
                         </div>
                     </div>
 
@@ -660,17 +591,7 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
             <div className={cn("flex items-center gap-4", isFullscreen && "hidden")}>
                 <span className="text-xs font-semibold text-muted-foreground">Multi-timeframe view (manual)</span>
                 <div className="flex items-center gap-1 rounded-full bg-muted p-1" role="group" aria-label="Multi-timeframe chart view">
-                    {multiTimeframeIntervals.map(item => (
-                        <Button
-                            key={item.value}
-                            size="sm"
-                            variant={interval === item.value ? 'secondary' : 'ghost'}
-                            onClick={() => handleIntervalChange(item.value)}
-                            className="rounded-full h-7 px-3 text-xs"
-                        >
-                            {item.label}
-                        </Button>
-                    ))}
+                    {multiTimeframeIntervals.map(item => (<Button key={item.value} size="sm" variant={interval === item.value ? 'secondary' : 'ghost'} onClick={() => handleIntervalChange(item.value)} className="rounded-full h-7 px-3 text-xs">{item.label}</Button>))}
                 </div>
             </div>
 
@@ -686,12 +607,8 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
                                        <AlertDescription>
                                             <p>This can happen for certain pairs on the free TradingView widget. You can still plan a trade manually.</p>
                                             <div className="mt-4 flex gap-2">
-                                                <Button variant="secondary" onClick={handleSendToPlanning}>
-                                                    Proceed to Trade Planning
-                                                </Button>
-                                                <Button variant="outline" onClick={() => instrumentSelectorRef.current?.click()}>
-                                                    Pick another instrument
-                                                </Button>
+                                                <Button variant="secondary" onClick={handleSendToPlanning}>Proceed to Trade Planning</Button>
+                                                <Button variant="outline" onClick={() => instrumentSelectorRef.current?.click()}>Pick another instrument</Button>
                                             </div>
                                        </AlertDescription>
                                    </Alert>
@@ -700,12 +617,8 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
 
                             <div className={cn("absolute top-4 left-4 text-left p-2 rounded-lg bg-background/50 backdrop-blur-sm z-10", isFullscreen && "hidden")}>
                                 <h3 className="font-semibold text-foreground text-sm">{tvSymbol} · {selectedIntervalLabel}</h3>
-                                <p className="text-xs text-muted-foreground">
-                                    Product: {selectedProduct.id} (mock)
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                    Scenario: {scenarioLabel}
-                                </p>
+                                <p className="text-xs text-muted-foreground">Product: {selectedProduct.id} (mock)</p>
+                                <p className="text-xs text-muted-foreground">Scenario: {scenarioLabel}</p>
                             </div>
                             
                             {chartAvailability === 'ok' ? (
@@ -728,14 +641,10 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
                                 <>
                                     <BarChartHorizontal className="mx-auto h-12 w-12 opacity-50" />
                                     <h3 className="mt-4 text-lg font-semibold text-foreground">No instrument selected</h3>
-                                    <p className="mt-1 text-sm">
-                                        Pick an instrument from the toolbar to load its TradingView chart.
-                                    </p>
+                                    <p className="mt-1 text-sm">Pick an instrument from the toolbar to load its TradingView chart.</p>
                                     <div className="mt-6 flex justify-center gap-2">
                                         <Button onClick={handleSelectDefault}>Use BTC-PERP (default)</Button>
-                                        <Button variant="ghost" onClick={() => onSetModule('dashboard')}>
-                                            Back to Dashboard <ArrowRight className="ml-2 h-4 w-4" />
-                                        </Button>
+                                        <Button variant="ghost" onClick={() => onSetModule('dashboard')}>Back to Dashboard <ArrowRight className="ml-2 h-4 w-4" /></Button>
                                     </div>
                                 </>
                             )}
@@ -763,9 +672,7 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
                                             <div key={index} className="flex justify-between items-center">
                                                 <span>{shortcut.label}</span>
                                                 <div className="flex items-center gap-1">
-                                                    {shortcut.keys.map(key => (
-                                                        <kbd key={key} className="px-2 py-0.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-md">{key}</kbd>
-                                                    ))}
+                                                    {shortcut.keys.map(key => (<kbd key={key} className="px-2 py-0.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-md">{key}</kbd>))}
                                                 </div>
                                             </div>
                                         ))}
