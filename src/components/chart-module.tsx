@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { BarChartHorizontal, Check, ChevronsUpDown, Send, Sun, Moon, Maximize, Minimize, LineChart, Bot, AlertTriangle, Loader2, RefreshCw, ArrowRight, Info, XCircle } from "lucide-react";
+import { BarChartHorizontal, Check, ChevronsUpDown, Send, Sun, Moon, Maximize, Minimize, LineChart, Bot, AlertTriangle, Loader2, RefreshCw, ArrowRight, Info, XCircle, X } from "lucide-react";
 import { Card, CardContent } from "./ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -106,6 +106,23 @@ function Phase1InfoBox({ onDismiss }: { onDismiss: () => void }) {
     );
 }
 
+function WorkflowHintBar({ isVisible, onDismiss }: { isVisible: boolean, onDismiss: () => void }) {
+    if (!isVisible) return null;
+    return (
+        <Alert className="bg-primary/5 border-primary/20 text-primary-foreground/80 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+                <Info className="h-4 w-4 text-primary" />
+                <AlertDescription className="text-xs">
+                    <span className="font-semibold">Step 1:</span> Analyze here. <span className="font-semibold">Step 2:</span> Click ‘Send to Trade Planning’ to structure your trade.
+                </AlertDescription>
+            </div>
+            <Button variant="ghost" size="sm" className="text-xs h-auto py-1 px-2" onClick={onDismiss}>
+                Hide
+            </Button>
+        </Alert>
+    );
+}
+
 export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
     const { products, isLoading: isProductsLoading, error: productsError, loadProducts, cacheInfo } = useDeltaProducts();
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -116,6 +133,7 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
     const [isSelectorOpen, setIsSelectorOpen] = useState(false);
     const [chartAvailability, setChartAvailability] = useState<'unknown' | 'ok' | 'unavailable'>('unknown');
     const [isInfoBoxVisible, setIsInfoBoxVisible] = useState(false);
+    const [isHintBarVisible, setIsHintBarVisible] = useState(false);
 
 
     useEffect(() => {
@@ -123,6 +141,10 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
             const infoBoxDismissed = localStorage.getItem("ec_chart_phase1_info_dismissed");
             if (!infoBoxDismissed) {
                 setIsInfoBoxVisible(true);
+            }
+            const hintDismissed = localStorage.getItem("ec_chart_hint_hidden");
+            if (!hintDismissed) {
+                setIsHintBarVisible(true);
             }
             
             if (products.length > 0) {
@@ -150,7 +172,11 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
                     }
                 }
                 
-                // 3. Set the product (or do nothing if none is found/set)
+                // 3. If still nothing, default to BTC
+                if (!productToSet) {
+                    productToSet = products.find(p => p.id === 'BTC-PERP') || products[0] || null;
+                }
+
                 if (productToSet) {
                     handleProductSelect(productToSet);
                 }
@@ -234,6 +260,11 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
     const dismissInfoBox = () => {
         setIsInfoBoxVisible(false);
         localStorage.setItem("ec_chart_phase1_info_dismissed", "true");
+    };
+
+    const dismissHintBar = () => {
+        setIsHintBarVisible(false);
+        localStorage.setItem("ec_chart_hint_hidden", "true");
     };
 
     const selectedIntervalLabel = intervals.find(i => i.value === interval)?.label || interval;
@@ -374,6 +405,8 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
                 </CardContent>
             </Card>
 
+            <WorkflowHintBar isVisible={isHintBarVisible} onDismiss={dismissHintBar} />
+
             <div className="flex-1 min-h-0">
                 <Card className="h-full bg-muted/30 border-border/50 flex flex-col items-center justify-center relative border-2 border-dashed">
                      {selectedProduct ? (
@@ -458,5 +491,3 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
 
     
 }
-
-    
