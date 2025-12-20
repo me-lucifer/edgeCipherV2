@@ -491,6 +491,7 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+            {/* Fullscreen Header */}
             <div className={cn("flex items-center justify-between", !isFullscreen && "hidden")}>
                 {selectedProduct && (
                     <div className="text-left">
@@ -514,7 +515,7 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
             
             {isInfoBoxVisible && !isFullscreen && <Phase1InfoBox onDismiss={dismissInfoBox} />}
             
-            <Card className="bg-muted/30 border-border/50">
+            <Card className={cn("bg-muted/30 border-border/50", isFullscreen && "hidden")}>
                 <CardContent className="p-2 flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-4">
                     {/* Instrument Selector */}
                     <Popover open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
@@ -652,9 +653,9 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
                 </CardContent>
             </Card>
 
-            <WorkflowHintBar isVisible={isHintBarVisible} onDismiss={dismissHintBar} />
+            <WorkflowHintBar isVisible={isHintBarVisible && !isFullscreen} onDismiss={dismissHintBar} />
             
-            <div className="flex items-center gap-4">
+            <div className={cn("flex items-center gap-4", isFullscreen && "hidden")}>
                 <span className="text-xs font-semibold text-muted-foreground">Multi-timeframe view (manual)</span>
                 <div className="flex items-center gap-1 rounded-full bg-muted p-1" role="group" aria-label="Multi-timeframe chart view">
                     {multiTimeframeIntervals.map(item => (
@@ -737,7 +738,7 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
                     )}
                     <Popover>
                         <PopoverTrigger asChild>
-                            <Button variant="outline" size="icon" className="absolute bottom-4 left-4 z-10 rounded-full shadow-lg bg-background/50 backdrop-blur-sm">
+                            <Button variant="outline" size="icon" className={cn("absolute bottom-4 left-4 z-10 rounded-full shadow-lg bg-background/50 backdrop-blur-sm", isFullscreen && "hidden")}>
                                 <Bot className="h-5 w-5 text-primary" />
                             </Button>
                         </PopoverTrigger>
