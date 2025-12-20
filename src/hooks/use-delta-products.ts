@@ -22,40 +22,62 @@ export function useDeltaProducts() {
     const [products, setProducts] = useState<Product[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [cacheInfo, setCacheInfo] = useState<{ isStale: boolean, fetchedAt: string | null }>({ isStale: false, fetchedAt: null });
 
-    const loadProducts = useCallback(async () => {
+    const loadProducts = useCallback(async (forceRefresh = false) => {
         setIsLoading(true);
         setError(null);
+        setCacheInfo({ isStale: false, fetchedAt: null });
 
+        let cachedData = null;
         try {
-            const cachedData = localStorage.getItem(CACHE_KEY);
-            if (cachedData) {
-                const { products: cachedProducts, fetchedAt } = JSON.parse(cachedData);
-                if (new Date().getTime() - new Date(fetchedAt).getTime() < TTL) {
-                    setProducts(cachedProducts);
-                    setIsLoading(false);
-                    return;
-                }
+            const storedData = localStorage.getItem(CACHE_KEY);
+            if (storedData) {
+                cachedData = JSON.parse(storedData);
             }
         } catch (e) {
             console.error("Failed to read from product cache", e);
             localStorage.removeItem(CACHE_KEY);
         }
 
+        if (cachedData && !forceRefresh) {
+            const { products: cachedProducts, fetchedAt } = cachedData;
+            const isExpired = new Date().getTime() - new Date(fetchedAt).getTime() > TTL;
+            if (!isExpired) {
+                setProducts(cachedProducts);
+                setIsLoading(false);
+                setCacheInfo({ isStale: false, fetchedAt });
+                return;
+            }
+        }
+
         // Simulate API call
         setTimeout(() => {
-            try {
-                setProducts(mockProducts);
-                localStorage.setItem(
-                    CACHE_KEY,
-                    JSON.stringify({ products: mockProducts, fetchedAt: new Date().toISOString() })
-                );
-            } catch (e) {
-                console.error("Failed to write to product cache", e);
-                setError("Unable to save products (prototype).");
-            } finally {
-                setIsLoading(false);
+            // Simulate a fetch error for demonstration
+            const shouldFail = Math.random() < 0.2 && forceRefresh;
+
+            if (shouldFail) {
+                const errorMessage = "Failed to fetch products from Delta API (simulated).";
+                setError(errorMessage);
+                if (cachedData) {
+                    setProducts(cachedData.products); // Use stale data
+                    setCacheInfo({ isStale: true, fetchedAt: cachedData.fetchedAt });
+                }
+            } else {
+                try {
+                    const newFetchedAt = new Date().toISOString();
+                    setProducts(mockProducts);
+                    localStorage.setItem(
+                        CACHE_KEY,
+                        JSON.stringify({ products: mockProducts, fetchedAt: newFetchedAt })
+                    );
+                    setCacheInfo({ isStale: false, fetchedAt: newFetchedAt });
+                } catch (e) {
+                    console.error("Failed to write to product cache", e);
+                    setError("Unable to save products (prototype).");
+                }
             }
+            setIsLoading(false);
         }, 800);
 
     }, []);
@@ -72,5 +94,5 @@ export function useDeltaProducts() {
         return products.find(p => p.symbol === symbol);
     };
 
-    return { products, isLoading, error, loadProducts, getProductById, getProductBySymbol };
+    return { products, isLoading, error, loadProducts, getProductById, getProductBySymbol, cacheInfo };
 }

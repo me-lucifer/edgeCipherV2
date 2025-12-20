@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { BarChartHorizontal, Check, ChevronsUpDown, Send, Sun, Moon, Maximize, Minimize, LineChart, Bot, AlertTriangle, Loader2 } from "lucide-react";
+import { BarChartHorizontal, Check, ChevronsUpDown, Send, Sun, Moon, Maximize, Minimize, LineChart, Bot, AlertTriangle, Loader2, RefreshCw } from "lucide-react";
 import { Card, CardContent } from "./ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -14,6 +14,7 @@ import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "./ui/t
 import { Badge } from "./ui/badge";
 import { useDeltaProducts, type Product } from "@/hooks/use-delta-products";
 import { Skeleton } from "./ui/skeleton";
+import { formatDistanceToNow } from "date-fns";
 
 interface ChartModuleProps {
     onSetModule: (module: any, context?: any) => void;
@@ -71,7 +72,7 @@ function ChartWidgetShell({ tvSymbol, interval, chartTheme }: { tvSymbol: string
 }
 
 export function ChartModule({ onSetModule }: ChartModuleProps) {
-    const { products, isLoading: isProductsLoading, error: productsError } = useDeltaProducts();
+    const { products, isLoading: isProductsLoading, error: productsError, loadProducts, cacheInfo } = useDeltaProducts();
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
     const [tvSymbol, setTvSymbol] = useState<string>("");
     const [interval, setInterval] = useState<string>("60");
@@ -191,8 +192,8 @@ export function ChartModule({ onSetModule }: ChartModuleProps) {
                 </p>
             </div>
             
-            <Card className="h-16 bg-muted/30 border-border/50">
-                <CardContent className="p-2 h-full flex items-center gap-4">
+            <Card className="h-auto md:h-16 bg-muted/30 border-border/50">
+                <CardContent className="p-2 h-full flex flex-col md:flex-row items-start md:items-center gap-4">
                     {/* Instrument Selector */}
                     <Popover open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
                         <PopoverTrigger asChild>
@@ -200,10 +201,10 @@ export function ChartModule({ onSetModule }: ChartModuleProps) {
                                 variant="outline"
                                 role="combobox"
                                 aria-expanded={isSelectorOpen}
-                                className="w-[200px] justify-between"
-                                disabled={isProductsLoading}
+                                className="w-full md:w-[200px] justify-between"
+                                disabled={isProductsLoading && products.length === 0}
                             >
-                                {isProductsLoading ? "Loading..." : selectedProduct ? selectedProduct.name : "Select instrument..."}
+                                {isProductsLoading && products.length === 0 ? "Loading..." : selectedProduct ? selectedProduct.name : "Select instrument..."}
                                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                             </Button>
                         </PopoverTrigger>
@@ -211,7 +212,7 @@ export function ChartModule({ onSetModule }: ChartModuleProps) {
                             <Command>
                                 <CommandInput placeholder="Search instrument..." />
                                 <CommandList>
-                                    {productsError && <CommandEmpty>{productsError}</CommandEmpty>}
+                                    {productsError && products.length === 0 && <CommandEmpty>{productsError}</CommandEmpty>}
                                     {!productsError && products.length === 0 && <CommandEmpty>No products found.</CommandEmpty>}
                                     <CommandGroup>
                                         {products.map((product) => (
@@ -229,6 +230,29 @@ export function ChartModule({ onSetModule }: ChartModuleProps) {
                             </Command>
                         </PopoverContent>
                     </Popover>
+
+                     {productsError && (
+                        <div className="flex items-center gap-2 text-xs">
+                             <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger>
+                                        <Badge variant="destructive" className="gap-1.5">
+                                            <AlertTriangle className="h-3 w-3"/>
+                                            Error loading list
+                                            {cacheInfo.isStale && ' (using cache)'}
+                                        </Badge>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p className="max-w-xs">{productsError} {cacheInfo.isStale && `Displaying stale data from ${formatDistanceToNow(new Date(cacheInfo.fetchedAt!))} ago.`}</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => loadProducts(true)}>
+                                <RefreshCw className="mr-2 h-3 w-3" />
+                                Retry
+                            </Button>
+                        </div>
+                    )}
 
                     {/* Interval Selector */}
                     <div className="flex items-center gap-1 rounded-full bg-muted p-1">
@@ -318,8 +342,17 @@ export function ChartModule({ onSetModule }: ChartModuleProps) {
                         </>
                     ) : (
                         <div className="text-center text-muted-foreground">
-                            <BarChartHorizontal className="mx-auto h-12 w-12" />
-                            <p className="mt-4">Choose an instrument from the toolbar to load its chart.</p>
+                            {isProductsLoading ? (
+                                <>
+                                    <Loader2 className="mx-auto h-12 w-12 animate-spin" />
+                                    <p className="mt-4">Loading instruments...</p>
+                                </>
+                            ) : (
+                                <>
+                                    <BarChartHorizontal className="mx-auto h-12 w-12" />
+                                    <p className="mt-4">Choose an instrument from the toolbar to load its chart.</p>
+                                </>
+                            )}
                         </div>
                     )}
                     <Popover>
@@ -344,3 +377,4 @@ export function ChartModule({ onSetModule }: ChartModuleProps) {
     );
 
     
+}
