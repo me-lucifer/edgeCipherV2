@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { BarChartHorizontal, Check, ChevronsUpDown, Send, Sun, Moon, Maximize, Minimize, LineChart, Bot, AlertTriangle } from "lucide-react";
+import { BarChartHorizontal, Check, ChevronsUpDown, Send, Sun, Moon, Maximize, Minimize, LineChart, Bot, AlertTriangle, Loader2 } from "lucide-react";
 import { Card, CardContent } from "./ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -13,6 +13,7 @@ import { Switch } from "./ui/switch";
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { Badge } from "./ui/badge";
 import { useDeltaProducts, type Product } from "@/hooks/use-delta-products";
+import { Skeleton } from "./ui/skeleton";
 
 interface ChartModuleProps {
     onSetModule: (module: any, context?: any) => void;
@@ -33,6 +34,41 @@ const arjunTips = [
     "Combine chart with your Strategy rules — no random trades.",
     "Use this chart to spot clean, logical setups, not to chase candles.",
 ]
+
+function ChartWidgetShell({ tvSymbol, interval, chartTheme }: { tvSymbol: string; interval: string; chartTheme: 'dark' | 'light' }) {
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        setIsLoading(true);
+        const timer = setTimeout(() => {
+            setIsLoading(false);
+        }, 600);
+        return () => clearTimeout(timer);
+    }, [tvSymbol, interval, chartTheme]);
+
+    if (isLoading) {
+        return (
+            <div className="flex flex-col items-center justify-center text-center text-muted-foreground flex-1 p-4">
+                <Skeleton className="h-full w-full" />
+            </div>
+        );
+    }
+    
+    return (
+        <>
+            <div className="flex flex-col items-center justify-center text-center text-muted-foreground flex-1">
+                <LineChart className="mx-auto h-24 w-24 opacity-10" />
+                <p className="mt-4">TradingView Widget Placeholder</p>
+            </div>
+             <p className="absolute bottom-4 left-4 text-xs text-muted-foreground/50">
+                Recreated for {tvSymbol} · {interval} · {chartTheme}
+            </p>
+            <p className="absolute bottom-4 right-4 text-xs text-muted-foreground/50">
+                Phase 1 prototype: replace this box with real TradingView widget integration.
+            </p>
+        </>
+    );
+}
 
 export function ChartModule({ onSetModule }: ChartModuleProps) {
     const { products, isLoading: isProductsLoading, error: productsError } = useDeltaProducts();
@@ -267,20 +303,18 @@ export function ChartModule({ onSetModule }: ChartModuleProps) {
                             </div>
                             
                             {chartAvailability === 'ok' ? (
-                                <div className="flex flex-col items-center justify-center text-center text-muted-foreground flex-1">
-                                    <LineChart className="mx-auto h-24 w-24 opacity-10" />
-                                    <p className="mt-4">TradingView Widget Placeholder</p>
-                                </div>
+                                <ChartWidgetShell 
+                                    key={`${tvSymbol}_${interval}_${chartTheme}`}
+                                    tvSymbol={tvSymbol}
+                                    interval={selectedIntervalLabel}
+                                    chartTheme={chartTheme}
+                                />
                             ) : chartAvailability === 'unavailable' ? (
                                 <div className="flex flex-col items-center justify-center text-center text-muted-foreground flex-1">
                                     <BarChartHorizontal className="mx-auto h-16 w-16 opacity-10" />
                                     <p className="mt-4">No chart data available for this instrument.</p>
                                 </div>
                             ) : null}
-
-                            <p className="absolute bottom-4 text-xs text-muted-foreground/50">
-                                Phase 1 prototype: replace this box with real TradingView widget integration.
-                            </p>
                         </>
                     ) : (
                         <div className="text-center text-muted-foreground">
@@ -308,4 +342,5 @@ export function ChartModule({ onSetModule }: ChartModuleProps) {
             </div>
         </div>
     );
-}
+
+    
