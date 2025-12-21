@@ -25,6 +25,7 @@ interface Persona {
 }
 
 export type DemoScenario = "normal" | "high_vol" | "drawdown" | "no_positions";
+export type ChartMarketMode = "trend" | "range" | "volatile";
 
 const features = [
     { id: 'tradePlanning', icon: FileText, title: "Plan new trade" },

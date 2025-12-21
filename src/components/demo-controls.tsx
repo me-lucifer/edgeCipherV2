@@ -12,12 +12,12 @@ import {
   DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "./ui/button"
-import { Paintbrush, Check, SlidersHorizontal, Sun, Moon, Waves, User } from "lucide-react"
+import { Paintbrush, Check, SlidersHorizontal, Sun, Moon, Waves, User, TrendingUp, BarChartHorizontal, Activity } from "lucide-react"
 import { useTheme, type Theme } from "./theme-provider"
 import { cn } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip"
 import { useState, useEffect } from "react"
-import type { DemoScenario } from "./dashboard-module"
+import type { DemoScenario, ChartMarketMode } from "./dashboard-module"
 import { useEventLog } from "@/context/event-log-provider"
 
 const themes: { name: string, id: Theme, color: string }[] = [
@@ -34,15 +34,27 @@ const scenarios: {id: DemoScenario, label: string, description: string, icon: Re
     { id: "no_positions", label: "New User / No Data", description: "No broker / no history – learning mode.", icon: User },
 ];
 
+const chartModes: { id: ChartMarketMode, label: string, description: string, icon: React.ElementType }[] = [
+    { id: 'trend', label: "Trend Day", description: "Clean swings, good for breakouts.", icon: TrendingUp },
+    { id: 'range', label: "Rangebound Day", description: "Chop, good for mean reversion.", icon: BarChartHorizontal },
+    { id: 'volatile', label: "Volatile Day", description: "Wicky candles, high risk.", icon: Activity },
+];
+
+
 export function DemoControls() {
     const { theme: activeTheme, setTheme } = useTheme();
     const [scenario, setScenario] = useState<DemoScenario>('normal');
+    const [marketMode, setMarketMode] = useState<ChartMarketMode>('trend');
     
     useEffect(() => {
         if (typeof window !== "undefined") {
             const savedScenario = localStorage.getItem('ec_demo_scenario') as DemoScenario;
             if (savedScenario) {
                 setScenario(savedScenario);
+            }
+            const savedMarketMode = localStorage.getItem('ec_chart_market_mode') as ChartMarketMode;
+            if (savedMarketMode) {
+                setMarketMode(savedMarketMode);
             }
         }
     }, []);
@@ -54,6 +66,13 @@ export function DemoControls() {
         // We also need to manually update state here for the radio group to reflect the change
         setScenario(scenario);
     };
+
+    const handleMarketModeChange = (newMarketMode: string) => {
+        const mode = newMarketMode as ChartMarketMode;
+        localStorage.setItem('ec_chart_market_mode', mode);
+        setMarketMode(mode);
+    };
+
 
     return (
         <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
@@ -68,12 +87,12 @@ export function DemoControls() {
                             </DropdownMenuTrigger>
                         </TooltipTrigger>
                         <TooltipContent side="left">
-                            <p>Change demo scenario</p>
+                            <p>Change demo context</p>
                         </TooltipContent>
                     </Tooltip>
                 </TooltipProvider>
                 <DropdownMenuContent align="end" className="w-64">
-                    <DropdownMenuLabel>Demo Scenario</DropdownMenuLabel>
+                    <DropdownMenuLabel>Account Scenario</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuRadioGroup value={scenario} onValueChange={handleScenarioChange}>
                         {scenarios.map((s) => (
@@ -82,6 +101,20 @@ export function DemoControls() {
                                 <div className="flex flex-col">
                                     <span>{s.label}</span>
                                     <span className="text-xs text-muted-foreground">{s.description}</span>
+                                </div>
+                            </DropdownMenuRadioItem>
+                        ))}
+                    </DropdownMenuRadioGroup>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel>Chart Market Mode</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuRadioGroup value={marketMode} onValueChange={handleMarketModeChange}>
+                        {chartModes.map((m) => (
+                             <DropdownMenuRadioItem key={m.id} value={m.id} className="gap-2">
+                                <m.icon className="h-4 w-4 text-muted-foreground" />
+                                <div className="flex flex-col">
+                                    <span>{m.label}</span>
+                                    <span className="text-xs text-muted-foreground">{m.description}</span>
                                 </div>
                             </DropdownMenuRadioItem>
                         ))}
@@ -121,5 +154,3 @@ export function DemoControls() {
         </div>
     )
 }
-
-    

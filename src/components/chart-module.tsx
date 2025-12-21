@@ -18,7 +18,7 @@ import { Skeleton } from "./ui/skeleton";
 import { formatDistanceToNow } from "date-fns";
 import type { ModuleContext } from "./authenticated-app-shell";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
-import type { DemoScenario } from "./dashboard-module";
+import type { DemoScenario, ChartMarketMode } from "./dashboard-module";
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
@@ -253,6 +253,7 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
     const [chartAvailability, setChartAvailability] = useState<'unknown' | 'ok' | 'unavailable'>('unknown');
     const [isHintBarVisible, setIsHintBarVisible] = useState(false);
     const [scenario, setScenario] = useState<DemoScenario>('normal');
+    const [marketMode, setMarketMode] = useState<ChartMarketMode>('trend');
     const [chartInstanceKey, setChartInstanceKey] = useState(0);
     const { toast } = useToast();
     const [showThemeChangeDialog, setShowThemeChangeDialog] = useState(false);
@@ -329,9 +330,13 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
         if (typeof window !== 'undefined') {
             const savedScenario = localStorage.getItem('ec_demo_scenario') as DemoScenario;
             if (savedScenario) setScenario(savedScenario);
+
+            const savedMarketMode = localStorage.getItem('ec_chart_market_mode') as ChartMarketMode;
+            if (savedMarketMode) setMarketMode(savedMarketMode);
             
             const handleStorageChange = (e: StorageEvent) => {
                 if (e.key === 'ec_demo_scenario') setScenario((e.newValue as DemoScenario) || 'normal');
+                if (e.key === 'ec_chart_market_mode') setMarketMode((e.newValue as ChartMarketMode) || 'trend');
             };
     
             window.addEventListener('storage', handleStorageChange);
@@ -388,10 +393,11 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
     };
 
     const handleSendToPlanning = () => {
-        const planningContext = selectedProduct ? {
+        if (!selectedProduct) return;
+        const planningContext = {
             source: 'chart',
             instrument: selectedProduct.id,
-        } : { source: 'chart', instrument: '' };
+        };
         
         if (typeof window !== 'undefined') localStorage.setItem("ec_trade_planning_context", JSON.stringify(planningContext));
         onSetModule('tradePlanning', { planContext: planningContext });
@@ -449,6 +455,12 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
         'drawdown': "In Drawdown",
         'no_positions': "New User"
     }[scenario];
+    const marketModeLabel = {
+        'trend': "Trend",
+        'range': "Rangebound",
+        'volatile': "Volatile",
+    }[marketMode];
+
 
     const arjunTips = useMemo(() => {
         let selectedTips: string[] = [...arjunTipSets.general];
@@ -496,7 +508,7 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
             </div>
             
             <Card className={cn("bg-muted/30 border-border/50", isFullscreen && "hidden")}>
-                <CardContent className="p-2 flex flex-col sm:flex-row flex-wrap items-center gap-x-4 gap-y-2">
+                <CardContent className="p-2 flex flex-wrap items-center gap-x-4 gap-y-2">
                     <Popover open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
                         <PopoverTrigger asChild>
                             <Button
@@ -617,7 +629,7 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
                             <div className={cn("absolute top-4 left-4 text-left p-2 rounded-lg bg-background/50 backdrop-blur-sm z-10", isFullscreen && "hidden")}>
                                 <h3 className="font-semibold text-foreground text-sm">{tvSymbol} · {selectedIntervalLabel}</h3>
                                 <p className="text-xs text-muted-foreground">Product: {selectedProduct.id} (mock)</p>
-                                <p className="text-xs text-muted-foreground">Scenario: {scenarioLabel}</p>
+                                <p className="text-xs text-muted-foreground">Scenario: {scenarioLabel} · Market Mode: {marketModeLabel}</p>
                             </div>
                             
                             {chartAvailability === 'ok' ? (
