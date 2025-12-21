@@ -101,7 +101,7 @@ function ChartWidgetShell({ tvSymbol, interval, chartTheme }: { tvSymbol: string
     if (isLoading) {
         return (
             <div className="flex flex-col items-center justify-center text-center text-muted-foreground flex-1 p-4 animate-pulse">
-                 <Loader2 className="h-8 w-8 text-primary mb-4" />
+                 <Loader2 className="h-8 w-8 text-primary animate-spin mb-4" />
                 <p>Loading chart for {tvSymbol}...</p>
             </div>
         );
@@ -144,7 +144,7 @@ function ChartWidgetShell({ tvSymbol, interval, chartTheme }: { tvSymbol: string
             </svg>
 
             <p className="absolute bottom-4 left-4 text-xs text-muted-foreground/50">
-                Recreated for {tvSymbol} · {interval} · {chartTheme}
+                This page is for analysis, not for impulsive clicks. Send to Trade Planning to execute.
             </p>
         </div>
     );
@@ -158,6 +158,7 @@ function ChartWalkthrough({ isOpen, onOpenChange, onDemoSelect }: { isOpen: bool
     ];
     
     const limitations = [
+        "This page is for analysis, not for impulsive clicks.",
         "Drawings do not save on refresh.",
         "Theme/interval changes reload the widget.",
         "No auto Entry/SL/TP lines yet.",
@@ -387,19 +388,11 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
     };
 
     const handleSendToPlanning = () => {
-        if (!selectedProduct) {
-            toast({
-                variant: "destructive",
-                title: "No Instrument Selected",
-                description: "Choose an instrument before sending to Trade Planning.",
-            });
-            return;
-        }
-
-        const planningContext = {
+        const planningContext = selectedProduct ? {
             source: 'chart',
             instrument: selectedProduct.id,
-        };
+        } : { source: 'chart', instrument: '' };
+        
         if (typeof window !== 'undefined') localStorage.setItem("ec_trade_planning_context", JSON.stringify(planningContext));
         onSetModule('tradePlanning', { planContext: planningContext });
     };
@@ -556,13 +549,13 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
                         </div>
                     )}
 
-                    <div className="flex items-center gap-1 rounded-full bg-muted p-1" role="group" aria-label="Chart time interval">
+                    <div role="group" aria-label="Chart time interval" className="flex items-center gap-1 rounded-full bg-muted p-1">
                         {intervals.map(item => (<Button key={item.value} size="sm" variant={interval === item.value ? 'secondary' : 'ghost'} onClick={() => handleIntervalChange(item.value)} className="rounded-full h-8 px-3 text-xs">{item.label}</Button>))}
                     </div>
                     
                     <div className="flex items-center space-x-2">
                         <Label htmlFor="chart-theme" className="text-sm text-muted-foreground">Chart Theme</Label>
-                        <Switch id="chart-theme" checked={chartTheme === 'dark'} onCheckedChange={handleThemeChange} />
+                        <Switch id="chart-theme" checked={chartTheme === 'dark'} onCheckedChange={handleThemeChange} aria-label="Toggle chart theme" />
                         {chartTheme === 'dark' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
                     </div>
 
@@ -576,8 +569,14 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
                         <div className="text-right flex-1 sm:flex-initial">
                             <TooltipProvider>
                                 <Tooltip>
-                                    <TooltipTrigger asChild><Button onClick={handleSendToPlanning} disabled={!selectedProduct} className="w-full sm:w-auto"><Send className="mr-2 h-4 w-4" /> Send to Trade Planning</Button></TooltipTrigger>
-                                    <TooltipContent><p>Pre-select this instrument in the Trade Planning module.</p></TooltipContent>
+                                    <TooltipTrigger asChild>
+                                        <Button onClick={handleSendToPlanning} disabled={!selectedProduct} className="w-full sm:w-auto">
+                                            <Send className="mr-2 h-4 w-4" /> Send to Trade Planning
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p className="max-w-xs">Pre-select this instrument in the Trade Planning module. No trading from here. All execution must pass Trade Planning first.</p>
+                                    </TooltipContent>
                                 </Tooltip>
                             </TooltipProvider>
                         </div>
@@ -590,7 +589,7 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
             
             <div className={cn("flex items-center gap-4", isFullscreen && "hidden")}>
                 <span className="text-xs font-semibold text-muted-foreground">Multi-timeframe view (manual)</span>
-                <div className="flex items-center gap-1 rounded-full bg-muted p-1" role="group" aria-label="Multi-timeframe chart view">
+                <div role="group" aria-label="Multi-timeframe chart view" className="flex items-center gap-1 rounded-full bg-muted p-1">
                     {multiTimeframeIntervals.map(item => (<Button key={item.value} size="sm" variant={interval === item.value ? 'secondary' : 'ghost'} onClick={() => handleIntervalChange(item.value)} className="rounded-full h-7 px-3 text-xs">{item.label}</Button>))}
                 </div>
             </div>
@@ -605,7 +604,7 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
                                        <AlertTriangle className="h-4 w-4 text-amber-400" />
                                        <AlertTitle className="text-amber-400">Chart not available for this instrument</AlertTitle>
                                        <AlertDescription>
-                                            <p>This can happen for certain pairs on the free TradingView widget. You can still plan a trade manually.</p>
+                                            <p>This can happen for certain pairs on the free TradingView widget. You can still proceed with Trade Planning and enter your levels manually.</p>
                                             <div className="mt-4 flex gap-2">
                                                 <Button variant="secondary" onClick={handleSendToPlanning}>Proceed to Trade Planning</Button>
                                                 <Button variant="outline" onClick={() => instrumentSelectorRef.current?.click()}>Pick another instrument</Button>
@@ -637,6 +636,16 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
                                     <Loader2 className="mx-auto h-12 w-12 animate-spin" />
                                     <p className="mt-4">Loading instruments...</p>
                                 </>
+                            ) : productsError && products.length === 0 ? (
+                                <div className="text-center text-destructive p-8">
+                                    <AlertTriangle className="mx-auto h-12 w-12" />
+                                    <h3 className="mt-4 text-lg font-semibold text-foreground">Couldn't load instruments</h3>
+                                    <p className="mt-1 text-sm">{productsError}</p>
+                                    <div className="mt-6 flex justify-center gap-2">
+                                        <Button variant="outline" onClick={() => loadProducts(true)}><RefreshCw className="mr-2 h-4 w-4" /> Retry</Button>
+                                        <Button variant="link" onClick={handleSendToPlanning}>Proceed to Trade Planning anyway</Button>
+                                    </div>
+                                </div>
                             ) : (
                                 <>
                                     <BarChartHorizontal className="mx-auto h-12 w-12 opacity-50" />
@@ -644,7 +653,7 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
                                     <p className="mt-1 text-sm">Pick an instrument from the toolbar to load its TradingView chart.</p>
                                     <div className="mt-6 flex justify-center gap-2">
                                         <Button onClick={handleSelectDefault}>Use BTC-PERP (default)</Button>
-                                        <Button variant="ghost" onClick={() => onSetModule('dashboard')}>Back to Dashboard <ArrowRight className="ml-2 h-4 w-4" /></Button>
+                                        <Button variant="ghost" onClick={() => onSetModule('tradePlanning')}>Go to Trade Planning <ArrowRight className="ml-2 h-4 w-4" /></Button>
                                     </div>
                                 </>
                             )}
