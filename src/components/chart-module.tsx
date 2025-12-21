@@ -244,7 +244,7 @@ function ChartWalkthrough({ isOpen, onOpenChange, onDemoSelect }: { isOpen: bool
                             <CardHeader className="pb-4">
                                 <CardTitle className="text-base">Try a Demo Scenario</CardTitle>
                             </CardHeader>
-                            <CardContent className="flex flex-col sm:flex-row gap-4">
+                            <CardContent className="flex flex-col gap-4">
                                 <Button onClick={() => onDemoSelect('btc')}>Demo: BTC-PERP setup</Button>
                                 <Button variant="outline" onClick={() => onDemoSelect('sol')}>Demo: SOL-PERP (unavailable chart)</Button>
                             </CardContent>
