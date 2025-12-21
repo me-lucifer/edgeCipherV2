@@ -382,15 +382,22 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
         const newTvSymbol = mapDeltaToTradingView(product);
         setTvSymbol(newTvSymbol);
         setIsSelectorOpen(false);
-        setChartAvailability(newTvSymbol.includes("UNKNOWN") ? 'unavailable' : 'ok');
+        setChartAvailability(isChartAvailable(product) ? 'ok' : 'unavailable');
     };
 
     const mapDeltaToTradingView = (product: Product): string => {
-        if (product.id === "SOL-PERP") return "COINBASE:SOLUSD"; // For demo purposes
+        if (product.id === "SOL-PERP") return "UNAVAILABLE:SOL-PERP"; // For demo purposes
         if (product.symbol.endsWith("USDT")) return `BINANCE:${product.symbol}`;
         if (product.id.endsWith("-PERP")) return `BINANCE:${product.id.replace("-PERP", "")}USDT`;
         return `BINANCE:${product.symbol || "UNKNOWN"}`;
     };
+
+    const isChartAvailable = (product: Product): boolean => {
+        // Deterministic rule for demo purposes
+        if (product.id === "SOL-PERP") return false;
+        if (product.id.includes("1000")) return false; // Mock unavailable for leveraged tokens
+        return true;
+    }
 
     const handleSendToPlanning = () => {
         if (!selectedProduct) return;
