@@ -1,4 +1,37 @@
+/*
+  ================================================================================
+  DEVELOPER NOTE: PHASE 1 CHART MODULE IMPLEMENTATION
+  ================================================================================
+  This component serves as a prototype for the charting module and has several
+  key limitations and design choices for Phase 1:
 
+  1.  **Frontend-Only**: This is a frontend-only simulation. The TradingView
+      widget is a placeholder (`ChartWidgetShell`) and does not load any real
+      charting library.
+
+  2.  **No Persistence**: Drawings, selected tools, and chart layouts are not
+      saved. They are lost on page refresh or when changing key parameters.
+
+  3.  **Widget Re-creation**: The chart widget is intentionally given a new `key`
+      and re-created whenever the symbol, interval, or theme changes. This
+      simulates the behavior of re-initializing a real charting library with
+      new parameters and clears any "drawings" in the mock UI.
+
+  4.  **Product List Caching**: The list of tradable products from Delta Exchange
+      is fetched via a mock hook (`useDeltaProducts`). This hook implements a
+      localStorage cache with a 6-hour TTL to simulate API data fetching
+      without making repeated calls during a demo.
+
+  5.  **Two-Symbol Strategy**: A distinction is maintained between the internal
+      product ID (e.g., "BTC-PERP") used within EdgeCipher and the display
+      symbol required by the charting library (e.g., "BINANCE:BTCUSDT"). The
+      `mapDeltaToTradingView` function handles this mock conversion.
+
+  6.  **Context Handoff**: When a user clicks "Send to Trade Planning", only the
+      product ID and a source identifier are passed via localStorage. No specific
+      price levels, drawings, or analysis from the chart are included in this
+      Phase 1 handoff.
+*/
 
 "use client";
 
