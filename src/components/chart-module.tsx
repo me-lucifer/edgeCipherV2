@@ -536,7 +536,7 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
                 {selectedProduct && (
                     <div className="text-left">
                         <h3 className="font-semibold text-foreground">{tvSymbol}</h3>
-                        <p className="text-sm text-muted-foreground"><Badge variant="secondary">{selectedIntervalLabel}</Badge></p>
+                        <div className="text-sm text-muted-foreground"><Badge variant="secondary">{selectedIntervalLabel}</Badge></div>
                     </div>
                 )}
                  <div className="flex-1" />
