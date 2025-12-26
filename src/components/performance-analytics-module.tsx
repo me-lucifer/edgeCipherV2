@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
@@ -32,7 +33,7 @@ const mockEquityData = [
   { date: "2024-01-02", equity: 10150, marker: null, journalId: null },
   { date: "2024-01-03", equity: 10100, marker: { type: "Revenge trade", color: "hsl(var(--chart-5))" }, journalId: "completed-2" },
   { date: "2024-01-04", equity: 10300, marker: null, journalId: null },
-  { date: "2024-01-05", equity: 10250, marker: { type: "SL moved", color: "hsl(var(--chart-3))" }, journalId: "completed-2" },
+  { date: "2024-01-05", equity: 10250, marker: { type: "Moved SL", color: "hsl(var(--chart-3))" }, journalId: "completed-2" },
   { date: "2024-01-06", equity: 10500, marker: null, journalId: null },
   { date: "2024-01-07", equity: 10450, marker: null, journalId: null },
   { date: "2024-01-08", equity: 10600, marker: null, journalId: null },
@@ -275,7 +276,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
     const [selectedStrategy, setSelectedStrategy] = useState<(typeof mockStrategyData)[0] | null>(null);
     const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
     const [hasData, setHasData] = useState(true);
-    const [selectedBehavior, setSelectedBehavior] = useState<string | null>(null);
+    const [selectedBehavior, setSelectedBehavior] = useState<{ behavior: string; trades: JournalEntry[] } | null>(null);
     const [selectedEvent, setSelectedEvent] = useState<JournalEntry | null>(null);
     const [showBehaviorLayer, setShowBehaviorLayer] = useState(true);
     const { toast } = useToast();
@@ -489,7 +490,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
         onSetModule('aiCoaching', { initialMessage: prompt });
     };
 
-    const selectedBehaviorData = analyticsData.topLossDrivers.find(d => d.behavior === selectedBehavior);
+    const selectedBehaviorData = analyticsData.topLossDrivers.find(d => d.behavior === selectedBehavior?.behavior);
     
     const handleCellClick = (emotion: string, result: string) => {
         toast({
@@ -580,7 +581,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                                 <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `$${value / 1000}k`} />
                                                 <ChartTooltip cursor={{ strokeDasharray: '3 3' }} content={<ChartTooltipContent />} />
                                                 <Line type="monotone" dataKey="equity" stroke="hsl(var(--color-equity))" strokeWidth={2} dot={
-                                                    (props) => {
+                                                    (props: any) => {
                                                         const { key, payload, ...rest } = props;
                                                         if (showBehaviorLayer && payload.marker) {
                                                             return (
@@ -596,7 +597,8 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                                                 </TooltipProvider>
                                                             )
                                                         }
-                                                        return <Dot key={key} {...props} r={0} />;
+                                                        const { key: dotKey, ...dotProps } = props;
+                                                        return <Dot key={dotKey} {...dotProps} r={0} />;
                                                     }
                                                 } />
                                             </LineChart>
@@ -785,7 +787,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                         <TableCell className="font-mono text-red-400">{driver.avgR.toFixed(2)}R</TableCell>
                                         <TableCell className="font-mono text-red-400">{driver.totalR.toFixed(2)}R</TableCell>
                                         <TableCell className="text-right">
-                                            <Button variant="ghost" size="sm" onClick={() => setSelectedBehavior(driver.behavior)}>
+                                            <Button variant="ghost" size="sm" onClick={() => setSelectedBehavior(driver)}>
                                                 View trades
                                             </Button>
                                         </TableCell>
@@ -1057,7 +1059,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                     {selectedBehaviorData && (
                         <div className="mx-auto w-full max-w-2xl p-4 md:p-6">
                             <DrawerHeader>
-                                <DrawerTitle className="text-2xl">Trades with "{selectedBehavior}" tag</DrawerTitle>
+                                <DrawerTitle className="text-2xl">Trades with "{selectedBehavior?.behavior}" tag</DrawerTitle>
                             </DrawerHeader>
                             <div className="px-4 py-6 space-y-6">
                                 {selectedBehaviorData.trades.map(trade => (
