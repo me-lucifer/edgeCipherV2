@@ -651,10 +651,10 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                                     <ChartTooltip cursor={{ strokeDasharray: '3 3' }} content={<ChartTooltipContent />} />
                                                     <Line type="monotone" dataKey="equity" stroke="hsl(var(--color-equity))" strokeWidth={2} dot={
                                                         (props: any) => {
-                                                            const { payload, ...rest } = props;
+                                                            const { key, payload, ...rest } = props;
                                                             if (showBehaviorLayer && payload.marker) {
                                                                 return (
-                                                                    <TooltipProvider key={props.key}>
+                                                                    <TooltipProvider key={key}>
                                                                         <Tooltip>
                                                                             <TooltipTrigger asChild>
                                                                                 <Dot {...rest} r={5} fill={payload.marker.color} stroke="hsl(var(--background))" strokeWidth={2} onClick={() => handleEventClick(payload.journalId)} className="cursor-pointer" />
@@ -666,7 +666,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                                                     </TooltipProvider>
                                                                 )
                                                             }
-                                                            return <Dot {...props} r={0} />;
+                                                            return <Dot key={key} {...rest} r={0} />;
                                                         }
                                                     } />
                                                 </LineChart>
@@ -894,7 +894,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                         </SectionCard>
                     </TabsContent>
                     <TabsContent value="strategies" className="mt-6 space-y-8">
-                        <SectionCard id="strategy" title="Strategy Analytics" description="Which of your strategies are performing best, and where they leak money." icon={Brain}>
+                        <SectionCard id="strategy" title="Strategy Analytics" description="Which of your strategies are performing best, and where they leak money." icon={BookOpen}>
                             <Table>
                                 <TableHeader>
                                     <TableRow>
