@@ -81,6 +81,20 @@ const arjunPatternNotes = [
     "FOMO-tagged trades appear most frequently during the first hour of the NY session.",
 ];
 
+const emotionResultMatrixData = {
+    emotions: ["FOMO", "Fear", "Anxious", "Revenge", "Calm", "Focused"],
+    results: ["Big Loss (≤-2R)", "Loss (-2R to 0)", "Win (0 to +2R)", "Big Win (≥+2R)"],
+    data: [
+        [3, 8, 2, 0], // FOMO
+        [1, 5, 4, 1], // Fear
+        [2, 9, 6, 0], // Anxious
+        [4, 4, 0, 0], // Revenge
+        [0, 2, 10, 3], // Calm
+        [0, 1, 15, 8], // Focused
+    ],
+    maxCount: 15,
+};
+
 
 const equityChartConfig = {
   equity: { label: "Equity", color: "hsl(var(--chart-2))" }
@@ -267,9 +281,9 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
       else if (disciplineScore < 60 || emotionalScore > 40) quality = "Emotional";
 
       const behaviorTags: Record<string, { occurrences: number; totalR: number; trades: JournalEntry[] }> = {};
-      completedEntries.forEach(entry => {
+      completedEntries.forEach((entry, idx) => {
         const tags = [...(entry.review?.emotionsTags?.split(',') || []), ...(entry.review?.mistakesTags?.split(',') || [])].filter(Boolean);
-        const rValue = rValues.find((r, i) => completedEntries[i].id === entry.id) || 0;
+        const rValue = rValues[idx] || 0;
         
         tags.forEach(tag => {
             if (tag === 'None (disciplined)') return;
@@ -402,6 +416,13 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
     };
 
     const selectedBehaviorData = analyticsData.topLossDrivers.find(d => d.behavior === selectedBehavior);
+    
+    const handleCellClick = (emotion: string, result: string) => {
+        toast({
+            title: "Filter Action (Prototype)",
+            description: `Filtering trades with emotion '${emotion}' and result '${result}'.`,
+        });
+    };
 
     return (
         <div className="space-y-8">
@@ -475,7 +496,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                                         <TooltipProvider key={payload.date}>
                                                             <Tooltip>
                                                                 <TooltipTrigger asChild>
-                                                                    <Dot {...rest} cx={cx} cy={cy} r={5} fill={payload.marker.color} stroke="hsl(var(--background))" strokeWidth={2} />
+                                                                    <Dot {...rest} key={key} cx={cx} cy={cy} r={5} fill={payload.marker.color} stroke="hsl(var(--background))" strokeWidth={2} />
                                                                 </TooltipTrigger>
                                                                 <TooltipContent>
                                                                     <p>{payload.marker.type}</p>
@@ -484,7 +505,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                                         </TooltipProvider>
                                                     )
                                                 }
-                                                return <Dot key={key} {...rest} r={0} />;
+                                                return <Dot {...props} key={key} r={0} />;
                                             }
                                         } />
                                     </LineChart>
@@ -508,6 +529,217 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                 </div>
                             </div>
                         </div>
+                    </SectionCard>
+                    <SectionCard id="discipline" title="Risk & Discipline Analytics" description="How well you are following your own rules." icon={Target}>
+                        <div className="grid md:grid-cols-3 gap-6">
+                            <Card className="bg-muted/50 border-border/50">
+                                <CardHeader>
+                                    <CardTitle className="text-base">Stop Loss Behavior</CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    <div>
+                                        <div className="flex justify-between text-sm"><span className="text-muted-foreground">Respected</span><span>{analyticsData.discipline.slRespectedPct.toFixed(0)}%</span></div>
+                                        <Progress value={analyticsData.discipline.slRespectedPct} indicatorClassName="bg-green-500" className="h-2 mt-1" />
+                                    </div>
+                                    <div>
+                                        <div className="flex justify-between text-sm"><span className="text-muted-foreground">Moved</span><span>{analyticsData.discipline.slMovedPct.toFixed(0)}%</span></div>
+                                        <Progress value={analyticsData.discipline.slMovedPct} indicatorClassName="bg-amber-500" className="h-2 mt-1" />
+                                    </div>
+                                    <div>
+                                        <div className="flex justify-between text-sm"><span className="text-muted-foreground">Removed</span><span>{analyticsData.discipline.slRemovedPct}%</span></div>
+                                        <Progress value={analyticsData.discipline.slRemovedPct} indicatorClassName="bg-red-500" className="h-2 mt-1" />
+                                    </div>
+                                    <Alert variant="default" className="mt-4 bg-amber-500/10 border-amber-500/20 text-amber-300">
+                                        <AlertTriangle className="h-4 w-4 text-amber-400" />
+                                        <AlertDescription className="text-xs">
+                                            Your biggest drawdowns correlate with moving stop losses.
+                                        </AlertDescription>
+                                    </Alert>
+                                </CardContent>
+                            </Card>
+                            <Card className="bg-muted/50 border-border/50">
+                                <CardHeader>
+                                    <CardTitle className="text-base">Take Profit Behavior</CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    <div className="p-4 bg-background/50 rounded-lg">
+                                        <p className="text-sm text-muted-foreground">Exited early %</p>
+                                        <p className="text-2xl font-bold font-mono">{analyticsData.discipline.tpExitedEarlyPct}%</p>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">Consider defining partial TP rules to let winners run (coming in Phase 2).</p>
+                                </CardContent>
+                            </Card>
+                             <Card className="bg-muted/50 border-border/50">
+                                <CardHeader>
+                                    <CardTitle className="text-base">Risk Compliance</CardTitle>
+                                </CardHeader>
+                                 <CardContent className="space-y-4">
+                                    <div className="p-4 bg-background/50 rounded-lg">
+                                        <p className="text-sm text-muted-foreground">Avg. risk per trade</p>
+                                        <p className="text-2xl font-bold font-mono">{analyticsData.discipline.avgRiskPct.toFixed(2)}%</p>
+                                    </div>
+                                    <div className="p-4 bg-background/50 rounded-lg">
+                                        <p className="text-sm text-muted-foreground">% of trades over limit</p>
+                                        <p className="text-2xl font-bold font-mono">{analyticsData.discipline.riskOverLimitPct}%</p>
+                                    </div>
+                                    {analyticsData.discipline.riskOverLimitPct > 10 && (
+                                         <Badge variant="destructive" className="gap-1.5"><XCircle className="h-3 w-3" /> Risk Leakage Detected</Badge>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        </div>
+                    </SectionCard>
+                    <SectionCard id="psychology" title="Psychological Patterns" description="The emotions and biases that drive your decisions." icon={Brain}>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                            {psychologicalPatterns.map(pattern => (
+                                 <Card key={pattern.name} className={cn("border", pattern.colorCode)}>
+                                    <CardHeader className="pb-2">
+                                        <CardTitle className="text-base">{pattern.name}</CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <p className="text-2xl font-bold font-mono">{pattern.count}</p>
+                                        <p className="text-xs text-muted-foreground">instances</p>
+                                        <p className="text-sm font-semibold font-mono mt-2 text-red-400">
+                                            ${pattern.avgPnL.toLocaleString()} impact
+                                        </p>
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                        <div className="mt-6 grid lg:grid-cols-2 gap-6">
+                            <Card className="bg-muted/50">
+                                <CardHeader>
+                                    <CardTitle className="text-base flex items-center gap-2">
+                                        <Bot className="h-5 w-5 text-primary" /> Pattern Notes
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                     <ul className="space-y-2 text-sm text-muted-foreground list-disc list-inside">
+                                        {arjunPatternNotes.map((note, i) => <li key={i}>{note}</li>)}
+                                    </ul>
+                                </CardContent>
+                            </Card>
+                             <Card className="bg-muted/50 flex flex-col items-center justify-center text-center p-6">
+                                <h3 className="font-semibold text-foreground">Turn these insights into action.</h3>
+                                <p className="text-sm text-muted-foreground mt-1 mb-4">Discuss your top two issues with Arjun to build a personalized growth plan.</p>
+                                <Button onClick={discussPsychology}>
+                                    Discuss Patterns with Arjun <ArrowRight className="ml-2 h-4 w-4" />
+                                </Button>
+                            </Card>
+                        </div>
+                    </SectionCard>
+                    <SectionCard id="strategy" title="Strategy Analytics" description="Which of your strategies are performing best, and where they leak money." icon={Brain}>
+                         <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Strategy</TableHead>
+                                    <TableHead>Trades</TableHead>
+                                    <TableHead>Win %</TableHead>
+                                    <TableHead>Total PnL ($)</TableHead>
+                                    <TableHead>Top Mistake</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {mockStrategyData.map((strategy) => (
+                                    <TableRow key={strategy.name}>
+                                        <TableCell className="font-medium">{strategy.name}</TableCell>
+                                        <TableCell>{strategy.trades}</TableCell>
+                                        <TableCell>{strategy.winRate}%</TableCell>
+                                        <TableCell className={cn(strategy.pnl >= 0 ? "text-green-400" : "text-red-400")}>
+                                            {strategy.pnl >= 0 ? '+' : ''}${strategy.pnl.toLocaleString()}
+                                        </TableCell>
+                                        <TableCell><Badge variant="destructive">{strategy.topMistake}</Badge></TableCell>
+                                        <TableCell className="text-right">
+                                            <Button variant="ghost" size="sm" onClick={() => setSelectedStrategy(strategy)}>
+                                                Open <ArrowRight className="ml-2 h-3 w-3" />
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </SectionCard>
+                    <SectionCard id="timing" title="Timing Analytics" description="When you trade best (and worst)." icon={Calendar}>
+                        <div className="grid md:grid-cols-3 gap-6">
+                            <div className="md:col-span-2">
+                                 <div className="overflow-x-auto">
+                                    <table className="w-full text-center text-xs border-separate border-spacing-1">
+                                        <thead>
+                                            <tr>
+                                                <th className="p-2">Session</th>
+                                                {timingHeatmapData.timeBlocks.map(block => (
+                                                    <th key={block} className="p-2 font-normal text-muted-foreground">{block}</th>
+                                                ))}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {timingHeatmapData.sessions.map(session => (
+                                                <tr key={session.name}>
+                                                    <td className="font-semibold text-foreground text-left p-2">{session.name}</td>
+                                                    {timingHeatmapData.timeBlocks.map(block => {
+                                                        const cellData = session.blocks.find(b => b.time === block);
+                                                        if (!cellData) {
+                                                            return <td key={block} className="p-2 bg-muted/30 rounded-md" />;
+                                                        }
+                                                        const opacity = Math.min(1, (cellData.trades / 30) * 0.9 + 0.1);
+                                                        const bgColor = cellData.pnl > 0 ? `rgba(34, 197, 94, ${opacity})` : `rgba(239, 68, 68, ${opacity})`;
+                                                        return (
+                                                            <td key={block} style={{ backgroundColor: bgColor }} className="p-2 rounded-md">
+                                                                <TooltipProvider><Tooltip>
+                                                                    <TooltipTrigger>
+                                                                        <div className="font-mono text-white">
+                                                                            {cellData.pnl > 0 ? '+' : ''}{cellData.pnl}
+                                                                        </div>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent>
+                                                                        <p>Trades: {cellData.trades}</p>
+                                                                        <p>PnL: ${cellData.pnl}</p>
+                                                                    </TooltipContent>
+                                                                </Tooltip></TooltipProvider>
+                                                            </td>
+                                                        );
+                                                    })}
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div className="md:col-span-1">
+                                <Card className="bg-muted/50 h-full">
+                                    <CardHeader>
+                                        <CardTitle className="text-base flex items-center gap-2">
+                                            <Bot className="h-5 w-5 text-primary" /> Arjun's Insight
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <p className="text-sm text-muted-foreground">
+                                            You lose most of your PnL during the <strong className="text-foreground">London session open (08-12 block)</strong>. It seems you're getting caught in fakeouts.
+                                        </p>
+                                        <p className="text-sm text-muted-foreground mt-2">
+                                            <strong className="text-primary">Actionable advice:</strong> Consider avoiding the first hour of the London session, or reduce your size by 50% during that period for the next week.
+                                        </p>
+                                    </CardContent>
+                                </Card>
+                            </div>
+                        </div>
+                    </SectionCard>
+                    <SectionCard id="volatility" title="Volatility Analytics" description="How you perform in different market conditions." icon={Zap}>
+                         <Table>
+                            <TableHeader><TableRow><TableHead>VIX Zone</TableHead><TableHead>Trades</TableHead><TableHead>Win Rate</TableHead><TableHead>Mistakes</TableHead><TableHead>Avg. PnL</TableHead></TableRow></TableHeader>
+                            <TableBody>
+                                {volatilityData.map(d => (
+                                    <TableRow key={d.vixZone}>
+                                        <TableCell>{d.vixZone}</TableCell>
+                                        <TableCell>{d.trades}</TableCell>
+                                        <TableCell>{d.winRate}%</TableCell>
+                                        <TableCell>{d.mistakesCount}</TableCell>
+                                        <TableCell className={cn(d.avgPnL >= 0 ? "text-green-400" : "text-red-400")}>${d.avgPnL.toFixed(2)}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
                     </SectionCard>
                 </TabsContent>
                 <TabsContent value="behaviour" className="mt-6 space-y-8">
@@ -674,6 +906,61 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                 ))}
                             </TableBody>
                         </Table>
+                    </SectionCard>
+                    <SectionCard id="emotion-matrix" title="Emotion × Result Matrix" description="Where do your emotions lead you? See which feelings correlate with wins and losses." icon={Brain}>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-center text-xs border-separate border-spacing-1">
+                                <thead>
+                                    <tr>
+                                        <th className="p-2 text-left">Emotion</th>
+                                        {emotionResultMatrixData.results.map(result => (
+                                            <th key={result} className="p-2 font-normal text-muted-foreground">{result}</th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {emotionResultMatrixData.emotions.map((emotion, rowIndex) => (
+                                        <tr key={emotion}>
+                                            <td className="font-semibold text-foreground text-left p-2">{emotion}</td>
+                                            {emotionResultMatrixData.data[rowIndex].map((count, colIndex) => {
+                                                const opacity = count > 0 ? Math.min(1, (count / emotionResultMatrixData.maxCount) * 0.9 + 0.1) : 0;
+                                                const result = emotionResultMatrixData.results[colIndex];
+                                                const isLoss = result.includes("Loss");
+                                                const isWin = result.includes("Win");
+                                                
+                                                let bgColor = `rgba(100, 116, 139, ${opacity * 0.5})`; // Muted for zero
+                                                if (count > 0) {
+                                                    if (isLoss) bgColor = `rgba(239, 68, 68, ${opacity})`; // Red
+                                                    if (isWin) bgColor = `rgba(34, 197, 94, ${opacity})`; // Green
+                                                }
+
+                                                return (
+                                                    <td
+                                                        key={colIndex}
+                                                        style={{ backgroundColor: bgColor }}
+                                                        className="p-3 rounded-md font-mono text-white cursor-pointer hover:ring-2 hover:ring-primary"
+                                                        onClick={() => handleCellClick(emotion, result)}
+                                                    >
+                                                        {count}
+                                                    </td>
+                                                );
+                                            })}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div className="flex justify-end items-center gap-4 text-xs text-muted-foreground mt-4">
+                            <span>Fewer trades</span>
+                            <div className="flex gap-1">
+                                <div className="w-4 h-4 rounded bg-primary/20" />
+                                <div className="w-4 h-4 rounded bg-primary/40" />
+                                <div className="w-4 h-4 rounded bg-primary/60" />
+                                <div className="w-4 h-4 rounded bg-primary/80" />
+                                <div className="w-4 h-4 rounded bg-primary" />
+                            </div>
+                            <span>More trades</span>
+                        </div>
                     </SectionCard>
                 </TabsContent>
                 <TabsContent value="strategies" className="mt-6 space-y-8">
