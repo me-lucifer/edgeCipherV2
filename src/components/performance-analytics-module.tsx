@@ -387,7 +387,6 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
         }))
         .sort((a, b) => a.totalR - b.totalR);
 
-      // Generating mock data with seed
       const mockEquityData = entries.reduce((acc: any[], entry, i) => {
         const prevEquity = i > 0 ? acc[i - 1].equity : 10000;
         const pnl = entry.review?.pnl || (random() - 0.48) * 500;
@@ -737,7 +736,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                                     <ChartTooltip cursor={{ strokeDasharray: '3 3' }} content={<ChartTooltipContent />} />
                                                     <Line type="monotone" dataKey="equity" stroke="hsl(var(--color-equity))" strokeWidth={2} dot={
                                                         (props: any) => {
-                                                          const { key, payload, cx, cy } = props;
+                                                          const { payload, cx, cy, key } = props;
                                                           if (showBehaviorLayer && payload.marker) {
                                                               const { key: dotKey, ...rest } = props;
                                                               return (
@@ -753,9 +752,9 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                                                   </TooltipProvider>
                                                               )
                                                           }
-                                                          const emptyKey = `dot-empty-${key}-${props.index}`;
-                                                          const {key: spreadKey, ...restProps} = props;
-                                                          return <Dot key={emptyKey} {...restProps} r={0} />;
+                                                            const {key: spreadKey, ...restProps} = props;
+                                                            const emptyKey = `dot-empty-${spreadKey}-${props.index}`;
+                                                            return <Dot key={emptyKey} {...restProps} r={0} />;
                                                         }
                                                     } />
                                                 </LineChart>
