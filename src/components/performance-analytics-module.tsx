@@ -652,11 +652,10 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                                     <ChartTooltip cursor={{ strokeDasharray: '3 3' }} content={<ChartTooltipContent />} />
                                                     <Line type="monotone" dataKey="equity" stroke="hsl(var(--color-equity))" strokeWidth={2} dot={
                                                         (props: any) => {
-                                                            const { payload, cx, cy, ...rest } = props;
+                                                            const { payload, cx, cy, key, ...rest } = props;
                                                             if (showBehaviorLayer && payload.marker) {
-                                                                const dotKey = `dot-${props.key}-${props.index}`;
                                                                 return (
-                                                                    <TooltipProvider key={dotKey}>
+                                                                    <TooltipProvider key={key}>
                                                                         <Tooltip>
                                                                             <TooltipTrigger asChild>
                                                                                 <Dot {...rest} cx={cx} cy={cy} r={5} fill={payload.marker.color} stroke="hsl(var(--background))" strokeWidth={2} onClick={() => handleEventClick(payload.journalId)} className="cursor-pointer" />
@@ -668,7 +667,8 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                                                     </TooltipProvider>
                                                                 )
                                                             }
-                                                            return <Dot key={`dot-empty-${props.key}-${props.index}`} cx={cx} cy={cy} r={0} />;
+                                                            const emptyKey = `dot-empty-${key}-${props.index}`;
+                                                            return <Dot key={emptyKey} {...props} r={0} />;
                                                         }
                                                     } />
                                                 </LineChart>
