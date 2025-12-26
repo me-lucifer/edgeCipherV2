@@ -5,7 +5,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart as BarChartIcon, Brain, Calendar, Filter, AlertCircle, Info, TrendingUp, TrendingDown, Users, DollarSign, Target, Gauge, Zap, Award, ArrowRight, XCircle, CheckCircle, Circle, Bot, AlertTriangle, Clipboard, Star, Activity, BookOpen, BarChartHorizontal, Database, View } from "lucide-react";
+import { BarChart as BarChartIcon, Brain, Calendar, Filter, AlertCircle, Info, TrendingUp, TrendingDown, Users, DollarSign, Target, Gauge, Zap, Award, ArrowRight, XCircle, CheckCircle, Circle, Bot, AlertTriangle, Clipboard, Star, Activity, BookOpen, BarChartHorizontal, Database, View, Flag } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, CartesianGrid, XAxis, YAxis, Bar, Line, LineChart, ResponsiveContainer, ReferenceDot, Dot } from "recharts";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -388,7 +388,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
         .sort((a, b) => a.totalR - b.totalR);
 
         const mockEquityData = entries.reduce((acc: any[], entry, i) => {
-            const prevEquity = i > 0 ? acc[i - 1].equity : 10000;
+            const prevEquity = acc.length > 0 ? acc[acc.length - 1].equity : 10000;
             const pnl = entry.review?.pnl || (random() - 0.48) * 500;
             const equity = prevEquity + pnl;
             const hasMarker = entry.review?.mistakesTags && entry.review.mistakesTags !== "None (disciplined)";
@@ -403,13 +403,15 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
           }, []);
       
       const topEvents = entries.filter(e => e.review?.mistakesTags && e.review.mistakesTags !== "None (disciplined)")
-        .slice(0, 2)
         .map(e => ({
             date: e.timestamps.executedAt,
             label: e.review!.mistakesTags!.split(',')[0],
             impact: e.review!.pnl,
+            instrument: e.technical.instrument,
             journalId: e.id,
-        }));
+        }))
+        .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
 
       const mockStrategyData = [
         { name: "Breakout", trades: Math.floor(random() * 50) + 20, winRate: 40 + Math.floor(random() * 20), avgR: 1.5 + random() * 0.5, pnl: 2000 + random() * 1000, topMistake: "Exited early" },
@@ -636,6 +638,13 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
     const equityChartConfig = {
       equity: { label: "Equity", color: "hsl(var(--chart-2))" }
     };
+    
+    const eventTypeIcon: Record<string, React.ElementType> = {
+        'Moved SL': Flag,
+        'Revenge': Bot,
+        'Forced Entry': AlertTriangle,
+        'default': Info,
+    };
 
     return (
         <Drawer open={!!activeDrilldown} onOpenChange={(open) => !open && setActiveDrilldown(null)}>
@@ -726,61 +735,73 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                         </div>
                                     }
                                 >
-                                    <div className="grid lg:grid-cols-3 gap-8">
-                                        <div className="lg:col-span-2">
-                                            <ChartContainer config={equityChartConfig} className="h-[300px] w-full">
-                                                <LineChart data={analyticsData.mockEquityData} margin={{ top: 5, right: 20, left: -20, bottom: 0 }}>
-                                                    <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50" />
-                                                    <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={10} tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} />
-                                                    <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `$${value / 1000}k`} />
-                                                    <ChartTooltip cursor={{ strokeDasharray: '3 3' }} content={<ChartTooltipContent />} />
-                                                    <Line type="monotone" dataKey="equity" stroke="hsl(var(--color-equity))" strokeWidth={2} dot={
-                                                        (props: any) => {
-                                                            const { payload, cx, cy } = props;
-                                                            if (showBehaviorLayer && payload.marker) {
-                                                                const { key, ...rest } = props;
-                                                                return (
-                                                                    <TooltipProvider key={key}>
-                                                                        <Tooltip>
-                                                                            <TooltipTrigger asChild>
-                                                                                <Dot {...rest} cx={cx} cy={cy} r={5} fill={payload.marker.color} stroke="hsl(var(--background))" strokeWidth={2} onClick={() => handleEventClick(payload.journalId)} className="cursor-pointer" />
-                                                                            </TooltipTrigger>
-                                                                            <TooltipContent>
-                                                                                <p>{payload.marker.type}</p>
-                                                                            </TooltipContent>
-                                                                        </Tooltip>
-                                                                    </TooltipProvider>
-                                                                )
-                                                            }
-                                                            const { key, ...rest } = props;
-                                                            const emptyKey = `dot-empty-${key}-${props.index}`;
-                                                            return <Dot key={emptyKey} {...rest} r={0} />;
-                                                        }
-                                                    } />
-                                                </LineChart>
-                                            </ChartContainer>
-                                        </div>
-                                        {showBehaviorLayer && (
-                                            <div className="lg:col-span-1">
-                                                <h3 className="text-sm font-semibold text-foreground mb-3">Top Events on Chart</h3>
-                                                <div className="space-y-3">
-                                                    {analyticsData.topEvents.map((event: any, i: number) => (
-                                                        <Card key={i} className="bg-muted/50 cursor-pointer hover:bg-muted" onClick={() => handleEventClick(event.journalId)}>
-                                                            <CardContent className="p-3">
-                                                                <p className="text-sm font-semibold">{event.label}</p>
-                                                                <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
-                                                                    <span>{new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-                                                                    <span className="font-mono text-red-400">{event.impact > 0 ? '+' : ''}${event.impact.toFixed(2)}</span>
-                                                                </div>
-                                                                <div className="text-xs text-primary/80 mt-2 flex items-center gap-1">Open details <ArrowRight className="h-3 w-3"/></div>
-                                                            </CardContent>
-                                                        </Card>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
+                                    <div className="h-[350px]">
+                                      <ChartContainer config={equityChartConfig} className="h-full w-full">
+                                          <LineChart data={analyticsData.mockEquityData} margin={{ top: 5, right: 20, left: -20, bottom: 0 }}>
+                                              <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50" />
+                                              <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={10} tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} />
+                                              <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `$${value / 1000}k`} />
+                                              <ChartTooltip cursor={{ strokeDasharray: '3 3' }} content={<ChartTooltipContent />} />
+                                              <Line type="monotone" dataKey="equity" stroke="hsl(var(--color-equity))" strokeWidth={2} dot={
+                                                  (props: any) => {
+                                                      const { payload, cx, cy } = props;
+                                                      if (showBehaviorLayer && payload.marker) {
+                                                          const { key, ...rest } = props;
+                                                          return (
+                                                              <TooltipProvider key={key}>
+                                                                  <Tooltip>
+                                                                      <TooltipTrigger asChild>
+                                                                          <Dot {...rest} cx={cx} cy={cy} r={5} fill={payload.marker.color} stroke="hsl(var(--background))" strokeWidth={2} onClick={() => handleEventClick(payload.journalId)} className="cursor-pointer" />
+                                                                      </TooltipTrigger>
+                                                                      <TooltipContent>
+                                                                          <p>{payload.marker.type}</p>
+                                                                      </TooltipContent>
+                                                                  </Tooltip>
+                                                              </TooltipProvider>
+                                                          )
+                                                      }
+                                                      const { key, ...rest } = props;
+                                                      const emptyKey = `dot-empty-${key}-${props.index}`;
+                                                      return <Dot key={emptyKey} {...rest} r={0} />;
+                                                  }
+                                              } />
+                                          </LineChart>
+                                      </ChartContainer>
                                     </div>
                                 </SectionCard>
+
+                                <SectionCard
+                                  id="timeline"
+                                  title="Behaviour Events Timeline"
+                                  description="A narrative view of your recent trading decisions, linked to your journal."
+                                  icon={BookOpen}
+                                >
+                                  <div className="space-y-4">
+                                      {analyticsData.topEvents.slice(0, 5).map((event: any, i: number) => {
+                                          const EventIcon = eventTypeIcon[event.label] || eventTypeIcon.default;
+                                          return (
+                                              <div key={i} className="flex items-center justify-between p-3 rounded-md bg-muted/50 border border-border/50">
+                                                  <div className="flex items-center gap-3">
+                                                      <EventIcon className="h-5 w-5 text-muted-foreground" />
+                                                      <div>
+                                                          <p className="font-semibold text-foreground text-sm">{event.label} <span className="text-muted-foreground font-normal">on {event.instrument}</span></p>
+                                                          <p className={cn("text-xs font-mono", event.impact >= 0 ? "text-green-400" : "text-red-400")}>
+                                                              Result: {event.impact > 0 ? '+' : ''}${event.impact.toFixed(2)}
+                                                          </p>
+                                                      </div>
+                                                  </div>
+                                                  <Button variant="ghost" size="sm" onClick={() => handleEventClick(event.journalId)}>
+                                                      View Journal <ArrowRight className="ml-2 h-4 w-4" />
+                                                  </Button>
+                                              </div>
+                                          );
+                                      })}
+                                       {analyticsData.topEvents.length === 0 && (
+                                          <p className="text-sm text-muted-foreground text-center py-4">No significant behavioral events logged in this period.</p>
+                                      )}
+                                  </div>
+                                </SectionCard>
+
                             </div>
                             <div className="lg:col-span-1 space-y-8">
                                 <ArjunInsightsSidebar analyticsData={analyticsData} onSetModule={onSetModule} />
@@ -1249,4 +1270,3 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
         </Drawer>
     );
 }
-
