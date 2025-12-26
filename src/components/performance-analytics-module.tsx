@@ -350,7 +350,15 @@ function ScoreGauge({ score, label, interpretation, delta }: { score: number; la
 }
 
 const RadarChart = ({ data, onSetModule }: { data: { axis: string, value: number, count: number, impact: string }[], onSetModule: PerformanceAnalyticsModuleProps['onSetModule'] }) => {
-    if (!data || data.length === 0) return null;
+    if (!data || data.length === 0) {
+        return (
+            <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-full p-4 border-2 border-dashed rounded-lg">
+                <Brain className="h-8 w-8 text-muted-foreground/50 mb-2" />
+                <h4 className="font-semibold text-foreground">Not enough data</h4>
+                <p className="text-xs">Tag emotions and mistakes in your journal to build your psychological profile.</p>
+            </div>
+        );
+    }
 
     const size = 300;
     const center = size / 2;
@@ -463,7 +471,7 @@ const TradesInFocusPanel = ({
         </CollapsibleTrigger>
         <CollapsibleContent>
           <CardContent>
-            {behavior?.trades && (
+            {behavior?.trades && behavior.trades.length > 0 ? (
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -503,6 +511,10 @@ const TradesInFocusPanel = ({
                   })}
                 </TableBody>
               </Table>
+            ) : (
+                 <div className="text-center py-8">
+                    <p className="text-muted-foreground">No trades found for this segment.</p>
+                </div>
             )}
           </CardContent>
         </CollapsibleContent>
@@ -792,7 +804,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
 
     if (!hasData) {
         return (
-            <div className="text-center p-8 border-2 border-dashed rounded-lg">
+            <div className="flex h-[60vh] flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 text-center">
                 <BarChartIcon className="mx-auto h-12 w-12 text-muted-foreground" />
                 <h3 className="mt-4 text-lg font-semibold">No trade data yet</h3>
                 <p className="mt-1 text-sm text-muted-foreground">
@@ -805,7 +817,17 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
         );
     }
 
-    if (!analyticsData || !analyticsData.current) return null;
+    if (!analyticsData || !analyticsData.current) {
+        return (
+            <div className="flex h-[60vh] flex-col items-center justify-center">
+                <Skeleton className="h-12 w-12 rounded-full" />
+                <div className="space-y-2 mt-4">
+                    <Skeleton className="h-4 w-[250px]" />
+                    <Skeleton className="h-4 w-[200px]" />
+                </div>
+            </div>
+        );
+    };
     const currentData = analyticsData.current;
     const previousData = analyticsData.previous;
 
@@ -845,6 +867,14 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
         'Forced Entry': AlertTriangle,
         'default': Info,
     };
+    
+    const EmptyState = ({ icon: Icon, title, description }: { icon: React.ElementType, title: string, description: string }) => (
+        <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-full p-4 border-2 border-dashed rounded-lg min-h-[200px]">
+            <Icon className="h-8 w-8 text-muted-foreground/50 mb-2" />
+            <h4 className="font-semibold text-foreground">{title}</h4>
+            <p className="text-xs">{description}</p>
+        </div>
+    );
 
     return (
         <Drawer open={!!activeDrilldown} onOpenChange={(open) => !open && setActiveDrilldown(null)}>
@@ -941,36 +971,40 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                     }
                                 >
                                     <div className="h-[350px]">
-                                      <ChartContainer config={equityChartConfig} className="h-full w-full">
-                                          <LineChart data={currentData.mockEquityData} margin={{ top: 5, right: 20, left: -20, bottom: 0 }}>
-                                              <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50" />
-                                              <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={10} tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} />
-                                              <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `$${value / 1000}k`} />
-                                              <ChartTooltip cursor={{ strokeDasharray: '3 3' }} content={<ChartTooltipContent />} />
-                                              <Line type="monotone" dataKey="equity" stroke="hsl(var(--color-equity))" strokeWidth={2} dot={
-                                                  (props: any) => {
-                                                      const { cx, cy, payload } = props;
-                                                      if (showBehaviorLayer && payload.marker) {
-                                                          const { key, ...rest } = props;
-                                                          return (
-                                                              <TooltipProvider key={key}>
-                                                                  <Tooltip>
-                                                                      <TooltipTrigger asChild>
-                                                                          <Dot {...rest} cx={cx} cy={cy} r={5} fill={payload.marker.color} stroke="hsl(var(--background))" strokeWidth={2} onClick={() => handleEventClick(payload.journalId)} className="cursor-pointer" />
-                                                                      </TooltipTrigger>
-                                                                      <TooltipContent>
-                                                                          <p>{payload.marker.type}</p>
-                                                                      </TooltipContent>
-                                                                  </Tooltip>
-                                                              </TooltipProvider>
-                                                          )
-                                                      }
-                                                      const { key, ...rest } = props;
-                                                      return <Dot key={`dot-empty-${key}-${props.index}`} {...rest} r={0} />;
-                                                  }
-                                              } />
-                                          </LineChart>
-                                      </ChartContainer>
+                                      {currentData.mockEquityData.length > 0 ? (
+                                        <ChartContainer config={equityChartConfig} className="h-full w-full">
+                                            <LineChart data={currentData.mockEquityData} margin={{ top: 5, right: 20, left: -20, bottom: 0 }}>
+                                                <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50" />
+                                                <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={10} tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} />
+                                                <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `$${value / 1000}k`} />
+                                                <ChartTooltip cursor={{ strokeDasharray: '3 3' }} content={<ChartTooltipContent />} />
+                                                <Line type="monotone" dataKey="equity" stroke="hsl(var(--color-equity))" strokeWidth={2} dot={
+                                                    (props: any) => {
+                                                        const { cx, cy, payload } = props;
+                                                        if (showBehaviorLayer && payload.marker) {
+                                                            const { key, ...rest } = props;
+                                                            return (
+                                                                <TooltipProvider key={key}>
+                                                                    <Tooltip>
+                                                                        <TooltipTrigger asChild>
+                                                                            <Dot {...rest} cx={cx} cy={cy} r={5} fill={payload.marker.color} stroke="hsl(var(--background))" strokeWidth={2} onClick={() => handleEventClick(payload.journalId)} className="cursor-pointer" />
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent>
+                                                                            <p>{payload.marker.type}</p>
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                </TooltipProvider>
+                                                            )
+                                                        }
+                                                        const { key, ...rest } = props;
+                                                        return <Dot key={`dot-empty-${key}-${props.index}`} {...rest} r={0} />;
+                                                    }
+                                                } />
+                                            </LineChart>
+                                        </ChartContainer>
+                                       ) : (
+                                            <EmptyState icon={TrendingUp} title="No Equity Data" description="Your equity curve will appear here once you have trades." />
+                                       )}
                                     </div>
                                 </SectionCard>
 
@@ -980,30 +1014,31 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                   description="A narrative view of your recent trading decisions, linked to your journal."
                                   icon={BookOpen}
                                 >
-                                  <div className="space-y-4">
-                                      {currentData.topEvents.slice(0, 5).map((event: any, i: number) => {
-                                          const EventIcon = eventTypeIcon[event.label] || eventTypeIcon.default;
-                                          return (
-                                              <div key={i} className="flex items-center justify-between p-3 rounded-md bg-muted/50 border border-border/50">
-                                                  <div className="flex items-center gap-3">
-                                                      <EventIcon className="h-5 w-5 text-muted-foreground" />
-                                                      <div>
-                                                          <p className="font-semibold text-foreground text-sm">{event.label} <span className="text-muted-foreground font-normal">on {event.instrument}</span></p>
-                                                          <p className={cn("text-xs font-mono", event.impact >= 0 ? "text-green-400" : "text-red-400")}>
-                                                              Result: {event.impact > 0 ? '+' : ''}${event.impact.toFixed(2)}
-                                                          </p>
+                                    {currentData.topEvents.length > 0 ? (
+                                      <div className="space-y-4">
+                                          {currentData.topEvents.slice(0, 5).map((event: any, i: number) => {
+                                              const EventIcon = eventTypeIcon[event.label] || eventTypeIcon.default;
+                                              return (
+                                                  <div key={i} className="flex items-center justify-between p-3 rounded-md bg-muted/50 border border-border/50">
+                                                      <div className="flex items-center gap-3">
+                                                          <EventIcon className="h-5 w-5 text-muted-foreground" />
+                                                          <div>
+                                                              <p className="font-semibold text-foreground text-sm">{event.label} <span className="text-muted-foreground font-normal">on {event.instrument}</span></p>
+                                                              <p className={cn("text-xs font-mono", event.impact >= 0 ? "text-green-400" : "text-red-400")}>
+                                                                  Result: {event.impact > 0 ? '+' : ''}${event.impact.toFixed(2)}
+                                                              </p>
+                                                          </div>
                                                       </div>
+                                                      <Button variant="ghost" size="sm" onClick={() => handleEventClick(event.journalId)}>
+                                                          View Journal <ArrowRight className="ml-2 h-4 w-4" />
+                                                      </Button>
                                                   </div>
-                                                  <Button variant="ghost" size="sm" onClick={() => handleEventClick(event.journalId)}>
-                                                      View Journal <ArrowRight className="ml-2 h-4 w-4" />
-                                                  </Button>
-                                              </div>
-                                          );
-                                      })}
-                                       {currentData.topEvents.length === 0 && (
-                                          <p className="text-sm text-muted-foreground text-center py-4">No significant behavioral events logged in this period.</p>
-                                      )}
-                                  </div>
+                                              );
+                                          })}
+                                      </div>
+                                    ) : (
+                                        <EmptyState icon={BookOpen} title="No Behavioral Events" description="Mistakes and significant emotional trades will be flagged here." />
+                                    )}
                                 </SectionCard>
 
                             </div>
@@ -1120,26 +1155,30 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                             </div>
                         </SectionCard>
                         <SectionCard id="loss-drivers" title="Top Loss Drivers" description="The specific behaviours that are costing you the most money, ranked by total impact." icon={Zap}>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Behaviour</TableHead>
-                                        <TableHead>Occurrences</TableHead>
-                                        <TableHead>Avg. R Impact</TableHead>
-                                        <TableHead>Total R Impact</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {currentData.topLossDrivers.map((driver: any) => (
-                                        <TableRow key={driver.behavior} className="cursor-pointer hover:bg-muted" onClick={() => setSelectedBehavior(driver)}>
-                                            <TableCell><Badge variant="destructive">{driver.behavior}</Badge></TableCell>
-                                            <TableCell>{driver.occurrences}</TableCell>
-                                            <TableCell className="font-mono text-red-400">{driver.avgR.toFixed(2)}R</TableCell>
-                                            <TableCell className="font-mono text-red-400">{driver.totalR.toFixed(2)}R</TableCell>
+                            {currentData.topLossDrivers.length > 0 ? (
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Behaviour</TableHead>
+                                            <TableHead>Occurrences</TableHead>
+                                            <TableHead>Avg. R Impact</TableHead>
+                                            <TableHead>Total R Impact</TableHead>
                                         </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {currentData.topLossDrivers.map((driver: any) => (
+                                            <TableRow key={driver.behavior} className="cursor-pointer hover:bg-muted" onClick={() => setSelectedBehavior(driver)}>
+                                                <TableCell><Badge variant="destructive">{driver.behavior}</Badge></TableCell>
+                                                <TableCell>{driver.occurrences}</TableCell>
+                                                <TableCell className="font-mono text-red-400">{driver.avgR.toFixed(2)}R</TableCell>
+                                                <TableCell className="font-mono text-red-400">{driver.totalR.toFixed(2)}R</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            ) : (
+                                <EmptyState icon={Zap} title="No Loss Drivers Identified" description="This section will highlight which mistakes cost you the most." />
+                            )}
                         </SectionCard>
                         <SectionCard id="emotion-matrix" title="Emotion × Result Matrix" description="Where do your emotions lead you? See which feelings correlate with wins and losses." icon={Brain}>
                             <div className="overflow-x-auto">
@@ -1204,37 +1243,41 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                     </TabsContent>
                     <TabsContent value="strategies" className="mt-6 space-y-8">
                         <SectionCard id="strategy" title="Strategy Analytics" description="Which of your strategies are performing best, and where they leak money." icon={BookOpen}>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Strategy</TableHead>
-                                        <TableHead>Trades</TableHead>
-                                        <TableHead>Win %</TableHead>
-                                        <TableHead>Total PnL ($)</TableHead>
-                                        <TableHead>Top Mistake</TableHead>
-                                        <TableHead className="text-right">Actions</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {currentData.mockStrategyData.map((strategy: any) => (
-                                        <TableRow key={strategy.name}>
-                                            <TableCell className="font-medium">{strategy.name}</TableCell>
-                                            <TableCell>{strategy.trades}</TableCell>
-                                            <TableCell>{strategy.winRate}%</TableCell>
-                                            <TableCell className={cn(strategy.pnl >= 0 ? "text-green-400" : "text-red-400")}>
-                                                {strategy.pnl >= 0 ? '+' : ''}${strategy.pnl.toLocaleString()}
-                                            </TableCell>
-                                            <TableCell><Badge variant="destructive">{strategy.topMistake}</Badge></TableCell>
-                                            <TableCell className="text-right">
-                                                <Button variant="ghost" size="sm" onClick={() => onSetModule('tradeJournal', { filters: { strategy: strategy.name }})}>
-                                                    <View className="mr-2 h-3 w-3" />
-                                                    View trades
-                                                </Button>
-                                            </TableCell>
+                           {currentData.mockStrategyData.length > 0 ? (
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Strategy</TableHead>
+                                            <TableHead>Trades</TableHead>
+                                            <TableHead>Win %</TableHead>
+                                            <TableHead>Total PnL ($)</TableHead>
+                                            <TableHead>Top Mistake</TableHead>
+                                            <TableHead className="text-right">Actions</TableHead>
                                         </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {currentData.mockStrategyData.map((strategy: any) => (
+                                            <TableRow key={strategy.name}>
+                                                <TableCell className="font-medium">{strategy.name}</TableCell>
+                                                <TableCell>{strategy.trades}</TableCell>
+                                                <TableCell>{strategy.winRate}%</TableCell>
+                                                <TableCell className={cn(strategy.pnl >= 0 ? "text-green-400" : "text-red-400")}>
+                                                    {strategy.pnl >= 0 ? '+' : ''}${strategy.pnl.toLocaleString()}
+                                                </TableCell>
+                                                <TableCell><Badge variant="destructive">{strategy.topMistake}</Badge></TableCell>
+                                                <TableCell className="text-right">
+                                                    <Button variant="ghost" size="sm" onClick={() => onSetModule('tradeJournal', { filters: { strategy: strategy.name }})}>
+                                                        <View className="mr-2 h-3 w-3" />
+                                                        View trades
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                           ) : (
+                                <EmptyState icon={BookOpen} title="No Strategies Found" description="Define strategies in Strategy Management and tag your trades." />
+                           )}
                         </SectionCard>
                         <SectionCard id="timing" title="Timing Analytics" description="When you trade best (and worst)." icon={Calendar} headerContent={
                                 <div className="flex items-center gap-1 rounded-full bg-muted p-1">
