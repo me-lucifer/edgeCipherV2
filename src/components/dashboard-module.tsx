@@ -1001,3 +1001,5 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
     </div>
   );
 }
+
+    
