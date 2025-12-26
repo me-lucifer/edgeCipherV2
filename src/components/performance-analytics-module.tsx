@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart as BarChartIcon, Brain, Calendar, Filter, AlertCircle, Info, TrendingUp, TrendingDown, Users, DollarSign, Target, Gauge, Zap, Award, ArrowRight, XCircle, CheckCircle, Circle } from "lucide-react";
+import { BarChart as BarChartIcon, Brain, Calendar, Filter, AlertCircle, Info, TrendingUp, TrendingDown, Users, DollarSign, Target, Gauge, Zap, Award, ArrowRight, XCircle, CheckCircle, Circle, Bot } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, CartesianGrid, XAxis, YAxis, Bar, Line, LineChart, ResponsiveContainer, ReferenceDot, Dot } from "recharts";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -46,11 +46,14 @@ const mockStrategyData = [
     { name: "Range Play", trades: 25, winRate: 70, avgR: 0.7, pnl: -500, topMistake: "Oversized risk" },
 ];
 
-const timingHeatmapData = [
-    { session: "Asia", winRate: 55, pnl: 800 },
-    { session: "London", winRate: 45, pnl: -1200 },
-    { session: "New York", winRate: 60, pnl: 3400 },
-];
+const timingHeatmapData = {
+    sessions: [
+        { name: "Asia", totalPnl: 800, blocks: [ { time: "00-04", pnl: 200, trades: 10 }, { time: "04-08", pnl: 600, trades: 15 } ] },
+        { name: "London", totalPnl: -1200, blocks: [ { time: "08-12", pnl: -1200, trades: 25 } ] },
+        { name: "New York", totalPnl: 3400, blocks: [ { time: "12-16", pnl: 2000, trades: 30 }, { time: "16-20", pnl: 1400, trades: 20 } ] },
+    ],
+    timeBlocks: ["00-04", "04-08", "08-12", "12-16", "16-20", "20-24"],
+};
 
 const volatilityData = [
     { vixZone: "Calm", trades: 50, winRate: 60, mistakesCount: 5, avgPnL: 1500 },
@@ -392,7 +395,69 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                 </SectionCard>
                 
                 <SectionCard id="timing" title="Timing Analytics" description="When you trade best (and worst)." icon={Calendar}>
-                    <p className="text-muted-foreground text-center p-8 border-2 border-dashed rounded-lg">Timing heatmap will appear here.</p>
+                    <div className="grid md:grid-cols-3 gap-6">
+                        <div className="md:col-span-2">
+                             <div className="overflow-x-auto">
+                                <table className="w-full text-center text-xs border-separate border-spacing-1">
+                                    <thead>
+                                        <tr>
+                                            <th className="p-2">Session</th>
+                                            {timingHeatmapData.timeBlocks.map(block => (
+                                                <th key={block} className="p-2 font-normal text-muted-foreground">{block}</th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {timingHeatmapData.sessions.map(session => (
+                                            <tr key={session.name}>
+                                                <td className="font-semibold text-foreground text-left p-2">{session.name}</td>
+                                                {timingHeatmapData.timeBlocks.map(block => {
+                                                    const cellData = session.blocks.find(b => b.time === block);
+                                                    if (!cellData) {
+                                                        return <td key={block} className="p-2 bg-muted/30 rounded-md" />;
+                                                    }
+                                                    const opacity = Math.min(1, (cellData.trades / 30) * 0.9 + 0.1);
+                                                    const bgColor = cellData.pnl > 0 ? `rgba(34, 197, 94, ${opacity})` : `rgba(239, 68, 68, ${opacity})`;
+                                                    return (
+                                                        <td key={block} style={{ backgroundColor: bgColor }} className="p-2 rounded-md">
+                                                            <TooltipProvider><Tooltip>
+                                                                <TooltipTrigger>
+                                                                    <div className="font-mono text-white">
+                                                                        {cellData.pnl > 0 ? '+' : ''}{cellData.pnl}
+                                                                    </div>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    <p>Trades: {cellData.trades}</p>
+                                                                    <p>PnL: ${cellData.pnl}</p>
+                                                                </TooltipContent>
+                                                            </Tooltip></TooltipProvider>
+                                                        </td>
+                                                    );
+                                                })}
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div className="md:col-span-1">
+                            <Card className="bg-muted/50 h-full">
+                                <CardHeader>
+                                    <CardTitle className="text-base flex items-center gap-2">
+                                        <Bot className="h-5 w-5 text-primary" /> Arjun's Insight
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <p className="text-sm text-muted-foreground">
+                                        You lose most of your PnL during the <strong className="text-foreground">London session open (08-12 block)</strong>. It seems you're getting caught in fakeouts.
+                                    </p>
+                                    <p className="text-sm text-muted-foreground mt-2">
+                                        <strong className="text-primary">Actionable advice:</strong> Consider avoiding the first hour of the London session, or reduce your size by 50% during that period for the next week.
+                                    </p>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    </div>
                 </SectionCard>
                 
                 <SectionCard id="volatility" title="Volatility Analytics" description="How you perform in different market conditions." icon={Zap}>
@@ -471,5 +536,3 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
         </div>
     );
 }
-
-    
