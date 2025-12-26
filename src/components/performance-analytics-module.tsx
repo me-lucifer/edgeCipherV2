@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart as BarChartIcon, Brain, Calendar, Filter, AlertCircle, Info, TrendingUp, TrendingDown, Users, DollarSign, Target, Gauge, Zap, Award, ArrowRight, XCircle, CheckCircle, Circle, Bot, AlertTriangle } from "lucide-react";
+import { BarChart as BarChartIcon, Brain, Calendar, Filter, AlertCircle, Info, TrendingUp, TrendingDown, Users, DollarSign, Target, Gauge, Zap, Award, ArrowRight, XCircle, CheckCircle, Circle, Bot, AlertTriangle, Clipboard, Star } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, CartesianGrid, XAxis, YAxis, Bar, Line, LineChart, ResponsiveContainer, ReferenceDot, Dot } from "recharts";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -16,7 +16,10 @@ import { Label } from "./ui/label";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Progress } from "./ui/progress";
 import { Alert, AlertTitle, AlertDescription } from "./ui/alert";
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "./ui/drawer";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerClose } from "./ui/drawer";
+import { useToast } from "@/hooks/use-toast";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
+import { Separator } from "./ui/separator";
 
 interface PerformanceAnalyticsModuleProps {
     onSetModule: (module: any, context?: any) => void;
@@ -94,6 +97,7 @@ const jumpNavLinks = [
     { id: "timing", label: "Timing", icon: Calendar },
     { id: "volatility", label: "Volatility", icon: Zap },
     { id: "psychology", label: "Psychology", icon: Brain },
+    { id: "reports", label: "Reports", icon: Award },
 ];
 
 const handleScrollTo = (e: React.MouseEvent<HTMLButtonElement>, id: string) => {
@@ -134,12 +138,91 @@ const MetricCard = ({ title, value, hint }: { title: string; value: string; hint
     </Card>
 );
 
+type ReportType = 'Weekly' | 'Monthly';
+
+function ReportDialog({ reportType }: { reportType: ReportType }) {
+    const { toast } = useToast();
+    const reportData = {
+        'Weekly': {
+            pnl: "+$850",
+            topImprovement: "Reduced revenge trading after losses.",
+            topWeakness: "Still exiting winning trades too early.",
+            focus: "Try a partial take-profit to let winners run."
+        },
+        'Monthly': {
+            pnl: "+$6,400",
+            topImprovement: "Significant improvement in sticking to A+ setups.",
+            topWeakness: "Performance drops in high volatility.",
+            focus: "Reduce size by 50% when VIX is 'Elevated'."
+        }
+    }[reportType];
+
+    const handleCopy = () => {
+        const textToCopy = `
+### ${reportType} Trading Report
+
+**Overall PnL:** ${reportData.pnl}
+**Top Improvement:** ${reportData.topImprovement}
+**Top Weakness:** ${reportData.topWeakness}
+**Recommended Focus:** ${reportData.focus}
+        `;
+        navigator.clipboard.writeText(textToCopy.trim());
+        toast({ title: "Report copied to clipboard" });
+    }
+
+    return (
+        <DialogContent className="max-w-2xl">
+            <DialogHeader>
+                <DialogTitle>{reportType} Report Card</DialogTitle>
+            </DialogHeader>
+            <div className="py-4 space-y-6">
+                <div className="p-4 bg-muted rounded-lg border">
+                    <SummaryRow label="Overall PnL" value={reportData.pnl} className={reportData.pnl.startsWith('+') ? 'text-green-400' : 'text-red-400'} />
+                </div>
+                <div className="space-y-4">
+                    <h4 className="font-semibold text-foreground">Summary</h4>
+                    <ul className="list-disc list-inside text-sm text-muted-foreground space-y-2">
+                        <li><strong className="text-green-400">Top Improvement:</strong> {reportData.topImprovement}</li>
+                        <li><strong className="text-red-400">Top Weakness:</strong> {reportData.topWeakness}</li>
+                        <li><strong className="text-primary">Recommended Focus:</strong> {reportData.focus}</li>
+                    </ul>
+                </div>
+                <Separator />
+                <div className="space-y-4">
+                     <h4 className="font-semibold text-foreground">Chart Snapshots (Prototype)</h4>
+                     <div className="grid grid-cols-2 gap-4">
+                        <div className="h-32 bg-muted rounded-lg flex items-center justify-center border-2 border-dashed">
+                            <BarChartIcon className="h-8 w-8 text-muted-foreground" />
+                            <p className="text-xs text-muted-foreground ml-2">[PnL by day]</p>
+                        </div>
+                         <div className="h-32 bg-muted rounded-lg flex items-center justify-center border-2 border-dashed">
+                             <TrendingUp className="h-8 w-8 text-muted-foreground" />
+                            <p className="text-xs text-muted-foreground ml-2">[Equity curve]</p>
+                        </div>
+                     </div>
+                </div>
+                <div className="flex justify-end">
+                    <Button variant="outline" onClick={handleCopy}>
+                        <Clipboard className="mr-2 h-4 w-4" /> Copy Summary
+                    </Button>
+                </div>
+            </div>
+        </DialogContent>
+    );
+}
+
+const SummaryRow = ({ label, value, className }: { label: string, value: React.ReactNode, className?: string }) => (
+    <div className="flex justify-between items-center text-sm">
+        <p className="text-muted-foreground">{label}</p>
+        <p className={cn("font-semibold font-mono text-foreground", className)}>{value}</p>
+    </div>
+);
+
 
 export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalyticsModuleProps) {
     const [timeRange, setTimeRange] = useState("30d");
     const [activeSection, setActiveSection] = useState("summary");
     const [selectedStrategy, setSelectedStrategy] = useState<(typeof mockStrategyData)[0] | null>(null);
-
 
     useEffect(() => {
         const observer = new IntersectionObserver(
@@ -528,6 +611,50 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                 Discuss Patterns with Arjun <ArrowRight className="ml-2 h-4 w-4" />
                             </Button>
                         </Card>
+                    </div>
+                </SectionCard>
+                
+                <SectionCard id="reports" title="Weekly & Monthly Reports" description="Your performance summarized into actionable report cards." icon={Award}>
+                    <div className="grid md:grid-cols-2 gap-8">
+                        <Dialog>
+                            <Card className="bg-muted/50">
+                                <CardHeader>
+                                    <CardTitle className="text-lg">Weekly Report</CardTitle>
+                                    <CardDescription>Your performance summary for last week.</CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-3">
+                                    <p className="text-sm"><strong className="text-green-400">Top Improvement:</strong> Reduced revenge trading.</p>
+                                    <p className="text-sm"><strong className="text-red-400">Top Weakness:</strong> Still exiting winners early.</p>
+                                    <p className="text-sm"><strong className="text-primary">Focus:</strong> Try a partial TP to let trades run.</p>
+                                </CardContent>
+                                <CardContent>
+                                    <DialogTrigger asChild>
+                                        <Button variant="outline" className="w-full">View Full Report</Button>
+                                    </DialogTrigger>
+                                </CardContent>
+                            </Card>
+                            <ReportDialog reportType="Weekly" />
+                        </Dialog>
+
+                        <Dialog>
+                            <Card className="bg-muted/50">
+                                <CardHeader>
+                                    <CardTitle className="text-lg">Monthly Report</CardTitle>
+                                    <CardDescription>Your performance summary for last month.</CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-3">
+                                    <p className="text-sm"><strong className="text-green-400">Top Improvement:</strong> Sticking to A+ setups.</p>
+                                    <p className="text-sm"><strong className="text-red-400">Top Weakness:</strong> Performance in high VIX.</p>
+                                    <p className="text-sm"><strong className="text-primary">Focus:</strong> Reduce size when VIX is 'Elevated'.</p>
+                                </CardContent>
+                                <CardContent>
+                                     <DialogTrigger asChild>
+                                        <Button variant="outline" className="w-full">View Full Report</Button>
+                                    </DialogTrigger>
+                                </CardContent>
+                            </Card>
+                             <ReportDialog reportType="Monthly" />
+                        </Dialog>
                     </div>
                 </SectionCard>
             </div>
