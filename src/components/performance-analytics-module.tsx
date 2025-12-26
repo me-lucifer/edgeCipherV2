@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart as BarChartIcon, Brain, Calendar, Filter, AlertCircle, Info, TrendingUp, TrendingDown, Users, DollarSign, Target, Gauge, Zap, Award, ArrowRight, XCircle } from "lucide-react";
+import { BarChart as BarChartIcon, Brain, Calendar, Filter, AlertCircle, Info, TrendingUp, TrendingDown, Users, DollarSign, Target, Gauge, Zap, Award, ArrowRight, XCircle, CheckCircle, Circle } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, CartesianGrid, XAxis, YAxis, Bar, Line, LineChart, ResponsiveContainer, ReferenceDot, Dot } from "recharts";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -16,6 +16,7 @@ import { Label } from "./ui/label";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Progress } from "./ui/progress";
 import { Alert, AlertTitle, AlertDescription } from "./ui/alert";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "./ui/drawer";
 
 interface PerformanceAnalyticsModuleProps {
     onSetModule: (module: any, context?: any) => void;
@@ -127,6 +128,8 @@ const MetricCard = ({ title, value, hint }: { title: string; value: string; hint
 export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalyticsModuleProps) {
     const [timeRange, setTimeRange] = useState("30d");
     const [activeSection, setActiveSection] = useState("summary");
+    const [selectedStrategy, setSelectedStrategy] = useState<(typeof mockStrategyData)[0] | null>(null);
+
 
     useEffect(() => {
         const observer = new IntersectionObserver(
@@ -174,6 +177,11 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
         Emotional: { label: "Emotional", color: "bg-red-500/20 text-red-300 border-red-500/30", icon: Zap },
     }[analyticsData.quality] || { label: "Mixed", color: "bg-amber-500/20 text-amber-300 border-amber-500/30", icon: AlertCircle };
     const QualityIcon = qualityConfig.icon;
+
+    const askArjunAboutStrategy = (strategyName: string) => {
+        const prompt = `Arjun, can we dive into my "${strategyName}" strategy? It seems to be my most profitable one, but I'd like to know how to improve its execution.`;
+        onSetModule('aiCoaching', { initialMessage: prompt });
+    };
 
     return (
         <div className="space-y-8">
@@ -350,18 +358,37 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                     </div>
                 </SectionCard>
 
-                <SectionCard id="strategy" title="Strategy Analytics" description="Which of your strategies are performing best." icon={Brain}>
-                    <ChartContainer config={pnlChartConfig} className="h-[400px] w-full">
-                        <BarChart layout="vertical" data={mockStrategyData} margin={{ left: 20 }}>
-                            <CartesianGrid horizontal={false} />
-                            <YAxis dataKey="name" type="category" tickLine={false} tickMargin={10} axisLine={false} width={120} />
-                            <XAxis dataKey="pnl" type="number" tickLine={false} axisLine={false} tickFormatter={(value) => `$${value/1000}k`} />
-                            <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
-                            <Bar dataKey="pnl" radius={4}>
-                                {mockStrategyData.map((entry) => ( <div key={entry.name} fill={entry.pnl > 0 ? "var(--color-positive)" : "var(--color-negative)"} /> ))}
-                            </Bar>
-                        </BarChart>
-                    </ChartContainer>
+                <SectionCard id="strategy" title="Strategy Analytics" description="Which of your strategies are performing best, and where they leak money." icon={Brain}>
+                     <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Strategy</TableHead>
+                                <TableHead>Trades</TableHead>
+                                <TableHead>Win %</TableHead>
+                                <TableHead>Total PnL ($)</TableHead>
+                                <TableHead>Top Mistake</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {mockStrategyData.map((strategy) => (
+                                <TableRow key={strategy.name}>
+                                    <TableCell className="font-medium">{strategy.name}</TableCell>
+                                    <TableCell>{strategy.trades}</TableCell>
+                                    <TableCell>{strategy.winRate}%</TableCell>
+                                    <TableCell className={cn(strategy.pnl >= 0 ? "text-green-400" : "text-red-400")}>
+                                        {strategy.pnl >= 0 ? '+' : ''}${strategy.pnl.toLocaleString()}
+                                    </TableCell>
+                                    <TableCell><Badge variant="destructive">{strategy.topMistake}</Badge></TableCell>
+                                    <TableCell className="text-right">
+                                        <Button variant="ghost" size="sm" onClick={() => setSelectedStrategy(strategy)}>
+                                            Open <ArrowRight className="ml-2 h-3 w-3" />
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
                 </SectionCard>
                 
                 <SectionCard id="timing" title="Timing Analytics" description="When you trade best (and worst)." icon={Calendar}>
@@ -402,6 +429,47 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                     </div>
                 </SectionCard>
             </div>
+            <Drawer open={!!selectedStrategy} onOpenChange={(open) => !open && setSelectedStrategy(null)}>
+                <DrawerContent>
+                    {selectedStrategy && (
+                        <div className="mx-auto w-full max-w-2xl p-4 md:p-6">
+                            <DrawerHeader>
+                                <DrawerTitle className="text-2xl">{selectedStrategy.name} Drilldown</DrawerTitle>
+                                <DrawerDescription>Deep dive into your most profitable strategy.</DrawerDescription>
+                            </DrawerHeader>
+                            <div className="px-4 py-6 space-y-6">
+                                <div className="grid grid-cols-3 gap-4 text-center">
+                                    <MetricCard title="Win Rate" value={`${selectedStrategy.winRate}%`} hint="" />
+                                    <MetricCard title="Avg. R:R" value={String(selectedStrategy.avgR)} hint="" />
+                                    <MetricCard title="Total PnL" value={`$${selectedStrategy.pnl}`} hint="" />
+                                </div>
+                                <div className="space-y-4">
+                                    <div>
+                                        <h4 className="font-semibold text-foreground">Common Emotions</h4>
+                                        <div className="flex gap-2 mt-2">
+                                            <Badge variant="outline">Focused</Badge>
+                                            <Badge variant="outline">Calm</Badge>
+                                            <Badge variant="outline" className="border-amber-500/50 text-amber-400">Overconfidence</Badge>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <h4 className="font-semibold text-foreground">Common Mistakes</h4>
+                                         <div className="flex gap-2 mt-2">
+                                            <Badge variant="destructive">Exited early</Badge>
+                                            <Badge variant="destructive">Forced Entry</Badge>
+                                        </div>
+                                    </div>
+                                </div>
+                                <Button className="w-full" onClick={() => askArjunAboutStrategy(selectedStrategy.name)}>
+                                    Ask Arjun to improve this strategy
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+                </DrawerContent>
+            </Drawer>
         </div>
     );
 }
+
+    
