@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart as BarChartIcon, Brain, Calendar, Filter, AlertCircle, Info, TrendingUp, TrendingDown, Users, DollarSign, Target, Gauge, Zap, Award, ArrowRight, XCircle, CheckCircle, Circle, Bot, AlertTriangle, Clipboard, Star, Activity, BookOpen, BarChartHorizontal, Database, View, Flag, Presentation } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { BarChart, CartesianGrid, XAxis, YAxis, Bar, Line, LineChart, ResponsiveContainer, ReferenceDot, Dot } from "recharts";
+import { BarChart, CartesianGrid, XAxis, YAxis, Bar, Line, LineChart, ResponsiveContainer, ReferenceDot, Dot, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, RadarChart as RechartsRadarChart } from "recharts";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -60,7 +60,7 @@ const SectionCard: React.FC<{id?: string, title: React.ReactNode, description: s
     </Card>
 );
 
-const MetricCard = ({ title, value, hint, onClick }: { title: string; value: string; hint: string, onClick?: () => void }) => (
+const MetricCard = ({ title, value, hint, onClick }: { title: string; value: string | React.ReactNode; hint: string, onClick?: () => void }) => (
     <Card className={cn("bg-muted/30 border-border/50", onClick && "cursor-pointer hover:bg-muted/50 hover:border-primary/20")} onClick={onClick}>
         <CardHeader className="pb-2">
             <CardTitle className="text-base">{title}</CardTitle>
@@ -328,6 +328,93 @@ function ScoreGauge({ score, label, interpretation }: { score: number, label: st
     );
 }
 
+const RadarChart = ({ data, onSetModule }: { data: { axis: string, value: number, count: number, impact: string }[], onSetModule: PerformanceAnalyticsModuleProps['onSetModule'] }) => {
+    if (!data || data.length === 0) return null;
+
+    const size = 300;
+    const center = size / 2;
+    const numLevels = 4;
+    const radius = size * 0.4;
+
+    const points = data.map((item, i) => {
+        const angle = (i / data.length) * 2 * Math.PI - Math.PI / 2;
+        const value = item.value / 100;
+        const x = center + radius * value * Math.cos(angle);
+        const y = center + radius * value * Math.sin(angle);
+        return `${x},${y}`;
+    });
+    const pathData = points.join(' ');
+
+    const handleDiscussPattern = (axis: string) => {
+        const prompt = `Arjun, my psychological radar chart shows a high score for "${axis}". Can we work on this?`;
+        onSetModule('aiCoaching', { initialMessage: prompt });
+    };
+
+    return (
+        <svg width="100%" height="100%" viewBox={`0 0 ${size} ${size}`}>
+            {/* Background Webs */}
+            {[...Array(numLevels)].map((_, levelIndex) => {
+                const levelRadius = radius * ((levelIndex + 1) / numLevels);
+                const webPoints = data.map((_, i) => {
+                    const angle = (i / data.length) * 2 * Math.PI - Math.PI / 2;
+                    const x = center + levelRadius * Math.cos(angle);
+                    const y = center + levelRadius * Math.sin(angle);
+                    return `${x},${y}`;
+                }).join(' ');
+                return <polygon key={levelIndex} points={webPoints} fill="none" stroke="hsl(var(--border))" strokeWidth="0.5" />;
+            })}
+
+            {/* Radial Lines */}
+            {data.map((_, i) => {
+                const angle = (i / data.length) * 2 * Math.PI - Math.PI / 2;
+                const x = center + radius * Math.cos(angle);
+                const y = center + radius * Math.sin(angle);
+                return <line key={i} x1={center} y1={center} x2={x} y2={y} stroke="hsl(var(--border))" strokeWidth="0.5" />;
+            })}
+
+            {/* Data Polygon */}
+            <polygon points={pathData} fill="hsla(var(--primary-hsl), 0.2)" stroke="hsl(var(--primary))" strokeWidth="2" />
+
+            {/* Points on Data Polygon */}
+            {points.map((p, i) => {
+                const [x, y] = p.split(',').map(Number);
+                return <circle key={i} cx={x} cy={y} r="3" fill="hsl(var(--primary))" />;
+            })}
+
+            {/* Labels */}
+            {data.map((item, i) => {
+                const angle = (i / data.length) * 2 * Math.PI - Math.PI / 2;
+                const labelRadius = radius * 1.15;
+                const x = center + labelRadius * Math.cos(angle);
+                const y = center + labelRadius * Math.sin(angle);
+                return (
+                    <TooltipProvider key={item.axis}>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <text
+                                    x={x}
+                                    y={y}
+                                    textAnchor="middle"
+                                    dominantBaseline="middle"
+                                    className="text-xs fill-muted-foreground font-semibold cursor-pointer"
+                                    onClick={() => handleDiscussPattern(item.axis)}
+                                >
+                                    {item.axis}
+                                </text>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p className="font-bold">{item.axis}</p>
+                                <p>Count: {item.count}</p>
+                                <p>Impact: {item.impact}</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                );
+            })}
+        </svg>
+    );
+};
+
 export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalyticsModuleProps) {
     const [timeRange, setTimeRange] = useState("30d");
     const [activeTab, setActiveTab] = useState("overview");
@@ -410,6 +497,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
       const fomoCount = emotionTags.filter(t => t === 'FOMO').length;
       const revengeCount = emotionTags.filter(t => t === 'Revenge').length;
       const overconfidenceCount = emotionTags.filter(t => t === 'Overconfidence').length;
+      const fearCount = emotionTags.filter(t => t === 'Fear').length;
       
       let emotionalScore = 20; // Lower is better
       if (fomoCount / completedEntries.length > 0.1) emotionalScore += 10;
@@ -505,6 +593,17 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
           maxCount: 15,
       };
 
+      const normalize = (val: number, max: number) => Math.min(100, Math.max(0, (val / max) * 100));
+
+      const radarChartData = [
+        { axis: "FOMO", value: normalize(fomoCount, 10), count: fomoCount, impact: "-1.2R" },
+        { axis: "Revenge", value: normalize(revengeCount, 5), count: revengeCount, impact: "-2.5R" },
+        { axis: "Fear", value: normalize(fearCount, 15), count: fearCount, impact: "-0.8R" },
+        { axis: "Overconfidence", value: normalize(overconfidenceCount, 8), count: overconfidenceCount, impact: "-0.5R" },
+        { axis: "Overtrading", value: normalize(overtradedCount, 10), count: overtradedCount, impact: "-1.1R" },
+        { axis: "SL Discipline", value: 100 - normalize(slMovedCount, 8), count: slMovedCount, impact: "-3.2R" },
+      ];
+
       return {
           totalTrades, winRate, lossRate, avgRR, totalPnL,
           bestCondition: "Normal VIX / NY Session", quality,
@@ -512,8 +611,8 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
           scores: { disciplineScore, emotionalScore, consistencyScore },
           topLossDrivers,
           mockEquityData, topEvents, mockStrategyData, timingHeatmapData, volatilityData,
-          psychologicalPatterns: topLossDrivers.slice(0, 4).map(d => ({ name: d.behavior, count: d.occurrences, avgPnL: d.totalR * 200, colorCode: "bg-red-500/20 text-red-300 border-red-500/30" })), // Mock PNL conversion
-          emotionResultMatrixData
+          emotionResultMatrixData,
+          radarChartData,
       };
     }, []);
 
@@ -611,7 +710,11 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
     };
 
     const discussPsychology = () => {
-        const topIssues = analyticsData.psychologicalPatterns.slice(0, 2).map(p => p.name).join(' and ');
+        const topIssues = analyticsData.radarChartData.filter(d => d.value > 60).map(p => p.axis).join(' and ');
+        if (!topIssues) {
+            onSetModule('aiCoaching', { initialMessage: "Arjun, let's discuss my psychological profile. What are my biggest strengths and weaknesses based on my data?" });
+            return;
+        }
         const prompt = `Arjun, my analytics show my biggest psychological issues are ${topIssues}. Can you help me create a plan to work on these?`;
         onSetModule('aiCoaching', { initialMessage: prompt });
     };
@@ -806,9 +909,9 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                               <ChartTooltip cursor={{ strokeDasharray: '3 3' }} content={<ChartTooltipContent />} />
                                               <Line type="monotone" dataKey="equity" stroke="hsl(var(--color-equity))" strokeWidth={2} dot={
                                                   (props: any) => {
-                                                      const { payload, cx, cy, ...rest } = props;
-                                                      const key = props.key;
+                                                      const { cx, cy, payload } = props;
                                                       if (showBehaviorLayer && payload.marker) {
+                                                          const { key, ...rest } = props;
                                                           return (
                                                               <TooltipProvider key={key}>
                                                                   <Tooltip>
@@ -822,7 +925,9 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                                               </TooltipProvider>
                                                           )
                                                       }
-                                                      return <Dot key={`dot-empty-${key}-${props.index}`} {...props} r={0} />;
+                                                      const { key, ...rest } = props;
+                                                      const emptyKey = `dot-empty-${key}-${props.index}`;
+                                                      return <Dot key={emptyKey} {...rest} r={0} />;
                                                   }
                                               } />
                                           </LineChart>
@@ -947,42 +1052,32 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                             </Dialog>
                         </SectionCard>
                         <SectionCard id="psychology" title="Psychological Patterns" description="The emotions and biases that drive your decisions." icon={Brain}>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                                {analyticsData.psychologicalPatterns.map((pattern: any) => (
-                                    <Card key={pattern.name} className={cn("border", pattern.colorCode)}>
-                                        <CardHeader className="pb-2">
-                                            <CardTitle className="text-base">{pattern.name}</CardTitle>
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                                <div className="h-80 w-full">
+                                    <RadarChart data={analyticsData.radarChartData} onSetModule={onSetModule} />
+                                </div>
+                                <div className="space-y-4">
+                                    <Card className="bg-muted/50">
+                                        <CardHeader>
+                                            <CardTitle className="text-base flex items-center gap-2">
+                                                <Bot className="h-5 w-5 text-primary" /> Pattern Notes
+                                            </CardTitle>
                                         </CardHeader>
                                         <CardContent>
-                                            <p className="text-2xl font-bold font-mono">{pattern.count}</p>
-                                            <p className="text-xs text-muted-foreground">instances</p>
-                                            <p className="text-sm font-semibold font-mono mt-2 text-red-400">
-                                                ${pattern.avgPnL.toLocaleString()} impact
-                                            </p>
+                                            <ul className="space-y-2 text-sm text-muted-foreground list-disc list-inside">
+                                                <li>Your <strong className="text-foreground">Revenge</strong> and <strong className="text-foreground">FOMO</strong> scores are high, indicating emotional decision-making.</li>
+                                                <li>Your <strong className="text-foreground">SL Discipline</strong> is low, suggesting you're not respecting your own exit plans.</li>
+                                            </ul>
                                         </CardContent>
                                     </Card>
-                                ))}
-                            </div>
-                            <div className="mt-6 grid lg:grid-cols-2 gap-6">
-                                <Card className="bg-muted/50">
-                                    <CardHeader>
-                                        <CardTitle className="text-base flex items-center gap-2">
-                                            <Bot className="h-5 w-5 text-primary" /> Pattern Notes
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <ul className="space-y-2 text-sm text-muted-foreground list-disc list-inside">
-                                            {analyticsData.topLossDrivers.slice(0, 3).map((note: any, i: number) => <li key={i}>{note.behavior} trades are a major leak.</li>)}
-                                        </ul>
-                                    </CardContent>
-                                </Card>
-                                <Card className="bg-muted/50 flex flex-col items-center justify-center text-center p-6">
-                                    <h3 className="font-semibold text-foreground">Turn these insights into action.</h3>
-                                    <p className="text-sm text-muted-foreground mt-1 mb-4">Discuss your top two issues with Arjun to build a personalized growth plan.</p>
-                                    <Button onClick={discussPsychology}>
-                                        Discuss Patterns with Arjun <ArrowRight className="ml-2 h-4 w-4" />
-                                    </Button>
-                                </Card>
+                                    <Card className="bg-muted/50 flex flex-col items-center justify-center text-center p-6">
+                                        <h3 className="font-semibold text-foreground">Turn these insights into action.</h3>
+                                        <p className="text-sm text-muted-foreground mt-1 mb-4">Discuss your profile with Arjun to build a personalized growth plan.</p>
+                                        <Button onClick={discussPsychology}>
+                                            Discuss Patterns with Arjun <ArrowRight className="ml-2 h-4 w-4" />
+                                        </Button>
+                                    </Card>
+                                </div>
                             </div>
                         </SectionCard>
                         <SectionCard id="loss-drivers" title="Top Loss Drivers" description="The specific behaviours that are costing you the most money, ranked by total impact." icon={Zap}>
