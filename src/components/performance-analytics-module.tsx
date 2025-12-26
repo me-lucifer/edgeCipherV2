@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart as BarChartIcon, Brain, Calendar, Filter, AlertCircle, Info, TrendingUp, TrendingDown, Users, DollarSign, Target, Gauge, Zap } from "lucide-react";
+import { BarChart as BarChartIcon, Brain, Calendar, Filter, AlertCircle, Info, TrendingUp, TrendingDown, Users, DollarSign, Target, Gauge, Zap, Award } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, CartesianGrid, XAxis, YAxis, Bar, Line, LineChart, ResponsiveContainer } from "recharts";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
@@ -90,7 +90,7 @@ const handleScrollTo = (e: React.MouseEvent<HTMLButtonElement>, id: string) => {
     }
 };
 
-const SectionCard: React.FC<{id: string, title: string, description: string, icon: React.ElementType, children: React.ReactNode}> = ({ id, title, description, icon: Icon, children }) => (
+const SectionCard: React.FC<{id: string, title: React.ReactNode, description: string, icon: React.ElementType, children: React.ReactNode}> = ({ id, title, description, icon: Icon, children }) => (
     <Card id={id} className="bg-muted/30 border-border/50 scroll-mt-40">
         <CardHeader>
             <CardTitle className="flex items-center gap-3"><Icon className="h-6 w-6 text-primary" /> {title}</CardTitle>
@@ -98,6 +98,18 @@ const SectionCard: React.FC<{id: string, title: string, description: string, ico
         </CardHeader>
         <CardContent>
             {children}
+        </CardContent>
+    </Card>
+);
+
+const MetricCard = ({ title, value, hint }: { title: string; value: string; hint: string }) => (
+    <Card className="bg-muted/30 border-border/50">
+        <CardHeader className="pb-2">
+            <CardTitle className="text-base">{title}</CardTitle>
+        </CardHeader>
+        <CardContent>
+            <p className="text-3xl font-bold font-mono">{value}</p>
+            <p className="text-xs text-muted-foreground">{hint}</p>
         </CardContent>
     </Card>
 );
@@ -126,6 +138,24 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
             sections.forEach((section) => observer.unobserve(section!));
         };
     }, []);
+    
+    // Mock data based on filters - Phase 1
+    const analyticsData = {
+        totalTrades: 160,
+        winRate: 48.2,
+        lossRate: 51.8,
+        avgRR: 1.35,
+        totalPnL: 6400,
+        bestCondition: "Normal VIX / NY Session",
+        quality: "Mixed"
+    };
+
+    const qualityConfig = {
+        Disciplined: { label: "Disciplined", color: "bg-green-500/20 text-green-300 border-green-500/30", icon: Award },
+        Mixed: { label: "Mixed", color: "bg-amber-500/20 text-amber-300 border-amber-500/30", icon: AlertCircle },
+        Emotional: { label: "Emotional", color: "bg-red-500/20 text-red-300 border-red-500/30", icon: Zap },
+    }[analyticsData.quality] || { label: "Mixed", color: "bg-amber-500/20 text-amber-300 border-amber-500/30", icon: AlertCircle };
+    const QualityIcon = qualityConfig.icon;
 
     return (
         <div className="space-y-8">
@@ -161,12 +191,27 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
             </div>
 
             <div className="space-y-8">
-                <SectionCard id="summary" title="High-Level Summary" description="Your core metrics at a glance." icon={DollarSign}>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                        <Card className="bg-muted/30 border-border/50"><CardHeader><CardTitle className="text-base">Win Rate</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold font-mono">48.2%</p></CardContent></Card>
-                        <Card className="bg-muted/30 border-border/50"><CardHeader><CardTitle className="text-base">Average R</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold font-mono">1.35</p></CardContent></Card>
-                        <Card className="bg-muted/30 border-border/50"><CardHeader><CardTitle className="text-base">Max Drawdown</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold font-mono">15.1%</p></CardContent></Card>
-                        <Card className="bg-muted/30 border-border/50"><CardHeader><CardTitle className="text-base">Profit Factor</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold font-mono">1.62</p></CardContent></Card>
+                <SectionCard 
+                    id="summary" 
+                    title={
+                        <div className="flex items-center gap-4">
+                            <span>High-Level Summary</span>
+                            <Badge className={qualityConfig.color}>
+                                <QualityIcon className="mr-2 h-4 w-4" />
+                                {qualityConfig.label}
+                            </Badge>
+                        </div>
+                    }
+                    description="Your core metrics at a glance for the selected period." 
+                    icon={DollarSign}
+                >
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <MetricCard title="Total Trades" value={String(analyticsData.totalTrades)} hint="+5% vs last period" />
+                        <MetricCard title="Win Rate" value={`${analyticsData.winRate}%`} hint="-2% vs last period" />
+                        <MetricCard title="Loss Rate" value={`${analyticsData.lossRate}%`} hint="+2% vs last period" />
+                        <MetricCard title="Average R:R" value={String(analyticsData.avgRR)} hint="Target: >1.5" />
+                        <MetricCard title="Total PnL" value={`$${analyticsData.totalPnL.toFixed(2)}`} hint="+12% vs last period" />
+                        <MetricCard title="Best Condition" value={analyticsData.bestCondition} hint="NY session / Normal VIX" />
                     </div>
                 </SectionCard>
 
@@ -241,3 +286,5 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
         </div>
     );
 }
+
+    
