@@ -5,7 +5,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart as BarChartIcon, Brain, Calendar, Filter, AlertCircle, Info, TrendingUp, TrendingDown, Users, DollarSign, Target, Gauge, Zap, Award, ArrowRight, XCircle, CheckCircle, Circle, Bot, AlertTriangle, Clipboard, Star, Activity, BookOpen, BarChartHorizontal, Database, View, Flag, Presentation, ChevronsUpDown } from "lucide-react";
+import { BarChart as BarChartIcon, Brain, Calendar, Filter, AlertCircle, Info, TrendingUp, TrendingDown, Users, DollarSign, Target, Gauge, Zap, Award, ArrowRight, XCircle, CheckCircle, Circle, Bot, AlertTriangle, Clipboard, Star, Activity, BookOpen, BarChartHorizontal, Database, View, Flag, Presentation, ChevronsUpDown, Copy } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, CartesianGrid, XAxis, YAxis, Bar, Line, LineChart, ResponsiveContainer, ReferenceDot, Dot, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, RadarChart as RechartsRadarChart } from "recharts";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -43,7 +43,7 @@ function seededRandom(seed: number) {
 }
 
 
-const SectionCard: React.FC<{id?: string, title: React.ReactNode, description: string, icon: React.ElementType, children: React.ReactNode, headerContent?: React.ReactNode}> = ({ id, title, description, icon: Icon, children, headerContent }) => (
+const SectionCard: React.FC<{id?: string, title: React.ReactNode, description: string, icon: React.ElementType, children: React.ReactNode, headerContent?: React.ReactNode, onExport?: () => void}> = ({ id, title, description, icon: Icon, children, headerContent, onExport }) => (
     <Card id={id} className="bg-muted/30 border-border/50 scroll-mt-40">
         <CardHeader>
             <div className="flex items-start justify-between gap-4">
@@ -51,7 +51,23 @@ const SectionCard: React.FC<{id?: string, title: React.ReactNode, description: s
                     <CardTitle className="flex items-center gap-3"><Icon className="h-6 w-6 text-primary" /> {title}</CardTitle>
                     <CardDescription>{description}</CardDescription>
                 </div>
-                {headerContent}
+                <div className="flex items-center gap-2">
+                    {headerContent}
+                    {onExport && (
+                         <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onExport}>
+                                        <Presentation className="h-4 w-4 text-muted-foreground" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Export snapshot (prototype)</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    )}
+                </div>
             </div>
         </CardHeader>
         <CardContent>
@@ -523,6 +539,41 @@ const TradesInFocusPanel = ({
   );
 };
 
+const ExportDialog = ({ isOpen, onOpenChange, title, summaryText }: { isOpen: boolean, onOpenChange: (open: boolean) => void, title: string, summaryText: string }) => {
+    const { toast } = useToast();
+
+    const handleCopy = () => {
+        navigator.clipboard.writeText(summaryText);
+        toast({ title: "Copied to clipboard" });
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Export Snapshot: {title}</DialogTitle>
+                    <DialogDescription>
+                        Copy this summary to your clipboard or download it as an image (coming soon).
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="my-4 p-4 bg-muted rounded-md text-sm text-muted-foreground whitespace-pre-wrap font-mono max-h-60 overflow-y-auto">
+                    {summaryText}
+                </div>
+                <DialogFooter className="sm:justify-between">
+                    <Button variant="outline" disabled>Download as Image (soon)</Button>
+                    <div className="flex gap-2">
+                        <Button variant="ghost" onClick={() => onOpenChange(false)}>Close</Button>
+                        <Button onClick={handleCopy}>
+                            <Copy className="mr-2 h-4 w-4" />
+                            Copy Text
+                        </Button>
+                    </div>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+};
+
 export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalyticsModuleProps) {
     const [timeRange, setTimeRange] = useState("30d");
     const [activeTab, setActiveTab] = useState("overview");
@@ -536,6 +587,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
     const [isDataSourcesOpen, setIsDataSourcesOpen] = useState(false);
     const [volatilityView, setVolatilityView] = useState<'winRate' | 'avgPnL' | 'mistakes'>('winRate');
     const [compareMode, setCompareMode] = useState(false);
+    const [exportData, setExportData] = useState<{ title: string, summary: string } | null>(null);
 
 
     const { toast } = useToast();
@@ -802,6 +854,23 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
       { name: "Strategy Management", status: "Prototype", description: "List of defined strategies." },
     ];
 
+    const handleExport = (title: string, data: any) => {
+        let summary = `### ${title} Snapshot\n\n`;
+        if (title === 'Equity Curve') {
+            summary += `Total PnL (${timeRange}): $${analyticsData?.current?.totalPnL.toFixed(2)}\n`;
+            summary += `Total Trades: ${analyticsData?.current?.totalTrades}\n`;
+        } else if (title === 'Behaviour Analytics') {
+            summary += `Discipline Score: ${data.disciplineScore}\n`;
+            summary += `Emotional Control: ${100 - data.emotionalScore}\n`;
+            summary += `Consistency: ${data.consistencyScore}\n`;
+        } else if (title === 'Psychological Patterns') {
+            data.forEach((item: any) => {
+                summary += `- ${item.axis}: ${item.value.toFixed(0)} (Count: ${item.count}, Impact: ${item.impact})\n`;
+            });
+        }
+        setExportData({ title, summary });
+    };
+
     if (!hasData) {
         return (
             <div className="flex h-[60vh] flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 text-center">
@@ -959,6 +1028,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                     title="Equity Curve"
                                     description="Your account balance over time, with markers for key psychological events."
                                     icon={TrendingUp}
+                                    onExport={() => handleExport('Equity Curve', analyticsData?.current)}
                                     headerContent={
                                         <div className="flex items-center gap-2">
                                             <Label htmlFor="show-behavior-layer" className="text-sm">Show behaviour layer</Label>
@@ -1048,18 +1118,20 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                         </div>
                     </TabsContent>
                     <TabsContent value="behaviour" className="mt-6 space-y-8">
-                        <Card className="bg-muted/30 border-border/50">
-                            <CardHeader>
-                                <CardTitle>Behaviour Analytics</CardTitle>
-                                <CardDescription>Where you lose your edge isn’t price — it’s behaviour.</CardDescription>
-                            </CardHeader>
-                            <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                        <SectionCard 
+                            id="discipline" 
+                            title="Behaviour Analytics" 
+                            description="Where you lose your edge isn’t price — it’s behaviour." 
+                            icon={Activity}
+                            onExport={() => handleExport('Behaviour Analytics', analyticsData?.current?.scores)}
+                        >
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                                 <ScoreGauge score={currentData.scores.disciplineScore} label="Discipline" interpretation={currentData.scores.disciplineScore > 75 ? "Strong" : currentData.scores.disciplineScore > 50 ? "Mixed" : "Leaky"} delta={compareMode && previousData ? currentData.scores.disciplineScore - previousData.scores.disciplineScore : undefined} />
                                 <ScoreGauge score={100 - currentData.scores.emotionalScore} label="Emotional Control" interpretation={currentData.scores.emotionalScore < 30 ? "Calm" : currentData.scores.emotionalScore < 60 ? "Reactive" : "Volatile"} delta={compareMode && previousData ? (100 - currentData.scores.emotionalScore) - (100 - previousData.scores.emotionalScore) : undefined} />
                                 <ScoreGauge score={currentData.scores.consistencyScore} label="Consistency" interpretation={currentData.scores.consistencyScore > 75 ? "Stable" : currentData.scores.consistencyScore > 50 ? "Inconsistent" : "Chaotic"} delta={compareMode && previousData ? currentData.scores.consistencyScore - previousData.scores.consistencyScore : undefined} />
-                            </CardContent>
-                        </Card>
-                        <SectionCard id="discipline" title="Risk & Discipline Analytics" description="How well you are following your own rules." icon={Target}>
+                            </div>
+                        </SectionCard>
+                        <SectionCard id="risk-discipline" title="Risk & Discipline Analytics" description="How well you are following your own rules." icon={Target}>
                             <div className="grid md:grid-cols-3 gap-6">
                                 <Card className="bg-muted/50 border-border/50">
                                     <CardHeader>
@@ -1125,7 +1197,13 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                 <GuardrailDialog />
                             </Dialog>
                         </SectionCard>
-                        <SectionCard id="psychology" title="Psychological Patterns" description="The emotions and biases that drive your decisions." icon={Brain}>
+                        <SectionCard 
+                            id="psychology" 
+                            title="Psychological Patterns" 
+                            description="The emotions and biases that drive your decisions." 
+                            icon={Brain}
+                            onExport={() => handleExport('Psychological Patterns', analyticsData?.current?.radarChartData)}
+                        >
                              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
                                 <div className="h-80 w-full">
                                     <RadarChart data={currentData.radarChartData} onSetModule={onSetModule} />
@@ -1413,7 +1491,12 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                         </SectionCard>
                     </TabsContent>
                     <TabsContent value="reports" className="mt-6 space-y-8">
-                        <SectionCard id="reports" title="Weekly & Monthly Reports" description="Your performance summarized into actionable report cards." icon={Award}>
+                        <SectionCard 
+                            id="reports" 
+                            title="Weekly & Monthly Reports" 
+                            description="Your performance summarized into actionable report cards." 
+                            icon={Award}
+                        >
                             <div className="grid md:grid-cols-2 gap-8">
                                 <Dialog>
                                     <Card className="bg-muted/50">
@@ -1548,6 +1631,12 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                         </div>
                     </DrawerContent>
                 </Drawer>
+                <ExportDialog 
+                    isOpen={!!exportData}
+                    onOpenChange={(open) => !open && setExportData(null)}
+                    title={exportData?.title || ''}
+                    summaryText={exportData?.summary || ''}
+                />
             </div>
         </Drawer>
     );
