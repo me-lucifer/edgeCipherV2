@@ -387,20 +387,20 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
         }))
         .sort((a, b) => a.totalR - b.totalR);
 
-      const mockEquityData = entries.reduce((acc: any[], entry, i) => {
-        const prevEquity = i > 0 ? acc[i - 1].equity : 10000;
-        const pnl = entry.review?.pnl || (random() - 0.48) * 500;
-        const equity = prevEquity + pnl;
-        const hasMarker = entry.review?.mistakesTags && entry.review.mistakesTags !== "None (disciplined)";
-        
-        acc.push({
-          date: entry.timestamps.executedAt,
-          equity,
-          marker: hasMarker ? { type: entry.review?.mistakesTags?.split(',')[0], color: "hsl(var(--chart-5))" } : null,
-          journalId: entry.id,
-        });
-        return acc;
-      }, []);
+        const mockEquityData = entries.reduce((acc: any[], entry, i) => {
+            const prevEquity = i > 0 ? acc[i - 1].equity : 10000;
+            const pnl = entry.review?.pnl || (random() - 0.48) * 500;
+            const equity = prevEquity + pnl;
+            const hasMarker = entry.review?.mistakesTags && entry.review.mistakesTags !== "None (disciplined)";
+            
+            acc.push({
+              date: entry.timestamps.executedAt,
+              equity,
+              marker: hasMarker ? { type: entry.review?.mistakesTags?.split(',')[0], color: "hsl(var(--chart-5))" } : null,
+              journalId: entry.id,
+            });
+            return acc;
+          }, []);
       
       const topEvents = entries.filter(e => e.review?.mistakesTags && e.review.mistakesTags !== "None (disciplined)")
         .slice(0, 2)
@@ -736,25 +736,25 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                                     <ChartTooltip cursor={{ strokeDasharray: '3 3' }} content={<ChartTooltipContent />} />
                                                     <Line type="monotone" dataKey="equity" stroke="hsl(var(--color-equity))" strokeWidth={2} dot={
                                                         (props: any) => {
-                                                          const { payload, cx, cy, key } = props;
-                                                          if (showBehaviorLayer && payload.marker) {
-                                                              const { key: dotKey, ...rest } = props;
-                                                              return (
-                                                                  <TooltipProvider key={key}>
-                                                                      <Tooltip>
-                                                                          <TooltipTrigger asChild>
-                                                                              <Dot {...rest} cx={cx} cy={cy} r={5} fill={payload.marker.color} stroke="hsl(var(--background))" strokeWidth={2} onClick={() => handleEventClick(payload.journalId)} className="cursor-pointer" />
-                                                                          </TooltipTrigger>
-                                                                          <TooltipContent>
-                                                                              <p>{payload.marker.type}</p>
-                                                                          </TooltipContent>
-                                                                      </Tooltip>
-                                                                  </TooltipProvider>
-                                                              )
-                                                          }
-                                                            const {key: spreadKey, ...restProps} = props;
-                                                            const emptyKey = `dot-empty-${spreadKey}-${props.index}`;
-                                                            return <Dot key={emptyKey} {...restProps} r={0} />;
+                                                            const { payload, cx, cy } = props;
+                                                            if (showBehaviorLayer && payload.marker) {
+                                                                const { key, ...rest } = props;
+                                                                return (
+                                                                    <TooltipProvider key={key}>
+                                                                        <Tooltip>
+                                                                            <TooltipTrigger asChild>
+                                                                                <Dot {...rest} cx={cx} cy={cy} r={5} fill={payload.marker.color} stroke="hsl(var(--background))" strokeWidth={2} onClick={() => handleEventClick(payload.journalId)} className="cursor-pointer" />
+                                                                            </TooltipTrigger>
+                                                                            <TooltipContent>
+                                                                                <p>{payload.marker.type}</p>
+                                                                            </TooltipContent>
+                                                                        </Tooltip>
+                                                                    </TooltipProvider>
+                                                                )
+                                                            }
+                                                            const { key, ...rest } = props;
+                                                            const emptyKey = `dot-empty-${key}-${props.index}`;
+                                                            return <Dot key={emptyKey} {...rest} r={0} />;
                                                         }
                                                     } />
                                                 </LineChart>
@@ -1249,3 +1249,4 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
         </Drawer>
     );
 }
+
