@@ -86,31 +86,6 @@ const equityChartConfig = {
   equity: { label: "Equity", color: "hsl(var(--chart-2))" }
 };
 
-const jumpNavLinks = [
-    { id: "summary", label: "Summary", icon: Users },
-    { id: "equity", label: "Equity", icon: TrendingUp },
-    { id: "discipline", label: "Discipline", icon: Target },
-    { id: "strategy", label: "Strategy", icon: Brain },
-    { id: "timing", label: "Timing", icon: Calendar },
-    { id: "volatility", label: "Volatility", icon: Zap },
-    { id: "psychology", label: "Psychology", icon: Brain },
-    { id: "reports", label: "Reports", icon: Award },
-];
-
-const handleScrollTo = (e: React.MouseEvent<HTMLButtonElement>, id: string) => {
-    e.preventDefault();
-    const element = document.getElementById(id);
-    if (element) {
-        const headerOffset = 160; // For sticky headers
-        const elementPosition = element.getBoundingClientRect().top;
-        const offsetPosition = elementPosition + window.scrollY - headerOffset;
-        window.scrollTo({
-            top: offsetPosition,
-            behavior: "smooth"
-        });
-    }
-};
-
 const SectionCard: React.FC<{id?: string, title: React.ReactNode, description: string, icon: React.ElementType, children: React.ReactNode}> = ({ id, title, description, icon: Icon, children }) => (
     <Card id={id} className="bg-muted/30 border-border/50 scroll-mt-40">
         <CardHeader>
@@ -242,13 +217,14 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
       if (entries.length === 0) return null;
 
       const totalTrades = entries.length;
-      const wins = entries.filter(e => e.review && e.review.pnl > 0).length;
-      const losses = entries.filter(e => e.review && e.review.pnl < 0).length;
+      const completedEntries = entries.filter(e => e.status === 'completed');
+      const wins = completedEntries.filter(e => e.review && e.review.pnl > 0).length;
+      const losses = completedEntries.filter(e => e.review && e.review.pnl < 0).length;
       const winRate = totalTrades > 0 ? (wins / totalTrades) * 100 : 0;
       const lossRate = totalTrades > 0 ? (losses / totalTrades) * 100 : 0;
-      const totalPnL = entries.reduce((acc, e) => acc + (e.review?.pnl || 0), 0);
+      const totalPnL = completedEntries.reduce((acc, e) => acc + (e.review?.pnl || 0), 0);
 
-      const rValues = entries.map(e => {
+      const rValues = completedEntries.map(e => {
           if (!e.review || !e.technical || !e.technical.riskPercent) return 0;
           const riskAmount = (e.technical.riskPercent / 100) * 10000;
           return riskAmount > 0 ? e.review.pnl / riskAmount : 0;
@@ -259,13 +235,35 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
       const avgLossR = losingR.length > 0 ? losingR.reduce((a, b) => a + b, 0) / losingR.length : 0;
       const avgRR = avgLossR > 0 ? avgWinR / avgLossR : 0;
 
-      const slMovedCount = entries.filter(e => e.review?.mistakesTags?.includes("Moved SL")).length;
-      const slMovedPct = totalTrades > 0 ? (slMovedCount / totalTrades) * 100 : 0;
+      const slMovedCount = completedEntries.filter(e => e.review?.mistakesTags?.includes("Moved SL")).length;
+      const slMovedPct = completedEntries.length > 0 ? (slMovedCount / completedEntries.length) * 100 : 0;
+      
+      const overtradedCount = completedEntries.filter(e => e.review?.mistakesTags?.includes("Overtraded")).length;
+      const overtradedPct = completedEntries.length > 0 ? (overtradedCount / completedEntries.length) * 100 : 0;
+      
+      const journalingCompletionRate = totalTrades > 0 ? (completedEntries.length / totalTrades) * 100 : 0;
 
-      const qualityScore = (100 - (slMovedPct * 2)) * (winRate / 50);
+      // Scoring logic
+      let disciplineScore = 80;
+      if (slMovedPct > 10) disciplineScore -= 10;
+      if (overtradedPct > 5) disciplineScore -= 8;
+      if (journalingCompletionRate < 70) disciplineScore -= 6;
+      
+      const emotionTags = completedEntries.flatMap(e => (e.review?.emotionsTags || "").split(','));
+      const fomoCount = emotionTags.filter(t => t === 'FOMO').length;
+      const revengeCount = emotionTags.filter(t => t === 'Revenge').length;
+      const overconfidenceCount = emotionTags.filter(t => t === 'Overconfidence').length;
+      
+      let emotionalScore = 20; // Lower is better
+      if (fomoCount / completedEntries.length > 0.1) emotionalScore += 10;
+      if (revengeCount > 0) emotionalScore += 10;
+      if (overconfidenceCount / completedEntries.length > 0.05) emotionalScore += 8;
+
+      let consistencyScore = 60; // Mock
+
       let quality = "Mixed";
-      if (qualityScore > 80) quality = "Disciplined";
-      else if (qualityScore < 40) quality = "Emotional";
+      if (disciplineScore > 80 && emotionalScore < 30) quality = "Disciplined";
+      else if (disciplineScore < 60 || emotionalScore > 40) quality = "Emotional";
       
       return {
           totalTrades,
@@ -282,7 +280,12 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
               tpExitedEarlyPct: 25, // Mock
               avgRiskPct: 1.1, // Mock
               riskOverLimitPct: 15, // Mock
-          }
+          },
+          scores: {
+              disciplineScore,
+              emotionalScore,
+              consistencyScore,
+          },
       };
     }, []);
 
@@ -322,7 +325,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
               timestamps: { plannedAt: new Date(Date.now() - 86400000).toISOString(), executedAt: new Date(Date.now() - 86400000).toISOString(), closedAt: new Date(Date.now() - 86400000).toISOString() },
               technical: { instrument: 'ETH-PERP', direction: 'Short', entryPrice: 3605, stopLoss: 3625, leverage: 50, positionSize: 12, riskPercent: 2, rrRatio: 1, strategy: "London Reversal" },
               planning: { planNotes: "Fading what looks like a sweep of the high.", mindset: "Anxious" },
-              review: { pnl: -240, exitPrice: 3625, emotionalNotes: "Market kept pushing, I felt like I was fighting a trend. Should have waited for more confirmation.", emotionsTags: "Anxious,Revenge", mistakesTags: "Forced Entry,Moved SL", learningNotes: "Don't fight a strong trend, even if it looks like a sweep.", newsContextTags: "News-driven day" },
+              review: { pnl: -240, exitPrice: 3625, emotionalNotes: "Market kept pushing, I felt like I was fighting a trend. Should have waited for more confirmation.", emotionsTags: "Anxious,Revenge,FOMO", mistakesTags: "Forced Entry,Moved SL,Overtraded", learningNotes: "Don't fight a strong trend, even if it looks like a sweep.", newsContextTags: "News-driven day" },
               meta: { journalingCompletedAt: new Date(Date.now() - 86400000).toISOString(), ruleAdherenceSummary: { followedEntryRules: false, movedSL: true, exitedEarly: false, rrBelowMin: true } }
             },
         ];
@@ -401,6 +404,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                 </TabsList>
                 <TabsContent value="overview" className="mt-6 space-y-8">
                      <SectionCard 
+                        id="summary"
                         title={
                             <div className="flex items-center gap-4">
                                 <span>High-Level Summary</span>
@@ -423,7 +427,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                         </div>
                     </SectionCard>
 
-                    <SectionCard title="Equity Curve" description="Your account balance over time, with markers for key psychological events." icon={TrendingUp}>
+                    <SectionCard id="equity" title="Equity Curve" description="Your account balance over time, with markers for key psychological events." icon={TrendingUp}>
                          <div className="grid lg:grid-cols-3 gap-8">
                             <div className="lg:col-span-2">
                                 <ChartContainer config={equityChartConfig} className="h-[300px] w-full">
@@ -434,10 +438,10 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                         <ChartTooltip cursor={{ strokeDasharray: '3 3' }} content={<ChartTooltipContent />} />
                                         <Line type="monotone" dataKey="equity" stroke="hsl(var(--color-equity))" strokeWidth={2} dot={
                                             (props: any) => {
-                                                const { key, payload, cx, cy } = props;
+                                                const { key: dotKey, payload, cx, cy } = props;
                                                 if (payload.marker) {
                                                     return (
-                                                        <TooltipProvider key={key}>
+                                                        <TooltipProvider key={dotKey}>
                                                             <Tooltip>
                                                                 <TooltipTrigger asChild>
                                                                     <Dot cx={cx} cy={cy} r={5} fill={payload.marker.color} stroke="hsl(var(--background))" strokeWidth={2} />
@@ -449,7 +453,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                                         </TooltipProvider>
                                                     )
                                                 }
-                                                return <Dot key={key} cx={cx} cy={cy} r={0} />;
+                                                return <Dot key={dotKey} cx={cx} cy={cy} r={0} />;
                                             }
                                         } />
                                     </LineChart>
@@ -476,7 +480,45 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                     </SectionCard>
                 </TabsContent>
                 <TabsContent value="behaviour" className="mt-6 space-y-8">
-                     <SectionCard title="Risk & Discipline Analytics" description="How well you are following your own rules." icon={Target}>
+                     <Card className="bg-muted/30 border-border/50">
+                        <CardHeader>
+                            <CardTitle>Behaviour Analytics</CardTitle>
+                            <CardDescription>Where you lose your edge isn’t price — it’s behaviour.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger>
+                                        <MetricCard title="Discipline Score" value={String(analyticsData.scores.disciplineScore)} hint="How well you follow your rules." />
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p className="max-w-xs">Based on SL movement, overtrading, and journaling habits. (Prototype logic)</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger>
+                                        <MetricCard title="Emotional Score" value={String(analyticsData.scores.emotionalScore)} hint="Frequency of emotional tags." />
+                                    </TooltipTrigger>
+                                     <TooltipContent>
+                                        <p className="max-w-xs">Based on tags like FOMO, Revenge, Overconfidence. Lower is better. (Prototype logic)</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                             <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger>
+                                        <MetricCard title="Consistency Score" value={String(analyticsData.scores.consistencyScore)} hint="Journaling streak & performance variance." />
+                                    </TooltipTrigger>
+                                     <TooltipContent>
+                                        <p className="max-w-xs">Based on journaling streaks and performance vs volatility. (Prototype logic)</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        </CardContent>
+                    </Card>
+                     <SectionCard id="discipline" title="Risk & Discipline Analytics" description="How well you are following your own rules." icon={Target}>
                         <div className="grid md:grid-cols-3 gap-6">
                             <Card className="bg-muted/50 border-border/50">
                                 <CardHeader>
@@ -535,7 +577,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                             </Card>
                         </div>
                     </SectionCard>
-                    <SectionCard title="Psychological Patterns" description="The emotions and biases that drive your decisions." icon={Brain}>
+                    <SectionCard id="psychology" title="Psychological Patterns" description="The emotions and biases that drive your decisions." icon={Brain}>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                             {psychologicalPatterns.map(pattern => (
                                  <Card key={pattern.name} className={cn("border", pattern.colorCode)}>
@@ -576,7 +618,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                     </SectionCard>
                 </TabsContent>
                 <TabsContent value="strategies" className="mt-6 space-y-8">
-                     <SectionCard title="Strategy Analytics" description="Which of your strategies are performing best, and where they leak money." icon={Brain}>
+                     <SectionCard id="strategy" title="Strategy Analytics" description="Which of your strategies are performing best, and where they leak money." icon={Brain}>
                          <Table>
                             <TableHeader>
                                 <TableRow>
@@ -608,7 +650,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                             </TableBody>
                         </Table>
                     </SectionCard>
-                    <SectionCard title="Timing Analytics" description="When you trade best (and worst)." icon={Calendar}>
+                    <SectionCard id="timing" title="Timing Analytics" description="When you trade best (and worst)." icon={Calendar}>
                         <div className="grid md:grid-cols-3 gap-6">
                             <div className="md:col-span-2">
                                  <div className="overflow-x-auto">
@@ -674,7 +716,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                         </div>
                     </SectionCard>
                     
-                    <SectionCard title="Volatility Analytics" description="How you perform in different market conditions." icon={Zap}>
+                    <SectionCard id="volatility" title="Volatility Analytics" description="How you perform in different market conditions." icon={Zap}>
                          <Table>
                             <TableHeader><TableRow><TableHead>VIX Zone</TableHead><TableHead>Trades</TableHead><TableHead>Win Rate</TableHead><TableHead>Mistakes</TableHead><TableHead>Avg. PnL</TableHead></TableRow></TableHeader>
                             <TableBody>
@@ -692,7 +734,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                     </SectionCard>
                 </TabsContent>
                 <TabsContent value="reports" className="mt-6 space-y-8">
-                     <SectionCard title="Weekly & Monthly Reports" description="Your performance summarized into actionable report cards." icon={Award}>
+                     <SectionCard id="reports" title="Weekly & Monthly Reports" description="Your performance summarized into actionable report cards." icon={Award}>
                         <div className="grid md:grid-cols-2 gap-8">
                             <Dialog>
                                 <Card className="bg-muted/50">
