@@ -197,6 +197,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
     const [selectedStrategy, setSelectedStrategy] = useState<(typeof mockStrategyData)[0] | null>(null);
     const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
     const [hasData, setHasData] = useState(true);
+    const [selectedBehavior, setSelectedBehavior] = useState<string | null>(null);
     const { toast } = useToast();
 
     useEffect(() => {
@@ -264,7 +265,34 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
       let quality = "Mixed";
       if (disciplineScore > 80 && emotionalScore < 30) quality = "Disciplined";
       else if (disciplineScore < 60 || emotionalScore > 40) quality = "Emotional";
-      
+
+      const behaviorTags: Record<string, { occurrences: number; totalR: number; trades: JournalEntry[] }> = {};
+      completedEntries.forEach(entry => {
+        const tags = [...(entry.review?.emotionsTags?.split(',') || []), ...(entry.review?.mistakesTags?.split(',') || [])].filter(Boolean);
+        const rValue = rValues.find((r, i) => completedEntries[i].id === entry.id) || 0;
+        
+        tags.forEach(tag => {
+            if (tag === 'None (disciplined)') return;
+            if (!behaviorTags[tag]) {
+                behaviorTags[tag] = { occurrences: 0, totalR: 0, trades: [] };
+            }
+            behaviorTags[tag].occurrences++;
+            behaviorTags[tag].totalR += rValue;
+            behaviorTags[tag].trades.push(entry);
+        });
+      });
+
+      const topLossDrivers = Object.entries(behaviorTags)
+        .filter(([, data]) => data.totalR < 0)
+        .map(([behavior, data]) => ({
+            behavior,
+            occurrences: data.occurrences,
+            avgR: data.totalR / data.occurrences,
+            totalR: data.totalR,
+            trades: data.trades,
+        }))
+        .sort((a, b) => a.totalR - b.totalR);
+
       return {
           totalTrades,
           winRate,
@@ -286,6 +314,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
               emotionalScore,
               consistencyScore,
           },
+          topLossDrivers,
       };
     }, []);
 
@@ -325,7 +354,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
               timestamps: { plannedAt: new Date(Date.now() - 86400000).toISOString(), executedAt: new Date(Date.now() - 86400000).toISOString(), closedAt: new Date(Date.now() - 86400000).toISOString() },
               technical: { instrument: 'ETH-PERP', direction: 'Short', entryPrice: 3605, stopLoss: 3625, leverage: 50, positionSize: 12, riskPercent: 2, rrRatio: 1, strategy: "London Reversal" },
               planning: { planNotes: "Fading what looks like a sweep of the high.", mindset: "Anxious" },
-              review: { pnl: -240, exitPrice: 3625, emotionalNotes: "Market kept pushing, I felt like I was fighting a trend. Should have waited for more confirmation.", emotionsTags: "Anxious,Revenge,FOMO", mistakesTags: "Forced Entry,Moved SL,Overtraded", learningNotes: "Don't fight a strong trend, even if it looks like a sweep.", newsContextTags: "News-driven day" },
+              review: { pnl: -240, exitPrice: 3625, emotionalNotes: "Market kept pushing, I felt like I was fighting a trend. Should have waited for more confirmation.", emotionsTags: "Anxious,Revenge,FOMO", mistakesTags: "Forced Entry,Moved SL", learningNotes: "Don't fight a strong trend, even if it looks like a sweep.", newsContextTags: "News-driven day" },
               meta: { journalingCompletedAt: new Date(Date.now() - 86400000).toISOString(), ruleAdherenceSummary: { followedEntryRules: false, movedSL: true, exitedEarly: false, rrBelowMin: true } }
             },
         ];
@@ -371,6 +400,8 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
         const prompt = `Arjun, my analytics show my biggest psychological issues are ${topIssues}. Can you help me create a plan to work on these?`;
         onSetModule('aiCoaching', { initialMessage: prompt });
     };
+
+    const selectedBehaviorData = analyticsData.topLossDrivers.find(d => d.behavior === selectedBehavior);
 
     return (
         <div className="space-y-8">
@@ -437,11 +468,11 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                         <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `$${value / 1000}k`} />
                                         <ChartTooltip cursor={{ strokeDasharray: '3 3' }} content={<ChartTooltipContent />} />
                                         <Line type="monotone" dataKey="equity" stroke="hsl(var(--color-equity))" strokeWidth={2} dot={
-                                            (props: any) => {
-                                                const { key: dotKey, payload, cx, cy } = props;
+                                            (props) => {
+                                                const { payload, cx, cy } = props;
                                                 if (payload.marker) {
                                                     return (
-                                                        <TooltipProvider key={dotKey}>
+                                                        <TooltipProvider key={payload.date}>
                                                             <Tooltip>
                                                                 <TooltipTrigger asChild>
                                                                     <Dot cx={cx} cy={cy} r={5} fill={payload.marker.color} stroke="hsl(var(--background))" strokeWidth={2} />
@@ -453,7 +484,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                                         </TooltipProvider>
                                                     )
                                                 }
-                                                return <Dot key={dotKey} cx={cx} cy={cy} r={0} />;
+                                                return <Dot {...props} r={0} />;
                                             }
                                         } />
                                     </LineChart>
@@ -615,6 +646,34 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                 </Button>
                             </Card>
                         </div>
+                    </SectionCard>
+                     <SectionCard id="loss-drivers" title="Top Loss Drivers" description="The specific behaviours that are costing you the most money, ranked by total impact." icon={Zap}>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Behaviour</TableHead>
+                                    <TableHead>Occurrences</TableHead>
+                                    <TableHead>Avg. R Impact</TableHead>
+                                    <TableHead>Total R Impact</TableHead>
+                                    <TableHead className="text-right">Action</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {analyticsData.topLossDrivers.map(driver => (
+                                    <TableRow key={driver.behavior}>
+                                        <TableCell><Badge variant="destructive">{driver.behavior}</Badge></TableCell>
+                                        <TableCell>{driver.occurrences}</TableCell>
+                                        <TableCell className="font-mono text-red-400">{driver.avgR.toFixed(2)}R</TableCell>
+                                        <TableCell className="font-mono text-red-400">{driver.totalR.toFixed(2)}R</TableCell>
+                                        <TableCell className="text-right">
+                                            <Button variant="ghost" size="sm" onClick={() => setSelectedBehavior(driver.behavior)}>
+                                                View trades
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
                     </SectionCard>
                 </TabsContent>
                 <TabsContent value="strategies" className="mt-6 space-y-8">
@@ -814,6 +873,32 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                 <Button className="w-full" onClick={() => askArjunAboutStrategy(selectedStrategy.name)}>
                                     Ask Arjun to improve this strategy
                                 </Button>
+                            </div>
+                        </div>
+                    )}
+                </DrawerContent>
+            </Drawer>
+             <Drawer open={!!selectedBehavior} onOpenChange={(open) => !open && setSelectedBehavior(null)}>
+                <DrawerContent>
+                    {selectedBehaviorData && (
+                        <div className="mx-auto w-full max-w-2xl p-4 md:p-6">
+                            <DrawerHeader>
+                                <DrawerTitle className="text-2xl">Trades with "{selectedBehavior}" tag</DrawerTitle>
+                            </DrawerHeader>
+                            <div className="px-4 py-6 space-y-6">
+                                {selectedBehaviorData.trades.map(trade => (
+                                    <Card key={trade.id} className="bg-muted/50 cursor-pointer" onClick={() => { onSetModule('tradeJournal', { draftId: trade.id }); setSelectedBehavior(null); }}>
+                                        <CardContent className="p-4 flex justify-between items-center">
+                                            <div>
+                                                <p className="font-semibold">{trade.technical.instrument} {trade.technical.direction}</p>
+                                                <p className="text-xs text-muted-foreground">{new Date(trade.timestamps.executedAt).toLocaleString()}</p>
+                                            </div>
+                                            <p className={cn("font-mono font-semibold", (trade.review?.pnl || 0) >= 0 ? "text-green-400" : "text-red-400")}>
+                                                ${(trade.review?.pnl || 0).toFixed(2)}
+                                            </p>
+                                        </CardContent>
+                                    </Card>
+                                ))}
                             </div>
                         </div>
                     )}
