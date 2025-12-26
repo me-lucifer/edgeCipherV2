@@ -4,16 +4,18 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart as BarChartIcon, Brain, Calendar, Filter, AlertCircle, Info, TrendingUp, TrendingDown, Users, DollarSign, Target, Gauge, Zap, Award, ArrowRight } from "lucide-react";
+import { BarChart as BarChartIcon, Brain, Calendar, Filter, AlertCircle, Info, TrendingUp, TrendingDown, Users, DollarSign, Target, Gauge, Zap, Award, ArrowRight, XCircle } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, CartesianGrid, XAxis, YAxis, Bar, Line, LineChart, ResponsiveContainer, ReferenceDot, Dot } from "recharts";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
-import { Badge } from "./ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Switch } from "./ui/switch";
 import { Label } from "./ui/label";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
+import { Progress } from "./ui/progress";
+import { Alert, AlertTitle, AlertDescription } from "./ui/alert";
 
 interface PerformanceAnalyticsModuleProps {
     onSetModule: (module: any, context?: any) => void;
@@ -156,6 +158,14 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
         bestCondition: "Normal VIX / NY Session",
         quality: "Mixed",
         hasHistory: true, // For controlling empty states
+        discipline: {
+            slRespectedPct: 85,
+            slMovedPct: 12,
+            slRemovedPct: 3,
+            tpExitedEarlyPct: 25,
+            avgRiskPct: 1.1,
+            riskOverLimitPct: 15,
+        }
     };
 
     const qualityConfig = {
@@ -281,7 +291,63 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                 </SectionCard>
                 
                 <SectionCard id="discipline" title="Risk & Discipline Analytics" description="How well you are following your own rules." icon={Target}>
-                    <p className="text-muted-foreground text-center p-8 border-2 border-dashed rounded-lg">Discipline metrics will appear here.</p>
+                    <div className="grid md:grid-cols-3 gap-6">
+                        <Card className="bg-muted/50 border-border/50">
+                            <CardHeader>
+                                <CardTitle className="text-base">Stop Loss Behavior</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div>
+                                    <div className="flex justify-between text-sm"><span className="text-muted-foreground">Respected</span><span>{analyticsData.discipline.slRespectedPct}%</span></div>
+                                    <Progress value={analyticsData.discipline.slRespectedPct} indicatorClassName="bg-green-500" className="h-2 mt-1" />
+                                </div>
+                                <div>
+                                    <div className="flex justify-between text-sm"><span className="text-muted-foreground">Moved</span><span>{analyticsData.discipline.slMovedPct}%</span></div>
+                                    <Progress value={analyticsData.discipline.slMovedPct} indicatorClassName="bg-amber-500" className="h-2 mt-1" />
+                                </div>
+                                <div>
+                                    <div className="flex justify-between text-sm"><span className="text-muted-foreground">Removed</span><span>{analyticsData.discipline.slRemovedPct}%</span></div>
+                                    <Progress value={analyticsData.discipline.slRemovedPct} indicatorClassName="bg-red-500" className="h-2 mt-1" />
+                                </div>
+                                <Alert variant="default" className="mt-4 bg-amber-500/10 border-amber-500/20 text-amber-300">
+                                    <AlertTriangle className="h-4 w-4 text-amber-400" />
+                                    <AlertDescription className="text-xs">
+                                        Your biggest drawdowns correlate with moving stop losses.
+                                    </AlertDescription>
+                                </Alert>
+                            </CardContent>
+                        </Card>
+                        <Card className="bg-muted/50 border-border/50">
+                            <CardHeader>
+                                <CardTitle className="text-base">Take Profit Behavior</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="p-4 bg-background/50 rounded-lg">
+                                    <p className="text-sm text-muted-foreground">Exited early %</p>
+                                    <p className="text-2xl font-bold font-mono">{analyticsData.discipline.tpExitedEarlyPct}%</p>
+                                </div>
+                                <p className="text-xs text-muted-foreground">Consider defining partial TP rules to let winners run (coming in Phase 2).</p>
+                            </CardContent>
+                        </Card>
+                         <Card className="bg-muted/50 border-border/50">
+                            <CardHeader>
+                                <CardTitle className="text-base">Risk Compliance</CardTitle>
+                            </CardHeader>
+                             <CardContent className="space-y-4">
+                                <div className="p-4 bg-background/50 rounded-lg">
+                                    <p className="text-sm text-muted-foreground">Avg. risk per trade</p>
+                                    <p className="text-2xl font-bold font-mono">{analyticsData.discipline.avgRiskPct.toFixed(2)}%</p>
+                                </div>
+                                <div className="p-4 bg-background/50 rounded-lg">
+                                    <p className="text-sm text-muted-foreground">% of trades over limit</p>
+                                    <p className="text-2xl font-bold font-mono">{analyticsData.discipline.riskOverLimitPct}%</p>
+                                </div>
+                                {analyticsData.discipline.riskOverLimitPct > 10 && (
+                                     <Badge variant="destructive" className="gap-1.5"><XCircle className="h-3 w-3" /> Risk Leakage Detected</Badge>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </div>
                 </SectionCard>
 
                 <SectionCard id="strategy" title="Strategy Analytics" description="Which of your strategies are performing best." icon={Brain}>
