@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart as BarChartIcon, Brain, Calendar, Filter, AlertCircle, Info, TrendingUp, TrendingDown, Users, DollarSign, Target, Gauge, Zap, Award, ArrowRight, XCircle, CheckCircle, Circle, Bot } from "lucide-react";
+import { BarChart as BarChartIcon, Brain, Calendar, Filter, AlertCircle, Info, TrendingUp, TrendingDown, Users, DollarSign, Target, Gauge, Zap, Award, ArrowRight, XCircle, CheckCircle, Circle, Bot, AlertTriangle } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, CartesianGrid, XAxis, YAxis, Bar, Line, LineChart, ResponsiveContainer, ReferenceDot, Dot } from "recharts";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -478,20 +478,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                 </SectionCard>
 
                 <SectionCard id="psychology" title="Psychological Patterns" description="The emotions and biases that drive your decisions." icon={Brain}>
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                        {psychologicalPatterns.map(p => (
-                            <Card key={p.name} className="bg-muted/50 border-border/50 text-center">
-                                <CardHeader className="pb-2">
-                                    <CardTitle className="text-base">{p.name}</CardTitle>
-                                    <CardDescription>{p.count} trades</CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    <p className="font-mono text-lg font-semibold text-red-400">${p.avgPnL.toFixed(0)}</p>
-                                    <p className="text-xs text-muted-foreground">Avg. PnL</p>
-                                </CardContent>
-                            </Card>
-                        ))}
-                    </div>
+                    <p>Placeholder for psychology patterns.</p>
                 </SectionCard>
             </div>
             <Drawer open={!!selectedStrategy} onOpenChange={(open) => !open && setSelectedStrategy(null)}>
