@@ -5,7 +5,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart as BarChartIcon, Brain, Calendar, Filter, AlertCircle, Info, TrendingUp, TrendingDown, Users, DollarSign, Target, Gauge, Zap, Award, ArrowRight, XCircle, CheckCircle, Circle, Bot, AlertTriangle, Clipboard, Star, Activity, BookOpen, BarChartHorizontal, Database, View, Flag } from "lucide-react";
+import { BarChart as BarChartIcon, Brain, Calendar, Filter, AlertCircle, Info, TrendingUp, TrendingDown, Users, DollarSign, Target, Gauge, Zap, Award, ArrowRight, XCircle, CheckCircle, Circle, Bot, AlertTriangle, Clipboard, Star, Activity, BookOpen, BarChartHorizontal, Database, View, Flag, Presentation } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, CartesianGrid, XAxis, YAxis, Bar, Line, LineChart, ResponsiveContainer, ReferenceDot, Dot } from "recharts";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -23,6 +23,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Separator } from "./ui/separator";
 import type { JournalEntry } from "./trade-journal-module";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
+import { Skeleton } from "./ui/skeleton";
+import { useEventLog } from "@/context/event-log-provider";
+import { HelpCircle, ChevronUp } from "lucide-react";
+
 
 interface PerformanceAnalyticsModuleProps {
     onSetModule: (module: any, context?: any) => void;
@@ -554,7 +559,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
               timestamps: { plannedAt: new Date(Date.now() - 86400000).toISOString(), executedAt: new Date(Date.now() - 86400000).toISOString(), closedAt: new Date(Date.now() - 86400000).toISOString() },
               technical: { instrument: 'ETH-PERP', direction: 'Short', entryPrice: 3605, stopLoss: 3625, leverage: 50, positionSize: 12, riskPercent: 2, rrRatio: 1, strategy: "London Reversal" },
               planning: { planNotes: "Fading what looks like a sweep of the high.", mindset: "Anxious" },
-              review: { pnl: -240, exitPrice: 3625, emotionalNotes: "Market kept pushing, I felt like I was fighting a trend. Should have waited for more confirmation.", emotionsTags: "Anxious,Revenge,FOMO", mistakesTags: "Forced Entry,Moved SL", learningNotes: "Don't fight a strong trend, even if it looks like a sweep.", newsContextTags: "News-driven day" },
+              review: { pnl: -240, exitPrice: 3625, emotionalNotes: "Market kept pushing, I felt like I was fighting a trend. Should have waited for more confirmation.", emotionsTags: "Anxious,Revenge", mistakesTags: "Forced Entry,Moved SL", learningNotes: "Don't fight a strong trend, even if it looks like a sweep.", newsContextTags: "News-driven day" },
               meta: { journalingCompletedAt: new Date(Date.now() - 86400000).toISOString(), ruleAdherenceSummary: { followedEntryRules: false, movedSL: true, exitedEarly: false, rrBelowMin: true } }
             },
         ];
@@ -815,7 +820,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                                           )
                                                       }
                                                       const emptyKey = `dot-empty-${key}-${props.index}`;
-                                                      return <Dot key={emptyKey} {...rest} r={0} />;
+                                                      return <Dot key={emptyKey} {...props} r={0} />;
                                                   }
                                               } />
                                           </LineChart>
@@ -991,7 +996,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                 </TableHeader>
                                 <TableBody>
                                     {analyticsData.topLossDrivers.map((driver: any) => (
-                                        <TableRow key={driver.behavior} className="cursor-pointer" onClick={() => { setSelectedBehavior(driver); setActiveDrilldown(`loss-driver-${driver.behavior}`)}}>
+                                        <TableRow key={driver.behavior} className="cursor-pointer hover:bg-muted" onClick={() => { setSelectedBehavior(driver); setActiveDrilldown(`loss-driver-${driver.behavior}`)}}>
                                             <TableCell><Badge variant="destructive">{driver.behavior}</Badge></TableCell>
                                             <TableCell>{driver.occurrences}</TableCell>
                                             <TableCell className="font-mono text-red-400">{driver.avgR.toFixed(2)}R</TableCell>
@@ -1119,19 +1124,23 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                                             if (!cellData) {
                                                                 return <td key={block} className="p-2 bg-muted/30 rounded-md" />;
                                                             }
-                                                            const opacity = Math.min(1, (cellData.trades / 30) * 0.9 + 0.1);
+                                                            const maxTrades = 30; // Mock max for opacity scaling
+                                                            const opacity = Math.min(1, (cellData.trades / maxTrades) * 0.9 + 0.1);
                                                             const bgColor = cellData.pnl > 0 ? `rgba(34, 197, 94, ${opacity})` : `rgba(239, 68, 68, ${opacity})`;
+                                                            
                                                             return (
                                                                 <td key={block} style={{ backgroundColor: bgColor }} className="p-2 rounded-md">
                                                                     <TooltipProvider><Tooltip>
-                                                                        <TooltipTrigger>
-                                                                            <div className="font-mono text-white">
-                                                                                {cellData.pnl > 0 ? '+' : ''}{cellData.pnl}
+                                                                        <TooltipTrigger asChild>
+                                                                            <div className="font-mono text-white cursor-pointer" onClick={() => onSetModule('tradeJournal', {})}>
+                                                                                <p>{cellData.pnl > 0 ? '+' : ''}{cellData.pnl.toFixed(0)}</p>
+                                                                                <p className="text-white/60 text-[10px]">n={cellData.trades}</p>
                                                                             </div>
                                                                         </TooltipTrigger>
                                                                         <TooltipContent>
+                                                                            <p>Session: {session.name} ({block})</p>
                                                                             <p>Trades: {cellData.trades}</p>
-                                                                            <p>PnL: ${cellData.pnl}</p>
+                                                                            <p>Total PnL: ${cellData.pnl.toFixed(2)}</p>
                                                                         </TooltipContent>
                                                                     </Tooltip></TooltipProvider>
                                                                 </td>
