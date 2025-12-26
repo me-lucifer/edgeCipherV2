@@ -90,7 +90,7 @@ const mainNavItems: (pendingJournalCount: number) => NavItem[] = (pendingJournal
 
 const analyticsNavItems: NavItem[] = [
   { id: 'chart', label: 'Chart', icon: BarChartHorizontal, comingSoon: false },
-  { id: 'analytics', label: 'Analytics', icon: BarChart },
+  { id: 'analytics', label: 'Performance Analytics', icon: BarChart },
   { id: 'strategyManagement', label: 'Strategy Mgmt', icon: BrainCircuit, comingSoon: false },
 ];
 
