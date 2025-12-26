@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart as BarChartIcon, Brain, Calendar, Filter, AlertCircle, Info, TrendingUp, TrendingDown, Users, DollarSign, Target, Gauge, Zap, Award, ArrowRight, XCircle, CheckCircle, Circle, Bot, AlertTriangle, Clipboard, Star } from "lucide-react";
@@ -20,6 +20,7 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, Dr
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
 import { Separator } from "./ui/separator";
+import type { JournalEntry } from "./trade-journal-module";
 
 interface PerformanceAnalyticsModuleProps {
     onSetModule: (module: any, context?: any) => void;
@@ -82,12 +83,6 @@ const arjunPatternNotes = [
 const equityChartConfig = {
   equity: { label: "Equity", color: "hsl(var(--chart-2))" }
 };
-const pnlChartConfig = {
-  pnl: { label: "PnL" },
-  positive: { label: "Positive", color: "hsl(var(--chart-2))" },
-  negative: { label: "Negative", color: "hsl(var(--chart-5))" },
-};
-
 
 const jumpNavLinks = [
     { id: "summary", label: "Summary", icon: Users },
@@ -223,8 +218,75 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
     const [timeRange, setTimeRange] = useState("30d");
     const [activeSection, setActiveSection] = useState("summary");
     const [selectedStrategy, setSelectedStrategy] = useState<(typeof mockStrategyData)[0] | null>(null);
+    const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
+    const [hasData, setHasData] = useState(true);
+    const { toast } = useToast();
+
+    const computeAnalytics = useCallback((entries: JournalEntry[]) => {
+      if (entries.length === 0) return null;
+
+      const totalTrades = entries.length;
+      const wins = entries.filter(e => e.review && e.review.pnl > 0).length;
+      const losses = entries.filter(e => e.review && e.review.pnl < 0).length;
+      const winRate = totalTrades > 0 ? (wins / totalTrades) * 100 : 0;
+      const lossRate = totalTrades > 0 ? (losses / totalTrades) * 100 : 0;
+      const totalPnL = entries.reduce((acc, e) => acc + (e.review?.pnl || 0), 0);
+
+      const rValues = entries.map(e => {
+          if (!e.review || !e.technical || !e.technical.riskPercent) return 0;
+          const riskAmount = (e.technical.riskPercent / 100) * 10000;
+          return riskAmount > 0 ? e.review.pnl / riskAmount : 0;
+      });
+      const winningR = rValues.filter(r => r > 0);
+      const losingR = rValues.filter(r => r < 0).map(Math.abs);
+      const avgWinR = winningR.length > 0 ? winningR.reduce((a, b) => a + b, 0) / winningR.length : 0;
+      const avgLossR = losingR.length > 0 ? losingR.reduce((a, b) => a + b, 0) / losingR.length : 0;
+      const avgRR = avgLossR > 0 ? avgWinR / avgLossR : 0;
+
+      const slMovedCount = entries.filter(e => e.review?.mistakesTags?.includes("Moved SL")).length;
+      const slMovedPct = totalTrades > 0 ? (slMovedCount / totalTrades) * 100 : 0;
+
+      const qualityScore = (100 - (slMovedPct * 2)) * (winRate / 50);
+      let quality = "Mixed";
+      if (qualityScore > 80) quality = "Disciplined";
+      else if (qualityScore < 40) quality = "Emotional";
+      
+      return {
+          totalTrades,
+          winRate,
+          lossRate,
+          avgRR,
+          totalPnL,
+          bestCondition: "Normal VIX / NY Session", // Mock
+          quality,
+          discipline: {
+              slRespectedPct: 100 - slMovedPct,
+              slMovedPct: slMovedPct,
+              slRemovedPct: 3, // Mock
+              tpExitedEarlyPct: 25, // Mock
+              avgRiskPct: 1.1, // Mock
+              riskOverLimitPct: 15, // Mock
+          }
+      };
+    }, []);
+
+    const [analyticsData, setAnalyticsData] = useState<ReturnType<typeof computeAnalytics> | null>(null);
+
+    const loadData = useCallback(() => {
+        const storedEntries = localStorage.getItem("ec_journal_entries");
+        if (storedEntries) {
+            const parsed = JSON.parse(storedEntries);
+            setJournalEntries(parsed);
+            setAnalyticsData(computeAnalytics(parsed));
+            setHasData(parsed.length > 0);
+        } else {
+            setHasData(false);
+            setAnalyticsData(null);
+        }
+    }, [computeAnalytics]);
 
     useEffect(() => {
+        loadData();
         const observer = new IntersectionObserver(
             (entries) => {
                 entries.forEach((entry) => {
@@ -242,27 +304,53 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
         return () => {
             sections.forEach((section) => observer.unobserve(section!));
         };
-    }, []);
+    }, [loadData]);
     
-    // Mock data based on filters - Phase 1
-    const analyticsData = {
-        totalTrades: 160,
-        winRate: 48.2,
-        lossRate: 51.8,
-        avgRR: 1.35,
-        totalPnL: 6400,
-        bestCondition: "Normal VIX / NY Session",
-        quality: "Mixed",
-        hasHistory: true, // For controlling empty states
-        discipline: {
-            slRespectedPct: 85,
-            slMovedPct: 12,
-            slRemovedPct: 3,
-            tpExitedEarlyPct: 25,
-            avgRiskPct: 1.1,
-            riskOverLimitPct: 15,
-        }
+    const generateDemoData = () => {
+        const mockJournalEntries: JournalEntry[] = [
+            {
+              id: 'demo-1',
+              status: 'completed',
+              timestamps: { plannedAt: new Date(Date.now() - 86400000 * 2).toISOString(), executedAt: new Date(Date.now() - 86400000 * 2).toISOString(), closedAt: new Date(Date.now() - 86400000 * 2).toISOString() },
+              technical: { instrument: 'BTC-PERP', direction: 'Long', entryPrice: 68500, stopLoss: 68000, takeProfit: 69500, leverage: 20, positionSize: 0.5, riskPercent: 1, rrRatio: 2, strategy: "BTC Trend Breakout" },
+              planning: { planNotes: "Clean breakout above resistance. Good follow-through.", mindset: "Confident, Calm" },
+              review: { pnl: 234.75, exitPrice: 68969.5, emotionalNotes: "Felt good, stuck to the plan.", emotionsTags: "Confident,Focused", mistakesTags: "None (disciplined)", learningNotes: "Trust the plan when the setup is clean.", newsContextTags: "Post-CPI" },
+              meta: { journalingCompletedAt: new Date(Date.now() - 86400000 * 2).toISOString(), ruleAdherenceSummary: { followedEntryRules: true, movedSL: false, exitedEarly: false, rrBelowMin: false } }
+            },
+            {
+              id: 'demo-2',
+              status: 'completed',
+              timestamps: { plannedAt: new Date(Date.now() - 86400000).toISOString(), executedAt: new Date(Date.now() - 86400000).toISOString(), closedAt: new Date(Date.now() - 86400000).toISOString() },
+              technical: { instrument: 'ETH-PERP', direction: 'Short', entryPrice: 3605, stopLoss: 3625, leverage: 50, positionSize: 12, riskPercent: 2, rrRatio: 1, strategy: "London Reversal" },
+              planning: { planNotes: "Fading what looks like a sweep of the high.", mindset: "Anxious" },
+              review: { pnl: -240, exitPrice: 3625, emotionalNotes: "Market kept pushing, I felt like I was fighting a trend. Should have waited for more confirmation.", emotionsTags: "Anxious,Revenge", mistakesTags: "Forced Entry,Moved SL", learningNotes: "Don't fight a strong trend, even if it looks like a sweep.", newsContextTags: "News-driven day" },
+              meta: { journalingCompletedAt: new Date(Date.now() - 86400000).toISOString(), ruleAdherenceSummary: { followedEntryRules: false, movedSL: true, exitedEarly: false, rrBelowMin: true } }
+            },
+        ];
+        localStorage.setItem("ec_journal_entries", JSON.stringify(mockJournalEntries));
+        toast({
+            title: "Demo Data Generated",
+            description: "Mock journal entries have been created. The analytics are now visible.",
+        });
+        loadData();
     };
+
+    if (!hasData) {
+        return (
+            <div className="text-center p-8 border-2 border-dashed rounded-lg">
+                <BarChartIcon className="mx-auto h-12 w-12 text-muted-foreground" />
+                <h3 className="mt-4 text-lg font-semibold">No trade data yet</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                    This module will light up once you have journal entries.
+                </p>
+                <Button className="mt-4" onClick={generateDemoData}>
+                    Generate Demo Dataset
+                </Button>
+            </div>
+        );
+    }
+
+    if (!analyticsData) return null;
 
     const qualityConfig = {
         Disciplined: { label: "Disciplined", color: "bg-green-500/20 text-green-300 border-green-500/30", icon: Award },
@@ -332,70 +420,64 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                 >
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                         <MetricCard title="Total Trades" value={String(analyticsData.totalTrades)} hint="+5% vs last period" />
-                        <MetricCard title="Win Rate" value={`${analyticsData.winRate}%`} hint="-2% vs last period" />
-                        <MetricCard title="Loss Rate" value={`${analyticsData.lossRate}%`} hint="+2% vs last period" />
-                        <MetricCard title="Average R:R" value={String(analyticsData.avgRR)} hint="Target: >1.5" />
+                        <MetricCard title="Win Rate" value={`${analyticsData.winRate.toFixed(1)}%`} hint="-2% vs last period" />
+                        <MetricCard title="Loss Rate" value={`${analyticsData.lossRate.toFixed(1)}%`} hint="+2% vs last period" />
+                        <MetricCard title="Average R:R" value={String(analyticsData.avgRR.toFixed(2))} hint="Target: >1.5" />
                         <MetricCard title="Total PnL" value={`$${analyticsData.totalPnL.toFixed(2)}`} hint="+12% vs last period" />
                         <MetricCard title="Best Condition" value={analyticsData.bestCondition} hint="NY session / Normal VIX" />
                     </div>
                 </SectionCard>
 
                 <SectionCard id="equity" title="Equity Curve" description="Your account balance over time, with markers for key psychological events." icon={TrendingUp}>
-                    {analyticsData.hasHistory ? (
-                         <div className="grid lg:grid-cols-3 gap-8">
-                            <div className="lg:col-span-2">
-                                <ChartContainer config={equityChartConfig} className="h-[300px] w-full">
-                                    <LineChart data={mockEquityData} margin={{ top: 5, right: 20, left: -20, bottom: 0 }}>
-                                        <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50" />
-                                        <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={10} tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} />
-                                        <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `$${value / 1000}k`} />
-                                        <ChartTooltip cursor={{ strokeDasharray: '3 3' }} content={<ChartTooltipContent />} />
-                                        <Line type="monotone" dataKey="equity" stroke="hsl(var(--color-equity))" strokeWidth={2} dot={
-                                            (props: any) => {
-                                                const { key, ...rest } = props;
-                                                if (props.payload.marker) {
-                                                    return (
-                                                        <TooltipProvider key={key}>
-                                                            <Tooltip>
-                                                                <TooltipTrigger asChild>
-                                                                    <Dot {...rest} r={5} fill={props.payload.marker.color} stroke="hsl(var(--background))" strokeWidth={2} />
-                                                                </TooltipTrigger>
-                                                                <TooltipContent>
-                                                                    <p>{props.payload.marker.type}</p>
-                                                                </TooltipContent>
-                                                            </Tooltip>
-                                                        </TooltipProvider>
-                                                    )
-                                                }
-                                                return <Dot key={key} {...rest} r={0} />;
+                     <div className="grid lg:grid-cols-3 gap-8">
+                        <div className="lg:col-span-2">
+                            <ChartContainer config={equityChartConfig} className="h-[300px] w-full">
+                                <LineChart data={mockEquityData} margin={{ top: 5, right: 20, left: -20, bottom: 0 }}>
+                                    <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50" />
+                                    <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={10} tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} />
+                                    <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `$${value / 1000}k`} />
+                                    <ChartTooltip cursor={{ strokeDasharray: '3 3' }} content={<ChartTooltipContent />} />
+                                    <Line type="monotone" dataKey="equity" stroke="hsl(var(--color-equity))" strokeWidth={2} dot={
+                                        (props: any) => {
+                                            const { payload, cx, cy } = props;
+                                            if (payload.marker) {
+                                                return (
+                                                    <TooltipProvider key={payload.date}>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <Dot cx={cx} cy={cy} r={5} fill={payload.marker.color} stroke="hsl(var(--background))" strokeWidth={2} />
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                <p>{payload.marker.type}</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    </TooltipProvider>
+                                                )
                                             }
-                                        } />
-                                    </LineChart>
-                                </ChartContainer>
-                            </div>
-                            <div className="lg:col-span-1">
-                                <h3 className="text-sm font-semibold text-foreground mb-3">Top Events on Chart</h3>
-                                <div className="space-y-3">
-                                    {topEvents.map((event, i) => (
-                                        <Card key={i} className="bg-muted/50">
-                                            <CardContent className="p-3">
-                                                <p className="text-sm font-semibold">{event.label}</p>
-                                                <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
-                                                    <span>{event.date}</span>
-                                                    <span className="font-mono text-red-400">{event.impact.toFixed(1)}R impact</span>
-                                                </div>
-                                                <Button variant="link" size="sm" className="h-auto p-0 mt-2 text-xs" onClick={() => onSetModule('tradeJournal', { draftId: event.journalId })}>Open journal entry <ArrowRight className="ml-1 h-3 w-3"/></Button>
-                                            </CardContent>
-                                        </Card>
-                                    ))}
-                                </div>
+                                            return <Dot key={payload.date} cx={cx} cy={cy} r={0} />;
+                                        }
+                                    } />
+                                </LineChart>
+                            </ChartContainer>
+                        </div>
+                        <div className="lg:col-span-1">
+                            <h3 className="text-sm font-semibold text-foreground mb-3">Top Events on Chart</h3>
+                            <div className="space-y-3">
+                                {topEvents.map((event, i) => (
+                                    <Card key={i} className="bg-muted/50">
+                                        <CardContent className="p-3">
+                                            <p className="text-sm font-semibold">{event.label}</p>
+                                            <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
+                                                <span>{event.date}</span>
+                                                <span className="font-mono text-red-400">{event.impact.toFixed(1)}R impact</span>
+                                            </div>
+                                            <Button variant="link" size="sm" className="h-auto p-0 mt-2 text-xs" onClick={() => onSetModule('tradeJournal', { draftId: event.journalId })}>Open journal entry <ArrowRight className="ml-1 h-3 w-3"/></Button>
+                                        </CardContent>
+                                    </Card>
+                                ))}
                             </div>
                         </div>
-                    ) : (
-                         <div className="text-center text-muted-foreground p-8 border-2 border-dashed rounded-lg">
-                            <p>Once you execute and journal trades, your equity curve will appear here.</p>
-                        </div>
-                    )}
+                    </div>
                 </SectionCard>
                 
                 <SectionCard id="discipline" title="Risk & Discipline Analytics" description="How well you are following your own rules." icon={Target}>
@@ -406,11 +488,11 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <div>
-                                    <div className="flex justify-between text-sm"><span className="text-muted-foreground">Respected</span><span>{analyticsData.discipline.slRespectedPct}%</span></div>
+                                    <div className="flex justify-between text-sm"><span className="text-muted-foreground">Respected</span><span>{analyticsData.discipline.slRespectedPct.toFixed(0)}%</span></div>
                                     <Progress value={analyticsData.discipline.slRespectedPct} indicatorClassName="bg-green-500" className="h-2 mt-1" />
                                 </div>
                                 <div>
-                                    <div className="flex justify-between text-sm"><span className="text-muted-foreground">Moved</span><span>{analyticsData.discipline.slMovedPct}%</span></div>
+                                    <div className="flex justify-between text-sm"><span className="text-muted-foreground">Moved</span><span>{analyticsData.discipline.slMovedPct.toFixed(0)}%</span></div>
                                     <Progress value={analyticsData.discipline.slMovedPct} indicatorClassName="bg-amber-500" className="h-2 mt-1" />
                                 </div>
                                 <div>
