@@ -469,13 +469,13 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                         <ChartTooltip cursor={{ strokeDasharray: '3 3' }} content={<ChartTooltipContent />} />
                                         <Line type="monotone" dataKey="equity" stroke="hsl(var(--color-equity))" strokeWidth={2} dot={
                                             (props) => {
-                                                const { payload, cx, cy } = props;
+                                                const { key, payload, cx, cy, ...rest } = props;
                                                 if (payload.marker) {
                                                     return (
                                                         <TooltipProvider key={payload.date}>
                                                             <Tooltip>
                                                                 <TooltipTrigger asChild>
-                                                                    <Dot cx={cx} cy={cy} r={5} fill={payload.marker.color} stroke="hsl(var(--background))" strokeWidth={2} />
+                                                                    <Dot {...rest} cx={cx} cy={cy} r={5} fill={payload.marker.color} stroke="hsl(var(--background))" strokeWidth={2} />
                                                                 </TooltipTrigger>
                                                                 <TooltipContent>
                                                                     <p>{payload.marker.type}</p>
@@ -484,7 +484,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                                         </TooltipProvider>
                                                     )
                                                 }
-                                                return <Dot {...props} r={0} />;
+                                                return <Dot key={key} {...rest} r={0} />;
                                             }
                                         } />
                                     </LineChart>
