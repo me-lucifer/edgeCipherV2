@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart as BarChartIcon, Brain, Calendar, Filter, AlertCircle, Info, TrendingUp, TrendingDown, Users, DollarSign, Target, Gauge, Zap, Award, ArrowRight, XCircle, CheckCircle, Circle, Bot, AlertTriangle, Clipboard, Star, Activity, BookOpen, BarChartHorizontal, Database, View, Flag, Presentation, ChevronsUpDown, Copy } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { BarChart, CartesianGrid, XAxis, YAxis, Bar, Line, LineChart, ResponsiveContainer, ReferenceDot, Dot, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, RadarChart as RechartsRadarChart } from "recharts";
+import { BarChart, CartesianGrid, XAxis, YAxis, Bar, Line, LineChart, ResponsiveContainer, ReferenceDot, Dot } from "recharts";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -17,7 +17,7 @@ import { Label } from "./ui/label";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Progress } from "./ui/progress";
 import { Alert, AlertTitle, AlertDescription } from "./ui/alert";
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerClose } from "./ui/drawer";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "./ui/drawer";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter, DialogClose } from "./ui/dialog";
 import { Separator } from "./ui/separator";
@@ -25,7 +25,6 @@ import type { JournalEntry } from "./trade-journal-module";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
 import { Skeleton } from "./ui/skeleton";
-import { useEventLog } from "@/context/event-log-provider";
 import { HelpCircle, ChevronUp } from "lucide-react";
 
 
@@ -91,7 +90,7 @@ const DeltaIndicator = ({ delta, unit = "" }: { delta: number; unit?: string }) 
 };
 
 const MetricCard = ({ title, value, hint, delta, deltaUnit, onClick }: { title: string; value: string | React.ReactNode; hint: string, delta?: number, deltaUnit?: string, onClick?: () => void }) => (
-    <Card className={cn("bg-muted/30 border-border/50", onClick && "cursor-pointer hover:bg-muted/50 hover:border-primary/20")} onClick={onClick}>
+    <Card className={cn("bg-muted/30 border-border/50 animate-in fade-in-50 duration-500", onClick && "cursor-pointer hover:bg-muted/50 hover:border-primary/20 transition-all")} onClick={onClick}>
         <CardHeader className="pb-2">
             <CardTitle className="text-base">{title}</CardTitle>
         </CardHeader>
@@ -332,7 +331,7 @@ function ScoreGauge({ score, label, interpretation, delta }: { score: number; la
     const interpretationColor = score < 40 ? colorClasses.bad : score < 70 ? colorClasses.medium : colorClasses.good;
 
     return (
-        <div className="flex flex-col items-center gap-2">
+        <div className="flex flex-col items-center gap-2 animate-in fade-in duration-500">
             <svg viewBox="0 0 100 60" className="w-full h-auto">
                 <path
                     d={`M ${getArc(0, 40)} A 40,40 0 1,1 ${getArc(1, 40)}`}
@@ -348,7 +347,7 @@ function ScoreGauge({ score, label, interpretation, delta }: { score: number; la
                     strokeWidth="8"
                     fill="none"
                     strokeLinecap="round"
-                    style={{ transition: 'stroke-dashoffset 0.5s ease-in-out' }}
+                    style={{ transition: 'all 0.5s ease-in-out' }}
                 />
                 <text x="50" y="40" textAnchor="middle" className="text-3xl font-bold fill-current text-foreground">
                     {score}
@@ -396,7 +395,7 @@ const RadarChart = ({ data, onSetModule }: { data: { axis: string, value: number
     };
 
     return (
-        <svg width="100%" height="100%" viewBox={`0 0 ${size} ${size}`}>
+        <svg width="100%" height="100%" viewBox={`0 0 ${size} ${size}`} className="animate-in fade-in duration-500">
             {/* Background Webs */}
             {[...Array(numLevels)].map((_, levelIndex) => {
                 const levelRadius = radius * ((levelIndex + 1) / numLevels);
@@ -441,7 +440,7 @@ const RadarChart = ({ data, onSetModule }: { data: { axis: string, value: number
                                     y={y}
                                     textAnchor="middle"
                                     dominantBaseline="middle"
-                                    className="text-xs fill-muted-foreground font-semibold cursor-pointer"
+                                    className="text-xs fill-muted-foreground font-semibold cursor-pointer transition-all hover:fill-foreground"
                                     onClick={() => handleDiscussPattern(item.axis)}
                                 >
                                     {item.axis}
@@ -470,7 +469,7 @@ const TradesInFocusPanel = ({
   onOpenJournal: (journalId: string) => void;
 }) => {
   return (
-    <Collapsible open={!!behavior} onOpenChange={(isOpen) => !isOpen && onClear()}>
+    <Collapsible open={!!behavior} onOpenChange={(isOpen) => !isOpen && onClear()} className="transition-all">
       <Card className="bg-muted/30 border-border/50">
         <CollapsibleTrigger asChild>
           <CardHeader className="cursor-pointer">
@@ -503,7 +502,7 @@ const TradesInFocusPanel = ({
                     const riskAmount = (trade.technical.riskPercent / 100) * 10000;
                     const rValue = riskAmount > 0 ? pnl / riskAmount : 0;
                     return (
-                      <TableRow key={trade.id}>
+                      <TableRow key={trade.id} className="transition-colors hover:bg-muted/50">
                         <TableCell>
                           {trade.technical.instrument} {trade.technical.direction}
                         </TableCell>
@@ -583,7 +582,6 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
     const [selectedBehavior, setSelectedBehavior] = useState<{ behavior: string; trades: JournalEntry[] } | null>(null);
     const [selectedEvent, setSelectedEvent] = useState<JournalEntry | null>(null);
     const [showBehaviorLayer, setShowBehaviorLayer] = useState(true);
-    const [activeDrilldown, setActiveDrilldown] = useState<string | null>(null);
     const [isDataSourcesOpen, setIsDataSourcesOpen] = useState(false);
     const [volatilityView, setVolatilityView] = useState<'winRate' | 'avgPnL' | 'mistakes'>('winRate');
     const [compareMode, setCompareMode] = useState(false);
@@ -913,7 +911,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
     };
 
     const discussPsychology = () => {
-        const topIssues = currentData.radarChartData.filter(d => d.value > 60).map(p => p.axis).join(' and ');
+        const topIssues = currentData.radarChartData.filter((d: any) => d.value > 60).map((p: any) => p.axis).join(' and ');
         if (!topIssues) {
             onSetModule('aiCoaching', { initialMessage: "Arjun, let's discuss my psychological profile. What are my biggest strengths and weaknesses based on my data?" });
             return;
@@ -946,7 +944,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
     );
 
     return (
-        <Drawer open={!!activeDrilldown} onOpenChange={(open) => !open && setActiveDrilldown(null)}>
+        <Drawer open={!!selectedEvent} onOpenChange={(open) => !open && setSelectedEvent(null)}>
             <div className="space-y-8">
                  <div className="flex items-start justify-between">
                     <div>
@@ -1014,7 +1012,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                     icon={DollarSign}
                                 >
                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                                        <MetricCard title="Total Trades" value={String(currentData.totalTrades)} hint="+5% vs last period" delta={compareMode && previousData ? currentData.totalTrades - previousData.totalTrades : undefined} />
+                                        <MetricCard title="Total Trades" value={String(currentData.totalTrades)} hint="+5% vs last period" delta={compareMode && previousData ? currentData.totalTrades - previousData.totalTrades : undefined} onClick={() => onSetModule('tradeJournal', { filters: { timeRange: timeRange } })}/>
                                         <MetricCard title="Win Rate" value={`${currentData.winRate.toFixed(1)}%`} hint="-2% vs last period" delta={compareMode && previousData ? currentData.winRate - previousData.winRate : undefined} deltaUnit="%" />
                                         <MetricCard title="Loss Rate" value={`${currentData.lossRate.toFixed(1)}%`} hint="+2% vs last period" delta={compareMode && previousData ? currentData.lossRate - previousData.lossRate : undefined} deltaUnit="%" />
                                         <MetricCard title="Average R:R" value={String(currentData.avgRR.toFixed(2))} hint="Target: >1.5" delta={compareMode && previousData ? currentData.avgRR - previousData.avgRR : undefined} />
@@ -1048,7 +1046,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                                 <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={10} tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} />
                                                 <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `$${value / 1000}k`} />
                                                 <ChartTooltip cursor={{ strokeDasharray: '3 3' }} content={<ChartTooltipContent />} />
-                                                <Line type="monotone" dataKey="equity" stroke="hsl(var(--color-equity))" strokeWidth={2} dot={
+                                                <Line type="monotone" dataKey="equity" stroke="hsl(var(--color-equity))" strokeWidth={2} isAnimationActive={false} dot={
                                                     (props: any) => {
                                                         const { cx, cy, payload } = props;
                                                         if (showBehaviorLayer && payload.marker) {
@@ -1089,7 +1087,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                           {currentData.topEvents.slice(0, 5).map((event: any, i: number) => {
                                               const EventIcon = eventTypeIcon[event.label] || eventTypeIcon.default;
                                               return (
-                                                  <div key={i} className="flex items-center justify-between p-3 rounded-md bg-muted/50 border border-border/50">
+                                                  <div key={i} className="flex items-center justify-between p-3 rounded-md bg-muted/50 border border-border/50 transition-colors hover:bg-muted">
                                                       <div className="flex items-center gap-3">
                                                           <EventIcon className="h-5 w-5 text-muted-foreground" />
                                                           <div>
@@ -1099,7 +1097,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                                               </p>
                                                           </div>
                                                       </div>
-                                                      <Button variant="ghost" size="sm" onClick={() => handleEventClick(event.journalId)}>
+                                                      <Button variant="ghost" size="sm" onClick={() => setSelectedEvent(event)}>
                                                           View Journal <ArrowRight className="ml-2 h-4 w-4" />
                                                       </Button>
                                                   </div>
@@ -1289,7 +1287,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                                         <td
                                                             key={colIndex}
                                                             style={{ backgroundColor: bgColor }}
-                                                            className="p-3 rounded-md font-mono text-white cursor-pointer hover:ring-2 hover:ring-primary"
+                                                            className="p-3 rounded-md font-mono text-white cursor-pointer transition-all hover:ring-2 hover:ring-primary"
                                                             onClick={() => handleCellClick(emotion, result)}
                                                         >
                                                             {count}
@@ -1335,7 +1333,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                     </TableHeader>
                                     <TableBody>
                                         {currentData.mockStrategyData.map((strategy: any) => (
-                                            <TableRow key={strategy.name}>
+                                            <TableRow key={strategy.name} className="transition-colors hover:bg-muted/50 cursor-pointer" onClick={() => setSelectedStrategy(strategy)}>
                                                 <TableCell className="font-medium">{strategy.name}</TableCell>
                                                 <TableCell>{strategy.trades}</TableCell>
                                                 <TableCell>{strategy.winRate}%</TableCell>
@@ -1344,7 +1342,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                                 </TableCell>
                                                 <TableCell><Badge variant="destructive">{strategy.topMistake}</Badge></TableCell>
                                                 <TableCell className="text-right">
-                                                    <Button variant="ghost" size="sm" onClick={() => onSetModule('tradeJournal', { filters: { strategy: strategy.name }})}>
+                                                    <Button variant="ghost" size="sm" onClick={(e) => {e.stopPropagation(); onSetModule('tradeJournal', { filters: { strategy: strategy.name }})}}>
                                                         <View className="mr-2 h-3 w-3" />
                                                         View trades
                                                     </Button>
@@ -1364,7 +1362,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                     <Button size="sm" variant="ghost" className="rounded-full h-7 px-3 text-xs">Trades</Button>
                                 </div>
                             }>
-                            <div className="grid md:grid-cols-3 gap-6">
+                            <div className="grid md:grid-cols-3 gap-6 animate-in fade-in duration-500">
                                 <div className="md:col-span-2">
                                     <div className="overflow-x-auto">
                                         <table className="w-full text-center text-xs border-separate border-spacing-1">
@@ -1453,7 +1451,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                 </div>
                             }
                         >
-                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-in fade-in duration-500">
                                 {currentData.volatilityData.map((d: any) => {
                                     const mistakeDensity = d.trades > 0 ? (d.mistakesCount / d.trades) * 100 : 0;
                                     const isWinRateActive = volatilityView === 'winRate';
@@ -1461,21 +1459,21 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                     const isMistakesActive = volatilityView === 'mistakes';
 
                                     return (
-                                        <Card key={d.vixZone} className="bg-muted/50">
+                                        <Card key={d.vixZone} className="bg-muted/50 transition-all hover:bg-muted">
                                             <CardHeader className="pb-4">
                                                 <CardTitle className="text-base">{d.vixZone}</CardTitle>
                                                 <CardDescription className="text-xs">{d.trades} trades</CardDescription>
                                             </CardHeader>
                                             <CardContent className="space-y-4">
-                                                <div className={cn("p-2 rounded-md", isWinRateActive ? "bg-primary/10" : "bg-muted")}>
+                                                <div className={cn("p-2 rounded-md transition-colors", isWinRateActive ? "bg-primary/10" : "bg-muted")}>
                                                     <p className="text-xs text-muted-foreground">Win Rate</p>
                                                     <p className={cn("text-lg font-bold font-mono", isWinRateActive && "text-primary")}>{d.winRate}%</p>
                                                 </div>
-                                                <div className={cn("p-2 rounded-md", isAvgPnlActive ? "bg-primary/10" : "bg-muted")}>
+                                                <div className={cn("p-2 rounded-md transition-colors", isAvgPnlActive ? "bg-primary/10" : "bg-muted")}>
                                                     <p className="text-xs text-muted-foreground">Avg. PnL</p>
                                                     <p className={cn("text-lg font-bold font-mono", d.avgPnL >= 0 ? (isAvgPnlActive ? 'text-primary' : 'text-green-400') : (isAvgPnlActive ? 'text-destructive' : 'text-red-400'))}>${d.avgPnL.toFixed(2)}</p>
                                                 </div>
-                                                <div className={cn("p-2 rounded-md", isMistakesActive ? "bg-primary/10" : "bg-muted")}>
+                                                <div className={cn("p-2 rounded-md transition-colors", isMistakesActive ? "bg-primary/10" : "bg-muted")}>
                                                     <p className="text-xs text-muted-foreground">Mistakes</p>
                                                     <p className={cn("text-lg font-bold font-mono", isMistakesActive && "text-primary")}>{d.mistakesCount}</p>
                                                 </div>
@@ -1499,7 +1497,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                         >
                             <div className="grid md:grid-cols-2 gap-8">
                                 <Dialog>
-                                    <Card className="bg-muted/50">
+                                    <Card className="bg-muted/50 transition-all hover:bg-muted">
                                         <CardHeader>
                                             <CardTitle className="text-lg">Weekly Report</CardTitle>
                                             <CardDescription>Your performance summary for last week.</CardDescription>
@@ -1519,7 +1517,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                 </Dialog>
 
                                 <Dialog>
-                                    <Card className="bg-muted/50">
+                                    <Card className="bg-muted/50 transition-all hover:bg-muted">
                                         <CardHeader>
                                             <CardTitle className="text-lg">Monthly Report</CardTitle>
                                             <CardDescription>Your performance summary for last month.</CardDescription>
@@ -1641,3 +1639,4 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
         </Drawer>
     );
 }
+

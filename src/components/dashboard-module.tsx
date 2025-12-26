@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useAuth } from "@/context/auth-provider";
@@ -60,7 +61,7 @@ function PnlDisplay({ value, animateKey }: { value: number, animateKey: number }
     const isPositive = value >= 0;
     return (
         <div key={animateKey} className={cn(
-            "flex items-center font-semibold font-mono animate-metric-pulse",
+            "flex items-center font-semibold font-mono animate-in fade-in duration-500",
             isPositive ? 'text-green-400' : 'text-red-400'
         )}>
             {isPositive ? <TrendingUp className="mr-2 h-4 w-4" /> : <TrendingDown className="mr-2 h-4 w-4" />}
@@ -161,7 +162,7 @@ function TradeDecisionStrip({ vixZone, performanceState, disciplineScore, hasHis
 
     return (
         <Card className="bg-muted/30 border-border/50">
-            <CardContent key={animateKey} className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-metric-pulse">
+            <CardContent key={animateKey} className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in fade-in duration-500">
                 <div className="flex items-center gap-3">
                     <Lightbulb className="h-5 w-5 text-primary" />
                     <h3 className="font-semibold text-foreground">Should I trade today?</h3>
@@ -326,7 +327,7 @@ function PerformanceSummary({ dailyPnl7d, dailyPnl30d, performanceState, hasHist
                         <CardHeader>
                             <CardTitle className="text-base">Win/Loss</CardTitle>
                         </CardHeader>
-                        <CardContent key={animateKey} className="animate-metric-pulse">
+                        <CardContent key={animateKey} className="animate-in fade-in duration-500">
                             <p className="text-lg font-semibold font-mono">{winLossLabel}</p>
                             <p className="text-xs text-muted-foreground">(Based on days)</p>
                         </CardContent>
@@ -338,7 +339,7 @@ function PerformanceSummary({ dailyPnl7d, dailyPnl30d, performanceState, hasHist
                             {timeRange === 'today' ? 'Today\'s' : timeRange === '7d' ? '7-Day' : '30-Day'} PnL
                         </CardTitle>
                     </CardHeader>
-                    <CardContent key={animateKey} className="animate-metric-pulse">
+                    <CardContent key={animateKey} className="animate-in fade-in duration-500">
                         <ChartContainer config={pnlChartConfig} className="h-20 w-full">
                             <BarChart accessibilityLayer data={pnlChartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                                 <XAxis dataKey="day" hide />
@@ -687,7 +688,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                             Persona: <span className="font-semibold text-primary">{personaData.primaryPersonaName || 'The Determined Trader'}</span>
                         </p>
                     </div>
-                    <div key={animateKey} className="bg-muted/50 p-4 rounded-lg border border-dashed border-primary/20 relative animate-metric-pulse">
+                    <div key={animateKey} className="bg-muted/50 p-4 rounded-lg border border-dashed border-primary/20 relative animate-in fade-in duration-500">
                          <div className="font-semibold text-foreground flex items-center gap-2">
                             <Bot className="h-4 w-4 text-primary" />
                             Arjun's Daily Insight
@@ -757,7 +758,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                     <CardContent>
                         {connection.brokerConnected ? (
                             <div className="space-y-6">
-                                <div key={animateKey} className="p-4 bg-muted/50 rounded-lg animate-metric-pulse">
+                                <div key={animateKey} className="p-4 bg-muted/50 rounded-lg animate-in fade-in duration-500">
                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
                                         <div>
                                             <p className="text-sm text-muted-foreground">Balance</p>
@@ -912,7 +913,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                                 </TooltipProvider>
                             </CardDescription>
                         </CardHeader>
-                        <CardContent key={animateKey} className="animate-metric-pulse">
+                        <CardContent key={animateKey} className="animate-in fade-in duration-500">
                              <p className="text-3xl font-bold font-mono">{market.vixValue} <span className="text-base font-normal text-muted-foreground">/ 100</span></p>
                              <p className={cn("text-sm font-semibold", market.vixZone === 'Extreme' || market.vixZone === 'Elevated' ? 'text-amber-400' : 'text-muted-foreground')}>{market.vixZone} Volatility Zone</p>
                              <Button variant="link" className="px-0 h-auto text-xs text-muted-foreground hover:text-primary mt-2" onClick={() => onSetModule('riskCenter')}>
@@ -945,7 +946,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                         <CardTitle>Today's Focus</CardTitle>
                         <CardDescription>Step 2: Follow your growth plan</CardDescription>
                     </CardHeader>
-                    <CardContent key={animateKey} className="animate-metric-pulse">
+                    <CardContent key={animateKey} className="animate-in fade-in duration-500">
                          <ul className="space-y-3">
                             {growthPlanToday.slice(0,3).map((item: string, i: number) => (
                                 <li key={i} className="flex items-start gap-3">
@@ -964,7 +965,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                         <CardTitle>Equity curve (30 days)</CardTitle>
                         <CardDescription>Step 3: Review your progress</CardDescription>
                     </CardHeader>
-                    <CardContent key={animateKey} className="animate-metric-pulse">
+                    <CardContent key={animateKey} className="animate-in fade-in duration-500">
                         {performance.hasHistory ? (
                           <ChartContainer config={equityChartConfig} className="h-40 w-full">
                             <ResponsiveContainer>
