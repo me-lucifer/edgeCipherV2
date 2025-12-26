@@ -651,10 +651,10 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                                     <ChartTooltip cursor={{ strokeDasharray: '3 3' }} content={<ChartTooltipContent />} />
                                                     <Line type="monotone" dataKey="equity" stroke="hsl(var(--color-equity))" strokeWidth={2} dot={
                                                         (props: any) => {
-                                                            const { key: dotKey, payload, ...rest } = props;
+                                                            const { payload, ...rest } = props;
                                                             if (showBehaviorLayer && payload.marker) {
                                                                 return (
-                                                                    <TooltipProvider key={dotKey}>
+                                                                    <TooltipProvider key={props.key}>
                                                                         <Tooltip>
                                                                             <TooltipTrigger asChild>
                                                                                 <Dot {...rest} r={5} fill={payload.marker.color} stroke="hsl(var(--background))" strokeWidth={2} onClick={() => handleEventClick(payload.journalId)} className="cursor-pointer" />
@@ -666,7 +666,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                                                     </TooltipProvider>
                                                                 )
                                                             }
-                                                            return <Dot key={dotKey} {...props} r={0} />;
+                                                            return <Dot {...props} r={0} />;
                                                         }
                                                     } />
                                                 </LineChart>
