@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart as BarChartIcon, Brain, Calendar, Filter, AlertCircle, Info, TrendingUp, TrendingDown, Users, DollarSign, Target, Gauge, Zap, Award, ArrowRight, XCircle, CheckCircle, Circle, Bot, AlertTriangle, Clipboard, Star, Activity, BookOpen, BarChartHorizontal } from "lucide-react";
@@ -28,77 +28,15 @@ interface PerformanceAnalyticsModuleProps {
     onSetModule: (module: any, context?: any) => void;
 }
 
-const mockEquityData = [
-  { date: "2024-01-01", equity: 10000, marker: null, journalId: null },
-  { date: "2024-01-02", equity: 10150, marker: null, journalId: null },
-  { date: "2024-01-03", equity: 10100, marker: { type: "Revenge trade", color: "hsl(var(--chart-5))" }, journalId: "completed-2" },
-  { date: "2024-01-04", equity: 10300, marker: null, journalId: null },
-  { date: "2024-01-05", equity: 10250, marker: { type: "Moved SL", color: "hsl(var(--chart-3))" }, journalId: "completed-2" },
-  { date: "2024-01-06", equity: 10500, marker: null, journalId: null },
-  { date: "2024-01-07", equity: 10450, marker: null, journalId: null },
-  { date: "2024-01-08", equity: 10600, marker: null, journalId: null },
-];
+// Seeded random number generator for deterministic mock data
+function seededRandom(seed: number) {
+  let state = seed;
+  return function() {
+    state = (state * 1103515245 + 12345) % 2147483648;
+    return state / 2147483648;
+  };
+}
 
-const topEvents = [
-    { date: "2024-01-05", label: "SL moved on ETH short", impact: -0.5, journalId: "completed-2" },
-    { date: "2024-01-03", label: "Revenge trade on BTC", impact: -1.2, journalId: "completed-2" },
-];
-
-
-const mockStrategyData = [
-    { name: "Breakout", trades: 45, winRate: 55, avgR: 1.8, pnl: 2500, topMistake: "Exited early" },
-    { name: "Mean Reversion", trades: 60, winRate: 65, avgR: 0.9, pnl: 1200, topMistake: "Moved SL" },
-    { name: "Trend Following", trades: 30, winRate: 40, avgR: 2.5, pnl: 3000, topMistake: "Forced Entry" },
-    { name: "Range Play", trades: 25, winRate: 70, avgR: 0.7, pnl: -500, topMistake: "Oversized risk" },
-];
-
-const timingHeatmapData = {
-    sessions: [
-        { name: "Asia", totalPnl: 800, blocks: [ { time: "00-04", pnl: 200, trades: 10 }, { time: "04-08", pnl: 600, trades: 15 } ] },
-        { name: "London", totalPnl: -1200, blocks: [ { time: "08-12", pnl: -1200, trades: 25 } ] },
-        { name: "New York", totalPnl: 3400, blocks: [ { time: "12-16", pnl: 2000, trades: 30 }, { time: "16-20", pnl: 1400, trades: 20 } ] },
-    ],
-    timeBlocks: ["00-04", "04-08", "08-12", "12-16", "16-20", "20-24"],
-};
-
-const volatilityData = [
-    { vixZone: "Calm", trades: 50, winRate: 60, mistakesCount: 5, avgPnL: 1500 },
-    { vixZone: "Normal", trades: 80, winRate: 55, mistakesCount: 12, avgPnL: 2200 },
-    { vixZone: "Elevated", trades: 25, winRate: 40, mistakesCount: 10, avgPnL: -800 },
-    { vixZone: "Extreme", trades: 5, winRate: 20, mistakesCount: 4, avgPnL: -1500 },
-];
-
-const psychologicalPatterns = [
-    { name: "FOMO", count: 12, avgPnL: -1800, colorCode: "bg-amber-500/20 text-amber-300 border-amber-500/30" },
-    { name: "Revenge Trading", count: 8, avgPnL: -2500, colorCode: "bg-red-500/20 text-red-300 border-red-500/30" },
-    { name: "Overconfidence", count: 5, avgPnL: -900, colorCode: "bg-purple-500/20 text-purple-300 border-purple-500/30" },
-    { name: "Hesitation", count: 15, avgPnL: 500, colorCode: "bg-blue-500/20 text-blue-300 border-blue-500/30" },
-];
-
-const arjunPatternNotes = [
-    "Accuracy drops significantly after 2 consecutive losses.",
-    "You tend to exit trades early more often during periods of elevated VIX.",
-    "FOMO-tagged trades appear most frequently during the first hour of the NY session.",
-];
-
-const emotionResultMatrixData = {
-    emotions: ["FOMO", "Fear", "Anxious", "Revenge", "Calm", "Focused"],
-    results: ["Big Loss (≤-2R)", "Loss (-2R to 0)", "Win (0 to +2R)", "Big Win (≥+2R)"],
-    data: [
-        [3, 8, 2, 0], // FOMO
-        [1, 5, 4, 1], // Fear
-        [2, 9, 6, 0], // Anxious
-        [4, 4, 0, 0], // Revenge
-        [0, 2, 10, 3], // Calm
-        [0, 1, 15, 8], // Focused
-    ],
-    maxCount: 15,
-};
-
-
-const equityChartConfig = {
-  equity: { label: "Equity", color: "hsl(var(--chart-2))" }
-};
 
 const SectionCard: React.FC<{id?: string, title: React.ReactNode, description: string, icon: React.ElementType, children: React.ReactNode, headerContent?: React.ReactNode}> = ({ id, title, description, icon: Icon, children, headerContent }) => (
     <Card id={id} className="bg-muted/30 border-border/50 scroll-mt-40">
@@ -233,11 +171,11 @@ const ArjunInsightsSidebar = ({ analyticsData, onSetModule }: { analyticsData: a
             generatedInsights.push("Discipline score is low. This suggests you're not consistently following your own rules, which is a major profit leak.");
         }
         
-        if (volatilityData.find(v => v.vixZone === "Elevated" && v.avgPnL < 0)) {
+        if (analyticsData.volatilityData.find((v: any) => v.vixZone === "Elevated" && v.avgPnL < 0)) {
             generatedInsights.push("Performance drops significantly in 'Elevated' volatility. Consider reducing size or sitting out during these periods.");
         }
 
-        if (timingHeatmapData.sessions.find(s => s.name === "London" && s.totalPnl < 0)) {
+        if (analyticsData.timingHeatmapData.sessions.find((s: any) => s.name === "London" && s.totalPnl < 0)) {
             generatedInsights.push("The London session appears to be your most challenging time to trade. Review journal entries from this period.");
         }
 
@@ -276,7 +214,7 @@ const ArjunInsightsSidebar = ({ analyticsData, onSetModule }: { analyticsData: a
 export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalyticsModuleProps) {
     const [timeRange, setTimeRange] = useState("30d");
     const [activeTab, setActiveTab] = useState("overview");
-    const [selectedStrategy, setSelectedStrategy] = useState<(typeof mockStrategyData)[0] | null>(null);
+    const [selectedStrategy, setSelectedStrategy] = useState<(any) | null>(null);
     const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
     const [hasData, setHasData] = useState(true);
     const [selectedBehavior, setSelectedBehavior] = useState<{ behavior: string; trades: JournalEntry[] } | null>(null);
@@ -302,6 +240,18 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
 
     const computeAnalytics = useCallback((entries: JournalEntry[]) => {
       if (entries.length === 0) return null;
+      
+      let seed = 42; // default seed
+      if (typeof window !== 'undefined') {
+          const storedSeed = localStorage.getItem("ec_analytics_seed");
+          if (storedSeed) {
+              seed = parseInt(storedSeed, 10);
+          } else {
+              seed = Math.floor(Math.random() * 10000);
+              localStorage.setItem("ec_analytics_seed", String(seed));
+          }
+      }
+      const random = seededRandom(seed);
 
       const totalTrades = entries.length;
       const completedEntries = entries.filter(e => e.status === 'completed');
@@ -379,28 +329,63 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
         }))
         .sort((a, b) => a.totalR - b.totalR);
 
+      // Generating mock data with seed
+      const mockEquityData = Array.from({ length: 30 }, (_, i) => {
+        const prevEquity = i > 0 ? mockEquityData[i-1].equity : 10000;
+        const equity = prevEquity + (random() - 0.48) * 500;
+        const hasMarker = random() < 0.2;
+        return {
+            date: `2024-01-${String(i + 1).padStart(2, '0')}`,
+            equity,
+            marker: hasMarker ? { type: "Revenge trade", color: "hsl(var(--chart-5))" } : null,
+            journalId: hasMarker ? "completed-2" : null,
+        }
+      });
+      
+      const topEvents = [
+          { date: "2024-01-05", label: "SL moved on ETH short", impact: -0.5, journalId: "completed-2" },
+          { date: "2024-01-03", label: "Revenge trade on BTC", impact: -1.2, journalId: "completed-2" },
+      ];
+
+      const mockStrategyData = [
+        { name: "Breakout", trades: Math.floor(random() * 50) + 20, winRate: 40 + Math.floor(random() * 20), avgR: 1.5 + random() * 0.5, pnl: 2000 + random() * 1000, topMistake: "Exited early" },
+        { name: "Mean Reversion", trades: Math.floor(random() * 50) + 20, winRate: 60 + Math.floor(random() * 15), avgR: 0.8 + random() * 0.3, pnl: 1000 + random() * 500, topMistake: "Moved SL" },
+        { name: "Trend Following", trades: Math.floor(random() * 30) + 15, winRate: 35 + Math.floor(random() * 15), avgR: 2.2 + random() * 0.8, pnl: 2500 + random() * 1500, topMistake: "Forced Entry" },
+        { name: "Range Play", trades: Math.floor(random() * 20) + 10, winRate: 65 + Math.floor(random() * 10), avgR: 0.6 + random() * 0.2, pnl: -200 - random() * 500, topMistake: "Oversized risk" },
+      ];
+
+      const timingHeatmapData = {
+          sessions: [
+              { name: "Asia", totalPnl: 600 + random() * 400, blocks: [ { time: "00-04", pnl: 100 + random() * 200, trades: 5 + Math.floor(random() * 10) }, { time: "04-08", pnl: 400 + random() * 300, trades: 10 + Math.floor(random() * 10) } ] },
+              { name: "London", totalPnl: -1000 - random() * 500, blocks: [ { time: "08-12", pnl: -1000 - random() * 500, trades: 20 + Math.floor(random() * 10) } ] },
+              { name: "New York", totalPnl: 3000 + random() * 1000, blocks: [ { time: "12-16", pnl: 1800 + random() * 500, trades: 25 + Math.floor(random() * 10) }, { time: "16-20", pnl: 1200 + random() * 500, trades: 15 + Math.floor(random() * 10) } ] },
+          ],
+          timeBlocks: ["00-04", "04-08", "08-12", "12-16", "16-20", "20-24"],
+      };
+
+      const volatilityData = [
+          { vixZone: "Calm", trades: 40 + Math.floor(random() * 20), winRate: 55 + Math.floor(random() * 10), mistakesCount: 3 + Math.floor(random() * 5), avgPnL: 1200 + random() * 500 },
+          { vixZone: "Normal", trades: 70 + Math.floor(random() * 20), winRate: 50 + Math.floor(random() * 10), mistakesCount: 8 + Math.floor(random() * 8), avgPnL: 2000 + random() * 500 },
+          { vixZone: "Elevated", trades: 20 + Math.floor(random() * 10), winRate: 35 + Math.floor(random() * 10), mistakesCount: 8 + Math.floor(random() * 5), avgPnL: -600 - random() * 400 },
+          { vixZone: "Extreme", trades: 3 + Math.floor(random() * 5), winRate: 15 + Math.floor(random() * 10), mistakesCount: 2 + Math.floor(random() * 3), avgPnL: -1200 - random() * 500 },
+      ];
+      
+      const emotionResultMatrixData = {
+          emotions: ["FOMO", "Fear", "Anxious", "Revenge", "Calm", "Focused"],
+          results: ["Big Loss (≤-2R)", "Loss (-2R to 0)", "Win (0 to +2R)", "Big Win (≥+2R)"],
+          data: Array.from({ length: 6 }, () => Array.from({ length: 4 }, () => Math.floor(random() * 15))),
+          maxCount: 15,
+      };
+
       return {
-          totalTrades,
-          winRate,
-          lossRate,
-          avgRR,
-          totalPnL,
-          bestCondition: "Normal VIX / NY Session", // Mock
-          quality,
-          discipline: {
-              slRespectedPct: 100 - slMovedPct,
-              slMovedPct: slMovedPct,
-              slRemovedPct: 3, // Mock
-              tpExitedEarlyPct: 25, // Mock
-              avgRiskPct: 1.1, // Mock
-              riskOverLimitPct: 15, // Mock
-          },
-          scores: {
-              disciplineScore,
-              emotionalScore,
-              consistencyScore,
-          },
+          totalTrades, winRate, lossRate, avgRR, totalPnL,
+          bestCondition: "Normal VIX / NY Session", quality,
+          discipline: { slRespectedPct: 100 - slMovedPct, slMovedPct, slRemovedPct: 3, tpExitedEarlyPct: 25, avgRiskPct: 1.1, riskOverLimitPct: 15 },
+          scores: { disciplineScore, emotionalScore, consistencyScore },
           topLossDrivers,
+          mockEquityData, topEvents, mockStrategyData, timingHeatmapData, volatilityData,
+          psychologicalPatterns: topLossDrivers.slice(0, 4).map(d => ({ name: d.behavior, count: d.occurrences, avgPnL: d.totalR * 200, colorCode: "bg-red-500/20 text-red-300 border-red-500/30" })), // Mock PNL conversion
+          emotionResultMatrixData
       };
     }, []);
 
@@ -490,7 +475,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
     };
 
     const discussPsychology = () => {
-        const topIssues = psychologicalPatterns.slice(0, 2).map(p => p.name).join(' and ');
+        const topIssues = analyticsData.psychologicalPatterns.slice(0, 2).map(p => p.name).join(' and ');
         const prompt = `Arjun, my analytics show my biggest psychological issues are ${topIssues}. Can you help me create a plan to work on these?`;
         onSetModule('aiCoaching', { initialMessage: prompt });
     };
@@ -567,6 +552,10 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
 
         return null;
     }
+    
+    const equityChartConfig = {
+      equity: { label: "Equity", color: "hsl(var(--chart-2))" }
+    };
 
     return (
         <Drawer open={!!activeDrilldown} onOpenChange={(open) => !open && setActiveDrilldown(null)}>
@@ -645,14 +634,14 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                     <div className="grid lg:grid-cols-3 gap-8">
                                         <div className="lg:col-span-2">
                                             <ChartContainer config={equityChartConfig} className="h-[300px] w-full">
-                                                <LineChart data={mockEquityData} margin={{ top: 5, right: 20, left: -20, bottom: 0 }}>
+                                                <LineChart data={analyticsData.mockEquityData} margin={{ top: 5, right: 20, left: -20, bottom: 0 }}>
                                                     <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50" />
                                                     <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={10} tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} />
                                                     <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `$${value / 1000}k`} />
                                                     <ChartTooltip cursor={{ strokeDasharray: '3 3' }} content={<ChartTooltipContent />} />
                                                     <Line type="monotone" dataKey="equity" stroke="hsl(var(--color-equity))" strokeWidth={2} dot={
                                                         (props: any) => {
-                                                            const { payload, cx, cy, key, ...rest } = props;
+                                                            const { key, payload, cx, cy, ...rest } = props;
                                                             if (showBehaviorLayer && payload.marker) {
                                                                 return (
                                                                     <TooltipProvider key={key}>
@@ -667,9 +656,8 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                                                     </TooltipProvider>
                                                                 )
                                                             }
-                                                            const emptyKey = `dot-empty-${key}-${props.index}`;
-                                                            const { key: _key, ...otherProps } = props;
-                                                            return <Dot key={emptyKey} {...otherProps} r={0} />;
+                                                            const dotKey = `dot-empty-${key}-${props.index}`;
+                                                            return <Dot key={dotKey} {...rest} r={0} />;
                                                         }
                                                     } />
                                                 </LineChart>
@@ -679,7 +667,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                             <div className="lg:col-span-1">
                                                 <h3 className="text-sm font-semibold text-foreground mb-3">Top Events on Chart</h3>
                                                 <div className="space-y-3">
-                                                    {topEvents.map((event, i) => (
+                                                    {analyticsData.topEvents.map((event: any, i: number) => (
                                                         <Card key={i} className="bg-muted/50 cursor-pointer hover:bg-muted" onClick={() => handleEventClick(event.journalId)}>
                                                             <CardContent className="p-3">
                                                                 <p className="text-sm font-semibold">{event.label}</p>
@@ -775,7 +763,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                         </SectionCard>
                         <SectionCard id="psychology" title="Psychological Patterns" description="The emotions and biases that drive your decisions." icon={Brain}>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                                {psychologicalPatterns.map(pattern => (
+                                {analyticsData.psychologicalPatterns.map((pattern: any) => (
                                     <Card key={pattern.name} className={cn("border", pattern.colorCode)}>
                                         <CardHeader className="pb-2">
                                             <CardTitle className="text-base">{pattern.name}</CardTitle>
@@ -799,7 +787,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                     </CardHeader>
                                     <CardContent>
                                         <ul className="space-y-2 text-sm text-muted-foreground list-disc list-inside">
-                                            {arjunPatternNotes.map((note, i) => <li key={i}>{note}</li>)}
+                                            {analyticsData.topLossDrivers.slice(0, 3).map((note: any, i: number) => <li key={i}>{note.behavior} trades are a major leak.</li>)}
                                         </ul>
                                     </CardContent>
                                 </Card>
@@ -846,18 +834,18 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                     <thead>
                                         <tr>
                                             <th className="p-2 text-left">Emotion</th>
-                                            {emotionResultMatrixData.results.map(result => (
+                                            {analyticsData.emotionResultMatrixData.results.map((result: string) => (
                                                 <th key={result} className="p-2 font-normal text-muted-foreground">{result}</th>
                                             ))}
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {emotionResultMatrixData.emotions.map((emotion, rowIndex) => (
+                                        {analyticsData.emotionResultMatrixData.emotions.map((emotion: string, rowIndex: number) => (
                                             <tr key={emotion}>
                                                 <td className="font-semibold text-foreground text-left p-2">{emotion}</td>
-                                                {emotionResultMatrixData.data[rowIndex].map((count, colIndex) => {
-                                                    const opacity = count > 0 ? Math.min(1, (count / emotionResultMatrixData.maxCount) * 0.9 + 0.1) : 0;
-                                                    const result = emotionResultMatrixData.results[colIndex];
+                                                {analyticsData.emotionResultMatrixData.data[rowIndex].map((count: number, colIndex: number) => {
+                                                    const opacity = count > 0 ? Math.min(1, (count / analyticsData.emotionResultMatrixData.maxCount) * 0.9 + 0.1) : 0;
+                                                    const result = analyticsData.emotionResultMatrixData.results[colIndex];
                                                     const isLoss = result.includes("Loss");
                                                     const isWin = result.includes("Win");
                                                     
@@ -910,7 +898,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {mockStrategyData.map((strategy) => (
+                                    {analyticsData.mockStrategyData.map((strategy: any) => (
                                         <TableRow key={strategy.name}>
                                             <TableCell className="font-medium">{strategy.name}</TableCell>
                                             <TableCell>{strategy.trades}</TableCell>
@@ -937,17 +925,17 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                             <thead>
                                                 <tr>
                                                     <th className="p-2">Session</th>
-                                                    {timingHeatmapData.timeBlocks.map(block => (
+                                                    {analyticsData.timingHeatmapData.timeBlocks.map((block: string) => (
                                                         <th key={block} className="p-2 font-normal text-muted-foreground">{block}</th>
                                                     ))}
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {timingHeatmapData.sessions.map(session => (
+                                                {analyticsData.timingHeatmapData.sessions.map((session: any) => (
                                                     <tr key={session.name}>
                                                         <td className="font-semibold text-foreground text-left p-2">{session.name}</td>
-                                                        {timingHeatmapData.timeBlocks.map(block => {
-                                                            const cellData = session.blocks.find(b => b.time === block);
+                                                        {analyticsData.timingHeatmapData.timeBlocks.map((block: string) => {
+                                                            const cellData = session.blocks.find((b: any) => b.time === block);
                                                             if (!cellData) {
                                                                 return <td key={block} className="p-2 bg-muted/30 rounded-md" />;
                                                             }
@@ -999,7 +987,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                             <Table>
                                 <TableHeader><TableRow><TableHead>VIX Zone</TableHead><TableHead>Trades</TableHead><TableHead>Win Rate</TableHead><TableHead>Mistakes</TableHead><TableHead>Avg. PnL</TableHead></TableRow></TableHeader>
                                 <TableBody>
-                                    {volatilityData.map(d => (
+                                    {analyticsData.volatilityData.map((d: any) => (
                                         <TableRow key={d.vixZone}>
                                             <TableCell>{d.vixZone}</TableCell>
                                             <TableCell>{d.trades}</TableCell>
