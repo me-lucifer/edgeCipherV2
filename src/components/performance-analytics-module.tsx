@@ -339,6 +339,8 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
     const [showBehaviorLayer, setShowBehaviorLayer] = useState(true);
     const [activeDrilldown, setActiveDrilldown] = useState<string | null>(null);
     const [isDataSourcesOpen, setIsDataSourcesOpen] = useState(false);
+    const [volatilityView, setVolatilityView] = useState<'winRate' | 'avgPnL' | 'mistakes'>('winRate');
+
 
     const { toast } = useToast();
 
@@ -804,7 +806,8 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                               <ChartTooltip cursor={{ strokeDasharray: '3 3' }} content={<ChartTooltipContent />} />
                                               <Line type="monotone" dataKey="equity" stroke="hsl(var(--color-equity))" strokeWidth={2} dot={
                                                   (props: any) => {
-                                                      const { key, payload, cx, cy, ...rest } = props;
+                                                      const { payload, cx, cy, ...rest } = props;
+                                                      const key = props.key;
                                                       if (showBehaviorLayer && payload.marker) {
                                                           return (
                                                               <TooltipProvider key={key}>
@@ -819,8 +822,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                                               </TooltipProvider>
                                                           )
                                                       }
-                                                      const emptyKey = `dot-empty-${key}-${props.index}`;
-                                                      return <Dot key={emptyKey} {...props} r={0} />;
+                                                      return <Dot key={`dot-empty-${key}-${props.index}`} {...props} r={0} />;
                                                   }
                                               } />
                                           </LineChart>
@@ -1102,7 +1104,13 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                 </TableBody>
                             </Table>
                         </SectionCard>
-                        <SectionCard id="timing" title="Timing Analytics" description="When you trade best (and worst)." icon={Calendar}>
+                        <SectionCard id="timing" title="Timing Analytics" description="When you trade best (and worst)." icon={Calendar} headerContent={
+                                <div className="flex items-center gap-1 rounded-full bg-muted p-1">
+                                    <Button size="sm" variant="secondary" className="rounded-full h-7 px-3 text-xs">PnL ($)</Button>
+                                    <Button size="sm" variant="ghost" className="rounded-full h-7 px-3 text-xs">Win %</Button>
+                                    <Button size="sm" variant="ghost" className="rounded-full h-7 px-3 text-xs">Trades</Button>
+                                </div>
+                            }>
                             <div className="grid md:grid-cols-3 gap-6">
                                 <div className="md:col-span-2">
                                     <div className="overflow-x-auto">
@@ -1172,21 +1180,61 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                             </div>
                         </SectionCard>
                         
-                        <SectionCard id="volatility" title="Volatility Analytics" description="How you perform in different market conditions." icon={Zap}>
-                            <Table>
-                                <TableHeader><TableRow><TableHead>VIX Zone</TableHead><TableHead>Trades</TableHead><TableHead>Win Rate</TableHead><TableHead>Mistakes</TableHead><TableHead>Avg. PnL</TableHead></TableRow></TableHeader>
-                                <TableBody>
-                                    {analyticsData.volatilityData.map((d: any) => (
-                                        <TableRow key={d.vixZone}>
-                                            <TableCell>{d.vixZone}</TableCell>
-                                            <TableCell>{d.trades}</TableCell>
-                                            <TableCell>{d.winRate}%</TableCell>
-                                            <TableCell>{d.mistakesCount}</TableCell>
-                                            <TableCell className={cn(d.avgPnL >= 0 ? "text-green-400" : "text-red-400")}>${d.avgPnL.toFixed(2)}</TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
+                        <SectionCard id="volatility" title="Volatility Analytics" description="How you perform in different market conditions." icon={Zap}
+                            headerContent={
+                                <div className="flex items-center gap-2">
+                                    <p className="text-xs text-muted-foreground">View by:</p>
+                                    <div className="flex items-center gap-1 rounded-full bg-muted p-1">
+                                        {(['winRate', 'avgPnL', 'mistakes'] as const).map(v => (
+                                            <Button
+                                                key={v}
+                                                size="sm"
+                                                variant={volatilityView === v ? 'secondary' : 'ghost'}
+                                                onClick={() => setVolatilityView(v)}
+                                                className="rounded-full h-7 px-3 text-xs capitalize"
+                                            >
+                                                {v === 'avgPnL' ? 'Avg PnL' : v === 'winRate' ? 'Win Rate' : 'Mistakes'}
+                                            </Button>
+                                        ))}
+                                    </div>
+                                </div>
+                            }
+                        >
+                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                {analyticsData.volatilityData.map((d: any) => {
+                                    const mistakeDensity = d.trades > 0 ? (d.mistakesCount / d.trades) * 100 : 0;
+                                    const isWinRateActive = volatilityView === 'winRate';
+                                    const isAvgPnlActive = volatilityView === 'avgPnL';
+                                    const isMistakesActive = volatilityView === 'mistakes';
+
+                                    return (
+                                        <Card key={d.vixZone} className="bg-muted/50">
+                                            <CardHeader className="pb-4">
+                                                <CardTitle className="text-base">{d.vixZone}</CardTitle>
+                                                <CardDescription className="text-xs">{d.trades} trades</CardDescription>
+                                            </CardHeader>
+                                            <CardContent className="space-y-4">
+                                                <div className={cn("p-2 rounded-md", isWinRateActive ? "bg-primary/10" : "bg-muted")}>
+                                                    <p className="text-xs text-muted-foreground">Win Rate</p>
+                                                    <p className={cn("text-lg font-bold font-mono", isWinRateActive && "text-primary")}>{d.winRate}%</p>
+                                                </div>
+                                                <div className={cn("p-2 rounded-md", isAvgPnlActive ? "bg-primary/10" : "bg-muted")}>
+                                                    <p className="text-xs text-muted-foreground">Avg. PnL</p>
+                                                    <p className={cn("text-lg font-bold font-mono", d.avgPnL >= 0 ? (isAvgPnlActive ? 'text-primary' : 'text-green-400') : (isAvgPnlActive ? 'text-destructive' : 'text-red-400'))}>${d.avgPnL.toFixed(2)}</p>
+                                                </div>
+                                                <div className={cn("p-2 rounded-md", isMistakesActive ? "bg-primary/10" : "bg-muted")}>
+                                                    <p className="text-xs text-muted-foreground">Mistakes</p>
+                                                    <p className={cn("text-lg font-bold font-mono", isMistakesActive && "text-primary")}>{d.mistakesCount}</p>
+                                                </div>
+                                                 <div>
+                                                    <Label className="text-xs text-muted-foreground">Mistake Density</Label>
+                                                    <Progress value={mistakeDensity} indicatorClassName="bg-amber-500" className="h-2 mt-1" />
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    );
+                                })}
+                            </div>
                         </SectionCard>
                     </TabsContent>
                     <TabsContent value="reports" className="mt-6 space-y-8">
