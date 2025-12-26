@@ -60,13 +60,30 @@ const SectionCard: React.FC<{id?: string, title: React.ReactNode, description: s
     </Card>
 );
 
-const MetricCard = ({ title, value, hint, onClick }: { title: string; value: string | React.ReactNode; hint: string, onClick?: () => void }) => (
+const DeltaIndicator = ({ delta, unit = "" }: { delta: number; unit?: string }) => {
+    if (delta === 0) return null;
+    const isPositive = delta > 0;
+    return (
+        <span className={cn(
+            "text-xs font-mono flex items-center ml-2",
+            isPositive ? "text-green-400" : "text-red-400"
+        )}>
+            {isPositive ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
+            {isPositive ? '+' : ''}{delta.toFixed(1)}{unit}
+        </span>
+    );
+};
+
+const MetricCard = ({ title, value, hint, delta, deltaUnit, onClick }: { title: string; value: string | React.ReactNode; hint: string, delta?: number, deltaUnit?: string, onClick?: () => void }) => (
     <Card className={cn("bg-muted/30 border-border/50", onClick && "cursor-pointer hover:bg-muted/50 hover:border-primary/20")} onClick={onClick}>
         <CardHeader className="pb-2">
             <CardTitle className="text-base">{title}</CardTitle>
         </CardHeader>
         <CardContent>
-            <p className="text-3xl font-bold font-mono">{value}</p>
+            <div className="flex items-baseline">
+                <p className="text-3xl font-bold font-mono">{value}</p>
+                {delta !== undefined && <DeltaIndicator delta={delta} unit={deltaUnit} />}
+            </div>
             <p className="text-xs text-muted-foreground">{hint}</p>
         </CardContent>
     </Card>
@@ -162,31 +179,32 @@ const SummaryRow = ({ label, value, className }: { label: string, value: React.R
 
 const ArjunInsightsSidebar = ({ analyticsData, onSetModule }: { analyticsData: any, onSetModule: PerformanceAnalyticsModuleProps['onSetModule'] }) => {
     const insights = useMemo(() => {
+        if (!analyticsData || !analyticsData.current) return [];
+        const data = analyticsData.current;
         const generatedInsights = [];
-        if (!analyticsData) return [];
 
-        if (analyticsData.winRate < 50) {
+        if (data.winRate < 50) {
             generatedInsights.push("Your win rate is below 50%. Focus on improving your setup selection criteria.");
         } else {
             generatedInsights.push("Your win rate is stable. The key now is to maximize the size of your wins versus your losses.");
         }
 
-        if (analyticsData.topLossDrivers && analyticsData.topLossDrivers.length > 0) {
-            const topDriver = analyticsData.topLossDrivers[0];
+        if (data.topLossDrivers && data.topLossDrivers.length > 0) {
+            const topDriver = data.topLossDrivers[0];
             if (topDriver) {
                 generatedInsights.push(`Your biggest financial drain is from trades tagged with "${topDriver.behavior}". This cost you ${topDriver.totalR.toFixed(1)}R.`);
             }
         }
         
-        if (analyticsData.scores.disciplineScore < 70) {
+        if (data.scores.disciplineScore < 70) {
             generatedInsights.push("Discipline score is low. This suggests you're not consistently following your own rules, which is a major profit leak.");
         }
         
-        if (analyticsData.volatilityData.find((v: any) => v.vixZone === "Elevated" && v.avgPnL < 0)) {
+        if (data.volatilityData.find((v: any) => v.vixZone === "Elevated" && v.avgPnL < 0)) {
             generatedInsights.push("Performance drops significantly in 'Elevated' volatility. Consider reducing size or sitting out during these periods.");
         }
 
-        if (analyticsData.timingHeatmapData.sessions.find((s: any) => s.name === "London" && s.totalPnl < 0)) {
+        if (data.timingHeatmapData.sessions.find((s: any) => s.name === "London" && s.totalPnl < 0)) {
             generatedInsights.push("The London session appears to be your most challenging time to trade. Review journal entries from this period.");
         }
 
@@ -278,7 +296,7 @@ const GuardrailDialog = () => {
     );
 };
 
-function ScoreGauge({ score, label, interpretation }: { score: number, label: string, interpretation: string }) {
+function ScoreGauge({ score, label, interpretation, delta }: { score: number; label: string; interpretation: string; delta?: number; }) {
     const getArc = (value: number, radius: number) => {
         const x = 50 - radius * Math.cos(value * Math.PI);
         const y = 50 + radius * Math.sin(value * Math.PI);
@@ -323,7 +341,10 @@ function ScoreGauge({ score, label, interpretation }: { score: number, label: st
                     {label}
                 </text>
             </svg>
-            <p className={cn("text-sm font-semibold", interpretationColor)}>{interpretation}</p>
+            <div className="flex items-baseline">
+                <p className={cn("text-sm font-semibold", interpretationColor)}>{interpretation}</p>
+                {delta !== undefined && <DeltaIndicator delta={delta} />}
+            </div>
         </div>
     );
 }
@@ -427,6 +448,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
     const [activeDrilldown, setActiveDrilldown] = useState<string | null>(null);
     const [isDataSourcesOpen, setIsDataSourcesOpen] = useState(false);
     const [volatilityView, setVolatilityView] = useState<'winRate' | 'avgPnL' | 'mistakes'>('winRate');
+    const [compareMode, setCompareMode] = useState(false);
 
 
     const { toast } = useToast();
@@ -445,21 +467,9 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
         localStorage.setItem("ec_analytics_active_tab", tab);
     }
 
-    const computeAnalytics = useCallback((entries: JournalEntry[]) => {
+    const computeSinglePeriodAnalytics = (entries: JournalEntry[], random: () => number) => {
       if (entries.length === 0) return null;
       
-      let seed = 42; // default seed
-      if (typeof window !== 'undefined') {
-          const storedSeed = localStorage.getItem("ec_analytics_seed");
-          if (storedSeed) {
-              seed = parseInt(storedSeed, 10);
-          } else {
-              seed = Math.floor(Math.random() * 10000);
-              localStorage.setItem("ec_analytics_seed", String(seed));
-          }
-      }
-      const random = seededRandom(seed);
-
       const totalTrades = entries.length;
       const completedEntries = entries.filter(e => e.status === 'completed');
       const wins = completedEntries.filter(e => e.review && e.review.pnl > 0).length;
@@ -614,6 +624,31 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
           emotionResultMatrixData,
           radarChartData,
       };
+    }
+
+    const computeAnalytics = useCallback((entries: JournalEntry[], compareMode: boolean) => {
+      let seed = 42; // default seed
+      if (typeof window !== 'undefined') {
+          const storedSeed = localStorage.getItem("ec_analytics_seed");
+          if (storedSeed) {
+              seed = parseInt(storedSeed, 10);
+          } else {
+              seed = Math.floor(Math.random() * 10000);
+              localStorage.setItem("ec_analytics_seed", String(seed));
+          }
+      }
+      
+      const currentPeriodData = computeSinglePeriodAnalytics(entries, seededRandom(seed));
+
+      if (compareMode) {
+          const previousPeriodSeed = seed + 1; // Use a different seed for the previous period
+          const mockPreviousPeriodEntries = entries.map(e => ({...e})); // shallow copy for mock
+          const previousPeriodData = computeSinglePeriodAnalytics(mockPreviousPeriodEntries, seededRandom(previousPeriodSeed));
+          return { current: currentPeriodData, previous: previousPeriodData };
+      }
+
+      return { current: currentPeriodData, previous: null };
+
     }, []);
 
     const [analyticsData, setAnalyticsData] = useState<ReturnType<typeof computeAnalytics> | null>(null);
@@ -623,17 +658,17 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
         if (storedEntries) {
             const parsed = JSON.parse(storedEntries);
             setJournalEntries(parsed);
-            setAnalyticsData(computeAnalytics(parsed));
+            setAnalyticsData(computeAnalytics(parsed, compareMode));
             setHasData(parsed.length > 0);
         } else {
             setHasData(false);
             setAnalyticsData(null);
         }
-    }, [computeAnalytics]);
+    }, [computeAnalytics, compareMode]);
 
     useEffect(() => {
         loadData();
-    }, [loadData]);
+    }, [loadData, compareMode]);
 
     const handleEventClick = (journalId: string | null) => {
         if (!journalId) return;
@@ -695,13 +730,15 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
         );
     }
 
-    if (!analyticsData) return null;
+    if (!analyticsData || !analyticsData.current) return null;
+    const currentData = analyticsData.current;
+    const previousData = analyticsData.previous;
 
     const qualityConfig = {
         Disciplined: { label: "Disciplined", color: "bg-green-500/20 text-green-300 border-green-500/30", icon: Award },
         Mixed: { label: "Mixed", color: "bg-amber-500/20 text-amber-300 border-amber-500/30", icon: AlertCircle },
         Emotional: { label: "Emotional", color: "bg-red-500/20 text-red-300 border-red-500/30", icon: Zap },
-    }[analyticsData.quality] || { label: "Mixed", color: "bg-amber-500/20 text-amber-300 border-amber-500/30", icon: AlertCircle };
+    }[currentData.quality] || { label: "Mixed", color: "bg-amber-500/20 text-amber-300 border-amber-500/30", icon: AlertCircle };
     const QualityIcon = qualityConfig.icon;
 
     const askArjunAboutStrategy = (strategyName: string) => {
@@ -710,7 +747,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
     };
 
     const discussPsychology = () => {
-        const topIssues = analyticsData.radarChartData.filter(d => d.value > 60).map(p => p.axis).join(' and ');
+        const topIssues = currentData.radarChartData.filter(d => d.value > 60).map(p => p.axis).join(' and ');
         if (!topIssues) {
             onSetModule('aiCoaching', { initialMessage: "Arjun, let's discuss my psychological profile. What are my biggest strengths and weaknesses based on my data?" });
             return;
@@ -738,11 +775,11 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                         <DrawerDescription>This score reflects how consistently you follow your own rules.</DrawerDescription>
                     </DrawerHeader>
                     <div className="px-4 space-y-4">
-                        <p className="text-sm">Your score of <span className="font-bold text-primary">{analyticsData.scores.disciplineScore}</span> is based on:</p>
+                        <p className="text-sm">Your score of <span className="font-bold text-primary">{currentData.scores.disciplineScore}</span> is based on:</p>
                         <ul className="list-disc list-inside text-sm text-muted-foreground">
-                            <li>Stop Loss Adherence: {analyticsData.discipline.slRespectedPct.toFixed(0)}%</li>
-                            <li>Trades Over Risk Limit: {analyticsData.discipline.riskOverLimitPct.toFixed(0)}%</li>
-                            <li>Journaling Completion: {analyticsData.totalTrades > 0 ? (analyticsData.totalTrades / analyticsData.totalTrades * 100).toFixed(0) : 0}%</li>
+                            <li>Stop Loss Adherence: {currentData.discipline.slRespectedPct.toFixed(0)}%</li>
+                            <li>Trades Over Risk Limit: {currentData.discipline.riskOverLimitPct.toFixed(0)}%</li>
+                            <li>Journaling Completion: {currentData.totalTrades > 0 ? (currentData.totalTrades / currentData.totalTrades * 100).toFixed(0) : 0}%</li>
                         </ul>
                          <Alert>
                             <AlertTriangle className="h-4 w-4"/>
@@ -758,7 +795,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
         
         if (activeDrilldown.startsWith('loss-driver-')) {
             const behavior = activeDrilldown.replace('loss-driver-', '');
-            const driver = analyticsData.topLossDrivers.find(d => d.behavior === behavior);
+            const driver = currentData.topLossDrivers.find(d => d.behavior === behavior);
             if (!driver) return null;
             return (
                 <div className="p-4">
@@ -847,6 +884,11 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                         <Select><SelectTrigger className="w-full sm:w-[180px] h-9 text-xs"><SelectValue placeholder="All VIX zones" /></SelectTrigger><SelectContent><SelectItem value="all">All VIX zones</SelectItem></SelectContent></Select>
                         <Select><SelectTrigger className="w-full sm:w-[180px] h-9 text-xs"><SelectValue placeholder="All sessions" /></SelectTrigger><SelectContent><SelectItem value="all">All sessions</SelectItem></SelectContent></Select>
                         <div className="flex items-center space-x-2"><Switch id="include-pending" /><Label htmlFor="include-pending" className="text-xs">Include pending</Label></div>
+                        <Separator orientation="vertical" className="h-6 hidden lg:block" />
+                        <div className="flex items-center space-x-2">
+                            <Switch id="compare-mode" checked={compareMode} onCheckedChange={setCompareMode} />
+                            <Label htmlFor="compare-mode" className="text-xs">Compare period</Label>
+                        </div>
                     </CardContent>
                 </Card>
 
@@ -875,12 +917,12 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                     icon={DollarSign}
                                 >
                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                                        <MetricCard title="Total Trades" value={String(analyticsData.totalTrades)} hint="+5% vs last period" />
-                                        <MetricCard title="Win Rate" value={`${analyticsData.winRate.toFixed(1)}%`} hint="-2% vs last period" />
-                                        <MetricCard title="Loss Rate" value={`${analyticsData.lossRate.toFixed(1)}%`} hint="+2% vs last period" />
-                                        <MetricCard title="Average R:R" value={String(analyticsData.avgRR.toFixed(2))} hint="Target: >1.5" />
-                                        <MetricCard title="Total PnL" value={`$${analyticsData.totalPnL.toFixed(2)}`} hint="+12% vs last period" />
-                                        <MetricCard title="Best Condition" value={analyticsData.bestCondition} hint="NY session / Normal VIX" />
+                                        <MetricCard title="Total Trades" value={String(currentData.totalTrades)} hint="+5% vs last period" delta={compareMode && previousData ? currentData.totalTrades - previousData.totalTrades : undefined} />
+                                        <MetricCard title="Win Rate" value={`${currentData.winRate.toFixed(1)}%`} hint="-2% vs last period" delta={compareMode && previousData ? currentData.winRate - previousData.winRate : undefined} deltaUnit="%" />
+                                        <MetricCard title="Loss Rate" value={`${currentData.lossRate.toFixed(1)}%`} hint="+2% vs last period" delta={compareMode && previousData ? currentData.lossRate - previousData.lossRate : undefined} deltaUnit="%" />
+                                        <MetricCard title="Average R:R" value={String(currentData.avgRR.toFixed(2))} hint="Target: >1.5" delta={compareMode && previousData ? currentData.avgRR - previousData.avgRR : undefined} />
+                                        <MetricCard title="Total PnL" value={`$${currentData.totalPnL.toFixed(2)}`} hint="+12% vs last period" delta={compareMode && previousData ? currentData.totalPnL - previousData.totalPnL : undefined} />
+                                        <MetricCard title="Best Condition" value={currentData.bestCondition} hint="NY session / Normal VIX" />
                                     </div>
                                 </SectionCard>
 
@@ -902,7 +944,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                 >
                                     <div className="h-[350px]">
                                       <ChartContainer config={equityChartConfig} className="h-full w-full">
-                                          <LineChart data={analyticsData.mockEquityData} margin={{ top: 5, right: 20, left: -20, bottom: 0 }}>
+                                          <LineChart data={currentData.mockEquityData} margin={{ top: 5, right: 20, left: -20, bottom: 0 }}>
                                               <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50" />
                                               <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={10} tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} />
                                               <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `$${value / 1000}k`} />
@@ -926,8 +968,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                                           )
                                                       }
                                                       const { key, ...rest } = props;
-                                                      const emptyKey = `dot-empty-${key}-${props.index}`;
-                                                      return <Dot key={emptyKey} {...rest} r={0} />;
+                                                      return <Dot key={`dot-empty-${key}-${props.index}`} {...rest} r={0} />;
                                                   }
                                               } />
                                           </LineChart>
@@ -942,7 +983,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                   icon={BookOpen}
                                 >
                                   <div className="space-y-4">
-                                      {analyticsData.topEvents.slice(0, 5).map((event: any, i: number) => {
+                                      {currentData.topEvents.slice(0, 5).map((event: any, i: number) => {
                                           const EventIcon = eventTypeIcon[event.label] || eventTypeIcon.default;
                                           return (
                                               <div key={i} className="flex items-center justify-between p-3 rounded-md bg-muted/50 border border-border/50">
@@ -961,7 +1002,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                               </div>
                                           );
                                       })}
-                                       {analyticsData.topEvents.length === 0 && (
+                                       {currentData.topEvents.length === 0 && (
                                           <p className="text-sm text-muted-foreground text-center py-4">No significant behavioral events logged in this period.</p>
                                       )}
                                   </div>
@@ -980,9 +1021,9 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                 <CardDescription>Where you lose your edge isn’t price — it’s behaviour.</CardDescription>
                             </CardHeader>
                             <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                                <ScoreGauge score={analyticsData.scores.disciplineScore} label="Discipline" interpretation={analyticsData.scores.disciplineScore > 75 ? "Strong" : analyticsData.scores.disciplineScore > 50 ? "Mixed" : "Leaky"} />
-                                <ScoreGauge score={100 - analyticsData.scores.emotionalScore} label="Emotional Control" interpretation={analyticsData.scores.emotionalScore < 30 ? "Calm" : analyticsData.scores.emotionalScore < 60 ? "Reactive" : "Volatile"} />
-                                <ScoreGauge score={analyticsData.scores.consistencyScore} label="Consistency" interpretation={analyticsData.scores.consistencyScore > 75 ? "Stable" : analyticsData.scores.consistencyScore > 50 ? "Inconsistent" : "Chaotic"} />
+                                <ScoreGauge score={currentData.scores.disciplineScore} label="Discipline" interpretation={currentData.scores.disciplineScore > 75 ? "Strong" : currentData.scores.disciplineScore > 50 ? "Mixed" : "Leaky"} delta={compareMode && previousData ? currentData.scores.disciplineScore - previousData.scores.disciplineScore : undefined} />
+                                <ScoreGauge score={100 - currentData.scores.emotionalScore} label="Emotional Control" interpretation={currentData.scores.emotionalScore < 30 ? "Calm" : currentData.scores.emotionalScore < 60 ? "Reactive" : "Volatile"} delta={compareMode && previousData ? (100 - currentData.scores.emotionalScore) - (100 - previousData.scores.emotionalScore) : undefined} />
+                                <ScoreGauge score={currentData.scores.consistencyScore} label="Consistency" interpretation={currentData.scores.consistencyScore > 75 ? "Stable" : currentData.scores.consistencyScore > 50 ? "Inconsistent" : "Chaotic"} delta={compareMode && previousData ? currentData.scores.consistencyScore - previousData.scores.consistencyScore : undefined} />
                             </CardContent>
                         </Card>
                         <SectionCard id="discipline" title="Risk & Discipline Analytics" description="How well you are following your own rules." icon={Target}>
@@ -993,16 +1034,16 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                     </CardHeader>
                                     <CardContent className="space-y-4">
                                         <div>
-                                            <div className="flex justify-between text-sm"><span className="text-muted-foreground">Respected</span><span>{analyticsData.discipline.slRespectedPct.toFixed(0)}%</span></div>
-                                            <Progress value={analyticsData.discipline.slRespectedPct} indicatorClassName="bg-green-500" className="h-2 mt-1" />
+                                            <div className="flex justify-between text-sm"><span className="text-muted-foreground">Respected</span><span>{currentData.discipline.slRespectedPct.toFixed(0)}%</span></div>
+                                            <Progress value={currentData.discipline.slRespectedPct} indicatorClassName="bg-green-500" className="h-2 mt-1" />
                                         </div>
                                         <div>
-                                            <div className="flex justify-between text-sm"><span className="text-muted-foreground">Moved</span><span>{analyticsData.discipline.slMovedPct.toFixed(0)}%</span></div>
-                                            <Progress value={analyticsData.discipline.slMovedPct} indicatorClassName="bg-amber-500" className="h-2 mt-1" />
+                                            <div className="flex justify-between text-sm"><span className="text-muted-foreground">Moved</span><span>{currentData.discipline.slMovedPct.toFixed(0)}%</span></div>
+                                            <Progress value={currentData.discipline.slMovedPct} indicatorClassName="bg-amber-500" className="h-2 mt-1" />
                                         </div>
                                         <div>
-                                            <div className="flex justify-between text-sm"><span className="text-muted-foreground">Removed</span><span>{analyticsData.discipline.slRemovedPct}%</span></div>
-                                            <Progress value={analyticsData.discipline.slRemovedPct} indicatorClassName="bg-red-500" className="h-2 mt-1" />
+                                            <div className="flex justify-between text-sm"><span className="text-muted-foreground">Removed</span><span>{currentData.discipline.slRemovedPct}%</span></div>
+                                            <Progress value={currentData.discipline.slRemovedPct} indicatorClassName="bg-red-500" className="h-2 mt-1" />
                                         </div>
                                         <Alert variant="default" className="mt-4 bg-amber-500/10 border-amber-500/20 text-amber-300">
                                             <AlertTriangle className="h-4 w-4 text-amber-400" />
@@ -1019,7 +1060,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                     <CardContent className="space-y-4">
                                         <div className="p-4 bg-background/50 rounded-lg">
                                             <p className="text-sm text-muted-foreground">Exited early %</p>
-                                            <p className="text-2xl font-bold font-mono">{analyticsData.discipline.tpExitedEarlyPct}%</p>
+                                            <p className="text-2xl font-bold font-mono">{currentData.discipline.tpExitedEarlyPct}%</p>
                                         </div>
                                         <p className="text-xs text-muted-foreground">Consider defining partial TP rules to let winners run (coming in Phase 2).</p>
                                     </CardContent>
@@ -1031,13 +1072,13 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                     <CardContent className="space-y-4">
                                         <div className="p-4 bg-background/50 rounded-lg">
                                             <p className="text-sm text-muted-foreground">Avg. risk per trade</p>
-                                            <p className="text-2xl font-bold font-mono">{analyticsData.discipline.avgRiskPct.toFixed(2)}%</p>
+                                            <p className="text-2xl font-bold font-mono">{currentData.discipline.avgRiskPct.toFixed(2)}%</p>
                                         </div>
                                         <div className="p-4 bg-background/50 rounded-lg">
                                             <p className="text-sm text-muted-foreground">% of trades over limit</p>
-                                            <p className="text-2xl font-bold font-mono">{analyticsData.discipline.riskOverLimitPct}%</p>
+                                            <p className="text-2xl font-bold font-mono">{currentData.discipline.riskOverLimitPct}%</p>
                                         </div>
-                                        {analyticsData.discipline.riskOverLimitPct > 10 && (
+                                        {currentData.discipline.riskOverLimitPct > 10 && (
                                             <Badge variant="destructive" className="gap-1.5"><XCircle className="h-3 w-3" /> Risk Leakage Detected</Badge>
                                         )}
                                     </CardContent>
@@ -1054,7 +1095,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                         <SectionCard id="psychology" title="Psychological Patterns" description="The emotions and biases that drive your decisions." icon={Brain}>
                              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
                                 <div className="h-80 w-full">
-                                    <RadarChart data={analyticsData.radarChartData} onSetModule={onSetModule} />
+                                    <RadarChart data={currentData.radarChartData} onSetModule={onSetModule} />
                                 </div>
                                 <div className="space-y-4">
                                     <Card className="bg-muted/50">
@@ -1092,7 +1133,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {analyticsData.topLossDrivers.map((driver: any) => (
+                                    {currentData.topLossDrivers.map((driver: any) => (
                                         <TableRow key={driver.behavior} className="cursor-pointer hover:bg-muted" onClick={() => { setSelectedBehavior(driver); setActiveDrilldown(`loss-driver-${driver.behavior}`)}}>
                                             <TableCell><Badge variant="destructive">{driver.behavior}</Badge></TableCell>
                                             <TableCell>{driver.occurrences}</TableCell>
@@ -1115,18 +1156,18 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                     <thead>
                                         <tr>
                                             <th className="p-2 text-left">Emotion</th>
-                                            {analyticsData.emotionResultMatrixData.results.map((result: string) => (
+                                            {currentData.emotionResultMatrixData.results.map((result: string) => (
                                                 <th key={result} className="p-2 font-normal text-muted-foreground">{result}</th>
                                             ))}
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {analyticsData.emotionResultMatrixData.emotions.map((emotion: string, rowIndex: number) => (
+                                        {currentData.emotionResultMatrixData.emotions.map((emotion: string, rowIndex: number) => (
                                             <tr key={emotion}>
                                                 <td className="font-semibold text-foreground text-left p-2">{emotion}</td>
-                                                {analyticsData.emotionResultMatrixData.data[rowIndex].map((count: number, colIndex: number) => {
-                                                    const opacity = count > 0 ? Math.min(1, (count / analyticsData.emotionResultMatrixData.maxCount) * 0.9 + 0.1) : 0;
-                                                    const result = analyticsData.emotionResultMatrixData.results[colIndex];
+                                                {currentData.emotionResultMatrixData.data[rowIndex].map((count: number, colIndex: number) => {
+                                                    const opacity = count > 0 ? Math.min(1, (count / currentData.emotionResultMatrixData.maxCount) * 0.9 + 0.1) : 0;
+                                                    const result = currentData.emotionResultMatrixData.results[colIndex];
                                                     const isLoss = result.includes("Loss");
                                                     const isWin = result.includes("Win");
                                                     
@@ -1179,7 +1220,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {analyticsData.mockStrategyData.map((strategy: any) => (
+                                    {currentData.mockStrategyData.map((strategy: any) => (
                                         <TableRow key={strategy.name}>
                                             <TableCell className="font-medium">{strategy.name}</TableCell>
                                             <TableCell>{strategy.trades}</TableCell>
@@ -1213,16 +1254,16 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                             <thead>
                                                 <tr>
                                                     <th className="p-2">Session</th>
-                                                    {analyticsData.timingHeatmapData.timeBlocks.map((block: string) => (
+                                                    {currentData.timingHeatmapData.timeBlocks.map((block: string) => (
                                                         <th key={block} className="p-2 font-normal text-muted-foreground">{block}</th>
                                                     ))}
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {analyticsData.timingHeatmapData.sessions.map((session: any) => (
+                                                {currentData.timingHeatmapData.sessions.map((session: any) => (
                                                     <tr key={session.name}>
                                                         <td className="font-semibold text-foreground text-left p-2">{session.name}</td>
-                                                        {analyticsData.timingHeatmapData.timeBlocks.map((block: string) => {
+                                                        {currentData.timingHeatmapData.timeBlocks.map((block: string) => {
                                                             const cellData = session.blocks.find((b: any) => b.time === block);
                                                             if (!cellData) {
                                                                 return <td key={block} className="p-2 bg-muted/30 rounded-md" />;
@@ -1296,7 +1337,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                             }
                         >
                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                                {analyticsData.volatilityData.map((d: any) => {
+                                {currentData.volatilityData.map((d: any) => {
                                     const mistakeDensity = d.trades > 0 ? (d.mistakesCount / d.trades) * 100 : 0;
                                     const isWinRateActive = volatilityView === 'winRate';
                                     const isAvgPnlActive = volatilityView === 'avgPnL';
