@@ -11,6 +11,9 @@ import { BarChart, CartesianGrid, XAxis, YAxis, Bar } from "recharts";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Badge } from "./ui/badge";
 import { cn } from "@/lib/utils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { Switch } from "./ui/switch";
+import { Label } from "./ui/label";
 
 interface PerformanceAnalyticsModuleProps {
     onSetModule: (module: any, context?: any) => void;
@@ -233,35 +236,64 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
         <div className="space-y-8">
             <div>
                 <h1 className="text-2xl font-bold tracking-tight text-foreground">Performance Analytics</h1>
-                <p className="text-muted-foreground">Dive deep into your trading data to find your edge.</p>
+                <p className="text-muted-foreground">The backbone of self-awareness — performance, discipline, and psychology in one place.</p>
             </div>
             
-            <Tabs defaultValue="overview" className="w-full">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <TabsList className="grid grid-cols-3 w-full sm:w-auto max-w-md">
-                        <TabsTrigger value="overview">Overview</TabsTrigger>
-                        <TabsTrigger value="strategy">By Strategy</TabsTrigger>
-                        <TabsTrigger value="behaviour">By Behaviour</TabsTrigger>
-                    </TabsList>
-                    <Card className="p-2 bg-muted/30 border-border/50">
-                        <div className="flex items-center gap-1 rounded-full bg-muted p-1">
-                            {(['7d', '30d', '90d'] as const).map(range => (
-                                <Button
-                                    key={range}
-                                    size="sm"
-                                    variant={timeRange === range ? 'secondary' : 'ghost'}
-                                    onClick={() => setTimeRange(range)}
-                                    className="rounded-full h-8 px-3 text-xs"
-                                >
-                                    {range.toUpperCase()}
-                                </Button>
-                            ))}
-                            <Button variant="ghost" size="sm" className="rounded-full h-8 px-3 text-xs">
-                                <Calendar className="mr-1 h-4 w-4" /> Custom
+            <Card className="bg-muted/30 border-border/50 sticky top-[88px] z-10 backdrop-blur-sm">
+                <CardHeader>
+                    <CardTitle className="text-base">Global Filters</CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-wrap items-center gap-x-4 gap-y-3">
+                    <div className="flex items-center gap-1 rounded-full bg-muted p-1 border">
+                        {(['7d', '30d', '90d', 'All'] as const).map(range => (
+                            <Button
+                                key={range}
+                                size="sm"
+                                variant={timeRange === range ? 'secondary' : 'ghost'}
+                                onClick={() => setTimeRange(range)}
+                                className="rounded-full h-7 px-3 text-xs"
+                            >
+                                {range.toUpperCase()}
                             </Button>
-                        </div>
-                    </Card>
-                </div>
+                        ))}
+                    </div>
+                    <Select>
+                        <SelectTrigger className="w-full sm:w-[180px] h-9 text-xs">
+                            <SelectValue placeholder="All strategies" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All strategies</SelectItem>
+                        </SelectContent>
+                    </Select>
+                     <Select>
+                        <SelectTrigger className="w-full sm:w-[180px] h-9 text-xs">
+                            <SelectValue placeholder="All VIX zones" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All VIX zones</SelectItem>
+                        </SelectContent>
+                    </Select>
+                     <Select>
+                        <SelectTrigger className="w-full sm:w-[180px] h-9 text-xs">
+                            <SelectValue placeholder="All sessions" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All sessions</SelectItem>
+                        </SelectContent>
+                    </Select>
+                     <div className="flex items-center space-x-2">
+                        <Switch id="include-pending" />
+                        <Label htmlFor="include-pending" className="text-xs">Include pending</Label>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Tabs defaultValue="overview" className="w-full">
+                <TabsList className="grid grid-cols-3 w-full max-w-md">
+                    <TabsTrigger value="overview">Overview</TabsTrigger>
+                    <TabsTrigger value="strategy">By Strategy</TabsTrigger>
+                    <TabsTrigger value="behaviour">By Behaviour</TabsTrigger>
+                </TabsList>
 
                 <div className="mt-6">
                     <TabsContent value="overview">
