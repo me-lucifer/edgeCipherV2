@@ -209,6 +209,66 @@ const SummaryRow = ({ label, value, className }: { label: string, value: React.R
 );
 
 
+const ArjunInsightsSidebar = ({ analyticsData, onSetModule }: { analyticsData: any, onSetModule: PerformanceAnalyticsModuleProps['onSetModule'] }) => {
+    const insights = useMemo(() => {
+        const generatedInsights = [];
+        if (!analyticsData) return [];
+
+        if (analyticsData.winRate < 50) {
+            generatedInsights.push("Your win rate is below 50%. Focus on improving your setup selection criteria.");
+        } else {
+            generatedInsights.push("Your win rate is stable. The key now is to maximize the size of your wins versus your losses.");
+        }
+
+        const topDriver = analyticsData.topLossDrivers[0];
+        if (topDriver) {
+            generatedInsights.push(`Your biggest financial drain is from trades tagged with "${topDriver.behavior}". This cost you ${topDriver.totalR.toFixed(1)}R.`);
+        }
+        
+        if (analyticsData.scores.disciplineScore < 70) {
+            generatedInsights.push("Discipline score is low. This suggests you're not consistently following your own rules, which is a major profit leak.");
+        }
+        
+        if (volatilityData.find(v => v.vixZone === "Elevated" && v.avgPnL < 0)) {
+            generatedInsights.push("Performance drops significantly in 'Elevated' volatility. Consider reducing size or sitting out during these periods.");
+        }
+
+        if (timingHeatmapData.sessions.find(s => s.name === "London" && s.totalPnl < 0)) {
+            generatedInsights.push("The London session appears to be your most challenging time to trade. Review journal entries from this period.");
+        }
+
+        return generatedInsights.slice(0, 4);
+
+    }, [analyticsData]);
+
+    if (insights.length === 0) return null;
+
+    const handleDiscuss = () => {
+        const prompt = `Arjun, my dashboard analytics generated these insights for me. Can we discuss them?\n\n- ${insights.join('\n- ')}`;
+        onSetModule('aiCoaching', { initialMessage: prompt });
+    }
+
+    return (
+        <Card className="bg-muted/30 border-primary/20 sticky top-24">
+            <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2"><Bot className="h-5 w-5 text-primary" /> Arjun's Insights</CardTitle>
+                <CardDescription className="text-xs">Key patterns from your analytics data.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <ul className="space-y-3 list-disc list-inside text-sm text-muted-foreground">
+                    {insights.map((insight, i) => (
+                        <li key={i}>{insight}</li>
+                    ))}
+                </ul>
+                <Button variant="outline" className="w-full" onClick={handleDiscuss}>
+                    Discuss these with Arjun
+                </Button>
+            </CardContent>
+        </Card>
+    );
+};
+
+
 export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalyticsModuleProps) {
     const [timeRange, setTimeRange] = useState("30d");
     const [activeTab, setActiveTab] = useState("overview");
@@ -468,99 +528,106 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                     <TabsTrigger value="strategies"><BookOpen className="mr-2 h-4 w-4" />Strategies</TabsTrigger>
                     <TabsTrigger value="reports"><Award className="mr-2 h-4 w-4" />Reports</TabsTrigger>
                 </TabsList>
-                <TabsContent value="overview" className="mt-6 space-y-8">
-                     <SectionCard 
-                        id="summary"
-                        title={
-                            <div className="flex items-center gap-4">
-                                <span>High-Level Summary</span>
-                                <Badge className={qualityConfig.color}>
-                                    <QualityIcon className="mr-2 h-4 w-4" />
-                                    {qualityConfig.label}
-                                </Badge>
-                            </div>
-                        }
-                        description="Your core metrics at a glance for the selected period." 
-                        icon={DollarSign}
-                    >
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                            <MetricCard title="Total Trades" value={String(analyticsData.totalTrades)} hint="+5% vs last period" />
-                            <MetricCard title="Win Rate" value={`${analyticsData.winRate.toFixed(1)}%`} hint="-2% vs last period" />
-                            <MetricCard title="Loss Rate" value={`${analyticsData.lossRate.toFixed(1)}%`} hint="+2% vs last period" />
-                            <MetricCard title="Average R:R" value={String(analyticsData.avgRR.toFixed(2))} hint="Target: >1.5" />
-                            <MetricCard title="Total PnL" value={`$${analyticsData.totalPnL.toFixed(2)}`} hint="+12% vs last period" />
-                            <MetricCard title="Best Condition" value={analyticsData.bestCondition} hint="NY session / Normal VIX" />
-                        </div>
-                    </SectionCard>
-
-                    <SectionCard
-                        id="equity"
-                        title="Equity Curve"
-                        description="Your account balance over time, with markers for key psychological events."
-                        icon={TrendingUp}
-                        headerContent={
-                            <div className="flex items-center gap-2">
-                                <Label htmlFor="show-behavior-layer" className="text-sm">Show behaviour layer</Label>
-                                <Switch
-                                    id="show-behavior-layer"
-                                    checked={showBehaviorLayer}
-                                    onCheckedChange={setShowBehaviorLayer}
-                                />
-                            </div>
-                        }
-                    >
-                         <div className="grid lg:grid-cols-3 gap-8">
-                            <div className="lg:col-span-2">
-                                <ChartContainer config={equityChartConfig} className="h-[300px] w-full">
-                                    <LineChart data={mockEquityData} margin={{ top: 5, right: 20, left: -20, bottom: 0 }}>
-                                        <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50" />
-                                        <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={10} tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} />
-                                        <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `$${value / 1000}k`} />
-                                        <ChartTooltip cursor={{ strokeDasharray: '3 3' }} content={<ChartTooltipContent />} />
-                                        <Line type="monotone" dataKey="equity" stroke="hsl(var(--color-equity))" strokeWidth={2} dot={
-                                            (props) => {
-                                                const { key, payload, ...rest } = props;
-                                                if (showBehaviorLayer && payload.marker) {
-                                                    return (
-                                                        <TooltipProvider key={payload.date}>
-                                                            <Tooltip>
-                                                                <TooltipTrigger asChild>
-                                                                    <Dot {...rest} r={5} fill={payload.marker.color} stroke="hsl(var(--background))" strokeWidth={2} onClick={() => handleEventClick(payload.journalId)} className="cursor-pointer" />
-                                                                </TooltipTrigger>
-                                                                <TooltipContent>
-                                                                    <p>{payload.marker.type}</p>
-                                                                </TooltipContent>
-                                                            </Tooltip>
-                                                        </TooltipProvider>
-                                                    )
-                                                }
-                                                return <Dot key={key} {...props} r={0} />;
-                                            }
-                                        } />
-                                    </LineChart>
-                                </ChartContainer>
-                            </div>
-                             {showBehaviorLayer && (
-                                <div className="lg:col-span-1">
-                                    <h3 className="text-sm font-semibold text-foreground mb-3">Top Events on Chart</h3>
-                                    <div className="space-y-3">
-                                        {topEvents.map((event, i) => (
-                                            <Card key={i} className="bg-muted/50 cursor-pointer hover:bg-muted" onClick={() => handleEventClick(event.journalId)}>
-                                                <CardContent className="p-3">
-                                                    <p className="text-sm font-semibold">{event.label}</p>
-                                                    <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
-                                                        <span>{event.date}</span>
-                                                        <span className="font-mono text-red-400">{event.impact.toFixed(1)}R impact</span>
-                                                    </div>
-                                                    <div className="text-xs text-primary/80 mt-2 flex items-center gap-1">Open details <ArrowRight className="h-3 w-3"/></div>
-                                                </CardContent>
-                                            </Card>
-                                        ))}
+                <TabsContent value="overview" className="mt-6">
+                    <div className="grid lg:grid-cols-3 gap-8">
+                        <div className="lg:col-span-2 space-y-8">
+                            <SectionCard 
+                                id="summary"
+                                title={
+                                    <div className="flex items-center gap-4">
+                                        <span>High-Level Summary</span>
+                                        <Badge className={qualityConfig.color}>
+                                            <QualityIcon className="mr-2 h-4 w-4" />
+                                            {qualityConfig.label}
+                                        </Badge>
                                     </div>
+                                }
+                                description="Your core metrics at a glance for the selected period." 
+                                icon={DollarSign}
+                            >
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    <MetricCard title="Total Trades" value={String(analyticsData.totalTrades)} hint="+5% vs last period" />
+                                    <MetricCard title="Win Rate" value={`${analyticsData.winRate.toFixed(1)}%`} hint="-2% vs last period" />
+                                    <MetricCard title="Loss Rate" value={`${analyticsData.lossRate.toFixed(1)}%`} hint="+2% vs last period" />
+                                    <MetricCard title="Average R:R" value={String(analyticsData.avgRR.toFixed(2))} hint="Target: >1.5" />
+                                    <MetricCard title="Total PnL" value={`$${analyticsData.totalPnL.toFixed(2)}`} hint="+12% vs last period" />
+                                    <MetricCard title="Best Condition" value={analyticsData.bestCondition} hint="NY session / Normal VIX" />
                                 </div>
-                            )}
+                            </SectionCard>
+
+                            <SectionCard
+                                id="equity"
+                                title="Equity Curve"
+                                description="Your account balance over time, with markers for key psychological events."
+                                icon={TrendingUp}
+                                headerContent={
+                                    <div className="flex items-center gap-2">
+                                        <Label htmlFor="show-behavior-layer" className="text-sm">Show behaviour layer</Label>
+                                        <Switch
+                                            id="show-behavior-layer"
+                                            checked={showBehaviorLayer}
+                                            onCheckedChange={setShowBehaviorLayer}
+                                        />
+                                    </div>
+                                }
+                            >
+                                <div className="grid lg:grid-cols-3 gap-8">
+                                    <div className="lg:col-span-2">
+                                        <ChartContainer config={equityChartConfig} className="h-[300px] w-full">
+                                            <LineChart data={mockEquityData} margin={{ top: 5, right: 20, left: -20, bottom: 0 }}>
+                                                <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50" />
+                                                <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={10} tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} />
+                                                <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `$${value / 1000}k`} />
+                                                <ChartTooltip cursor={{ strokeDasharray: '3 3' }} content={<ChartTooltipContent />} />
+                                                <Line type="monotone" dataKey="equity" stroke="hsl(var(--color-equity))" strokeWidth={2} dot={
+                                                    (props) => {
+                                                        const { key, payload, ...rest } = props;
+                                                        if (showBehaviorLayer && payload.marker) {
+                                                            return (
+                                                                <TooltipProvider key={key}>
+                                                                    <Tooltip>
+                                                                        <TooltipTrigger asChild>
+                                                                            <Dot {...rest} r={5} fill={payload.marker.color} stroke="hsl(var(--background))" strokeWidth={2} onClick={() => handleEventClick(payload.journalId)} className="cursor-pointer" />
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent>
+                                                                            <p>{payload.marker.type}</p>
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                </TooltipProvider>
+                                                            )
+                                                        }
+                                                        return <Dot key={key} {...props} r={0} />;
+                                                    }
+                                                } />
+                                            </LineChart>
+                                        </ChartContainer>
+                                    </div>
+                                    {showBehaviorLayer && (
+                                        <div className="lg:col-span-1">
+                                            <h3 className="text-sm font-semibold text-foreground mb-3">Top Events on Chart</h3>
+                                            <div className="space-y-3">
+                                                {topEvents.map((event, i) => (
+                                                    <Card key={i} className="bg-muted/50 cursor-pointer hover:bg-muted" onClick={() => handleEventClick(event.journalId)}>
+                                                        <CardContent className="p-3">
+                                                            <p className="text-sm font-semibold">{event.label}</p>
+                                                            <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
+                                                                <span>{event.date}</span>
+                                                                <span className="font-mono text-red-400">{event.impact.toFixed(1)}R impact</span>
+                                                            </div>
+                                                            <div className="text-xs text-primary/80 mt-2 flex items-center gap-1">Open details <ArrowRight className="h-3 w-3"/></div>
+                                                        </CardContent>
+                                                    </Card>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </SectionCard>
                         </div>
-                    </SectionCard>
+                        <div className="lg:col-span-1 space-y-8">
+                            <ArjunInsightsSidebar analyticsData={analyticsData} onSetModule={onSetModule} />
+                        </div>
+                    </div>
                 </TabsContent>
                 <TabsContent value="behaviour" className="mt-6 space-y-8">
                      <Card className="bg-muted/30 border-border/50">
