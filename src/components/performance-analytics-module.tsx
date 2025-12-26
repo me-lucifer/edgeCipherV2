@@ -330,17 +330,18 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
         .sort((a, b) => a.totalR - b.totalR);
 
       // Generating mock data with seed
-      const mockEquityData = Array.from({ length: 30 }, (_, i) => {
-        const prevEquity = i > 0 ? mockEquityData[i-1].equity : 10000;
+      const mockEquityData = Array.from({ length: 30 }).reduce((acc: any[], _, i) => {
+        const prevEquity = i > 0 ? acc[i - 1].equity : 10000;
         const equity = prevEquity + (random() - 0.48) * 500;
         const hasMarker = random() < 0.2;
-        return {
-            date: `2024-01-${String(i + 1).padStart(2, '0')}`,
-            equity,
-            marker: hasMarker ? { type: "Revenge trade", color: "hsl(var(--chart-5))" } : null,
-            journalId: hasMarker ? "completed-2" : null,
-        }
-      });
+        acc.push({
+          date: `2024-01-${String(i + 1).padStart(2, '0')}`,
+          equity,
+          marker: hasMarker ? { type: "Revenge trade", color: "hsl(var(--chart-5))" } : null,
+          journalId: hasMarker ? "completed-2" : null,
+        });
+        return acc;
+      }, []);
       
       const topEvents = [
           { date: "2024-01-05", label: "SL moved on ETH short", impact: -0.5, journalId: "completed-2" },
@@ -656,8 +657,8 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                                                     </TooltipProvider>
                                                                 )
                                                             }
-                                                            const dotKey = `dot-empty-${key}-${props.index}`;
-                                                            return <Dot key={dotKey} {...rest} r={0} />;
+                                                            const emptyKey = `dot-empty-${key}-${props.index}`;
+                                                            return <Dot key={emptyKey} {...props} r={0} />;
                                                         }
                                                     } />
                                                 </LineChart>
