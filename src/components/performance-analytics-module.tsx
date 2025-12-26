@@ -668,7 +668,8 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                                                 )
                                                             }
                                                             const emptyKey = `dot-empty-${key}-${props.index}`;
-                                                            return <Dot key={emptyKey} {...props} r={0} />;
+                                                            const { key: _key, ...otherProps } = props;
+                                                            return <Dot key={emptyKey} {...otherProps} r={0} />;
                                                         }
                                                     } />
                                                 </LineChart>
