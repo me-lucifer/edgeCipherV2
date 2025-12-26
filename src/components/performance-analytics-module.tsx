@@ -103,6 +103,9 @@ function ReportDialog({ reportType }: { reportType: ReportType }) {
         <DialogContent className="max-w-2xl">
             <DialogHeader>
                 <DialogTitle>{reportType} Report Card</DialogTitle>
+                <DialogDescription>
+                    Your performance summarized into actionable insights for the period.
+                </DialogDescription>
             </DialogHeader>
             <div className="py-4 space-y-6">
                 <div className="p-4 bg-muted rounded-lg border">
@@ -111,9 +114,9 @@ function ReportDialog({ reportType }: { reportType: ReportType }) {
                 <div className="space-y-4">
                     <h4 className="font-semibold text-foreground">Summary</h4>
                     <ul className="list-disc list-inside text-sm text-muted-foreground space-y-2">
-                        <li><strong className="text-green-400">Top Improvement:</strong> {reportData.topImprovement}</li>
-                        <li><strong className="text-red-400">Top Weakness:</strong> {reportData.topWeakness}</li>
-                        <li><strong className="text-primary">Recommended Focus:</strong> {reportData.focus}</li>
+                        <li><strong className="text-green-400">This Period's Edge:</strong> {reportData.topImprovement}</li>
+                        <li><strong className="text-red-400">This Period's Leak:</strong> {reportData.topWeakness}</li>
+                        <li><strong className="text-primary">Next Period's Goal:</strong> {reportData.focus}</li>
                     </ul>
                 </div>
                 <Separator />
@@ -130,13 +133,16 @@ function ReportDialog({ reportType }: { reportType: ReportType }) {
                         </div>
                      </div>
                 </div>
-                <div className="flex justify-end gap-2">
+            </div>
+             <DialogFooter className="sm:justify-between gap-2">
+                <DialogClose asChild><Button variant="ghost">Close</Button></DialogClose>
+                <div className="flex gap-2">
                     <Button variant="outline" disabled>Download (soon)</Button>
                     <Button variant="outline" onClick={handleCopy}>
                         <Clipboard className="mr-2 h-4 w-4" /> Copy Summary
                     </Button>
                 </div>
-            </div>
+            </DialogFooter>
         </DialogContent>
     );
 }
@@ -267,6 +273,55 @@ const GuardrailDialog = () => {
     );
 };
 
+function ScoreGauge({ score, label, interpretation }: { score: number, label: string, interpretation: string }) {
+    const getArc = (value: number, radius: number) => {
+        const x = 50 - radius * Math.cos(value * Math.PI);
+        const y = 50 + radius * Math.sin(value * Math.PI);
+        return `${x},${y}`;
+    };
+
+    const percentage = score / 100;
+    const endAngle = percentage;
+    const largeArcFlag = endAngle > 0.5 ? 1 : 0;
+    
+    const colorClasses = {
+        bad: "text-red-500",
+        medium: "text-amber-500",
+        good: "text-green-500"
+    };
+    
+    const interpretationColor = score < 40 ? colorClasses.bad : score < 70 ? colorClasses.medium : colorClasses.good;
+
+    return (
+        <div className="flex flex-col items-center gap-2">
+            <svg viewBox="0 0 100 60" className="w-full h-auto">
+                <path
+                    d={`M ${getArc(0, 40)} A 40,40 0 1,1 ${getArc(1, 40)}`}
+                    stroke="hsl(var(--border))"
+                    strokeWidth="8"
+                    fill="none"
+                    strokeLinecap="round"
+                />
+                <path
+                    d={`M ${getArc(0, 40)} A 40,40 0 ${largeArcFlag},1 ${getArc(endAngle, 40)}`}
+                    stroke="currentColor"
+                    className={interpretationColor}
+                    strokeWidth="8"
+                    fill="none"
+                    strokeLinecap="round"
+                    style={{ transition: 'stroke-dashoffset 0.5s ease-in-out' }}
+                />
+                <text x="50" y="40" textAnchor="middle" className="text-3xl font-bold fill-current text-foreground">
+                    {score}
+                </text>
+                 <text x="50" y="55" textAnchor="middle" className="text-sm font-medium fill-current text-muted-foreground">
+                    {label}
+                </text>
+            </svg>
+            <p className={cn("text-sm font-semibold", interpretationColor)}>{interpretation}</p>
+        </div>
+    );
+}
 
 export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalyticsModuleProps) {
     const [timeRange, setTimeRange] = useState("30d");
@@ -744,9 +799,8 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                               <ChartTooltip cursor={{ strokeDasharray: '3 3' }} content={<ChartTooltipContent />} />
                                               <Line type="monotone" dataKey="equity" stroke="hsl(var(--color-equity))" strokeWidth={2} dot={
                                                   (props: any) => {
-                                                      const { payload, cx, cy } = props;
+                                                      const { key, payload, cx, cy, ...rest } = props;
                                                       if (showBehaviorLayer && payload.marker) {
-                                                          const { key, ...rest } = props;
                                                           return (
                                                               <TooltipProvider key={key}>
                                                                   <Tooltip>
@@ -760,7 +814,6 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                                               </TooltipProvider>
                                                           )
                                                       }
-                                                      const { key, ...rest } = props;
                                                       const emptyKey = `dot-empty-${key}-${props.index}`;
                                                       return <Dot key={emptyKey} {...rest} r={0} />;
                                                   }
@@ -815,9 +868,9 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                 <CardDescription>Where you lose your edge isn’t price — it’s behaviour.</CardDescription>
                             </CardHeader>
                             <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                                <MetricCard title="Discipline Score" value={String(analyticsData.scores.disciplineScore)} hint="How well you follow your rules." onClick={() => setActiveDrilldown('discipline-score')} />
-                                <MetricCard title="Emotional Score" value={String(analyticsData.scores.emotionalScore)} hint="Frequency of emotional tags." />
-                                <MetricCard title="Consistency Score" value={String(analyticsData.scores.consistencyScore)} hint="Journaling streak & performance variance." />
+                                <ScoreGauge score={analyticsData.scores.disciplineScore} label="Discipline" interpretation={analyticsData.scores.disciplineScore > 75 ? "Strong" : analyticsData.scores.disciplineScore > 50 ? "Mixed" : "Leaky"} />
+                                <ScoreGauge score={100 - analyticsData.scores.emotionalScore} label="Emotional Control" interpretation={analyticsData.scores.emotionalScore < 30 ? "Calm" : analyticsData.scores.emotionalScore < 60 ? "Reactive" : "Volatile"} />
+                                <ScoreGauge score={analyticsData.scores.consistencyScore} label="Consistency" interpretation={analyticsData.scores.consistencyScore > 75 ? "Stable" : analyticsData.scores.consistencyScore > 50 ? "Inconsistent" : "Chaotic"} />
                             </CardContent>
                         </Card>
                         <SectionCard id="discipline" title="Risk & Discipline Analytics" description="How well you are following your own rules." icon={Target}>
@@ -1137,9 +1190,9 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                             <CardDescription>Your performance summary for last week.</CardDescription>
                                         </CardHeader>
                                         <CardContent className="space-y-3">
-                                            <p className="text-sm"><strong className="text-green-400">Top Improvement:</strong> Reduced revenge trading.</p>
-                                            <p className="text-sm"><strong className="text-red-400">Top Weakness:</strong> Still exiting winners early.</p>
-                                            <p className="text-sm"><strong className="text-primary">Focus:</strong> Try a partial TP to let trades run.</p>
+                                            <p className="text-sm"><strong className="text-green-400">This Week's Edge:</strong> Reduced revenge trading.</p>
+                                            <p className="text-sm"><strong className="text-red-400">This Week's Leak:</strong> Still exiting winners early.</p>
+                                            <p className="text-sm"><strong className="text-primary">Behavioural Goal:</strong> Try a partial TP to let trades run.</p>
                                         </CardContent>
                                         <CardContent>
                                             <DialogTrigger asChild>
@@ -1157,9 +1210,9 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                             <CardDescription>Your performance summary for last month.</CardDescription>
                                         </CardHeader>
                                         <CardContent className="space-y-3">
-                                            <p className="text-sm"><strong className="text-green-400">Top Improvement:</strong> Sticking to A+ setups.</p>
-                                            <p className="text-sm"><strong className="text-red-400">Top Weakness:</strong> Performance in high VIX.</p>
-                                            <p className="text-sm"><strong className="text-primary">Focus:</strong> Reduce size when VIX is 'Elevated'.</p>
+                                            <p className="text-sm"><strong className="text-green-400">This Month's Edge:</strong> Sticking to A+ setups.</p>
+                                            <p className="text-sm"><strong className="text-red-400">This Month's Leak:</strong> Performance in high VIX.</p>
+                                            <p className="text-sm"><strong className="text-primary">Behavioural Goal:</strong> Reduce size when VIX is 'Elevated'.</p>
                                         </CardContent>
                                         <CardContent>
                                             <DialogTrigger asChild>
