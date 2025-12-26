@@ -4,30 +4,37 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart as BarChartIcon, Brain, Calendar, Filter, AlertCircle, Info, TrendingUp, TrendingDown, Users, DollarSign, Target, Gauge, Zap, Award } from "lucide-react";
+import { BarChart as BarChartIcon, Brain, Calendar, Filter, AlertCircle, Info, TrendingUp, TrendingDown, Users, DollarSign, Target, Gauge, Zap, Award, ArrowRight } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { BarChart, CartesianGrid, XAxis, YAxis, Bar, Line, LineChart, ResponsiveContainer } from "recharts";
+import { BarChart, CartesianGrid, XAxis, YAxis, Bar, Line, LineChart, ResponsiveContainer, ReferenceDot, Dot } from "recharts";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Badge } from "./ui/badge";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Switch } from "./ui/switch";
 import { Label } from "./ui/label";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 
 interface PerformanceAnalyticsModuleProps {
     onSetModule: (module: any, context?: any) => void;
 }
 
 const mockEquityData = [
-  { date: "2024-01-01", equity: 10000 },
-  { date: "2024-01-02", equity: 10150 },
-  { date: "2024-01-03", equity: 10100 },
-  { date: "2024-01-04", equity: 10300 },
-  { date: "2024-01-05", equity: 10250 },
-  { date: "2024-01-06", equity: 10500 },
-  { date: "2024-01-07", equity: 10450 },
-  { date: "2024-01-08", equity: 10600 },
+  { date: "2024-01-01", equity: 10000, marker: null },
+  { date: "2024-01-02", equity: 10150, marker: null },
+  { date: "2024-01-03", equity: 10100, marker: { type: "Revenge trade", color: "hsl(var(--chart-5))" } },
+  { date: "2024-01-04", equity: 10300, marker: null },
+  { date: "2024-01-05", equity: 10250, marker: { type: "SL moved", color: "hsl(var(--chart-3))" } },
+  { date: "2024-01-06", equity: 10500, marker: null },
+  { date: "2024-01-07", equity: 10450, marker: null },
+  { date: "2024-01-08", equity: 10600, marker: null },
 ];
+
+const topEvents = [
+    { date: "2024-01-05", label: "SL moved on ETH short", impact: -0.5, journalId: "completed-2" },
+    { date: "2024-01-03", label: "Revenge trade on BTC", impact: -1.2, journalId: "completed-2" },
+];
+
 
 const mockStrategyData = [
     { name: "Breakout", trades: 45, winRate: 55, avgR: 1.8, pnl: 2500, topMistake: "Exited early" },
@@ -147,7 +154,8 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
         avgRR: 1.35,
         totalPnL: 6400,
         bestCondition: "Normal VIX / NY Session",
-        quality: "Mixed"
+        quality: "Mixed",
+        hasHistory: true, // For controlling empty states
     };
 
     const qualityConfig = {
@@ -215,16 +223,61 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                     </div>
                 </SectionCard>
 
-                <SectionCard id="equity" title="Equity Curve" description="Your account balance over the selected period." icon={TrendingUp}>
-                    <ChartContainer config={equityChartConfig} className="h-[300px] w-full">
-                        <LineChart data={mockEquityData} margin={{ top: 5, right: 20, left: -20, bottom: 0 }}>
-                            <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50" />
-                            <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={10} tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} />
-                            <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `$${value / 1000}k`} />
-                            <ChartTooltip cursor={{ strokeDasharray: '3 3' }} content={<ChartTooltipContent />} />
-                            <Line type="monotone" dataKey="equity" stroke="hsl(var(--color-equity))" strokeWidth={2} dot={false} />
-                        </LineChart>
-                    </ChartContainer>
+                <SectionCard id="equity" title="Equity Curve" description="Your account balance over time, with markers for key psychological events." icon={TrendingUp}>
+                    {analyticsData.hasHistory ? (
+                         <div className="grid lg:grid-cols-3 gap-8">
+                            <div className="lg:col-span-2">
+                                <ChartContainer config={equityChartConfig} className="h-[300px] w-full">
+                                    <LineChart data={mockEquityData} margin={{ top: 5, right: 20, left: -20, bottom: 0 }}>
+                                        <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50" />
+                                        <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={10} tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} />
+                                        <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `$${value / 1000}k`} />
+                                        <ChartTooltip cursor={{ strokeDasharray: '3 3' }} content={<ChartTooltipContent />} />
+                                        <Line type="monotone" dataKey="equity" stroke="hsl(var(--color-equity))" strokeWidth={2} dot={
+                                            (props: any) => {
+                                                if (props.payload.marker) {
+                                                    return (
+                                                        <TooltipProvider>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <Dot {...props} r={5} fill={props.payload.marker.color} stroke="hsl(var(--background))" strokeWidth={2} />
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    <p>{props.payload.marker.type}</p>
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
+                                                    )
+                                                }
+                                                return <Dot {...props} r={0} />;
+                                            }
+                                        } />
+                                    </LineChart>
+                                </ChartContainer>
+                            </div>
+                            <div className="lg:col-span-1">
+                                <h3 className="text-sm font-semibold text-foreground mb-3">Top Events on Chart</h3>
+                                <div className="space-y-3">
+                                    {topEvents.map((event, i) => (
+                                        <Card key={i} className="bg-muted/50">
+                                            <CardContent className="p-3">
+                                                <p className="text-sm font-semibold">{event.label}</p>
+                                                <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
+                                                    <span>{event.date}</span>
+                                                    <span className="font-mono text-red-400">{event.impact.toFixed(1)}R impact</span>
+                                                </div>
+                                                <Button variant="link" size="sm" className="h-auto p-0 mt-2 text-xs" onClick={() => onSetModule('tradeJournal', { draftId: event.journalId })}>Open journal entry <ArrowRight className="ml-1 h-3 w-3"/></Button>
+                                            </CardContent>
+                                        </Card>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                         <div className="text-center text-muted-foreground p-8 border-2 border-dashed rounded-lg">
+                            <p>Once you execute and journal trades, your equity curve will appear here.</p>
+                        </div>
+                    )}
                 </SectionCard>
                 
                 <SectionCard id="discipline" title="Risk & Discipline Analytics" description="How well you are following your own rules." icon={Target}>
@@ -286,5 +339,3 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
         </div>
     );
 }
-
-    
