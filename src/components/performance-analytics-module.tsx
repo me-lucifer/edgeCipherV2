@@ -5,7 +5,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart as BarChartIcon, Brain, Calendar, Filter, AlertCircle, Info, TrendingUp, TrendingDown, Users, DollarSign, Target, Gauge, Zap, Award, ArrowRight, XCircle, CheckCircle, Circle, Bot, AlertTriangle, Clipboard, Star, Activity, BookOpen, BarChartHorizontal } from "lucide-react";
+import { BarChart as BarChartIcon, Brain, Calendar, Filter, AlertCircle, Info, TrendingUp, TrendingDown, Users, DollarSign, Target, Gauge, Zap, Award, ArrowRight, XCircle, CheckCircle, Circle, Bot, AlertTriangle, Clipboard, Star, Activity, BookOpen, BarChartHorizontal, Database } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, CartesianGrid, XAxis, YAxis, Bar, Line, LineChart, ResponsiveContainer, ReferenceDot, Dot } from "recharts";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -221,6 +221,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
     const [selectedEvent, setSelectedEvent] = useState<JournalEntry | null>(null);
     const [showBehaviorLayer, setShowBehaviorLayer] = useState(true);
     const [activeDrilldown, setActiveDrilldown] = useState<string | null>(null);
+    const [isDataSourcesOpen, setIsDataSourcesOpen] = useState(false);
 
     const { toast } = useToast();
 
@@ -446,6 +447,14 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
         loadData();
     };
 
+    const dataSources = [
+      { name: "Broker (Delta)", status: "Simulated", description: "Trade history, PnL, positions." },
+      { name: "Trade Planning", status: "Partial", description: "Planned vs. actual entries/exits." },
+      { name: "Journal", status: "Live", description: "Emotions & mistakes tags, notes." },
+      { name: "Arjun Events", status: "Simulated", description: "Alerts and rule breaches." },
+      { name: "Strategy Management", status: "Prototype", description: "List of defined strategies." },
+    ];
+
     if (!hasData) {
         return (
             <div className="text-center p-8 border-2 border-dashed rounded-lg">
@@ -561,9 +570,24 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
     return (
         <Drawer open={!!activeDrilldown} onOpenChange={(open) => !open && setActiveDrilldown(null)}>
             <div className="space-y-8">
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-foreground">Performance Analytics</h1>
-                    <p className="text-muted-foreground">The backbone of self-awareness — performance, discipline, and psychology in one place.</p>
+                 <div className="flex items-start justify-between">
+                    <div>
+                        <h1 className="text-2xl font-bold tracking-tight text-foreground">Performance Analytics</h1>
+                        <p className="text-muted-foreground">The backbone of self-awareness — performance, discipline, and psychology in one place.</p>
+                    </div>
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => setIsDataSourcesOpen(true)}>
+                                    <Database className="mr-2 h-4 w-4" />
+                                    Data Sources
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>See where this data comes from.</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
                 </div>
                 
                 <Card className="bg-muted/30 border-border/50 sticky top-[88px] z-20 backdrop-blur-sm">
@@ -657,8 +681,8 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                                                     </TooltipProvider>
                                                                 )
                                                             }
-                                                            const emptyKey = `dot-empty-${key}-${props.index}`;
-                                                            return <Dot key={emptyKey} {...props} r={0} />;
+                                                            const dotKey = `dot-empty-${key}-${props.index}`;
+                                                            return <Dot key={dotKey} {...rest} r={0} />;
                                                         }
                                                     } />
                                                 </LineChart>
@@ -1115,6 +1139,29 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                 </div>
                             </div>
                         )}
+                    </DrawerContent>
+                </Drawer>
+                <Drawer open={isDataSourcesOpen} onOpenChange={setIsDataSourcesOpen}>
+                    <DrawerContent>
+                        <DrawerHeader>
+                            <DrawerTitle>Data Sources</DrawerTitle>
+                            <DrawerDescription>This analytics view is a synthesis of multiple data points.</DrawerDescription>
+                        </DrawerHeader>
+                        <div className="p-4">
+                            <div className="space-y-4">
+                                {dataSources.map(source => (
+                                    <Card key={source.name} className="bg-muted/50">
+                                        <CardContent className="p-4 flex items-center justify-between">
+                                            <div>
+                                                <h4 className="font-semibold text-foreground">{source.name}</h4>
+                                                <p className="text-xs text-muted-foreground">{source.description}</p>
+                                            </div>
+                                            <Badge variant={source.status === 'Live' ? 'default' : 'outline'}>{source.status}</Badge>
+                                        </CardContent>
+                                    </Card>
+                                ))}
+                            </div>
+                        </div>
                     </DrawerContent>
                 </Drawer>
             </div>
