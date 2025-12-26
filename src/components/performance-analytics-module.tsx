@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
@@ -29,14 +28,14 @@ interface PerformanceAnalyticsModuleProps {
 }
 
 const mockEquityData = [
-  { date: "2024-01-01", equity: 10000, marker: null },
-  { date: "2024-01-02", equity: 10150, marker: null },
-  { date: "2024-01-03", equity: 10100, marker: { type: "Revenge trade", color: "hsl(var(--chart-5))" } },
-  { date: "2024-01-04", equity: 10300, marker: null },
-  { date: "2024-01-05", equity: 10250, marker: { type: "SL moved", color: "hsl(var(--chart-3))" } },
-  { date: "2024-01-06", equity: 10500, marker: null },
-  { date: "2024-01-07", equity: 10450, marker: null },
-  { date: "2024-01-08", equity: 10600, marker: null },
+  { date: "2024-01-01", equity: 10000, marker: null, journalId: null },
+  { date: "2024-01-02", equity: 10150, marker: null, journalId: null },
+  { date: "2024-01-03", equity: 10100, marker: { type: "Revenge trade", color: "hsl(var(--chart-5))" }, journalId: "completed-2" },
+  { date: "2024-01-04", equity: 10300, marker: null, journalId: null },
+  { date: "2024-01-05", equity: 10250, marker: { type: "SL moved", color: "hsl(var(--chart-3))" }, journalId: "completed-2" },
+  { date: "2024-01-06", equity: 10500, marker: null, journalId: null },
+  { date: "2024-01-07", equity: 10450, marker: null, journalId: null },
+  { date: "2024-01-08", equity: 10600, marker: null, journalId: null },
 ];
 
 const topEvents = [
@@ -212,6 +211,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
     const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
     const [hasData, setHasData] = useState(true);
     const [selectedBehavior, setSelectedBehavior] = useState<string | null>(null);
+    const [selectedEvent, setSelectedEvent] = useState<JournalEntry | null>(null);
     const { toast } = useToast();
 
     useEffect(() => {
@@ -350,6 +350,14 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
     useEffect(() => {
         loadData();
     }, [loadData]);
+
+    const handleEventClick = (journalId: string | null) => {
+        if (!journalId) return;
+        const entry = journalEntries.find(e => e.id === journalId);
+        if (entry) {
+            setSelectedEvent(entry);
+        }
+    };
     
     const generateDemoData = () => {
         const mockJournalEntries: JournalEntry[] = [
@@ -489,14 +497,14 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                         <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `$${value / 1000}k`} />
                                         <ChartTooltip cursor={{ strokeDasharray: '3 3' }} content={<ChartTooltipContent />} />
                                         <Line type="monotone" dataKey="equity" stroke="hsl(var(--color-equity))" strokeWidth={2} dot={
-                                            (props) => {
+                                            (props: any) => {
                                                 const { key, payload, cx, cy, ...rest } = props;
                                                 if (payload.marker) {
                                                     return (
                                                         <TooltipProvider key={payload.date}>
                                                             <Tooltip>
                                                                 <TooltipTrigger asChild>
-                                                                    <Dot {...rest} key={key} cx={cx} cy={cy} r={5} fill={payload.marker.color} stroke="hsl(var(--background))" strokeWidth={2} />
+                                                                    <Dot {...rest} cx={cx} cy={cy} r={5} fill={payload.marker.color} stroke="hsl(var(--background))" strokeWidth={2} onClick={() => handleEventClick(payload.journalId)} className="cursor-pointer" />
                                                                 </TooltipTrigger>
                                                                 <TooltipContent>
                                                                     <p>{payload.marker.type}</p>
@@ -515,14 +523,14 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                 <h3 className="text-sm font-semibold text-foreground mb-3">Top Events on Chart</h3>
                                 <div className="space-y-3">
                                     {topEvents.map((event, i) => (
-                                        <Card key={i} className="bg-muted/50">
+                                        <Card key={i} className="bg-muted/50 cursor-pointer hover:bg-muted" onClick={() => handleEventClick(event.journalId)}>
                                             <CardContent className="p-3">
                                                 <p className="text-sm font-semibold">{event.label}</p>
                                                 <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
                                                     <span>{event.date}</span>
                                                     <span className="font-mono text-red-400">{event.impact.toFixed(1)}R impact</span>
                                                 </div>
-                                                <Button variant="link" size="sm" className="h-auto p-0 mt-2 text-xs" onClick={() => onSetModule('tradeJournal', { draftId: event.journalId })}>Open journal entry <ArrowRight className="ml-1 h-3 w-3"/></Button>
+                                                <div className="text-xs text-primary/80 mt-2 flex items-center gap-1">Open details <ArrowRight className="h-3 w-3"/></div>
                                             </CardContent>
                                         </Card>
                                     ))}
@@ -1191,6 +1199,35 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                     )}
                 </DrawerContent>
             </Drawer>
+            <Drawer open={!!selectedEvent} onOpenChange={(open) => !open && setSelectedEvent(null)}>
+                <DrawerContent>
+                    {selectedEvent && (
+                        <div className="mx-auto w-full max-w-2xl p-4 md:p-6">
+                            <DrawerHeader>
+                                <DrawerTitle className="text-2xl">Event Details</DrawerTitle>
+                                <DrawerDescription>
+                                    Details for the trade event on {new Date(selectedEvent.timestamps.executedAt).toLocaleDateString()}.
+                                </DrawerDescription>
+                            </DrawerHeader>
+                             <div className="px-4 py-6 space-y-4">
+                                <Card className="bg-muted/50">
+                                    <CardContent className="p-4">
+                                        <SummaryRow label="Instrument" value={`${selectedEvent.technical.instrument} ${selectedEvent.technical.direction}`} />
+                                        <SummaryRow label="Result (PnL)" value={`$${selectedEvent.review?.pnl.toFixed(2)}`} className={cn(selectedEvent.review && selectedEvent.review.pnl >= 0 ? 'text-green-400' : 'text-red-400')} />
+                                        <SummaryRow label="Mistakes" value={selectedEvent.review?.mistakesTags || "None"} />
+                                        <SummaryRow label="Emotions" value={selectedEvent.review?.emotionsTags || "None"} />
+                                    </CardContent>
+                                </Card>
+                                <Button className="w-full" onClick={() => { setSelectedEvent(null); onSetModule('tradeJournal', { draftId: selectedEvent.id }); }}>
+                                    Open Full Journal Entry
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+                </DrawerContent>
+            </Drawer>
         </div>
     );
 }
+
+    
