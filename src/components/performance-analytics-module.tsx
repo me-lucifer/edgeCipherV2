@@ -63,11 +63,18 @@ const volatilityData = [
 ];
 
 const psychologicalPatterns = [
-    { name: "FOMO", count: 12, avgPnL: -1800, colorCode: "bg-amber-500" },
-    { name: "Revenge Trading", count: 8, avgPnL: -2500, colorCode: "bg-red-500" },
-    { name: "Overconfidence", count: 5, avgPnL: -900, colorCode: "bg-purple-500" },
-    { name: "Hesitation", count: 15, avgPnL: 500, colorCode: "bg-blue-500" },
+    { name: "FOMO", count: 12, avgPnL: -1800, colorCode: "bg-amber-500/20 text-amber-300 border-amber-500/30" },
+    { name: "Revenge Trading", count: 8, avgPnL: -2500, colorCode: "bg-red-500/20 text-red-300 border-red-500/30" },
+    { name: "Overconfidence", count: 5, avgPnL: -900, colorCode: "bg-purple-500/20 text-purple-300 border-purple-500/30" },
+    { name: "Hesitation", count: 15, avgPnL: 500, colorCode: "bg-blue-500/20 text-blue-300 border-blue-500/30" },
 ];
+
+const arjunPatternNotes = [
+    "Accuracy drops significantly after 2 consecutive losses.",
+    "You tend to exit trades early more often during periods of elevated VIX.",
+    "FOMO-tagged trades appear most frequently during the first hour of the NY session.",
+];
+
 
 const equityChartConfig = {
   equity: { label: "Equity", color: "hsl(var(--chart-2))" }
@@ -183,6 +190,12 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
 
     const askArjunAboutStrategy = (strategyName: string) => {
         const prompt = `Arjun, can we dive into my "${strategyName}" strategy? It seems to be my most profitable one, but I'd like to know how to improve its execution.`;
+        onSetModule('aiCoaching', { initialMessage: prompt });
+    };
+
+    const discussPsychology = () => {
+        const topIssues = psychologicalPatterns.slice(0, 2).map(p => p.name).join(' and ');
+        const prompt = `Arjun, my analytics show my biggest psychological issues are ${topIssues}. Can you help me create a plan to work on these?`;
         onSetModule('aiCoaching', { initialMessage: prompt });
     };
 
@@ -477,8 +490,44 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                     </Table>
                 </SectionCard>
 
-                <SectionCard id="psychology" title="Psychological Patterns" description="The emotions and biases that drive your decisions." icon={Brain}>
-                    <p>Placeholder for psychology patterns.</p>
+                 <SectionCard id="psychology" title="Psychological Patterns" description="The emotions and biases that drive your decisions." icon={Brain}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                        {psychologicalPatterns.map(pattern => (
+                             <Card key={pattern.name} className={cn("border", pattern.colorCode)}>
+                                <CardHeader className="pb-2">
+                                    <CardTitle className="text-base">{pattern.name}</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <p className="text-2xl font-bold font-mono">{pattern.count}</p>
+                                    <p className="text-xs text-muted-foreground">instances</p>
+                                    <p className="text-sm font-semibold font-mono mt-2 text-red-400">
+                                        ${pattern.avgPnL.toLocaleString()} impact
+                                    </p>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
+                    <div className="mt-6 grid lg:grid-cols-2 gap-6">
+                        <Card className="bg-muted/50">
+                            <CardHeader>
+                                <CardTitle className="text-base flex items-center gap-2">
+                                    <Bot className="h-5 w-5 text-primary" /> Pattern Notes
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                 <ul className="space-y-2 text-sm text-muted-foreground list-disc list-inside">
+                                    {arjunPatternNotes.map((note, i) => <li key={i}>{note}</li>)}
+                                </ul>
+                            </CardContent>
+                        </Card>
+                         <Card className="bg-muted/50 flex flex-col items-center justify-center text-center p-6">
+                            <h3 className="font-semibold text-foreground">Turn these insights into action.</h3>
+                            <p className="text-sm text-muted-foreground mt-1 mb-4">Discuss your top two issues with Arjun to build a personalized growth plan.</p>
+                            <Button onClick={discussPsychology}>
+                                Discuss Patterns with Arjun <ArrowRight className="ml-2 h-4 w-4" />
+                            </Button>
+                        </Card>
+                    </div>
                 </SectionCard>
             </div>
             <Drawer open={!!selectedStrategy} onOpenChange={(open) => !open && setSelectedStrategy(null)}>
