@@ -5,7 +5,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart as BarChartIcon, Brain, Calendar, Filter, AlertCircle, Info, TrendingUp, TrendingDown, Users, DollarSign, Target, Gauge, Zap, Award, ArrowRight, XCircle, CheckCircle, Circle, Bot, AlertTriangle, Clipboard, Star, Activity, BookOpen, BarChartHorizontal, Database, View, Flag, Presentation } from "lucide-react";
+import { BarChart as BarChartIcon, Brain, Calendar, Filter, AlertCircle, Info, TrendingUp, TrendingDown, Users, DollarSign, Target, Gauge, Zap, Award, ArrowRight, XCircle, CheckCircle, Circle, Bot, AlertTriangle, Clipboard, Star, Activity, BookOpen, BarChartHorizontal, Database, View, Flag, Presentation, ChevronsUpDown } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, CartesianGrid, XAxis, YAxis, Bar, Line, LineChart, ResponsiveContainer, ReferenceDot, Dot, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, RadarChart as RechartsRadarChart } from "recharts";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -436,6 +436,81 @@ const RadarChart = ({ data, onSetModule }: { data: { axis: string, value: number
     );
 };
 
+const TradesInFocusPanel = ({
+  behavior,
+  onClear,
+  onOpenJournal,
+}: {
+  behavior: { behavior: string; trades: JournalEntry[] } | null;
+  onClear: () => void;
+  onOpenJournal: (journalId: string) => void;
+}) => {
+  return (
+    <Collapsible open={!!behavior} onOpenChange={(isOpen) => !isOpen && onClear()}>
+      <Card className="bg-muted/30 border-border/50">
+        <CollapsibleTrigger asChild>
+          <CardHeader className="cursor-pointer">
+            <div className="flex justify-between items-center">
+              <CardTitle className="flex items-center gap-2">
+                <ChevronsUpDown className="h-4 w-4" />
+                Trades in Focus
+                {behavior && <Badge variant="secondary">{behavior.behavior}</Badge>}
+              </CardTitle>
+              {behavior && <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onClear(); }}>Clear</Button>}
+            </div>
+            {!behavior && <CardDescription>Select a segment from the charts above to see the underlying trades.</CardDescription>}
+          </CardHeader>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <CardContent>
+            {behavior?.trades && (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Instrument</TableHead>
+                    <TableHead>Result (R)</TableHead>
+                    <TableHead>Emotions</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {behavior.trades.map((trade) => {
+                    const pnl = trade.review?.pnl || 0;
+                    const riskAmount = (trade.technical.riskPercent / 100) * 10000;
+                    const rValue = riskAmount > 0 ? pnl / riskAmount : 0;
+                    return (
+                      <TableRow key={trade.id}>
+                        <TableCell>
+                          {trade.technical.instrument} {trade.technical.direction}
+                        </TableCell>
+                        <TableCell className={cn("font-mono", rValue >= 0 ? "text-green-400" : "text-red-400")}>
+                          {rValue.toFixed(1)}R
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            {(trade.review?.emotionsTags || "").split(',').filter(Boolean).map(tag => (
+                              <Badge key={tag} variant="outline" className="text-xs">{tag}</Badge>
+                            ))}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="sm" onClick={() => onOpenJournal(trade.id)}>
+                            Open Journal
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </CollapsibleContent>
+      </Card>
+    </Collapsible>
+  );
+};
+
 export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalyticsModuleProps) {
     const [timeRange, setTimeRange] = useState("30d");
     const [activeTab, setActiveTab] = useState("overview");
@@ -757,85 +832,8 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
     };
 
     const handleCellClick = (emotion: string, result: string) => {
-        toast({
-            title: "Filter Action (Prototype)",
-            description: `Filtering trades with emotion '${emotion}' and result '${result}'.`,
-        });
-        onSetModule('tradeJournal', { filters: { emotion }});
+        setSelectedBehavior({ behavior: `${emotion} & ${result}`, trades: currentData.topLossDrivers[0]?.trades || [] });
     };
-
-    const DrilldownContent = () => {
-        if (!activeDrilldown) return null;
-
-        if (activeDrilldown === 'discipline-score') {
-            return (
-                <div className="p-4">
-                    <DrawerHeader>
-                        <DrawerTitle>Discipline Score Drilldown</DrawerTitle>
-                        <DrawerDescription>This score reflects how consistently you follow your own rules.</DrawerDescription>
-                    </DrawerHeader>
-                    <div className="px-4 space-y-4">
-                        <p className="text-sm">Your score of <span className="font-bold text-primary">{currentData.scores.disciplineScore}</span> is based on:</p>
-                        <ul className="list-disc list-inside text-sm text-muted-foreground">
-                            <li>Stop Loss Adherence: {currentData.discipline.slRespectedPct.toFixed(0)}%</li>
-                            <li>Trades Over Risk Limit: {currentData.discipline.riskOverLimitPct.toFixed(0)}%</li>
-                            <li>Journaling Completion: {currentData.totalTrades > 0 ? (currentData.totalTrades / currentData.totalTrades * 100).toFixed(0) : 0}%</li>
-                        </ul>
-                         <Alert>
-                            <AlertTriangle className="h-4 w-4"/>
-                            <AlertTitle>Arjun's Note</AlertTitle>
-                            <AlertDescription>
-                                Moving your SL is a major leak. Even if it saves a trade sometimes, it builds a bad habit. Trust your initial analysis.
-                            </AlertDescription>
-                        </Alert>
-                    </div>
-                </div>
-            )
-        }
-        
-        if (activeDrilldown.startsWith('loss-driver-')) {
-            const behavior = activeDrilldown.replace('loss-driver-', '');
-            const driver = currentData.topLossDrivers.find(d => d.behavior === behavior);
-            if (!driver) return null;
-            return (
-                <div className="p-4">
-                     <DrawerHeader>
-                        <DrawerTitle>Loss Driver: "{driver.behavior}"</DrawerTitle>
-                        <DrawerDescription>This behavior cost you {driver.totalR.toFixed(1)}R over {driver.occurrences} trades.</DrawerDescription>
-                    </DrawerHeader>
-                     <div className="px-4 space-y-4">
-                        <Card className="bg-muted/50">
-                            <CardHeader>
-                                <CardTitle className="text-base flex justify-between items-center">
-                                    <span>Trades with this tag</span>
-                                    <Button variant="link" size="sm" className="text-xs p-0 h-auto" onClick={() => onSetModule('tradeJournal', { filters: { mistake: driver.behavior }})}>
-                                        View in Journal
-                                    </Button>
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                {driver.trades.map(trade => (
-                                    <div key={trade.id} className="flex justify-between items-center text-sm p-2 border-b last:border-b-0">
-                                        <span>{trade.technical.instrument} {trade.technical.direction}</span>
-                                        <span className="font-mono text-red-400">${trade.review?.pnl.toFixed(2)}</span>
-                                    </div>
-                                ))}
-                            </CardContent>
-                        </Card>
-                         <Alert>
-                            <AlertTriangle className="h-4 w-4"/>
-                            <AlertTitle>Arjun's Corrective Action</AlertTitle>
-                            <AlertDescription>
-                                For the next 5 trades, write down "I will not {driver.behavior.toLowerCase()}" before you enter. This builds conscious awareness.
-                            </AlertDescription>
-                        </Alert>
-                    </div>
-                </div>
-            )
-        }
-
-        return null;
-    }
     
     const equityChartConfig = {
       equity: { label: "Equity", color: "hsl(var(--chart-2))" }
@@ -1129,22 +1127,15 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                         <TableHead>Occurrences</TableHead>
                                         <TableHead>Avg. R Impact</TableHead>
                                         <TableHead>Total R Impact</TableHead>
-                                        <TableHead className="text-right">Action</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {currentData.topLossDrivers.map((driver: any) => (
-                                        <TableRow key={driver.behavior} className="cursor-pointer hover:bg-muted" onClick={() => { setSelectedBehavior(driver); setActiveDrilldown(`loss-driver-${driver.behavior}`)}}>
+                                        <TableRow key={driver.behavior} className="cursor-pointer hover:bg-muted" onClick={() => setSelectedBehavior(driver)}>
                                             <TableCell><Badge variant="destructive">{driver.behavior}</Badge></TableCell>
                                             <TableCell>{driver.occurrences}</TableCell>
                                             <TableCell className="font-mono text-red-400">{driver.avgR.toFixed(2)}R</TableCell>
                                             <TableCell className="font-mono text-red-400">{driver.totalR.toFixed(2)}R</TableCell>
-                                            <TableCell className="text-right">
-                                                <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onSetModule('tradeJournal', { filters: { mistake: driver.behavior }})}}>
-                                                    <View className="mr-2 h-3 w-3" />
-                                                    View trades
-                                                </Button>
-                                            </TableCell>
                                         </TableRow>
                                     ))}
                                 </TableBody>
@@ -1205,6 +1196,11 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                 <span>More trades</span>
                             </div>
                         </SectionCard>
+                         <TradesInFocusPanel 
+                            behavior={selectedBehavior}
+                            onClear={() => setSelectedBehavior(null)}
+                            onOpenJournal={(journalId) => onSetModule('tradeJournal', { draftId: journalId })}
+                        />
                     </TabsContent>
                     <TabsContent value="strategies" className="mt-6 space-y-8">
                         <SectionCard id="strategy" title="Strategy Analytics" description="Which of your strategies are performing best, and where they leak money." icon={BookOpen}>
@@ -1459,9 +1455,6 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                         )}
                     </DrawerContent>
                 </Drawer>
-                <DrawerContent>
-                    <DrilldownContent />
-                </DrawerContent>
                 <Drawer open={!!selectedEvent} onOpenChange={(open) => !open && setSelectedEvent(null)}>
                     <DrawerContent>
                         {selectedEvent && (
