@@ -192,7 +192,8 @@ function ReportDialog({ reportType }: { reportType: ReportType }) {
                         </div>
                      </div>
                 </div>
-                <div className="flex justify-end">
+                <div className="flex justify-end gap-2">
+                    <Button variant="outline" disabled>Download (soon)</Button>
                     <Button variant="outline" onClick={handleCopy}>
                         <Clipboard className="mr-2 h-4 w-4" /> Copy Summary
                     </Button>
@@ -651,13 +652,14 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                                     <ChartTooltip cursor={{ strokeDasharray: '3 3' }} content={<ChartTooltipContent />} />
                                                     <Line type="monotone" dataKey="equity" stroke="hsl(var(--color-equity))" strokeWidth={2} dot={
                                                         (props: any) => {
-                                                            const { key, payload, ...rest } = props;
+                                                            const { payload, cx, cy, ...rest } = props;
                                                             if (showBehaviorLayer && payload.marker) {
+                                                                const dotKey = `dot-${props.key}-${props.index}`;
                                                                 return (
-                                                                    <TooltipProvider key={key}>
+                                                                    <TooltipProvider key={dotKey}>
                                                                         <Tooltip>
                                                                             <TooltipTrigger asChild>
-                                                                                <Dot {...rest} r={5} fill={payload.marker.color} stroke="hsl(var(--background))" strokeWidth={2} onClick={() => handleEventClick(payload.journalId)} className="cursor-pointer" />
+                                                                                <Dot {...rest} cx={cx} cy={cy} r={5} fill={payload.marker.color} stroke="hsl(var(--background))" strokeWidth={2} onClick={() => handleEventClick(payload.journalId)} className="cursor-pointer" />
                                                                             </TooltipTrigger>
                                                                             <TooltipContent>
                                                                                 <p>{payload.marker.type}</p>
@@ -666,7 +668,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                                                     </TooltipProvider>
                                                                 )
                                                             }
-                                                            return <Dot key={key} {...rest} r={0} />;
+                                                            return <Dot key={`dot-empty-${props.key}-${props.index}`} cx={cx} cy={cy} r={0} />;
                                                         }
                                                     } />
                                                 </LineChart>
