@@ -5,7 +5,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart as BarChartIcon, Brain, Calendar, Filter, AlertCircle, Info, TrendingUp, TrendingDown, Users, DollarSign, Target, Gauge, Zap, Award, ArrowRight, XCircle, CheckCircle, Circle, Bot, AlertTriangle, Clipboard, Star, Activity, BookOpen, BarChartHorizontal, Database } from "lucide-react";
+import { BarChart as BarChartIcon, Brain, Calendar, Filter, AlertCircle, Info, TrendingUp, TrendingDown, Users, DollarSign, Target, Gauge, Zap, Award, ArrowRight, XCircle, CheckCircle, Circle, Bot, AlertTriangle, Clipboard, Star, Activity, BookOpen, BarChartHorizontal, Database, View } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, CartesianGrid, XAxis, YAxis, Bar, Line, LineChart, ResponsiveContainer, ReferenceDot, Dot } from "recharts";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -331,23 +331,29 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
         .sort((a, b) => a.totalR - b.totalR);
 
       // Generating mock data with seed
-      const mockEquityData = Array.from({ length: 30 }).reduce((acc: any[], _, i) => {
+      const mockEquityData = entries.reduce((acc: any[], entry, i) => {
         const prevEquity = i > 0 ? acc[i - 1].equity : 10000;
-        const equity = prevEquity + (random() - 0.48) * 500;
-        const hasMarker = random() < 0.2;
+        const pnl = entry.review?.pnl || (random() - 0.48) * 500;
+        const equity = prevEquity + pnl;
+        const hasMarker = entry.review?.mistakesTags && entry.review.mistakesTags !== "None (disciplined)";
+        
         acc.push({
-          date: `2024-01-${String(i + 1).padStart(2, '0')}`,
+          date: entry.timestamps.executedAt,
           equity,
-          marker: hasMarker ? { type: "Revenge trade", color: "hsl(var(--chart-5))" } : null,
-          journalId: hasMarker ? "completed-2" : null,
+          marker: hasMarker ? { type: entry.review?.mistakesTags?.split(',')[0], color: "hsl(var(--chart-5))" } : null,
+          journalId: entry.id,
         });
         return acc;
       }, []);
       
-      const topEvents = [
-          { date: "2024-01-05", label: "SL moved on ETH short", impact: -0.5, journalId: "completed-2" },
-          { date: "2024-01-03", label: "Revenge trade on BTC", impact: -1.2, journalId: "completed-2" },
-      ];
+      const topEvents = entries.filter(e => e.review?.mistakesTags && e.review.mistakesTags !== "None (disciplined)")
+        .slice(0, 2)
+        .map(e => ({
+            date: e.timestamps.executedAt,
+            label: e.review!.mistakesTags!.split(',')[0],
+            impact: e.review!.pnl,
+            journalId: e.id,
+        }));
 
       const mockStrategyData = [
         { name: "Breakout", trades: Math.floor(random() * 50) + 20, winRate: 40 + Math.floor(random() * 20), avgR: 1.5 + random() * 0.5, pnl: 2000 + random() * 1000, topMistake: "Exited early" },
@@ -495,6 +501,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
             title: "Filter Action (Prototype)",
             description: `Filtering trades with emotion '${emotion}' and result '${result}'.`,
         });
+        onSetModule('tradeJournal', { filters: { emotion }});
     };
 
     const DrilldownContent = () => {
@@ -538,7 +545,14 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                     </DrawerHeader>
                      <div className="px-4 space-y-4">
                         <Card className="bg-muted/50">
-                            <CardHeader><CardTitle className="text-base">Trades with this tag</CardTitle></CardHeader>
+                            <CardHeader>
+                                <CardTitle className="text-base flex justify-between items-center">
+                                    <span>Trades with this tag</span>
+                                    <Button variant="link" size="sm" className="text-xs p-0 h-auto" onClick={() => onSetModule('tradeJournal', { filters: { mistake: driver.behavior }})}>
+                                        View in Journal
+                                    </Button>
+                                </CardTitle>
+                            </CardHeader>
                             <CardContent>
                                 {driver.trades.map(trade => (
                                     <div key={trade.id} className="flex justify-between items-center text-sm p-2 border-b last:border-b-0">
@@ -666,23 +680,22 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                                     <ChartTooltip cursor={{ strokeDasharray: '3 3' }} content={<ChartTooltipContent />} />
                                                     <Line type="monotone" dataKey="equity" stroke="hsl(var(--color-equity))" strokeWidth={2} dot={
                                                         (props: any) => {
-                                                            const { key, payload, cx, cy, ...rest } = props;
-                                                            if (showBehaviorLayer && payload.marker) {
-                                                                return (
-                                                                    <TooltipProvider key={key}>
-                                                                        <Tooltip>
-                                                                            <TooltipTrigger asChild>
-                                                                                <Dot {...rest} cx={cx} cy={cy} r={5} fill={payload.marker.color} stroke="hsl(var(--background))" strokeWidth={2} onClick={() => handleEventClick(payload.journalId)} className="cursor-pointer" />
-                                                                            </TooltipTrigger>
-                                                                            <TooltipContent>
-                                                                                <p>{payload.marker.type}</p>
-                                                                            </TooltipContent>
-                                                                        </Tooltip>
-                                                                    </TooltipProvider>
-                                                                )
-                                                            }
-                                                            const dotKey = `dot-empty-${key}-${props.index}`;
-                                                            return <Dot key={dotKey} {...rest} r={0} />;
+                                                          const { cx, cy, payload, key } = props;
+                                                          if (showBehaviorLayer && payload.marker) {
+                                                              return (
+                                                                  <TooltipProvider key={key}>
+                                                                      <Tooltip>
+                                                                          <TooltipTrigger asChild>
+                                                                              <Dot cx={cx} cy={cy} r={5} fill={payload.marker.color} stroke="hsl(var(--background))" strokeWidth={2} onClick={() => handleEventClick(payload.journalId)} className="cursor-pointer" />
+                                                                          </TooltipTrigger>
+                                                                          <TooltipContent>
+                                                                              <p>{payload.marker.type}</p>
+                                                                          </TooltipContent>
+                                                                      </Tooltip>
+                                                                  </TooltipProvider>
+                                                              )
+                                                          }
+                                                          return null;
                                                         }
                                                     } />
                                                 </LineChart>
@@ -697,8 +710,8 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                                             <CardContent className="p-3">
                                                                 <p className="text-sm font-semibold">{event.label}</p>
                                                                 <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
-                                                                    <span>{event.date}</span>
-                                                                    <span className="font-mono text-red-400">{event.impact.toFixed(1)}R impact</span>
+                                                                    <span>{new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                                                                    <span className="font-mono text-red-400">{event.impact > 0 ? '+' : ''}${event.impact.toFixed(2)}</span>
                                                                 </div>
                                                                 <div className="text-xs text-primary/80 mt-2 flex items-center gap-1">Open details <ArrowRight className="h-3 w-3"/></div>
                                                             </CardContent>
@@ -837,15 +850,16 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {analyticsData.topLossDrivers.map(driver => (
+                                    {analyticsData.topLossDrivers.map((driver: any) => (
                                         <TableRow key={driver.behavior} className="cursor-pointer" onClick={() => { setSelectedBehavior(driver); setActiveDrilldown(`loss-driver-${driver.behavior}`)}}>
                                             <TableCell><Badge variant="destructive">{driver.behavior}</Badge></TableCell>
                                             <TableCell>{driver.occurrences}</TableCell>
                                             <TableCell className="font-mono text-red-400">{driver.avgR.toFixed(2)}R</TableCell>
                                             <TableCell className="font-mono text-red-400">{driver.totalR.toFixed(2)}R</TableCell>
                                             <TableCell className="text-right">
-                                                <Button variant="ghost" size="sm">
-                                                    Drilldown
+                                                <Button variant="ghost" size="sm" onClick={() => onSetModule('tradeJournal', { filters: { mistake: driver.behavior }})}>
+                                                    <View className="mr-2 h-3 w-3" />
+                                                    View trades
                                                 </Button>
                                             </TableCell>
                                         </TableRow>
@@ -933,8 +947,9 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                             </TableCell>
                                             <TableCell><Badge variant="destructive">{strategy.topMistake}</Badge></TableCell>
                                             <TableCell className="text-right">
-                                                <Button variant="ghost" size="sm" onClick={() => setSelectedStrategy(strategy)}>
-                                                    Open <ArrowRight className="ml-2 h-3 w-3" />
+                                                <Button variant="ghost" size="sm" onClick={() => onSetModule('tradeJournal', { filters: { strategy: strategy.name }})}>
+                                                    <View className="mr-2 h-3 w-3" />
+                                                    View trades
                                                 </Button>
                                             </TableCell>
                                         </TableRow>

@@ -41,9 +41,18 @@ import { Skeleton } from "./ui/skeleton";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerClose } from "./ui/drawer";
 
 
+export interface JournalFilters {
+    timeRange: 'today' | '7d' | '30d' | 'all';
+    result: 'all' | 'win' | 'loss';
+    emotion: string;
+    mistake: string;
+    strategy: string;
+}
+
 interface TradeJournalModuleProps {
     onSetModule: (module: any, context?: any) => void;
     draftId?: string;
+    filters?: Partial<JournalFilters>;
     journalEntries: JournalEntry[];
     updateJournalEntry: (entry: JournalEntry) => void;
 }
@@ -737,7 +746,7 @@ function EmotionResultSnapshot() {
 
 type GroupingOption = 'none' | 'day' | 'strategy';
 
-const initialFilters = {
+const initialFilters: JournalFilters = {
     timeRange: '30d',
     result: 'all',
     emotion: 'all',
@@ -745,7 +754,7 @@ const initialFilters = {
     strategy: 'all',
 };
 
-function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filters, setFilters, showUnjournaledOnly, setShowUnjournaledOnly, searchQuery, setSearchQuery, groupBy, setGroupBy }: { entries: JournalEntry[], updateEntry: (entry: JournalEntry) => void, onSetModule: TradeJournalModuleProps['onSetModule'], initialDraftId?: string, filters: typeof initialFilters, setFilters: (filters: typeof initialFilters) => void, showUnjournaledOnly: boolean, setShowUnjournaledOnly: (show: boolean) => void, searchQuery: string, setSearchQuery: (query: string) => void, groupBy: GroupingOption, setGroupBy: (groupBy: GroupingOption) => void }) {
+function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filters: initialFiltersFromProps, setFilters, showUnjournaledOnly, setShowUnjournaledOnly, searchQuery, setSearchQuery, groupBy, setGroupBy }: { entries: JournalEntry[], updateEntry: (entry: JournalEntry) => void, onSetModule: TradeJournalModuleProps['onSetModule'], initialDraftId?: string, filters: Partial<JournalFilters>, setFilters: (filters: JournalFilters) => void, showUnjournaledOnly: boolean, setShowUnjournaledOnly: (show: boolean) => void, searchQuery: string, setSearchQuery: (query: string) => void, groupBy: GroupingOption, setGroupBy: (groupBy: GroupingOption) => void }) {
     const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);
 
     const isMissingPsychData = (entry: JournalEntry) => {
@@ -783,8 +792,8 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filte
                 if (filters.result === 'win' && !isWin) return false;
                 if (filters.result === 'loss' && isWin) return false;
             }
-            if (filters.emotion !== 'all' && !(entry.review?.emotionsTags || '').includes(filters.emotion)) return false;
-            if (filters.mistake !== 'all' && !(entry.review?.mistakesTags || '').includes(filters.mistake)) return false;
+            if (filters.emotion !== 'all' && !(entry.review?.emotionsTags || '').includes(filters.emotion as string)) return false;
+            if (filters.mistake !== 'all' && !(entry.review?.mistakesTags || '').includes(filters.mistake as string)) return false;
             if (filters.strategy !== 'all' && entry.technical?.strategy !== filters.strategy) return false;
             
             const entryDate = new Date(entry.timestamps.executedAt);
@@ -1786,9 +1795,9 @@ function DemoScriptPanel({ isOpen, onOpenChange }: { isOpen: boolean, onOpenChan
 }
 
 
-export function TradeJournalModule({ onSetModule, draftId, journalEntries, updateJournalEntry }: TradeJournalModuleProps) {
+export function TradeJournalModule({ onSetModule, draftId, filters: initialFiltersFromProps, journalEntries, updateJournalEntry }: TradeJournalModuleProps) {
     const [activeTab, setActiveTab] = useState('pending');
-    const [filters, setFilters] = useState(initialFilters);
+    const [filters, setFilters] = useState<JournalFilters>({ ...initialFilters, ...initialFiltersFromProps });
     const [groupBy, setGroupBy] = useState<GroupingOption>('none');
     const [showUnjournaledOnly, setShowUnjournaledOnly] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
@@ -1828,6 +1837,11 @@ export function TradeJournalModule({ onSetModule, draftId, journalEntries, updat
      useEffect(() => {
         if (typeof window !== "undefined") {
             try {
+                if (initialFiltersFromProps) {
+                    setActiveTab('all');
+                    setFilters(prev => ({...prev, ...initialFiltersFromProps}));
+                    return;
+                }
                 const savedState = localStorage.getItem("ec_journal_ui_state");
                 if (savedState) {
                     const { activeTab: savedTab, filters: savedFilters, searchQuery: savedQuery, groupBy: savedGroupBy } = JSON.parse(savedState);
@@ -1851,7 +1865,7 @@ export function TradeJournalModule({ onSetModule, draftId, journalEntries, updat
         if (draftId) {
             setActiveTab('all');
         }
-    }, [draftId, journalEntries]);
+    }, [draftId, journalEntries, initialFiltersFromProps]);
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {

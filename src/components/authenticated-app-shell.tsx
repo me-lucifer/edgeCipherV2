@@ -25,7 +25,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Separator } from './ui/separator';
 import { AiCoachingModule } from './ai-coaching-module';
 import { TradePlanningModule } from './trade-planning-module';
-import { TradeJournalModule, useJournal } from './trade-journal-module';
+import { TradeJournalModule, useJournal, type JournalFilters } from './trade-journal-module';
 import { PerformanceAnalyticsModule } from './performance-analytics-module';
 import { StrategyManagementModule } from './strategy-management-module';
 import { RiskCenterModule } from './risk-center-module';
@@ -66,6 +66,7 @@ export type Module =
 export interface ModuleContext {
     initialMessage?: string;
     draftId?: string;
+    filters?: Partial<JournalFilters>;
     planContext?: {
       instrument: string;
       direction?: 'Long' | 'Short';
@@ -168,7 +169,7 @@ function ModuleView({ currentModule, onSetModule, moduleContext, isLoading, jour
     }
 
     if (currentModule === 'tradeJournal') {
-      return <TradeJournalModule onSetModule={onSetModule} draftId={moduleContext?.draftId} journalEntries={journalEntries} updateJournalEntry={updateJournalEntry} />;
+      return <TradeJournalModule onSetModule={onSetModule} draftId={moduleContext?.draftId} filters={moduleContext?.filters} journalEntries={journalEntries} updateJournalEntry={updateJournalEntry} />;
     }
     
     if (currentModule === 'chart') {
