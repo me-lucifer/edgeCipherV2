@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -538,6 +539,67 @@ function SessionChecklist({ currentStep }: { currentStep: TradePlanStep }) {
     );
 }
 
+function ArjunGuardrailAlerts({ form }: { form: any }) {
+    const [guardrails, setGuardrails] = useState({
+        warnOnLowRR: true,
+        warnOnHighRisk: true,
+        warnOnHighVIX: false,
+        warnAfterLosses: false,
+    });
+    const [warnings, setWarnings] = useState<string[]>([]);
+    
+    const { riskPercent, takeProfit, entryPrice, stopLoss } = useWatch({ control: form.control });
+
+    useEffect(() => {
+        const saved = localStorage.getItem("ec_guardrails");
+        if (saved) {
+            setGuardrails(JSON.parse(saved));
+        }
+    }, []);
+
+    useEffect(() => {
+        const activeWarnings = [];
+        if (guardrails.warnOnLowRR) {
+            const riskPerUnit = (entryPrice && stopLoss) ? Math.abs(entryPrice - stopLoss) : 0;
+            const rewardPerUnit = (takeProfit && entryPrice) ? Math.abs(takeProfit - entryPrice) : 0;
+            const rrr = (riskPerUnit > 0 && rewardPerUnit > 0) ? rewardPerUnit / riskPerUnit : 0;
+            if (rrr > 0 && rrr < 1.5) {
+                activeWarnings.push("Low R:R Ratio (< 1.5)");
+            }
+        }
+        if (guardrails.warnOnHighRisk && riskPercent > 2) {
+            activeWarnings.push("High Risk (> 2%)");
+        }
+
+        const marketVix = localStorage.getItem('ec_demo_scenario') === 'high_vol' ? 'Elevated' : 'Normal';
+        if (guardrails.warnOnHighVIX && (marketVix === 'Elevated' || marketVix === 'Extreme')) {
+            activeWarnings.push("High Volatility Market");
+        }
+        
+        const lastTwoTradesWereLosses = true; // Mock for prototype
+        if (guardrails.warnAfterLosses && lastTwoTradesWereLosses) {
+            activeWarnings.push("On a Losing Streak");
+        }
+
+        setWarnings(activeWarnings);
+    }, [guardrails, riskPercent, takeProfit, entryPrice, stopLoss]);
+    
+    if (warnings.length === 0) return null;
+
+    return (
+        <Alert variant="default" className="bg-amber-950/30 border-amber-500/20 text-amber-300 mb-6">
+            <AlertTriangle className="h-4 w-4 text-amber-400" />
+            <AlertTitle className="text-amber-400">Arjun Guardrail Warning</AlertTitle>
+            <AlertDescription>
+                <ul className="list-disc list-inside text-xs">
+                    {warnings.map(w => <li key={w}>{w}</li>)}
+                </ul>
+            </AlertDescription>
+        </Alert>
+    );
+}
+
+
 function PlanSummary({ control, setPlanStatus, onSetModule }: { control: any, setPlanStatus: (status: PlanStatusType) => void, onSetModule: TradePlanningModuleProps['onSetModule'] }) {
     const values = useWatch({ control }) as Partial<PlanFormValues>;
     const { instrument, direction, entryPrice, stopLoss, takeProfit, riskPercent, accountCapital, strategyId, notes, justification } = values;
@@ -810,6 +872,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
     return (
          <div className="grid lg:grid-cols-3 gap-8 items-start">
             <div className="lg:col-span-2 space-y-6">
+                <ArjunGuardrailAlerts form={form} />
                 <Card className="bg-muted/30 border-border/50">
                     <CardHeader>
                         <CardTitle>Plan details</CardTitle>

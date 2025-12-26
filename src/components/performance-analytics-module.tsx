@@ -1,6 +1,6 @@
 
 
-"use client";
+      "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,7 @@ import { Progress } from "./ui/progress";
 import { Alert, AlertTitle, AlertDescription } from "./ui/alert";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerClose } from "./ui/drawer";
 import { useToast } from "@/hooks/use-toast";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter, DialogClose } from "./ui/dialog";
 import { Separator } from "./ui/separator";
 import type { JournalEntry } from "./trade-journal-module";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -207,6 +207,63 @@ const ArjunInsightsSidebar = ({ analyticsData, onSetModule }: { analyticsData: a
                 </Button>
             </CardContent>
         </Card>
+    );
+};
+
+const GuardrailDialog = () => {
+    const { toast } = useToast();
+    const [guardrails, setGuardrails] = useState({
+        warnOnLowRR: true,
+        warnOnHighRisk: true,
+        warnOnHighVIX: false,
+        warnAfterLosses: false,
+    });
+
+    useEffect(() => {
+        const saved = localStorage.getItem("ec_guardrails");
+        if (saved) {
+            setGuardrails(JSON.parse(saved));
+        }
+    }, []);
+
+    const handleSave = () => {
+        localStorage.setItem("ec_guardrails", JSON.stringify(guardrails));
+        toast({ title: "Guardrails updated", description: "Your trade planning module will now use these settings." });
+    }
+
+    const GuardrailSwitch = ({ id, label, description }: { id: keyof typeof guardrails, label: string, description: string }) => (
+        <div className="flex items-center justify-between rounded-lg border p-4 bg-muted/50">
+            <div className="space-y-0.5">
+                <Label htmlFor={id}>{label}</Label>
+                <p className="text-xs text-muted-foreground">{description}</p>
+            </div>
+            <Switch
+                id={id}
+                checked={guardrails[id]}
+                onCheckedChange={(checked) => setGuardrails(prev => ({ ...prev, [id]: checked }))}
+            />
+        </div>
+    );
+
+    return (
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Discipline Guardrails (Prototype)</DialogTitle>
+                <DialogDescription>
+                    Set up real-time warnings in the Trade Planning module based on your analytics.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="py-4 space-y-4">
+                <GuardrailSwitch id="warnOnLowRR" label="Warn if R:R is below 1.5" description="Get an alert if a trade's potential reward doesn't justify its risk." />
+                <GuardrailSwitch id="warnOnHighRisk" label="Warn if risk is over 2%" description="Get a warning before you plan a trade that risks too much of your capital." />
+                <GuardrailSwitch id="warnOnHighVIX" label="Warn in Elevated/Extreme VIX" description="Nudge yourself to be more cautious when the market is volatile." />
+                <GuardrailSwitch id="warnAfterLosses" label="Warn after 2 consecutive losses" description="A 'cool-down' alert to prevent revenge trading after a losing streak." />
+            </div>
+            <DialogFooter>
+                <DialogClose asChild><Button variant="ghost">Cancel</Button></DialogClose>
+                <DialogClose asChild><Button onClick={handleSave}>Save Guardrails</Button></DialogClose>
+            </DialogFooter>
+        </DialogContent>
     );
 };
 
@@ -680,13 +737,14 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                                     <ChartTooltip cursor={{ strokeDasharray: '3 3' }} content={<ChartTooltipContent />} />
                                                     <Line type="monotone" dataKey="equity" stroke="hsl(var(--color-equity))" strokeWidth={2} dot={
                                                         (props: any) => {
-                                                          const { cx, cy, payload, key } = props;
+                                                          const { key, payload, cx, cy } = props;
                                                           if (showBehaviorLayer && payload.marker) {
+                                                              const { key: dotKey, ...rest } = props;
                                                               return (
                                                                   <TooltipProvider key={key}>
                                                                       <Tooltip>
                                                                           <TooltipTrigger asChild>
-                                                                              <Dot cx={cx} cy={cy} r={5} fill={payload.marker.color} stroke="hsl(var(--background))" strokeWidth={2} onClick={() => handleEventClick(payload.journalId)} className="cursor-pointer" />
+                                                                              <Dot {...rest} cx={cx} cy={cy} r={5} fill={payload.marker.color} stroke="hsl(var(--background))" strokeWidth={2} onClick={() => handleEventClick(payload.journalId)} className="cursor-pointer" />
                                                                           </TooltipTrigger>
                                                                           <TooltipContent>
                                                                               <p>{payload.marker.type}</p>
@@ -695,7 +753,9 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                                                   </TooltipProvider>
                                                               )
                                                           }
-                                                          return null;
+                                                          const emptyKey = `dot-empty-${key}-${props.index}`;
+                                                          const {key: spreadKey, ...restProps} = props;
+                                                          return <Dot key={emptyKey} {...restProps} r={0} />;
                                                         }
                                                     } />
                                                 </LineChart>
@@ -798,6 +858,13 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                     </CardContent>
                                 </Card>
                             </div>
+                            <Separator className="my-6" />
+                             <Dialog>
+                                <DialogTrigger asChild>
+                                    <Button variant="outline"><Bot className="mr-2 h-4 w-4"/>Apply Discipline Guardrails (Prototype)</Button>
+                                </DialogTrigger>
+                                <GuardrailDialog />
+                            </Dialog>
                         </SectionCard>
                         <SectionCard id="psychology" title="Psychological Patterns" description="The emotions and biases that drive your decisions." icon={Brain}>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -857,7 +924,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                             <TableCell className="font-mono text-red-400">{driver.avgR.toFixed(2)}R</TableCell>
                                             <TableCell className="font-mono text-red-400">{driver.totalR.toFixed(2)}R</TableCell>
                                             <TableCell className="text-right">
-                                                <Button variant="ghost" size="sm" onClick={() => onSetModule('tradeJournal', { filters: { mistake: driver.behavior }})}>
+                                                <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onSetModule('tradeJournal', { filters: { mistake: driver.behavior }})}}>
                                                     <View className="mr-2 h-3 w-3" />
                                                     View trades
                                                 </Button>
