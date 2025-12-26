@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart as BarChartIcon, Brain, Calendar, Filter, AlertCircle, Info, TrendingUp, TrendingDown, Users, DollarSign, Target, Gauge, Zap, Award, ArrowRight, XCircle, CheckCircle, Circle, Bot, AlertTriangle } from "lucide-react";
@@ -269,12 +269,13 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                         <ChartTooltip cursor={{ strokeDasharray: '3 3' }} content={<ChartTooltipContent />} />
                                         <Line type="monotone" dataKey="equity" stroke="hsl(var(--color-equity))" strokeWidth={2} dot={
                                             (props: any) => {
+                                                const { key, ...rest } = props;
                                                 if (props.payload.marker) {
                                                     return (
-                                                        <TooltipProvider>
+                                                        <TooltipProvider key={key}>
                                                             <Tooltip>
                                                                 <TooltipTrigger asChild>
-                                                                    <Dot {...props} r={5} fill={props.payload.marker.color} stroke="hsl(var(--background))" strokeWidth={2} />
+                                                                    <Dot {...rest} r={5} fill={props.payload.marker.color} stroke="hsl(var(--background))" strokeWidth={2} />
                                                                 </TooltipTrigger>
                                                                 <TooltipContent>
                                                                     <p>{props.payload.marker.type}</p>
@@ -283,7 +284,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                                         </TooltipProvider>
                                                     )
                                                 }
-                                                return <Dot {...props} r={0} />;
+                                                return <Dot key={key} {...rest} r={0} />;
                                             }
                                         } />
                                     </LineChart>
