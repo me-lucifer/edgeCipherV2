@@ -786,207 +786,9 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
     const [isTourOpen, setIsTourOpen] = useState(false);
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'ascending' | 'descending' }>({ key: 'pnl', direction: 'descending' });
 
+    const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
 
-    const computeSinglePeriodAnalytics = (entries: JournalEntry[], random: () => number) => {
-      if (entries.length === 0) return null;
-      
-      const totalTrades = entries.length;
-      const completedEntries = entries.filter(e => e.status === 'completed');
-      const wins = completedEntries.filter(e => e.review && e.review.pnl > 0).length;
-      const losses = completedEntries.filter(e => e.review && e.review.pnl < 0).length;
-      const winRate = totalTrades > 0 ? (wins / totalTrades) * 100 : 0;
-      const lossRate = totalTrades > 0 ? (losses / totalTrades) * 100 : 0;
-      const totalPnL = completedEntries.reduce((acc, e) => acc + (e.review?.pnl || 0), 0);
-
-      const rValues = completedEntries.map(e => {
-          if (!e.review || !e.technical || !e.technical.riskPercent) return 0;
-          const riskAmount = (e.technical.riskPercent / 100) * 10000;
-          return riskAmount > 0 ? e.review.pnl / riskAmount : 0;
-      });
-      const winningR = rValues.filter(r => r > 0);
-      const losingR = rValues.filter(r => r < 0).map(Math.abs);
-      const avgWinR = winningR.length > 0 ? winningR.reduce((a, b) => a + b, 0) / winningR.length : 0;
-      const avgLossR = losingR.length > 0 ? losingR.reduce((a, b) => a + b, 0) / losingR.length : 0;
-      const avgRR = avgLossR > 0 ? avgWinR / avgLossR : 0;
-
-      const slMovedCount = completedEntries.filter(e => e.review?.mistakesTags?.includes("Moved SL")).length;
-      const slMovedPct = completedEntries.length > 0 ? (slMovedCount / completedEntries.length) * 100 : 0;
-      
-      const overtradedCount = completedEntries.filter(e => e.review?.mistakesTags?.includes("Overtraded")).length;
-      const overtradedPct = completedEntries.length > 0 ? (overtradedCount / completedEntries.length) * 100 : 0;
-      
-      const journalingCompletionRate = totalTrades > 0 ? (completedEntries.length / totalTrades) * 100 : 0;
-
-      // Scoring logic
-      let disciplineScore = 80;
-      if (slMovedPct > 10) disciplineScore -= 10;
-      if (overtradedPct > 5) disciplineScore -= 8;
-      if (journalingCompletionRate < 70) disciplineScore -= 6;
-      
-      const emotionTags = completedEntries.flatMap(e => (e.review?.emotionsTags || "").split(','));
-      const fomoCount = emotionTags.filter(t => t === 'FOMO').length;
-      const revengeCount = emotionTags.filter(t => t === 'Revenge').length;
-      const overconfidenceCount = emotionTags.filter(t => t === 'Overconfidence').length;
-      const fearCount = emotionTags.filter(t => t === 'Fear').length;
-      
-      let emotionalScore = 20; // Lower is better
-      if (fomoCount / completedEntries.length > 0.1) emotionalScore += 10;
-      if (revengeCount > 0) emotionalScore += 10;
-      if (overconfidenceCount / completedEntries.length > 0.05) emotionalScore += 8;
-
-      let consistencyScore = 60; // Mock
-
-      let quality = "Mixed";
-      if (disciplineScore > 80 && emotionalScore < 30) quality = "Disciplined";
-      else if (disciplineScore < 60 || emotionalScore > 40) quality = "Emotional";
-
-      const behaviorTags: Record<string, { occurrences: number; totalR: number; trades: JournalEntry[] }> = {};
-      completedEntries.forEach((entry, idx) => {
-        const tags = [...(entry.review?.emotionsTags?.split(',') || []), ...(entry.review?.mistakesTags?.split(',') || [])].filter(Boolean);
-        const rValue = rValues[idx] || 0;
-        
-        tags.forEach(tag => {
-            if (tag === 'None (disciplined)') return;
-            if (!behaviorTags[tag]) {
-                behaviorTags[tag] = { occurrences: 0, totalR: 0, trades: [] };
-            }
-            behaviorTags[tag].occurrences++;
-            behaviorTags[tag].totalR += rValue;
-            behaviorTags[tag].trades.push(entry);
-        });
-      });
-
-      const topLossDrivers = Object.entries(behaviorTags)
-        .filter(([, data]) => data.totalR < 0)
-        .map(([behavior, data]) => ({
-            behavior,
-            occurrences: data.occurrences,
-            avgR: data.totalR / data.occurrences,
-            totalR: data.totalR,
-            trades: data.trades,
-        }))
-        .sort((a, b) => a.totalR - b.totalR);
-
-      const mockEquityData = entries.reduce((acc: any[], entry, i) => {
-          const prevEquity = acc.length > 0 ? acc[acc.length - 1].equity : 10000;
-          let pnl = entry.review?.pnl || 0;
-
-          const isRevenge = (entry.review?.mistakesTags || "").includes("Revenge");
-          const isDisciplined = (entry.review?.mistakesTags || "").includes("None (disciplined)");
-          
-          if (isRevenge && pnl >= 0) {
-              pnl = -Math.abs(pnl) * 1.5; // Ensure revenge trades are mostly losses
-          } else if (isDisciplined && pnl < 0) {
-              pnl = Math.abs(pnl) * 0.5; // Disciplined losses are smaller
-          }
-
-
-          const equity = prevEquity + pnl;
-          const hasMarker = entry.review?.mistakesTags && entry.review.mistakesTags !== "None (disciplined)";
-          
-          acc.push({
-            date: entry.timestamps.executedAt,
-            equity,
-            marker: hasMarker ? { type: entry.review?.mistakesTags?.split(',')[0], color: "hsl(var(--chart-5))", pnl: entry.review?.pnl } : null,
-            journalId: entry.id,
-          });
-          return acc;
-        }, []);
-      
-      const topEvents = entries.filter(e => e.review?.mistakesTags && e.review.mistakesTags !== "None (disciplined)")
-        .map(e => ({
-            date: e.timestamps.executedAt,
-            label: e.review!.mistakesTags!.split(',')[0],
-            impact: e.review!.pnl,
-            instrument: e.technical.instrument,
-            journalId: e.id,
-        }))
-        .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-
-      const mockStrategyData = [
-        { name: "Breakout", trades: Math.floor(random() * 50) + 20, winRate: 40 + Math.floor(random() * 20), mistakeRate: 20 + Math.floor(random() * 10), avgR: 1.5 + random() * 0.5, pnl: 2000 + random() * 1000, topMistake: "Exited early", emotionMix: [{emotion: 'FOMO', percentage: 25}, {emotion: 'Confident', percentage: 40}] },
-        { name: "Mean Reversion", trades: Math.floor(random() * 50) + 20, winRate: 60 + Math.floor(random() * 15), mistakeRate: 10 + Math.floor(random() * 5), avgR: 0.8 + random() * 0.3, pnl: 1000 + random() * 500, topMistake: "Moved SL", emotionMix: [{emotion: 'Anxious', percentage: 30}, {emotion: 'Calm', percentage: 50}] },
-        { name: "Trend Following", trades: Math.floor(random() * 30) + 15, winRate: 35 + Math.floor(random() * 15), mistakeRate: 30 + Math.floor(random() * 15), avgR: 2.2 + random() * 0.8, pnl: 2500 + random() * 1500, topMistake: "Forced Entry", emotionMix: [{emotion: 'Confident', percentage: 45}, {emotion: 'Greed', percentage: 20}] },
-        { name: "Range Play", trades: Math.floor(random() * 20) + 10, winRate: 65 + Math.floor(random() * 10), mistakeRate: 40 + Math.floor(random() * 20), avgR: 0.6 + random() * 0.2, pnl: -200 - random() * 500, topMistake: "Oversized risk", emotionMix: [{emotion: 'Bored', percentage: 40}, {emotion: 'Hope', percentage: 30}] },
-      ];
-
-      const timingHeatmapData = {
-          sessions: [
-              { name: "Asia", totalPnl: 600 + random() * 400, blocks: [ { time: "00-04", pnl: 100 + random() * 200, trades: 5 + Math.floor(random() * 10), fomo: 1, revenge: 0, slMoved: 0, overtraded: 0 }, { time: "04-08", pnl: 400 + random() * 300, trades: 10 + Math.floor(random() * 10), fomo: 0, revenge: 0, slMoved: 1, overtraded: 0 } ] },
-              { name: "London", totalPnl: -1000 - random() * 500, blocks: [ { time: "08-12", pnl: -1000 - random() * 500, trades: 20 + Math.floor(random() * 10), fomo: 3, revenge: 2, slMoved: 4, overtraded: 1 } ] },
-              { name: "New York", totalPnl: 3000 + random() * 1000, blocks: [ { time: "12-16", pnl: 1800 + random() * 500, trades: 25 + Math.floor(random() * 10), fomo: 2, revenge: 1, slMoved: 2, overtraded: 2 }, { time: "16-20", pnl: 1200 + random() * 500, trades: 15 + Math.floor(random() * 10), fomo: 0, revenge: 0, slMoved: 0, overtraded: 0 } ] },
-          ],
-          timeBlocks: ["00-04", "04-08", "08-12", "12-16", "16-20", "20-24"],
-      };
-
-      const volatilityData = [
-          { vixZone: "Calm", trades: 40 + Math.floor(random() * 20), winRate: 55 + Math.floor(random() * 10), mistakesCount: 3 + Math.floor(random() * 5), avgPnL: 1200 + random() * 500 },
-          { vixZone: "Normal", trades: 70 + Math.floor(random() * 20), winRate: 50 + Math.floor(random() * 10), mistakesCount: 8 + Math.floor(random() * 8), avgPnL: 2000 + random() * 500 },
-          { vixZone: "Elevated", trades: 20 + Math.floor(random() * 10), winRate: 35 + Math.floor(random() * 10), mistakesCount: 8 + Math.floor(random() * 5), avgPnL: -600 - random() * 400 },
-          { vixZone: "Extreme", trades: 3 + Math.floor(random() * 5), winRate: 15 + Math.floor(random() * 10), mistakesCount: 2 + Math.floor(random() * 3), avgPnL: -1200 - random() * 500 },
-      ];
-      
-      const emotionResultMatrixData = {
-          emotions: ["FOMO", "Fear", "Anxious", "Revenge", "Calm", "Focused"],
-          results: ["Big Loss (≤-2R)", "Loss (-2R to 0)", "Win (0 to +2R)", "Big Win (≥+2R)"],
-          data: Array.from({ length: 6 }, () => Array.from({ length: 4 }, () => Math.floor(random() * 15))),
-          maxCount: 15,
-      };
-
-      const normalize = (val: number, max: number) => Math.min(100, Math.max(0, (val / max) * 100));
-
-      const radarChartData = [
-        { axis: "FOMO", value: normalize(fomoCount, 10), count: fomoCount, impact: "-1.2R" },
-        { axis: "Revenge", value: normalize(revengeCount, 5), count: revengeCount, impact: "-2.5R" },
-        { axis: "Fear", value: normalize(fearCount, 15), count: fearCount, impact: "-0.8R" },
-        { axis: "Overconfidence", value: normalize(overconfidenceCount, 8), count: overconfidenceCount, impact: "-0.5R" },
-        { axis: "Overtrading", value: normalize(overtradedCount, 10), count: overtradedCount, impact: "-1.1R" },
-        { axis: "SL Discipline", value: 100 - normalize(slMovedCount, 8), count: slMovedCount, impact: "-3.2R" },
-      ];
-      
-      const followedPlan = completedEntries.filter(e => e.review?.mistakesTags === "None (disciplined)").length;
-      const minorDeviations = completedEntries.filter(e => e.review?.mistakesTags?.includes("Exited early")).length;
-      const majorViolations = completedEntries.length - followedPlan - minorDeviations;
-      
-      const planAdherence = {
-        followedPlan,
-        minorDeviations,
-        majorViolations,
-        adherenceRate: totalTrades > 0 ? (followedPlan / totalTrades) * 100 : 0
-      };
-
-      const disciplineBreakdown = [
-        { violation: "Moved SL", frequency: slMovedCount, avgR: -1.8, trades: [] },
-        { violation: "Risk oversized", frequency: 5, avgR: -2.2, trades: [] },
-        { violation: "R:R below minimum", frequency: 12, avgR: -0.4, trades: [] },
-        { violation: "Traded in high VIX", frequency: 8, avgR: -1.1, trades: [] },
-        { violation: "Skipped journal", frequency: 2, avgR: 0, trades: [] },
-      ];
-
-      const disciplineByVolatility = [
-        { vixZone: "Calm", planAdherence: 90, slMovedPct: 5, revengeCount: 0, avgR: 0.8 },
-        { vixZone: "Normal", planAdherence: 85, slMovedPct: 10, revengeCount: 1, avgR: 0.6 },
-        { vixZone: "Elevated", planAdherence: 60, slMovedPct: 25, revengeCount: 3, avgR: -0.9 },
-        { vixZone: "Extreme", planAdherence: 40, slMovedPct: 40, revengeCount: 2, avgR: -1.8 },
-      ];
-
-      return {
-          totalTrades, wins, losses, winRate, lossRate, avgRR, totalPnL,
-          bestCondition: "Normal VIX / NY Session", quality,
-          discipline: { slRespectedPct: 100 - slMovedPct, slMovedPct, slRemovedPct: 3, tpExitedEarlyPct: 25, avgRiskPct: 1.1, riskOverLimitPct: 15 },
-          scores: { disciplineScore, emotionalScore, consistencyScore },
-          topLossDrivers,
-          mockEquityData, topEvents, mockStrategyData, timingHeatmapData, volatilityData,
-          emotionResultMatrixData,
-          radarChartData,
-          planAdherence,
-          disciplineBreakdown,
-          disciplineByVolatility,
-      };
-    }
-
-    const computeAnalytics = useCallback((entries: JournalEntry[], compareMode: boolean) => {
+    const computeAnalytics = useMemo(() => (entries: JournalEntry[], compareMode: boolean) => {
       let seed = 42; // default seed
       if (typeof window !== 'undefined') {
           const storedSeed = localStorage.getItem("ec_analytics_seed");
@@ -1018,13 +820,29 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
         if (storedEntries) {
             const parsed = JSON.parse(storedEntries);
             setJournalEntries(parsed);
-            setAnalyticsData(computeAnalytics(parsed, compareMode));
+            
+            let filteredEntries = parsed;
+            if (debouncedSearchQuery) {
+                 filteredEntries = parsed.filter((entry: JournalEntry) => 
+                    entry.technical.instrument.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+                    entry.review?.emotionalNotes?.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
+                );
+            }
+
+            setAnalyticsData(computeAnalytics(filteredEntries, compareMode));
             setHasData(parsed.length > 0);
         } else {
             setHasData(false);
             setAnalyticsData(null);
         }
-    }, [computeAnalytics, compareMode]);
+    }, [computeAnalytics, compareMode, debouncedSearchQuery]);
+
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            loadData();
+        }, 300);
+        return () => clearTimeout(handler);
+    }, [loadData, debouncedSearchQuery]);
 
     useEffect(() => {
         loadData();
@@ -1289,7 +1107,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
     }
 
     const { current: currentData, previous: previousData } = analyticsData;
-    const { totalTrades, wins, losses, winRate, lossRate, avgRR, totalPnL, quality, scores, discipline, topLossDrivers, mockEquityData, topEvents, mockStrategyData, timingHeatmapData, volatilityData, emotionResultMatrixData, radarChartData, planAdherence, disciplineBreakdown, disciplineByVolatility } = currentData;
+    const { wins, losses, totalTrades, winRate, lossRate, avgRR, totalPnL, quality, scores, discipline, topLossDrivers, mockEquityData, topEvents, mockStrategyData, timingHeatmapData, volatilityData, emotionResultMatrixData, radarChartData, planAdherence, disciplineBreakdown, disciplineByVolatility, bestCondition } = currentData;
     
     const equityChartData = mockEquityData.map((d: any, i: number) => ({
       ...d,
@@ -1481,7 +1299,7 @@ ${JSON.stringify(data, null, 2)}
                             <MetricCard title="Total PnL" value={`$${totalPnL.toFixed(2)}`} hint={`${totalTrades} trades`} delta={getDelta(totalPnL, previousData?.totalPnL)} deltaUnit="$" />
                             <MetricCard title="Win Rate" value={`${winRate.toFixed(0)}%`} hint={`${wins}W / ${losses}L`} delta={getDelta(winRate, previousData?.winRate)} deltaUnit="%" />
                             <MetricCard title="Avg. R:R" value={`${avgRR.toFixed(2)}`} hint="Avg win / Avg loss" delta={getDelta(avgRR, previousData?.avgRR)} />
-                            <MetricCard title="Best Condition" value={currentData.bestCondition} hint="VIX Zone / Session" />
+                            <MetricCard title="Best Condition" value={bestCondition} hint="VIX Zone / Session" />
                         </div>
                     </SectionCard>
                     
@@ -1734,3 +1552,202 @@ ${JSON.stringify(data, null, 2)}
         </div>
     );
 }
+
+const computeSinglePeriodAnalytics = (entries: JournalEntry[], random: () => number) => {
+    if (entries.length === 0) return null;
+    
+    const totalTrades = entries.length;
+    const completedEntries = entries.filter(e => e.status === 'completed');
+    const wins = completedEntries.filter(e => e.review && e.review.pnl > 0).length;
+    const losses = completedEntries.filter(e => e.review && e.review.pnl < 0).length;
+    const winRate = totalTrades > 0 ? (wins / totalTrades) * 100 : 0;
+    const lossRate = totalTrades > 0 ? (losses / totalTrades) * 100 : 0;
+    const totalPnL = completedEntries.reduce((acc, e) => acc + (e.review?.pnl || 0), 0);
+
+    const rValues = completedEntries.map(e => {
+        if (!e.review || !e.technical || !e.technical.riskPercent) return 0;
+        const riskAmount = (e.technical.riskPercent / 100) * 10000;
+        return riskAmount > 0 ? e.review.pnl / riskAmount : 0;
+    });
+    const winningR = rValues.filter(r => r > 0);
+    const losingR = rValues.filter(r => r < 0).map(Math.abs);
+    const avgWinR = winningR.length > 0 ? winningR.reduce((a, b) => a + b, 0) / winningR.length : 0;
+    const avgLossR = losingR.length > 0 ? losingR.reduce((a, b) => a + b, 0) / losingR.length : 0;
+    const avgRR = avgLossR > 0 ? avgWinR / avgLossR : 0;
+
+    const slMovedCount = completedEntries.filter(e => e.review?.mistakesTags?.includes("Moved SL")).length;
+    const slMovedPct = completedEntries.length > 0 ? (slMovedCount / completedEntries.length) * 100 : 0;
+    
+    const overtradedCount = completedEntries.filter(e => e.review?.mistakesTags?.includes("Overtraded")).length;
+    const overtradedPct = completedEntries.length > 0 ? (overtradedCount / completedEntries.length) * 100 : 0;
+    
+    const journalingCompletionRate = totalTrades > 0 ? (completedEntries.length / totalTrades) * 100 : 0;
+
+    // Scoring logic
+    let disciplineScore = 80;
+    if (slMovedPct > 10) disciplineScore -= 10;
+    if (overtradedPct > 5) disciplineScore -= 8;
+    if (journalingCompletionRate < 70) disciplineScore -= 6;
+    
+    const emotionTags = completedEntries.flatMap(e => (e.review?.emotionsTags || "").split(','));
+    const fomoCount = emotionTags.filter(t => t === 'FOMO').length;
+    const revengeCount = emotionTags.filter(t => t === 'Revenge').length;
+    const overconfidenceCount = emotionTags.filter(t => t === 'Overconfidence').length;
+    const fearCount = emotionTags.filter(t => t === 'Fear').length;
+    
+    let emotionalScore = 20; // Lower is better
+    if (fomoCount / completedEntries.length > 0.1) emotionalScore += 10;
+    if (revengeCount > 0) emotionalScore += 10;
+    if (overconfidenceCount / completedEntries.length > 0.05) emotionalScore += 8;
+
+    let consistencyScore = 60; // Mock
+
+    let quality = "Mixed";
+    if (disciplineScore > 80 && emotionalScore < 30) quality = "Disciplined";
+    else if (disciplineScore < 60 || emotionalScore > 40) quality = "Emotional";
+
+    const behaviorTags: Record<string, { occurrences: number; totalR: number; trades: JournalEntry[] }> = {};
+    completedEntries.forEach((entry, idx) => {
+      const tags = [...(entry.review?.emotionsTags?.split(',') || []), ...(entry.review?.mistakesTags?.split(',') || [])].filter(Boolean);
+      const rValue = rValues[idx] || 0;
+      
+      tags.forEach(tag => {
+          if (tag === 'None (disciplined)') return;
+          if (!behaviorTags[tag]) {
+              behaviorTags[tag] = { occurrences: 0, totalR: 0, trades: [] };
+          }
+          behaviorTags[tag].occurrences++;
+          behaviorTags[tag].totalR += rValue;
+          behaviorTags[tag].trades.push(entry);
+      });
+    });
+
+    const topLossDrivers = Object.entries(behaviorTags)
+      .filter(([, data]) => data.totalR < 0)
+      .map(([behavior, data]) => ({
+          behavior,
+          occurrences: data.occurrences,
+          avgR: data.totalR / data.occurrences,
+          totalR: data.totalR,
+          trades: data.trades,
+      }))
+      .sort((a, b) => a.totalR - b.totalR);
+
+    const mockEquityData = entries.reduce((acc: any[], entry, i) => {
+        const prevEquity = acc.length > 0 ? acc[acc.length - 1].equity : 10000;
+        let pnl = entry.review?.pnl || 0;
+
+        const isRevenge = (entry.review?.mistakesTags || "").includes("Revenge");
+        const isDisciplined = (entry.review?.mistakesTags || "").includes("None (disciplined)");
+        
+        if (isRevenge && pnl >= 0) {
+            pnl = -Math.abs(pnl) * 1.5; // Ensure revenge trades are mostly losses
+        } else if (isDisciplined && pnl < 0) {
+            pnl = Math.abs(pnl) * 0.5; // Disciplined losses are smaller
+        }
+
+
+        const equity = prevEquity + pnl;
+        const hasMarker = entry.review?.mistakesTags && entry.review.mistakesTags !== "None (disciplined)";
+        
+        acc.push({
+          date: entry.timestamps.executedAt,
+          equity,
+          marker: hasMarker ? { type: entry.review?.mistakesTags?.split(',')[0], color: "hsl(var(--chart-5))", pnl: entry.review?.pnl } : null,
+          journalId: entry.id,
+        });
+        return acc;
+      }, []);
+    
+    const topEvents = entries.filter(e => e.review?.mistakesTags && e.review.mistakesTags !== "None (disciplined)")
+      .map(e => ({
+          date: e.timestamps.executedAt,
+          label: e.review!.mistakesTags!.split(',')[0],
+          impact: e.review!.pnl,
+          instrument: e.technical.instrument,
+          journalId: e.id,
+      }))
+      .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+
+    const mockStrategyData = [
+      { name: "Breakout", trades: Math.floor(random() * 50) + 20, winRate: 40 + Math.floor(random() * 20), mistakeRate: 20 + Math.floor(random() * 10), avgR: 1.5 + random() * 0.5, pnl: 2000 + random() * 1000, topMistake: "Exited early", emotionMix: [{emotion: 'FOMO', percentage: 25}, {emotion: 'Confident', percentage: 40}] },
+      { name: "Mean Reversion", trades: Math.floor(random() * 50) + 20, winRate: 60 + Math.floor(random() * 15), mistakeRate: 10 + Math.floor(random() * 5), avgR: 0.8 + random() * 0.3, pnl: 1000 + random() * 500, topMistake: "Moved SL", emotionMix: [{emotion: 'Anxious', percentage: 30}, {emotion: 'Calm', percentage: 50}] },
+      { name: "Trend Following", trades: Math.floor(random() * 30) + 15, winRate: 35 + Math.floor(random() * 15), mistakeRate: 30 + Math.floor(random() * 15), avgR: 2.2 + random() * 0.8, pnl: 2500 + random() * 1500, topMistake: "Forced Entry", emotionMix: [{emotion: 'Confident', percentage: 45}, {emotion: 'Greed', percentage: 20}] },
+      { name: "Range Play", trades: Math.floor(random() * 20) + 10, winRate: 65 + Math.floor(random() * 10), mistakeRate: 40 + Math.floor(random() * 20), avgR: 0.6 + random() * 0.2, pnl: -200 - random() * 500, topMistake: "Oversized risk", emotionMix: [{emotion: 'Bored', percentage: 40}, {emotion: 'Hope', percentage: 30}] },
+    ];
+
+    const timingHeatmapData = {
+        sessions: [
+            { name: "Asia", totalPnl: 600 + random() * 400, blocks: [ { time: "00-04", pnl: 100 + random() * 200, trades: 5 + Math.floor(random() * 10), fomo: 1, revenge: 0, slMoved: 0, overtraded: 0 }, { time: "04-08", pnl: 400 + random() * 300, trades: 10 + Math.floor(random() * 10), fomo: 0, revenge: 0, slMoved: 1, overtraded: 0 } ] },
+            { name: "London", totalPnl: -1000 - random() * 500, blocks: [ { time: "08-12", pnl: -1000 - random() * 500, trades: 20 + Math.floor(random() * 10), fomo: 3, revenge: 2, slMoved: 4, overtraded: 1 } ] },
+            { name: "New York", totalPnl: 3000 + random() * 1000, blocks: [ { time: "12-16", pnl: 1800 + random() * 500, trades: 25 + Math.floor(random() * 10), fomo: 2, revenge: 1, slMoved: 2, overtraded: 2 }, { time: "16-20", pnl: 1200 + random() * 500, trades: 15 + Math.floor(random() * 10), fomo: 0, revenge: 0, slMoved: 0, overtraded: 0 } ] },
+        ],
+        timeBlocks: ["00-04", "04-08", "08-12", "12-16", "16-20", "20-24"],
+    };
+
+    const volatilityData = [
+        { vixZone: "Calm", trades: 40 + Math.floor(random() * 20), winRate: 55 + Math.floor(random() * 10), mistakesCount: 3 + Math.floor(random() * 5), avgPnL: 1200 + random() * 500 },
+        { vixZone: "Normal", trades: 70 + Math.floor(random() * 20), winRate: 50 + Math.floor(random() * 10), mistakesCount: 8 + Math.floor(random() * 8), avgPnL: 2000 + random() * 500 },
+        { vixZone: "Elevated", trades: 20 + Math.floor(random() * 10), winRate: 35 + Math.floor(random() * 10), mistakesCount: 8 + Math.floor(random() * 5), avgPnL: -600 - random() * 400 },
+        { vixZone: "Extreme", trades: 3 + Math.floor(random() * 5), winRate: 15 + Math.floor(random() * 10), mistakesCount: 2 + Math.floor(random() * 3), avgPnL: -1200 - random() * 500 },
+    ];
+    
+    const emotionResultMatrixData = {
+        emotions: ["FOMO", "Fear", "Anxious", "Revenge", "Calm", "Focused"],
+        results: ["Big Loss (≤-2R)", "Loss (-2R to 0)", "Win (0 to +2R)", "Big Win (≥+2R)"],
+        data: Array.from({ length: 6 }, () => Array.from({ length: 4 }, () => Math.floor(random() * 15))),
+        maxCount: 15,
+    };
+
+    const normalize = (val: number, max: number) => Math.min(100, Math.max(0, (val / max) * 100));
+
+    const radarChartData = [
+      { axis: "FOMO", value: normalize(fomoCount, 10), count: fomoCount, impact: "-1.2R" },
+      { axis: "Revenge", value: normalize(revengeCount, 5), count: revengeCount, impact: "-2.5R" },
+      { axis: "Fear", value: normalize(fearCount, 15), count: fearCount, impact: "-0.8R" },
+      { axis: "Overconfidence", value: normalize(overconfidenceCount, 8), count: overconfidenceCount, impact: "-0.5R" },
+      { axis: "Overtrading", value: normalize(overtradedCount, 10), count: overtradedCount, impact: "-1.1R" },
+      { axis: "SL Discipline", value: 100 - normalize(slMovedCount, 8), count: slMovedCount, impact: "-3.2R" },
+    ];
+    
+    const followedPlan = completedEntries.filter(e => e.review?.mistakesTags === "None (disciplined)").length;
+    const minorDeviations = completedEntries.filter(e => e.review?.mistakesTags?.includes("Exited early")).length;
+    const majorViolations = completedEntries.length - followedPlan - minorDeviations;
+    
+    const planAdherence = {
+      followedPlan,
+      minorDeviations,
+      majorViolations,
+      adherenceRate: totalTrades > 0 ? (followedPlan / totalTrades) * 100 : 0
+    };
+
+    const disciplineBreakdown = [
+      { violation: "Moved SL", frequency: slMovedCount, avgR: -1.8, trades: [] },
+      { violation: "Risk oversized", frequency: 5, avgR: -2.2, trades: [] },
+      { violation: "R:R below minimum", frequency: 12, avgR: -0.4, trades: [] },
+      { violation: "Traded in high VIX", frequency: 8, avgR: -1.1, trades: [] },
+      { violation: "Skipped journal", frequency: 2, avgR: 0, trades: [] },
+    ];
+
+    const disciplineByVolatility = [
+      { vixZone: "Calm", planAdherence: 90, slMovedPct: 5, revengeCount: 0, avgR: 0.8 },
+      { vixZone: "Normal", planAdherence: 85, slMovedPct: 10, revengeCount: 1, avgR: 0.6 },
+      { vixZone: "Elevated", planAdherence: 60, slMovedPct: 25, revengeCount: 3, avgR: -0.9 },
+      { vixZone: "Extreme", planAdherence: 40, slMovedPct: 40, revengeCount: 2, avgR: -1.8 },
+    ];
+
+    return {
+        totalTrades, wins, losses, winRate, lossRate, avgRR, totalPnL,
+        bestCondition: "Normal VIX / NY Session", quality,
+        discipline: { slRespectedPct: 100 - slMovedPct, slMovedPct, slRemovedPct: 3, tpExitedEarlyPct: 25, avgRiskPct: 1.1, riskOverLimitPct: 15 },
+        scores: { disciplineScore, emotionalScore, consistencyScore },
+        topLossDrivers,
+        mockEquityData, topEvents, mockStrategyData, timingHeatmapData, volatilityData,
+        emotionResultMatrixData,
+        radarChartData,
+        planAdherence,
+        disciplineBreakdown,
+        disciplineByVolatility,
+    };
+  }
