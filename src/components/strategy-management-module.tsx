@@ -433,7 +433,7 @@ const strategyCreationSchema = z.object({
     description: z.string().optional(),
     difficulty: z.string().optional(),
     entryConditions: z.array(z.string()).min(1, "At least one entry rule is required."),
-    exitConditions: z.array(z.string()).min(1, "At least one exit rule is required."),
+    exitConditions: z.array(z.string()),
     riskManagementRules: z.array(z.string()),
     contextRules: z.array(z.string()),
 });
@@ -1152,3 +1152,4 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
         </div>
     );
 }
+
