@@ -1232,7 +1232,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
     }
 
     const { current: currentData, previous: previousData } = analyticsData;
-    const { totalTrades, winRate, lossRate, avgRR, totalPnL, quality, scores, discipline, topLossDrivers, mockEquityData, topEvents, mockStrategyData, timingHeatmapData, volatilityData, emotionResultMatrixData, radarChartData, planAdherence, disciplineBreakdown, disciplineByVolatility, bestCondition } = currentData;
+    const { totalTrades, wins, losses, winRate, lossRate, avgRR, totalPnL, quality, scores, discipline, topLossDrivers, mockEquityData, topEvents, mockStrategyData, timingHeatmapData, volatilityData, emotionResultMatrixData, radarChartData, planAdherence, disciplineBreakdown, disciplineByVolatility, bestCondition } = currentData;
     
     const equityChartData = mockEquityData.map((d: any, i: number) => ({
       ...d,
