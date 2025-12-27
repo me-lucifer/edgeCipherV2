@@ -4,6 +4,8 @@
 import { Button } from "@/components/ui/button";
 import { BrainCircuit, PlusCircle, CheckCircle } from "lucide-react";
 import { useState, useEffect } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface StrategyManagementModuleProps {
     onSetModule: (module: any, context?: any) => void;
@@ -96,6 +98,9 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
             }
         }
     }, []);
+    
+    const activeStrategies = strategies.filter(s => s.status === 'active');
+    const archivedStrategies = strategies.filter(s => s.status === 'archived');
 
     return (
         <div className="space-y-8">
@@ -103,11 +108,10 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
                 <h1 className="text-2xl font-bold tracking-tight text-foreground">Strategy Management</h1>
                 <p className="text-muted-foreground">Your rulebook. Every trade must belong to a strategy.</p>
             </div>
-            
-            <div className="flex flex-col items-center justify-center text-center p-8 border-2 border-dashed rounded-lg min-h-[60vh]">
-                <BrainCircuit className="h-16 w-16 text-muted-foreground/50 mb-4" />
-                <h2 className="text-2xl font-bold">Define Your Playbook</h2>
-                <div className="text-muted-foreground mt-4 max-w-xl mx-auto space-y-4 text-left">
+
+            <div className="flex flex-col items-start justify-center text-center p-6 border-2 border-dashed rounded-lg min-h-[20vh] bg-muted/30">
+                <h2 className="text-xl font-bold text-left">Define Your Playbook</h2>
+                <div className="text-muted-foreground mt-2 max-w-xl text-left space-y-2">
                     <div className="flex items-start gap-3">
                         <CheckCircle className="h-5 w-5 text-primary mt-1 flex-shrink-0" />
                         <p>Create strategies as templates with strict, repeatable rules for entries, exits, and risk.</p>
@@ -121,11 +125,48 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
                         <p>Edits create new versions of a strategy, preserving historical analytics to track what works over time.</p>
                     </div>
                 </div>
-                <Button className="mt-8" disabled>
+                <Button className="mt-6" disabled>
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Define New Strategy (Prototype)
                 </Button>
             </div>
+            
+             <Tabs defaultValue="active" className="w-full">
+                <TabsList className="grid w-full grid-cols-2 max-w-md">
+                    <TabsTrigger value="active">Active Strategies</TabsTrigger>
+                    <TabsTrigger value="archived">Archived</TabsTrigger>
+                </TabsList>
+                <TabsContent value="active" className="mt-6">
+                    {activeStrategies.length > 0 ? (
+                        <div className="space-y-4">
+                            {activeStrategies.map(strategy => (
+                                <Card key={strategy.strategyId} className="bg-muted/30">
+                                    <CardHeader>
+                                        <CardTitle>{strategy.name}</CardTitle>
+                                    </CardHeader>
+                                </Card>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="text-muted-foreground">No active strategies.</p>
+                    )}
+                </TabsContent>
+                <TabsContent value="archived" className="mt-6">
+                    {archivedStrategies.length > 0 ? (
+                         <div className="space-y-4">
+                            {archivedStrategies.map(strategy => (
+                                <Card key={strategy.strategyId} className="bg-muted/30 opacity-60">
+                                     <CardHeader>
+                                        <CardTitle>{strategy.name}</CardTitle>
+                                    </CardHeader>
+                                </Card>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="text-muted-foreground">No archived strategies.</p>
+                    )}
+                </TabsContent>
+            </Tabs>
         </div>
     );
 }
