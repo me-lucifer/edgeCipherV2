@@ -200,7 +200,7 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
         <div className="space-y-8">
             <div>
                 <h1 className="text-2xl font-bold tracking-tight text-foreground">Strategy Management</h1>
-                <p className="text-muted-foreground">Your playbook for disciplined trading. Define, review, and refine your edge.</p>
+                <p className="text-muted-foreground">Your rulebook. Every trade must belong to a strategy.</p>
             </div>
             
             <div className="grid lg:grid-cols-3 gap-8 items-start">
