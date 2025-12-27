@@ -25,6 +25,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Progress } from "./ui/progress";
 import { Checkbox } from "./ui/checkbox";
 import { Dialog, DialogClose, DialogContent as DialogContentNonAlertDialog, DialogFooter as DialogFooterNonAlertDialog, DialogHeader as DialogHeaderNonAlertDialog, DialogTitle as DialogTitleNonAlertDialog } from "./ui/dialog";
+import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 
 
 interface StrategyManagementModuleProps {
@@ -518,7 +519,7 @@ const InfoTooltip = ({ text, children }: { text: React.ReactNode, children: Reac
     );
 };
 
-const RuleEditor = ({ value, onChange, placeholder, description, tooltipText }: { value: string[]; onChange: (value: string[]) => void; placeholder: string; description?: string; tooltipText?: string; }) => {
+const RuleEditor = ({ value, onChange, placeholder, description }: { value: string[]; onChange: (value: string[]) => void; placeholder: string; description?: string; }) => {
     const [text, setText] = useState('');
     const clarity = getClarity(text);
 
@@ -708,6 +709,17 @@ function StrategyCreatorView({
     const { toast } = useToast();
     const [showCancelDialog, setShowCancelDialog] = useState(false);
     const [wizardStarted, setWizardStarted] = useState(!!initialData);
+    const [persona, setPersona] = useState<{ primaryPersonaName?: string } | null>(null);
+    const [showPersonaAlert, setShowPersonaAlert] = useState(false);
+
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            const personaData = localStorage.getItem("ec_persona_final") || localStorage.getItem("ec_persona_base");
+            if (personaData) {
+                setPersona(JSON.parse(personaData));
+            }
+        }
+    }, []);
 
     const creationSteps = [
         { name: "Basic Info", fields: ["name", "type", "timeframes"] },
@@ -740,6 +752,18 @@ function StrategyCreatorView({
         },
     });
 
+    useEffect(() => {
+        const handlePopulate = (e: Event) => {
+            const detail = (e as CustomEvent).detail;
+            if(detail) {
+                form.reset(detail);
+                setWizardStarted(true);
+            }
+        };
+        window.addEventListener('populate-creator-form', handlePopulate);
+        return () => window.removeEventListener('populate-creator-form', handlePopulate);
+    }, [form]);
+
     const handleNext = async () => {
         const fieldsToValidate = creationSteps[currentStep].fields;
         const isValid = fieldsToValidate ? await form.trigger(fieldsToValidate as any) : true;
@@ -756,6 +780,7 @@ function StrategyCreatorView({
             setCurrentStep(currentStep - 1);
         } else if (wizardStarted) {
             setWizardStarted(false);
+            setShowPersonaAlert(false); // Reset alert when going back to template selection
         } else {
             if (form.formState.isDirty) {
                 setShowCancelDialog(true);
@@ -768,8 +793,22 @@ function StrategyCreatorView({
     const handleTemplateSelect = (templateId: string) => {
         const template = strategyTemplates.find(t => t.id === templateId);
         if(template) {
+            let modifiedTemplate = { ...template };
+
+            if(persona?.primaryPersonaName?.includes("Impulsive")) {
+                if (!modifiedTemplate.riskManagementRules.some(r => r.toLowerCase().includes('max daily trades'))) {
+                    modifiedTemplate.riskManagementRules.push("Max daily trades: 3");
+                    setShowPersonaAlert(true);
+                }
+            } else if (persona?.primaryPersonaName?.includes("Fearful")) {
+                 if (!modifiedTemplate.takeProfitRules.some(r => r.toLowerCase().includes('let winners run'))) {
+                    modifiedTemplate.takeProfitRules.push("Let winners run to target, do not exit early");
+                    setShowPersonaAlert(true);
+                 }
+            }
+            
             form.reset({
-                ...template,
+                ...modifiedTemplate,
                 changeNotes: 'Created from template.',
             });
             setWizardStarted(true);
@@ -824,6 +863,22 @@ function StrategyCreatorView({
                 <div className="lg:col-span-2 space-y-6">
                     {wizardStarted ? (
                         <>
+                            {showPersonaAlert && (
+                                <Alert variant="default" className="bg-primary/10 border-primary/20 text-primary">
+                                    <Zap className="h-4 w-4 text-primary" />
+                                    <div className="flex items-start justify-between">
+                                        <div>
+                                            <AlertTitle>Persona-based Rule Added</AlertTitle>
+                                            <AlertDescription className="text-primary/80">
+                                                Arjun added a suggested rule based on your <strong className="font-semibold">{persona?.primaryPersonaName}</strong> persona. You can edit or remove it.
+                                            </AlertDescription>
+                                        </div>
+                                        <Button variant="ghost" size="icon" className="h-6 w-6 -mr-2 -mt-1" onClick={() => setShowPersonaAlert(false)}>
+                                            <X className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                </Alert>
+                            )}
                             <div className="p-4 bg-muted/30 rounded-lg">
                                 <Stepper currentStep={currentStep} steps={creationSteps} />
                             </div>
@@ -884,7 +939,7 @@ function StrategyCreatorView({
                                                     </p>
                                                 </div>
                                             )}
-                                            {currentStep === 3 && <RuleFormItem name="takeProfitRules" label="Take Profit Rules (Optional)" tooltipText="Where will you take profit? Defining this helps prevent exiting too early or getting too greedy." description="It's highly recommended to define at least one exit condition for taking profit." placeholder="e.g., Target next major liquidity level or 2R" />}
+                                            {currentStep === 3 && <RuleFormItem name="takeProfitRules" label="Take Profit Rules" tooltipText="Where will you take profit? Defining this helps prevent exiting too early or getting too greedy." description="It's highly recommended to define at least one exit condition for taking profit." placeholder="e.g., Target next major liquidity level or 2R" />}
                                             {currentStep === 4 && <RuleFormItem name="riskManagementRules" label="Risk Management Rules" tooltipText="These are your hard capital-protection rules. They apply to all trades under this strategy." description="Define your hard constraints for every trade." placeholder="e.g., Max risk 1% of account..." />}
                                             {currentStep === 5 && <RuleFormItem name="contextRules" label="Context Rules (when to trade/not trade)" tooltipText="Define the market environment where this strategy works best, and when to avoid it." placeholder="e.g., Only trade during NY session..." />}
                                             {currentStep === 6 && (
