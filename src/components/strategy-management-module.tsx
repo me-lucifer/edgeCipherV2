@@ -679,7 +679,7 @@ function StrategyCreatorView({ onBack, onSave }: { onBack: () => void; onSave: (
         { name: "Stop Loss Rules", fields: ["stopLossRules"] },
         { name: "Take Profit Rules" },
         { name: "Risk Rules", fields: ["riskManagementRules"] },
-        { name: "Context Rules", fields: ["contextRules"] },
+        { name: "Context Rules" },
         { name: "Review & Save" },
     ];
     
@@ -830,7 +830,7 @@ function StrategyCreatorView({ onBack, onSave }: { onBack: () => void; onSave: (
                                                                         })}
                                                                     </div>
                                                                 </FormControl>
-                                                                <FormDescription>Timeframe focus helps Arjun detect where you tend to break discipline.</FormDescription>
+                                                                <FormDescription className="text-xs italic">Timeframe focus helps Arjun detect where you tend to break discipline.</FormDescription>
                                                                 <FormMessage />
                                                             </FormItem>
                                                         )}
