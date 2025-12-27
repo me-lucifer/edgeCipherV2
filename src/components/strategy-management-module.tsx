@@ -24,6 +24,7 @@ import { Textarea } from "./ui/textarea";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "./ui/form";
 import { Progress } from "./ui/progress";
 import { Checkbox } from "./ui/checkbox";
+import { Dialog, DialogClose, DialogContent as DialogContentNonAlertDialog, DialogFooter as DialogFooterNonAlertDialog, DialogHeader as DialogHeaderNonAlertDialog, DialogTitle as DialogTitleNonAlertDialog } from "./ui/dialog";
 
 
 interface StrategyManagementModuleProps {
@@ -167,7 +168,7 @@ const RuleItem = ({ icon: Icon, label, value }: { icon: React.ElementType, label
     );
 };
 
-function StrategyCard({ strategy, onOpen, onEdit }: { strategy: StrategyGroup, onOpen: (strategy: StrategyGroup) => void, onEdit: (strategy: StrategyGroup) => void }) {
+function StrategyCard({ strategy, onOpen, onEdit, onDuplicate }: { strategy: StrategyGroup, onOpen: (strategy: StrategyGroup) => void, onEdit: (strategy: StrategyGroup) => void, onDuplicate: (strategy: StrategyGroup) => void }) {
     const activeVersion = strategy.versions.find(v => v.isActiveVersion);
     const totalUsage = strategy.versions.reduce((sum, v) => sum + v.usageCount, 0);
 
@@ -242,7 +243,10 @@ function StrategyCard({ strategy, onOpen, onEdit }: { strategy: StrategyGroup, o
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                            <DropdownMenuItem disabled>Duplicate</DropdownMenuItem>
+                             <DropdownMenuItem onClick={() => onDuplicate(strategy)}>
+                                <Copy className="mr-2 h-4 w-4" />
+                                Duplicate
+                            </DropdownMenuItem>
                             <DropdownMenuItem>
                                 {strategy.status === 'active' ? "Archive" : "Unarchive"}
                             </DropdownMenuItem>
@@ -941,6 +945,9 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
     const [editingStrategy, setEditingStrategy] = useState<StrategyGroup | null>(null);
     const [viewMode, setViewMode] = useState<'list' | 'create' | 'edit'>('list');
     const { toast } = useToast();
+    const [isDuplicateDialogOpen, setIsDuplicateDialogOpen] = useState(false);
+    const [strategyToDuplicate, setStrategyToDuplicate] = useState<StrategyGroup | null>(null);
+    const [newStrategyName, setNewStrategyName] = useState('');
 
     const [filters, setFilters] = useState<StrategyFilters>({
         search: '',
@@ -1151,6 +1158,54 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
         toast({ title: "Strategy deleted" });
     };
 
+    const openDuplicateDialog = (strategy: StrategyGroup) => {
+        setStrategyToDuplicate(strategy);
+        setNewStrategyName(`${strategy.name} (Copy)`);
+        setIsDuplicateDialogOpen(true);
+    };
+
+    const confirmDuplicate = () => {
+        if (!strategyToDuplicate) return;
+
+        const activeVersion = strategyToDuplicate.versions.find(v => v.isActiveVersion);
+        if (!activeVersion) {
+            toast({ variant: 'destructive', title: "Cannot duplicate", description: "Source strategy has no active version." });
+            return;
+        }
+        
+        const newStrategyData: StrategyCreationValues = {
+            name: newStrategyName,
+            type: strategyToDuplicate.type,
+            timeframes: strategyToDuplicate.timeframes,
+            description: activeVersion.fields.description,
+            difficulty: activeVersion.fields.difficulty,
+            changeNotes: `Copied from ${strategyToDuplicate.name} v${activeVersion.versionNumber}`,
+            entryConditions: [...activeVersion.fields.entryConditions],
+            stopLossRules: [...activeVersion.fields.stopLossRules],
+            takeProfitRules: [...activeVersion.fields.takeProfitRules],
+            riskManagementRules: [...activeVersion.fields.riskManagementRules],
+            contextRules: [...activeVersion.fields.contextRules],
+        };
+
+        setEditingStrategy({ 
+            ...strategyToDuplicate, 
+            name: newStrategyName, 
+            strategyId: `strat_new_${Date.now()}` // temporary
+        });
+        setViewMode('create'); // Use 'create' view but pre-filled
+        
+        // A bit of a hack: wait for view to change, then populate form
+        setTimeout(() => {
+            // This is a stand-in for passing initialData to the creator view
+            // In a real app, this state would be managed more elegantly
+            const event = new CustomEvent('populate-creator-form', { detail: newStrategyData });
+            window.dispatchEvent(event);
+        }, 0);
+        
+        setIsDuplicateDialogOpen(false);
+        setStrategyToDuplicate(null);
+    };
+
     const filteredStrategies = useMemo(() => {
         if (!strategies) return [];
         return strategies.filter(s => {
@@ -1185,19 +1240,42 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
     
     const strategyTypes = ['All', 'Breakout', 'Pullback', 'Reversal', 'Scalping', 'SMC', 'Custom'];
     const timeframes = ['All', '1m', '5m', '15m', '1H', '4H', '1D'];
+    
+    useEffect(() => {
+        const handler = (e: Event) => {
+            const detail = (e as CustomEvent).detail;
+            if (detail && viewMode === 'create' && editingStrategy) {
+                // This is a hacky way to prefill the form when duplicating
+                const formInstance = document.querySelector('form'); // This is not robust
+                if (formInstance) {
+                    // Logic to set form values would go here.
+                    // This is complex to do without direct access to the form instance.
+                    // For now, we rely on the component re-rendering with initialData.
+                }
+            }
+        };
+
+        window.addEventListener('populate-creator-form', handler);
+        return () => window.removeEventListener('populate-creator-form', handler);
+    }, [viewMode, editingStrategy]);
+
 
     if (viewMode === 'create' || viewMode === 'edit') {
-        const initialData = viewMode === 'edit' && editingStrategy 
+        const initialData = (viewMode === 'edit' && editingStrategy) 
             ? { ...editingStrategy.versions.find(v => v.isActiveVersion)?.fields, name: editingStrategy.name, type: editingStrategy.type, timeframes: editingStrategy.timeframes, changeNotes: '' } as StrategyCreationValues
+            : (viewMode === 'create' && editingStrategy) // Case for duplication
+            ? { ...editingStrategy.versions.find(v => v.isActiveVersion)?.fields, name: newStrategyName, type: editingStrategy.type, timeframes: editingStrategy.timeframes, changeNotes: `Copied from ${editingStrategy.name}` } as StrategyCreationValues
             : null;
+
         return <StrategyCreatorView 
             onBack={() => { setViewMode('list'); setEditingStrategy(null); }} 
             onSave={(data) => handleSaveStrategy(data, 'active', editingStrategy?.strategyId)}
             onSaveDraft={(data) => handleSaveStrategy(data, 'draft', editingStrategy?.strategyId)}
             initialData={initialData}
-            editingId={editingStrategy?.strategyId}
+            editingId={viewMode === 'edit' ? editingStrategy?.strategyId : undefined}
         />;
     }
+
 
     if (viewingStrategy) {
         return <StrategyDetailView 
@@ -1213,6 +1291,28 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
 
     return (
         <div className="space-y-8">
+            <Dialog open={isDuplicateDialogOpen} onOpenChange={setIsDuplicateDialogOpen}>
+                 <DialogContentNonAlertDialog>
+                    <DialogHeaderNonAlertDialog>
+                        <DialogTitleNonAlertDialog>Duplicate Strategy</DialogTitleNonAlertDialog>
+                    </DialogHeaderNonAlertDialog>
+                    <div className="py-4">
+                        <Label htmlFor="new-strategy-name">New Strategy Name</Label>
+                        <Input 
+                            id="new-strategy-name" 
+                            value={newStrategyName}
+                            onChange={(e) => setNewStrategyName(e.target.value)}
+                        />
+                    </div>
+                    <DialogFooterNonAlertDialog>
+                        <DialogClose asChild>
+                            <Button type="button" variant="secondary">Cancel</Button>
+                        </DialogClose>
+                        <Button type="button" onClick={confirmDuplicate}>Duplicate and Edit</Button>
+                    </DialogFooterNonAlertDialog>
+                </DialogContentNonAlertDialog>
+            </Dialog>
+
             <div>
                 <h1 className="text-2xl font-bold tracking-tight text-foreground">Strategy Management</h1>
                 <p className="text-muted-foreground">Your rulebook. Every trade must belong to a strategy.</p>
@@ -1303,6 +1403,7 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
                                                 strategy={strategy} 
                                                 onOpen={setViewingStrategy} 
                                                 onEdit={handleEdit} 
+                                                onDuplicate={openDuplicateDialog}
                                             />
                                         ))}
                                     </div>
@@ -1318,7 +1419,8 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
                                                 key={strategy.strategyId} 
                                                 strategy={strategy} 
                                                 onOpen={setViewingStrategy} 
-                                                onEdit={handleEdit} 
+                                                onEdit={handleEdit}
+                                                onDuplicate={openDuplicateDialog}
                                             />
                                         ))}
                                     </div>
