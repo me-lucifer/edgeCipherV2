@@ -49,8 +49,11 @@ const SectionCard: React.FC<{id?: string, title: React.ReactNode, description: R
         <CardHeader>
             <div className="flex items-start justify-between gap-4">
                 <div>
-                    <CardTitle className="flex items-center gap-3"><Icon className="h-6 w-6 text-primary" /> {title}</CardTitle>
-                    <CardDescription>{description}</CardDescription>
+                    <div className="flex items-center gap-3">
+                        <Icon className="h-6 w-6 text-primary" />
+                        <CardTitle>{title}</CardTitle>
+                    </div>
+                    <CardDescription className="mt-1">{description}</CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
                     {headerContent}
@@ -403,17 +406,6 @@ const GuardrailDialog = () => {
 };
 
 function ScoreGauge({ score, label, interpretation, delta }: { score: number; label: string; interpretation: string; delta?: number; }) {
-    const getArc = (value: number, radius: number) => {
-        const angle = value * Math.PI;
-        const x = 50 - radius * Math.cos(angle);
-        const y = 50 - radius * Math.sin(angle);
-        return `${x} ${y}`;
-    };
-
-    const percentage = score / 100;
-    const endAngle = Math.max(0.0001, percentage); // Epsilon for 0 value
-    const largeArcFlag = endAngle > 0.5 ? 1 : 0;
-    
     const colorClasses = {
         bad: "text-red-500",
         medium: "text-amber-500",
@@ -424,30 +416,32 @@ function ScoreGauge({ score, label, interpretation, delta }: { score: number; la
 
     return (
         <div className="flex flex-col items-center gap-2 motion-reduce:animate-none">
-            <svg viewBox="0 0 100 65" className="w-full h-auto">
-                <path
-                    d={`M ${getArc(0, 40)} A 40 40 0 1 1 ${getArc(1, 40)}`}
-                    stroke="hsl(var(--border))"
-                    strokeWidth="8"
-                    fill="none"
-                    strokeLinecap="round"
+            <div 
+                className="relative flex items-center justify-center w-40 h-20 overflow-hidden rounded-t-full bg-muted"
+                style={{
+                    // @ts-ignore
+                    "--score": score,
+                    "--color": `var(--${interpretation.toLowerCase()})`,
+                }}
+            >
+                <div 
+                    className="absolute top-0 left-0 w-full h-full rounded-t-full"
+                    style={{
+                        background: `conic-gradient(
+                            from 180deg at 50% 100%,
+                            hsl(var(${score < 40 ? '--destructive' : score < 70 ? '--chart-4' : '--chart-2'})) 0deg,
+                            hsl(var(${score < 40 ? '--destructive' : score < 70 ? '--chart-4' : '--chart-2'})) calc(${score} * 1.8deg),
+                            hsl(var(--muted)) calc(${score} * 1.8deg),
+                            hsl(var(--muted)) 180deg
+                        )`
+                    }}
                 />
-                <path
-                    d={`M ${getArc(0, 40)} A 40 40 0 ${largeArcFlag} 1 ${getArc(endAngle, 40)}`}
-                    stroke="currentColor"
-                    className={interpretationColor}
-                    strokeWidth="8"
-                    fill="none"
-                    strokeLinecap="round"
-                    style={{ transition: 'd 0.5s ease-in-out' }}
-                />
-                <foreignObject x="0" y="20" width="100" height="50">
-                    <div className="w-full h-full flex flex-col items-center justify-center text-center">
-                        <p className="text-3xl font-bold text-foreground">{score}</p>
-                        <p className="text-sm font-medium text-muted-foreground -mt-1">{label}</p>
-                    </div>
-                </foreignObject>
-            </svg>
+                <div className="absolute w-[85%] h-[85%] bg-muted/80 backdrop-blur-sm rounded-t-full" />
+                 <div className="relative flex flex-col items-center justify-center z-10 -mt-2">
+                    <p className="text-4xl font-bold text-foreground">{score}</p>
+                </div>
+            </div>
+             <p className="text-sm font-medium text-foreground -mt-4">{label}</p>
             <div className="flex items-baseline">
                 <p className={cn("text-sm font-semibold", interpretationColor)}>{interpretation}</p>
                 {delta !== undefined && <DeltaIndicator delta={delta} />}
@@ -1108,7 +1102,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
 
             entries.push({
                 id: `demo-${i}`,
-                tradeId: `DEMO-${1000 + i}`,
+                tradeId: `DELTA-${1000 + i}`,
                 status: 'completed',
                 timestamps: {
                     plannedAt: date.toISOString(),
@@ -1923,5 +1917,6 @@ const computeSinglePeriodAnalytics = (entries: JournalEntry[], random: () => num
         disciplineByVolatility,
     };
   }
+
 
 
