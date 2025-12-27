@@ -27,6 +27,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collap
 import { Skeleton } from "./ui/skeleton";
 import { AnalyticsTour } from "./analytics-tour";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
+import { Checkbox } from "./ui/checkbox";
 
 
 interface PerformanceAnalyticsModuleProps {
@@ -1231,7 +1232,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
     }
 
     const { current: currentData, previous: previousData } = analyticsData;
-    const { wins, losses, totalTrades, winRate, lossRate, avgRR, totalPnL, quality, scores, discipline, topLossDrivers, mockEquityData, topEvents, mockStrategyData, timingHeatmapData, volatilityData, emotionResultMatrixData, radarChartData, planAdherence, disciplineBreakdown, disciplineByVolatility, bestCondition } = currentData;
+    const { totalTrades, winRate, lossRate, avgRR, totalPnL, quality, scores, discipline, topLossDrivers, mockEquityData, topEvents, mockStrategyData, timingHeatmapData, volatilityData, emotionResultMatrixData, radarChartData, planAdherence, disciplineBreakdown, disciplineByVolatility, bestCondition } = currentData;
     
     const equityChartData = mockEquityData.map((d: any, i: number) => ({
       ...d,
