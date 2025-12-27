@@ -308,6 +308,7 @@ function StrategyDetailView({
     onArchive,
     onDelete,
     onMakeActive,
+    onEdit,
     onSetModule,
 }: { 
     strategy: StrategyGroup; 
@@ -315,9 +316,14 @@ function StrategyDetailView({
     onArchive: () => void;
     onDelete: () => void;
     onMakeActive: (versionId: string) => void;
+    onEdit: (strategy: StrategyGroup) => void;
     onSetModule: (module: any, context?: any) => void;
 }) {
-    const [selectedVersion, setSelectedVersion] = useState<StrategyVersion | undefined>(strategy.versions.find(v => v.isActiveVersion));
+    const [selectedVersionId, setSelectedVersionId] = useState<string>(strategy.versions.find(v => v.isActiveVersion)?.versionId || strategy.versions[0].versionId);
+    const [compareVersionId, setCompareVersionId] = useState<string | null>(null);
+
+    const selectedVersion = strategy.versions.find(v => v.versionId === selectedVersionId);
+    const compareVersion = compareVersionId ? strategy.versions.find(v => v.versionId === compareVersionId) : null;
 
     if (!selectedVersion) return null; // Should not happen if data is correct
 
@@ -329,7 +335,7 @@ function StrategyDetailView({
                     Back to Playbook
                 </Button>
                 <div className="flex items-center gap-2">
-                    <Button variant="outline" disabled>
+                    <Button variant="outline" onClick={() => onEdit(strategy)}>
                         <Edit className="mr-2 h-4 w-4" />
                         Edit (creates new version)
                     </Button>
@@ -350,9 +356,11 @@ function StrategyDetailView({
                                     <TooltipTrigger asChild>
                                         <div>
                                             <DropdownMenuItem
-                                                disabled
-                                                className="text-red-500 focus:text-red-500 focus:bg-red-500/10"
-                                                onSelect={(e) => e.preventDefault()}
+                                                className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                                                onSelect={(e) => {
+                                                    e.preventDefault();
+                                                    onDelete();
+                                                }}
                                             >
                                                 <Trash2 className="mr-2 h-4 w-4" />
                                                 Delete strategy
@@ -387,27 +395,50 @@ function StrategyDetailView({
                             </CardHeader>
                             <CardContent>
                                 <div className="space-y-4">
-                                    <div>
-                                        <Label htmlFor="version-selector">Viewing Version</Label>
-                                        <Select
-                                            value={selectedVersion.versionId}
-                                            onValueChange={(vId) => setSelectedVersion(strategy.versions.find(v => v.versionId === vId))}
-                                        >
-                                            <SelectTrigger id="version-selector">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {strategy.versions.map(v => (
-                                                    <SelectItem key={v.versionId} value={v.versionId}>
-                                                        <div className="flex items-center gap-2">
-                                                            {v.isActiveVersion && <Star className="h-4 w-4 text-primary" />}
-                                                            <span>Version {v.versionNumber} {v.isActiveVersion && '(Active)'}</span>
-                                                            <span className="ml-auto text-xs text-muted-foreground">({new Date(v.createdAt).toLocaleDateString()})</span>
-                                                        </div>
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div>
+                                            <Label htmlFor="version-selector">Viewing Version</Label>
+                                            <Select
+                                                value={selectedVersion.versionId}
+                                                onValueChange={setSelectedVersionId}
+                                            >
+                                                <SelectTrigger id="version-selector">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {strategy.versions.map(v => (
+                                                        <SelectItem key={v.versionId} value={v.versionId}>
+                                                            <div className="flex items-center gap-2">
+                                                                {v.isActiveVersion && <Star className="h-4 w-4 text-primary" />}
+                                                                <span>Version {v.versionNumber} {v.isActiveVersion && '(Active)'}</span>
+                                                            </div>
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                         <div>
+                                            <Label htmlFor="compare-version-selector">Compare With</Label>
+                                            <Select
+                                                value={compareVersionId || 'none'}
+                                                onValueChange={(vId) => setCompareVersionId(vId === 'none' ? null : vId)}
+                                            >
+                                                <SelectTrigger id="compare-version-selector">
+                                                    <SelectValue placeholder="Compare..."/>
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="none">None</SelectItem>
+                                                    {strategy.versions.filter(v => v.versionId !== selectedVersionId).map(v => (
+                                                        <SelectItem key={v.versionId} value={v.versionId}>
+                                                             <div className="flex items-center gap-2">
+                                                                {v.isActiveVersion && <Star className="h-4 w-4 text-primary" />}
+                                                                <span>Version {v.versionNumber} {v.isActiveVersion && '(Active)'}</span>
+                                                            </div>
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
                                     </div>
                                     <div className="text-sm text-muted-foreground space-y-2 pt-2">
                                         <div className="flex justify-between"><span>Created:</span> <span className="font-medium text-foreground">{new Date(selectedVersion.createdAt).toLocaleDateString()}</span></div>
@@ -426,12 +457,37 @@ function StrategyDetailView({
 
                     {/* Right Column */}
                     <div className="lg:col-span-2 space-y-6">
-                        <RulesCard title="Description / When to Use" rules={selectedVersion.fields.description} />
-                        <RulesCard title="Entry Rules" rules={selectedVersion.fields.entryConditions} />
-                        <RulesCard title="Stop Loss Rules" rules={selectedVersion.fields.stopLossRules} />
-                        <RulesCard title="Take Profit Rules" rules={selectedVersion.fields.takeProfitRules} />
-                        <RulesCard title="Risk Management Rules" rules={selectedVersion.fields.riskManagementRules} />
-                        <RulesCard title="Context Rules" rules={selectedVersion.fields.contextRules} />
+                        {compareVersion ? (
+                            <div className="grid md:grid-cols-2 gap-6">
+                                <div className="space-y-4">
+                                    <h3 className="font-semibold text-center">Version {selectedVersion.versionNumber}</h3>
+                                    <RulesCard title="Description / When to Use" rules={selectedVersion.fields.description} />
+                                    <RulesCard title="Entry Rules" rules={selectedVersion.fields.entryConditions} />
+                                    <RulesCard title="Stop Loss Rules" rules={selectedVersion.fields.stopLossRules} />
+                                    <RulesCard title="Take Profit Rules" rules={selectedVersion.fields.takeProfitRules} />
+                                    <RulesCard title="Risk Rules" rules={selectedVersion.fields.riskManagementRules} />
+                                    <RulesCard title="Context Rules" rules={selectedVersion.fields.contextRules} />
+                                </div>
+                                <div className="space-y-4">
+                                     <h3 className="font-semibold text-center">Version {compareVersion.versionNumber}</h3>
+                                    <RulesCard title="Description / When to Use" rules={compareVersion.fields.description} />
+                                    <RulesCard title="Entry Rules" rules={compareVersion.fields.entryConditions} />
+                                    <RulesCard title="Stop Loss Rules" rules={compareVersion.fields.stopLossRules} />
+                                    <RulesCard title="Take Profit Rules" rules={compareVersion.fields.takeProfitRules} />
+                                    <RulesCard title="Risk Rules" rules={compareVersion.fields.riskManagementRules} />
+                                    <RulesCard title="Context Rules" rules={compareVersion.fields.contextRules} />
+                                </div>
+                            </div>
+                        ) : (
+                             <>
+                                <RulesCard title="Description / When to Use" rules={selectedVersion.fields.description} />
+                                <RulesCard title="Entry Rules" rules={selectedVersion.fields.entryConditions} />
+                                <RulesCard title="Stop Loss Rules" rules={selectedVersion.fields.stopLossRules} />
+                                <RulesCard title="Take Profit Rules" rules={selectedVersion.fields.takeProfitRules} />
+                                <RulesCard title="Risk Management Rules" rules={selectedVersion.fields.riskManagementRules} />
+                                <RulesCard title="Context Rules" rules={selectedVersion.fields.contextRules} />
+                            </>
+                        )}
                     </div>
                 </div>
             </div>
@@ -674,7 +730,17 @@ const RulebookPreview = ({ form }: { form: any }) => {
     );
 };
 
-function StrategyCreatorView({ onBack, onSave, onSaveDraft, initialData }: { onBack: () => void; onSave: (data: StrategyCreationValues) => void; onSaveDraft: (data: StrategyCreationValues) => void; initialData?: StrategyCreationValues | null; }) {
+function StrategyCreatorView({ 
+    onBack, 
+    onSave, 
+    onSaveDraft, 
+    initialData 
+}: { 
+    onBack: () => void; 
+    onSave: (data: StrategyCreationValues) => void; 
+    onSaveDraft: (data: StrategyCreationValues) => void; 
+    initialData?: StrategyCreationValues | null; 
+}) {
     const [currentStep, setCurrentStep] = useState(0);
     const { toast } = useToast();
     const [showCancelDialog, setShowCancelDialog] = useState(false);
@@ -1016,45 +1082,118 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
         toast({ title: "Active version updated" });
     };
 
-    const handleSaveNewStrategy = (data: StrategyCreationValues, status: 'active' | 'draft') => {
-        const newStrategy: StrategyGroup = {
-            strategyId: `strat_${Date.now()}`,
-            name: data.name,
-            type: data.type as any,
-            timeframes: data.timeframes,
-            createdAt: new Date().toISOString(),
-            status,
-            versions: [
-                {
-                    versionId: `sv_${Date.now()}_1`,
-                    versionNumber: 1,
-                    isActiveVersion: true,
-                    createdAt: new Date().toISOString(),
-                    fields: {
-                        description: data.description,
-                        difficulty: data.difficulty as any,
-                        entryConditions: data.entryConditions,
-                        stopLossRules: data.stopLossRules,
-                        takeProfitRules: data.takeProfitRules,
-                        riskManagementRules: data.riskManagementRules,
-                        contextRules: data.contextRules,
-                    },
-                    usageCount: 0,
-                    lastUsedAt: null,
+    const handleSaveStrategy = (data: StrategyCreationValues, status: 'active' | 'draft', editingId?: string) => {
+        if (editingId) {
+            // This is an edit, so we create a new version.
+            const updatedStrategies = strategies.map(s => {
+                if (s.strategyId === editingId) {
+                    const latestVersionNumber = Math.max(...s.versions.map(v => v.versionNumber));
+                    const newVersion: StrategyVersion = {
+                        versionId: `sv_${s.strategyId}_${latestVersionNumber + 1}`,
+                        versionNumber: latestVersionNumber + 1,
+                        isActiveVersion: true,
+                        createdAt: new Date().toISOString(),
+                        fields: {
+                            description: data.description,
+                            difficulty: data.difficulty as any,
+                            entryConditions: data.entryConditions,
+                            stopLossRules: data.stopLossRules,
+                            takeProfitRules: data.takeProfitRules,
+                            riskManagementRules: data.riskManagementRules,
+                            contextRules: data.contextRules,
+                        },
+                        usageCount: 0,
+                        lastUsedAt: null,
+                    };
+
+                    const updatedVersions = s.versions.map(v => ({...v, isActiveVersion: false}));
+                    
+                    const updatedStrategy = {
+                        ...s,
+                        name: data.name,
+                        type: data.type as any,
+                        timeframes: data.timeframes,
+                        status: 'active' as 'active', // Ensure it's active on edit
+                        versions: [...updatedVersions, newVersion],
+                    };
+                    
+                    setViewingStrategy(updatedStrategy);
+                    return updatedStrategy;
                 }
-            ]
-        };
-        const updatedStrategies = [...strategies, newStrategy];
-        updateStrategies(updatedStrategies);
-        
-        if (status === 'active') {
-            toast({ title: "Strategy saved", description: "Trade Planning can now enforce this rulebook." });
-            setViewingStrategy(newStrategy);
+                return s;
+            });
+
+            updateStrategies(updatedStrategies);
+            toast({
+                title: `Strategy saved as v${Math.max(...updatedStrategies.find(s => s.strategyId === editingId)!.versions.map(v => v.versionNumber))}`,
+                description: "Historical trades will still reference older versions.",
+            });
         } else {
-            toast({ title: "Draft saved" });
+            // This is a new strategy.
+            const newStrategy: StrategyGroup = {
+                strategyId: `strat_${Date.now()}`,
+                name: data.name,
+                type: data.type as any,
+                timeframes: data.timeframes,
+                createdAt: new Date().toISOString(),
+                status,
+                versions: [
+                    {
+                        versionId: `sv_${Date.now()}_1`,
+                        versionNumber: 1,
+                        isActiveVersion: true,
+                        createdAt: new Date().toISOString(),
+                        fields: {
+                            description: data.description,
+                            difficulty: data.difficulty as any,
+                            entryConditions: data.entryConditions,
+                            stopLossRules: data.stopLossRules,
+                            takeProfitRules: data.takeProfitRules,
+                            riskManagementRules: data.riskManagementRules,
+                            contextRules: data.contextRules,
+                        },
+                        usageCount: 0,
+                        lastUsedAt: null,
+                    }
+                ]
+            };
+            const updatedStrategies = [...strategies, newStrategy];
+            updateStrategies(updatedStrategies);
+            
+            if (status === 'active') {
+                toast({ title: "Strategy saved", description: "Trade Planning can now enforce this rulebook." });
+                setViewingStrategy(newStrategy);
+            } else {
+                toast({ title: "Draft saved" });
+            }
         }
         
         setViewMode('list');
+        setEditingStrategy(null);
+    };
+
+    const handleEdit = (strategy: StrategyGroup) => {
+        setEditingStrategy(strategy);
+        setViewMode('edit');
+    };
+
+    const handleDelete = () => {
+        if (!viewingStrategy) return;
+        
+        const isUsed = viewingStrategy.versions.some(v => v.usageCount > 0);
+        if (isUsed) {
+            toast({
+                variant: 'destructive',
+                title: "Cannot delete strategy",
+                description: "This strategy has been used in executed trades and cannot be deleted."
+            });
+            return;
+        }
+
+        const updatedStrategies = strategies.filter(s => s.strategyId !== viewingStrategy.strategyId);
+        updateStrategies(updatedStrategies);
+        setViewingStrategy(null);
+        toast({ title: "Strategy deleted" });
     };
 
     const filteredStrategies = useMemo(() => {
@@ -1095,7 +1234,12 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
         const initialData = viewMode === 'edit' && editingStrategy 
             ? { ...editingStrategy.versions.find(v => v.isActiveVersion)?.fields, name: editingStrategy.name, type: editingStrategy.type, timeframes: editingStrategy.timeframes } as StrategyCreationValues
             : null;
-        return <StrategyCreatorView onBack={() => { setViewMode('list'); setEditingStrategy(null); }} onSave={(data) => handleSaveNewStrategy(data, 'active')} onSaveDraft={(data) => handleSaveNewStrategy(data, 'draft')} initialData={initialData} />;
+        return <StrategyCreatorView 
+            onBack={() => { setViewMode('list'); setEditingStrategy(null); }} 
+            onSave={(data) => handleSaveStrategy(data, 'active', editingStrategy?.strategyId)}
+            onSaveDraft={(data) => handleSaveStrategy(data, 'draft', editingStrategy?.strategyId)}
+            initialData={initialData} 
+        />;
     }
 
     if (viewingStrategy) {
@@ -1103,8 +1247,9 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
             strategy={viewingStrategy} 
             onBack={() => setViewingStrategy(null)}
             onArchive={handleArchive}
-            onDelete={() => { /* no-op for now */ }}
+            onDelete={handleDelete}
             onMakeActive={handleMakeActive}
+            onEdit={handleEdit}
             onSetModule={onSetModule}
         />;
     }
@@ -1200,7 +1345,7 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
                                                 key={strategy.strategyId} 
                                                 strategy={strategy} 
                                                 onOpen={setViewingStrategy} 
-                                                onEdit={(s) => { setEditingStrategy(s); setViewMode('edit'); }} 
+                                                onEdit={handleEdit} 
                                             />
                                         ))}
                                     </div>
@@ -1216,7 +1361,7 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
                                                 key={strategy.strategyId} 
                                                 strategy={strategy} 
                                                 onOpen={setViewingStrategy} 
-                                                onEdit={(s) => { setEditingStrategy(s); setViewMode('edit'); }} 
+                                                onEdit={handleEdit} 
                                             />
                                         ))}
                                     </div>
