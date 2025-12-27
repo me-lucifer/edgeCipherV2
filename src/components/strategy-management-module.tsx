@@ -1,15 +1,16 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { PlusCircle, ArrowRight, Bot, ShieldCheck, Zap, Sun, Award, Info } from "lucide-react";
+import { PlusCircle, ArrowRight, Bot, ShieldCheck, Zap, Sun, Award, Info, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "./ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
+import { Table, TableBody, TableCell, TableHeader, TableHead, TableRow } from "./ui/table";
 
 interface StrategyManagementModuleProps {
     onSetModule: (module: any, context?: any) => void;
@@ -22,6 +23,9 @@ type Strategy = {
     timeframe: string;
     trades: number;
     winRate: number;
+    pnl: number;
+    mistakeRate: number;
+    emotionMix: { emotion: string, percentage: number }[];
     description: string;
     entryCriteria: string[];
     exitCriteria: string[];
@@ -47,6 +51,9 @@ const mockStrategies: Strategy[] = [
         timeframe: "M15",
         trades: 112,
         winRate: 62,
+        pnl: 4520,
+        mistakeRate: 15,
+        emotionMix: [{ emotion: "Impatience", percentage: 40 }, { emotion: "Focused", percentage: 35 }],
         description: "A mean-reversion strategy played during the first 2 hours of the London session, targeting overnight sweeps.",
         entryCriteria: ["Price sweeps Asia high/low.", "Divergence on 5-min RSI.", "Entry on first 15-min candle to close back inside the range."],
         exitCriteria: ["Target is the opposing side of the daily range.", "Stop-loss is 2x ATR above/below the wick."],
@@ -62,6 +69,9 @@ const mockStrategies: Strategy[] = [
         timeframe: "H1",
         trades: 78,
         winRate: 48,
+        pnl: 8900,
+        mistakeRate: 25,
+        emotionMix: [{ emotion: "FOMO", percentage: 35 }, { emotion: "Confident", percentage: 30 }],
         description: "A trend-following strategy on the 1-hour chart for BTC, looking for breakouts from consolidations.",
         entryCriteria: ["4+ hours of consolidation.", "Breakout candle closes with high volume.", "Enter on retest of the breakout level."],
         exitCriteria: ["Target is 2R.", "Stop-loss is below the consolidation range."],
@@ -77,6 +87,9 @@ const mockStrategies: Strategy[] = [
         timeframe: "H4",
         trades: 34,
         winRate: 71,
+        pnl: -1250,
+        mistakeRate: 45,
+        emotionMix: [{ emotion: "Hope", percentage: 50 }, { emotion: "Anxious", percentage: 25 }],
         description: "Playing the established range on ETH/USD on the 4-hour chart. Currently paused due to high volatility.",
         entryCriteria: ["Price reaches established range high/low.", "Confirmation of rejection on lower timeframe."],
         exitCriteria: ["Target is the opposing side of the range.", "Stop-loss is outside the range."],
@@ -97,10 +110,73 @@ const DrilldownCard = ({ title, icon: Icon, children }: { title: string, icon: R
     </Card>
 );
 
+type SortKey = "name" | "pnl" | "winRate" | "mistakeRate";
+
+const SortableHeader = ({
+  sortKey,
+  label,
+  sortConfig,
+  onSort,
+}: {
+  sortKey: SortKey;
+  label: string;
+  sortConfig: { key: SortKey; direction: 'ascending' | 'descending' };
+  onSort: (key: SortKey) => void;
+}) => {
+  const isSorted = sortConfig.key === sortKey;
+  return (
+    <TableHead>
+      <Button variant="ghost" onClick={() => onSort(sortKey)} className="-ml-4">
+        {label}
+        {isSorted && (
+          <ChevronsUpDown
+            className={cn(
+              "ml-2 h-4 w-4 transform",
+              sortConfig.direction === 'descending' && "rotate-180"
+            )}
+          />
+        )}
+      </Button>
+    </TableHead>
+  );
+};
+
+
 export function StrategyManagementModule({ onSetModule }: StrategyManagementModuleProps) {
     const { toast } = useToast();
-    const [strategies] = useState<Strategy[]>(mockStrategies);
-    const [selectedStrategy, setSelectedStrategy] = useState<Strategy | null>(strategies[0]);
+    const [selectedStrategy, setSelectedStrategy] = useState<Strategy | null>(mockStrategies[1]);
+    const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'ascending' | 'descending' }>({ key: 'pnl', direction: 'descending' });
+
+    const sortedStrategies = useMemo(() => {
+        const sortableStrategies = [...mockStrategies];
+        sortableStrategies.sort((a, b) => {
+            if (sortConfig.key === 'name') {
+                return a.name.localeCompare(b.name) * (sortConfig.direction === 'ascending' ? 1 : -1);
+            }
+            if (a[sortConfig.key] < b[sortConfig.key]) {
+                return sortConfig.direction === 'ascending' ? -1 : 1;
+            }
+            if (a[sortConfig.key] > b[sortConfig.key]) {
+                return sortConfig.direction === 'ascending' ? 1 : -1;
+            }
+            return 0;
+        });
+        return sortableStrategies;
+    }, [sortConfig]);
+
+    const handleSort = (key: SortKey) => {
+        let direction: 'ascending' | 'descending' = 'ascending';
+        if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+            direction = 'descending';
+        }
+        // Default PnL to descending, Mistake Rate to ascending
+        if (key !== sortConfig.key) {
+            if (key === 'pnl') direction = 'descending';
+            if (key === 'mistakeRate') direction = 'ascending';
+        }
+
+        setSortConfig({ key, direction });
+    };
 
     const handleApplyGuardrails = () => {
         if (!selectedStrategy) return;
@@ -129,51 +205,72 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
             
             <div className="grid lg:grid-cols-3 gap-8 items-start">
                 {/* Left: Strategy List */}
-                <div className="lg:col-span-1 space-y-4">
-                    <Button variant="outline" className="w-full">
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        Define new strategy (Prototype)
-                    </Button>
-                    <div className="space-y-2">
-                        {strategies.map(strategy => (
-                            <Card
-                                key={strategy.id}
-                                onClick={() => setSelectedStrategy(strategy)}
-                                className={cn(
-                                    "cursor-pointer transition-all bg-muted/30 border-l-4",
-                                    selectedStrategy?.id === strategy.id 
-                                        ? "border-primary bg-muted/50" 
-                                        : "border-transparent hover:bg-muted/50 hover:border-primary/50"
-                                )}
-                            >
-                                <CardContent className="p-4">
-                                    <div className="flex justify-between items-start">
-                                        <h3 className="font-semibold text-foreground">{strategy.name}</h3>
-                                        <Badge variant={strategy.status === "Active" ? "secondary" : "outline"} className={cn(
-                                            "text-xs",
-                                            strategy.status === 'Active' && 'bg-green-500/20 text-green-400 border-green-500/30'
-                                        )}>
-                                            {strategy.status}
-                                        </Badge>
-                                    </div>
-                                    <div className="flex items-center gap-4 text-sm text-muted-foreground mt-2">
-                                        <span><Badge variant="outline">{strategy.timeframe}</Badge></span>
-                                        <span>{strategy.trades} trades</span>
-                                        <span>{strategy.winRate}% WR</span>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ))}
+                <div className="lg:col-span-2 space-y-4">
+                     <Card className="bg-muted/30 border-border/50">
+                        <CardHeader>
+                            <CardTitle>Strategy Leaderboard</CardTitle>
+                            <CardDescription>Compare your strategies across key performance and behavioral metrics.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                             <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <SortableHeader sortKey="name" label="Strategy" sortConfig={sortConfig} onSort={handleSort} />
+                                        <SortableHeader sortKey="pnl" label="Total PnL ($)" sortConfig={sortConfig} onSort={handleSort} />
+                                        <SortableHeader sortKey="winRate" label="Win Rate" sortConfig={sortConfig} onSort={handleSort} />
+                                        <SortableHeader sortKey="mistakeRate" label="Mistake Rate" sortConfig={sortConfig} onSort={handleSort} />
+                                        <TableHead>Emotion Mix</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {sortedStrategies.map(strategy => (
+                                        <TableRow 
+                                            key={strategy.id} 
+                                            className={cn("cursor-pointer", selectedStrategy?.id === strategy.id && "bg-primary/10")}
+                                            onClick={() => setSelectedStrategy(strategy)}
+                                        >
+                                            <TableCell>
+                                                <div className="font-medium text-foreground">{strategy.name}</div>
+                                                <div className="text-xs text-muted-foreground">{strategy.trades} trades</div>
+                                            </TableCell>
+                                            <TableCell className={cn("font-mono", strategy.pnl >= 0 ? "text-green-400" : "text-red-400")}>
+                                                {strategy.pnl >= 0 ? `+$${strategy.pnl.toLocaleString()}` : `-$${Math.abs(strategy.pnl).toLocaleString()}`}
+                                            </TableCell>
+                                            <TableCell className="font-mono">{strategy.winRate}%</TableCell>
+                                            <TableCell className={cn("font-mono", strategy.mistakeRate > 20 ? "text-amber-400" : "text-muted-foreground")}>
+                                                {strategy.mistakeRate}%
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="flex flex-col gap-1.5">
+                                                    {strategy.emotionMix.map(mix => (
+                                                        <div key={mix.emotion} className="flex items-center gap-2 text-xs">
+                                                            <Badge variant="outline" className="w-24 justify-center">{mix.emotion}</Badge>
+                                                            <span className="text-muted-foreground font-mono">{mix.percentage}%</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                    <div className="text-center">
+                        <Button variant="outline">
+                            <PlusCircle className="mr-2 h-4 w-4" />
+                            Define new strategy (Prototype)
+                        </Button>
                     </div>
                 </div>
                 
                 {/* Right: Detail View */}
-                <div className="lg:col-span-2">
+                <div className="lg:col-span-1">
                     {selectedStrategy ? (
                         <div className="space-y-6 sticky top-24">
                             <Card className="bg-muted/30 border-border/50">
                                 <CardHeader>
-                                    <CardTitle className="text-2xl">{selectedStrategy.name}</CardTitle>
+                                    <CardTitle className="text-xl">{selectedStrategy.name}</CardTitle>
                                     <CardDescription>{selectedStrategy.description}</CardDescription>
                                 </CardHeader>
                                 <CardContent>
@@ -183,7 +280,7 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
                                 </CardContent>
                             </Card>
                             
-                            <div className="grid md:grid-cols-2 gap-6">
+                            <div className="grid gap-6">
                                 <DrilldownCard title="Best Conditions" icon={Sun}>
                                     <ul className="space-y-2 text-sm text-muted-foreground">
                                         <li>Session: <span className="font-semibold text-foreground">{selectedStrategy.bestConditions.session}</span></li>
@@ -220,7 +317,7 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
                             </DrilldownCard>
                         </div>
                     ) : (
-                        <div className="flex items-center justify-center h-full text-center p-8 border-2 border-dashed border-border/50 rounded-lg">
+                        <div className="flex items-center justify-center h-full text-center p-8 border-2 border-dashed border-border/50 rounded-lg min-h-[500px]">
                             <div>
                                 <h3 className="text-lg font-semibold text-foreground">Select a strategy</h3>
                                 <p className="mt-1 text-sm text-muted-foreground">Select a strategy from the list to view its details, or define a new one.</p>
