@@ -3,7 +3,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { BrainCircuit, PlusCircle, CheckCircle, Search, Filter as FilterIcon, Clock, ListOrdered, FileText, Gauge, Calendar, ShieldCheck, Zap, MoreHorizontal, ArrowLeft, Edit, Archive, Star, BookOpen, BarChartHorizontal, Trash2, ChevronsUpDown, Info, Check, Save } from "lucide-react";
+import { BrainCircuit, PlusCircle, CheckCircle, Search, Filter as FilterIcon, Clock, ListOrdered, FileText, Gauge, Calendar, ShieldCheck, Zap, MoreHorizontal, ArrowLeft, Edit, Archive, Star, BookOpen, BarChartHorizontal, Trash2, ChevronsUpDown, Info, Check, Save, Copy } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -485,12 +485,61 @@ const RuleEditor = ({ value, onChange, placeholder }: { value: string[]; onChang
     );
 };
 
+const strategyTemplates: (Omit<StrategyCreationValues, 'name'> & {id: string, name: string, description: string})[] = [
+    {
+        id: 'breakout',
+        name: "Breakout Trend",
+        description: "For clear trends after consolidation.",
+        type: 'Breakout',
+        timeframe: '15m',
+        entryConditions: ["Price breaks out of a 4-hour consolidation range", "Breakout candle has above-average volume"],
+        exitConditions: ["Target is the next major liquidity level", "Stop-loss is below the mid-point of the consolidation range"],
+        riskManagementRules: ["Max risk 1% of account", "Leverage cap 20x"],
+        contextRules: ["Only trade during NY session"]
+    },
+    {
+        id: 'pullback',
+        name: "Pullback Continuation",
+        description: "For entering an existing strong trend.",
+        type: 'Pullback',
+        timeframe: '1H',
+        entryConditions: ["Market is in a clear uptrend on 4H", "Price pulls back to the 1H 21 EMA"],
+        exitConditions: ["Target is the previous swing high/low", "Stop-loss is behind the most recent swing structure"],
+        riskManagementRules: ["Max risk 1.5% of account"],
+        contextRules: ["Avoid if VIX is in 'Extreme' zone"]
+    },
+    {
+        id: 'range',
+        name: "Range Fade",
+        description: "For non-trending, range-bound markets.",
+        type: 'Reversal',
+        timeframe: '5m',
+        entryConditions: ["Price is in a clearly defined range on 1H", "Price sweeps the high/low of the range on 5m"],
+        exitConditions: ["Target is the mid-point of the range", "Stop-loss is above/below the wick of the sweep candle"],
+        riskManagementRules: ["Max risk 0.75% of account", "Max daily loss 2.5%"],
+        contextRules: ["Only valid when VIX is 'Normal' or 'Calm'"]
+    },
+    {
+        id: 'beginner',
+        name: "Simple Beginner Strategy",
+        description: "A basic, easy-to-follow plan.",
+        type: 'Custom',
+        timeframe: '15m',
+        entryConditions: ["Price is above the 200 EMA", "RSI is not overbought/oversold"],
+        exitConditions: ["Take profit at 1.5R", "Stop-loss is 1.5x ATR below entry"],
+        riskManagementRules: ["Max risk 1% of account"],
+        contextRules: ["Only trade BTC or ETH", "Do not trade on weekends"]
+    }
+];
+
+
 function StrategyCreatorView({ onBack, onSave }: { onBack: () => void; onSave: (data: StrategyCreationValues) => void; }) {
     const [currentStep, setCurrentStep] = useState(0);
     const { toast } = useToast();
     const [showCancelDialog, setShowCancelDialog] = useState(false);
+    const [wizardStarted, setWizardStarted] = useState(false);
 
-    const steps = [
+    const creationSteps = [
         { name: "Basic Info", fields: ["name", "type", "timeframe"] },
         { name: "Entry Rules", fields: ["entryConditions"] },
         { name: "Exit Rules", fields: ["exitConditions"] },
@@ -516,12 +565,12 @@ function StrategyCreatorView({ onBack, onSave }: { onBack: () => void; onSave: (
     });
 
     const handleNext = async () => {
-        const fieldsToValidate = steps[currentStep].fields;
+        const fieldsToValidate = creationSteps[currentStep].fields;
         const isValid = fieldsToValidate ? await form.trigger(fieldsToValidate as any) : true;
 
-        if (isValid && currentStep < steps.length - 1) {
+        if (isValid && currentStep < creationSteps.length - 1) {
             setCurrentStep(currentStep + 1);
-        } else if (isValid && currentStep === steps.length - 1) {
+        } else if (isValid && currentStep === creationSteps.length - 1) {
             form.handleSubmit(onSave)();
         }
     };
@@ -529,6 +578,8 @@ function StrategyCreatorView({ onBack, onSave }: { onBack: () => void; onSave: (
     const handleBack = () => {
         if (currentStep > 0) {
             setCurrentStep(currentStep - 1);
+        } else if (wizardStarted) {
+            setWizardStarted(false);
         } else {
             if (form.formState.isDirty) {
                 setShowCancelDialog(true);
@@ -542,11 +593,28 @@ function StrategyCreatorView({ onBack, onSave }: { onBack: () => void; onSave: (
         localStorage.setItem('ec_strategy_draft', JSON.stringify(form.getValues()));
         toast({ title: 'Draft saved!' });
     };
+    
+    const handleTemplateSelect = (templateId: string) => {
+        const template = strategyTemplates.find(t => t.id === templateId);
+        if(template) {
+            form.reset({
+                name: template.name,
+                type: template.type,
+                timeframe: template.timeframe,
+                entryConditions: template.entryConditions,
+                exitConditions: template.exitConditions,
+                riskManagementRules: template.riskManagementRules,
+                contextRules: template.contextRules,
+            });
+            setWizardStarted(true);
+        }
+    };
 
     useEffect(() => {
         const draft = localStorage.getItem('ec_strategy_draft');
         if (draft) {
             form.reset(JSON.parse(draft));
+            setWizardStarted(true);
         }
     }, [form]);
 
@@ -572,48 +640,88 @@ function StrategyCreatorView({ onBack, onSave }: { onBack: () => void; onSave: (
                 <p className="text-muted-foreground">Build a rulebook Arjun can enforce.</p>
             </div>
             
-            <div className="p-4 bg-muted/30 rounded-lg">
-                <Stepper currentStep={currentStep} steps={steps} />
-            </div>
-
-            <Card className="bg-muted/30">
-                <CardContent className="p-6">
-                    <Form {...form}>
-                        <form className="space-y-6">
-                            {currentStep === 0 && (
-                                <div className="space-y-4">
-                                    <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Strategy Name</FormLabel><FormControl><Input placeholder="e.g., London Open Reversal" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                                    <div className="grid md:grid-cols-2 gap-4">
-                                        <FormField control={form.control} name="type" render={({ field }) => (<FormItem><FormLabel>Type</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger></FormControl><SelectContent>{strategyTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>)} />
-                                        <FormField control={form.control} name="timeframe" render={({ field }) => (<FormItem><FormLabel>Primary Timeframe</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select timeframe" /></SelectTrigger></FormControl><SelectContent>{timeframes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>)} />
-                                    </div>
-                                </div>
-                            )}
-                             {currentStep === 1 && <FormField control={form.control} name="entryConditions" render={({ field }) => (<FormItem><FormLabel>Entry Rules</FormLabel><FormControl><RuleEditor {...field} placeholder="e.g., Price breaks 4H consolidation..." /></FormControl><FormMessage /></FormItem>)} />}
-                             {currentStep === 2 && <FormField control={form.control} name="exitConditions" render={({ field }) => (<FormItem><FormLabel>Exit Rules (TP and SL logic)</FormLabel><FormControl><RuleEditor {...field} placeholder="e.g., Target is next major liquidity..." /></FormControl><FormMessage /></FormItem>)} />}
-                             {currentStep === 3 && <FormField control={form.control} name="riskManagementRules" render={({ field }) => (<FormItem><FormLabel>Risk Management Rules</FormLabel><FormControl><RuleEditor {...field} placeholder="e.g., Max risk 1% of account..." /></FormControl><FormMessage /></FormItem>)} />}
-                             {currentStep === 4 && <FormField control={form.control} name="contextRules" render={({ field }) => (<FormItem><FormLabel>Context Rules (when to trade/not trade)</FormLabel><FormControl><RuleEditor {...field} placeholder="e.g., Only trade during NY session..." /></FormControl><FormMessage /></FormItem>)} />}
-                             {currentStep === 5 && (
-                                <div className="space-y-4">
-                                    <h3 className="font-semibold">Review & Save</h3>
-                                    <RulesCard title="Basic Info" rules={[`Name: ${form.getValues().name}`, `Type: ${form.getValues().type}`, `Timeframe: ${form.getValues().timeframe}`]} />
-                                    <RulesCard title="Entry Rules" rules={form.getValues().entryConditions} />
-                                    <RulesCard title="Exit Rules" rules={form.getValues().exitConditions} />
-                                    <RulesCard title="Risk Rules" rules={form.getValues().riskManagementRules} />
-                                    <RulesCard title="Context Rules" rules={form.getValues().contextRules} />
-                                </div>
-                             )}
-                        </form>
-                    </Form>
-                </CardContent>
-            </Card>
+            {wizardStarted ? (
+                <>
+                    <div className="p-4 bg-muted/30 rounded-lg">
+                        <Stepper currentStep={currentStep} steps={creationSteps} />
+                    </div>
+                    <Card className="bg-muted/30">
+                        <CardContent className="p-6">
+                            <Form {...form}>
+                                <form className="space-y-6">
+                                    {currentStep === 0 && (
+                                        <div className="space-y-4">
+                                            <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Strategy Name</FormLabel><FormControl><Input placeholder="e.g., London Open Reversal" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                            <div className="grid md:grid-cols-2 gap-4">
+                                                <FormField control={form.control} name="type" render={({ field }) => (<FormItem><FormLabel>Type</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger></FormControl><SelectContent>{strategyTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>)} />
+                                                <FormField control={form.control} name="timeframe" render={({ field }) => (<FormItem><FormLabel>Primary Timeframe</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select timeframe" /></SelectTrigger></FormControl><SelectContent>{timeframes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>)} />
+                                            </div>
+                                        </div>
+                                    )}
+                                     {currentStep === 1 && <FormField control={form.control} name="entryConditions" render={({ field }) => (<FormItem><FormLabel>Entry Rules</FormLabel><FormControl><RuleEditor {...field} placeholder="e.g., Price breaks 4H consolidation..." /></FormControl><FormMessage /></FormItem>)} />}
+                                     {currentStep === 2 && <FormField control={form.control} name="exitConditions" render={({ field }) => (<FormItem><FormLabel>Exit Rules (TP and SL logic)</FormLabel><FormControl><RuleEditor {...field} placeholder="e.g., Target is next major liquidity..." /></FormControl><FormMessage /></FormItem>)} />}
+                                     {currentStep === 3 && <FormField control={form.control} name="riskManagementRules" render={({ field }) => (<FormItem><FormLabel>Risk Management Rules</FormLabel><FormControl><RuleEditor {...field} placeholder="e.g., Max risk 1% of account..." /></FormControl><FormMessage /></FormItem>)} />}
+                                     {currentStep === 4 && <FormField control={form.control} name="contextRules" render={({ field }) => (<FormItem><FormLabel>Context Rules (when to trade/not trade)</FormLabel><FormControl><RuleEditor {...field} placeholder="e.g., Only trade during NY session..." /></FormControl><FormMessage /></FormItem>)} />}
+                                     {currentStep === 5 && (
+                                        <div className="space-y-4">
+                                            <h3 className="font-semibold">Review & Save</h3>
+                                            <RulesCard title="Basic Info" rules={[`Name: ${form.getValues().name}`, `Type: ${form.getValues().type}`, `Timeframe: ${form.getValues().timeframe}`]} />
+                                            <RulesCard title="Entry Rules" rules={form.getValues().entryConditions} />
+                                            <RulesCard title="Exit Rules" rules={form.getValues().exitConditions} />
+                                            <RulesCard title="Risk Rules" rules={form.getValues().riskManagementRules} />
+                                            <RulesCard title="Context Rules" rules={form.getValues().contextRules} />
+                                        </div>
+                                     )}
+                                </form>
+                            </Form>
+                        </CardContent>
+                    </Card>
+                </>
+            ) : (
+                <Card className="bg-muted/30">
+                    <CardHeader>
+                        <CardTitle>Start with a Template</CardTitle>
+                        <CardDescription>
+                             <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <span className="flex items-center gap-1.5 cursor-help">
+                                            Recommended for most users. You can edit everything.
+                                            <Info className="h-3 w-3 text-muted-foreground/80" />
+                                        </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>Templates are editable. Saving creates your v1 strategy.</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {strategyTemplates.map(template => (
+                             <Card key={template.id} onClick={() => handleTemplateSelect(template.id)} className="cursor-pointer hover:border-primary transition-colors bg-muted">
+                                <CardHeader>
+                                    <CardTitle className="text-base">{template.name}</CardTitle>
+                                    <CardDescription>{template.description}</CardDescription>
+                                </CardHeader>
+                             </Card>
+                        ))}
+                    </CardContent>
+                    <CardFooter className="flex-col items-start gap-4">
+                        <Separator />
+                        <Button variant="link" className="p-0 h-auto" onClick={() => setWizardStarted(true)}>Or start from scratch</Button>
+                    </CardFooter>
+                </Card>
+            )}
             
             <div className="flex justify-between items-center">
-                <Button type="button" variant="ghost" onClick={handleBack}>{currentStep === 0 ? "Cancel" : "Back"}</Button>
-                <div className="flex gap-2">
-                    <Button type="button" variant="outline" onClick={handleSaveDraft}><Save className="mr-2 h-4 w-4"/>Save as Draft</Button>
-                    <Button type="button" onClick={handleNext}>{currentStep === steps.length - 1 ? "Save Strategy" : "Next"}</Button>
-                </div>
+                <Button type="button" variant="ghost" onClick={handleBack}>{wizardStarted ? "Back" : "Cancel"}</Button>
+                {wizardStarted && (
+                     <div className="flex gap-2">
+                        <Button type="button" variant="outline" onClick={handleSaveDraft}><Save className="mr-2 h-4 w-4"/>Save as Draft</Button>
+                        <Button type="button" onClick={handleNext}>{currentStep === creationSteps.length - 1 ? "Save Strategy" : "Next"}</Button>
+                    </div>
+                )}
             </div>
         </div>
     );
