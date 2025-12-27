@@ -30,6 +30,7 @@ type StrategyVersion = {
         entryConditions: string[];
         exitConditions: string[];
         riskManagementRules: string[];
+        contextRules: string[];
     };
     usageCount: number;
     lastUsedAt: string | null;
@@ -49,8 +50,8 @@ type StrategyGroup = {
 const seedStrategies: StrategyGroup[] = [
     {
         strategyId: 'strat_1',
-        name: "London Reversal",
-        type: 'Reversal',
+        name: "Breakout Trend",
+        type: 'Breakout',
         timeframe: '15m',
         createdAt: new Date(Date.now() - 86400000 * 10).toISOString(),
         status: 'active',
@@ -61,71 +62,61 @@ const seedStrategies: StrategyGroup[] = [
                 isActiveVersion: true,
                 createdAt: new Date(Date.now() - 86400000 * 10).toISOString(),
                 fields: {
-                    entryConditions: ["Price sweeps Asia high/low", "Divergence on 5-min RSI", "Entry on first 15-min candle to close back inside range"],
-                    exitConditions: ["Target is opposing side of daily range", "Stop-loss is 2x ATR above/below the wick"],
-                    riskManagementRules: ["Max risk 1% of account", "Max daily loss 3%", "Max daily trades 5", "Leverage cap 20x", "Avoid Elevated/Extreme VIX"]
+                    entryConditions: ["Price breaks out of a 4-hour consolidation range", "Breakout candle has above-average volume", "Enter on a retest of the broken level"],
+                    exitConditions: ["Target is the next major liquidity level", "Stop-loss is below the mid-point of the consolidation range"],
+                    riskManagementRules: ["Max risk 1% of account", "Max daily loss 3%", "Max daily trades 4", "Leverage cap 20x"],
+                    contextRules: ["Only trade during NY session", "Avoid trading during major news events (e.g., FOMC)"]
                 },
-                usageCount: 28,
-                lastUsedAt: new Date(Date.now() - 86400000 * 2).toISOString(),
+                usageCount: 42,
+                lastUsedAt: new Date(Date.now() - 86400000 * 1).toISOString(),
             }
         ]
     },
     {
         strategyId: 'strat_2',
-        name: "BTC Trend Breakout",
-        type: 'Breakout',
+        name: "Pullback Continuation",
+        type: 'Pullback',
         timeframe: '1H',
-        createdAt: new Date(Date.now() - 86400000 * 5).toISOString(),
+        createdAt: new Date(Date.now() - 86400000 * 25).toISOString(),
         status: 'active',
         versions: [
-             {
-                versionId: 'sv_2_2',
-                versionNumber: 2,
-                isActiveVersion: true,
-                createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
-                fields: {
-                    entryConditions: ["4+ hours of consolidation", "Breakout candle closes with high volume", "Enter on retest of the breakout level"],
-                    exitConditions: ["Target is 2R minimum", "Stop-loss is below the consolidation range"],
-                    riskManagementRules: ["Max risk 1.5% of account", "Max daily loss 4%", "Max daily trades 3", "Leverage cap 10x", "Only trade during NY session"]
-                },
-                usageCount: 18,
-                lastUsedAt: new Date(Date.now() - 86400000).toISOString(),
-            },
             {
                 versionId: 'sv_2_1',
                 versionNumber: 1,
-                isActiveVersion: false,
-                createdAt: new Date(Date.now() - 86400000 * 4).toISOString(),
-                fields: { 
-                    entryConditions: ["Older entry condition", "Volume must be decreasing during consolidation"], 
-                    exitConditions: ["Older exit condition", "Partial TP at 1R"], 
-                    riskManagementRules: ["Max risk 2% of account"] 
+                isActiveVersion: true,
+                createdAt: new Date(Date.now() - 86400000 * 25).toISOString(),
+                fields: {
+                    entryConditions: ["Market is in a clear uptrend/downtrend on 4H", "Price pulls back to the 1H 21 EMA", "Enter on a bullish/bearish candle that respects the EMA"],
+                    exitConditions: ["Target is the previous swing high/low", "Stop-loss is behind the most recent swing structure"],
+                    riskManagementRules: ["Max risk 1.5% of account", "Max daily loss 4%", "Max daily trades 3"],
+                    contextRules: ["Only valid when 1H and 4H timeframes are aligned", "Avoid if VIX is in 'Extreme' zone"]
                 },
-                usageCount: 27,
-                lastUsedAt: new Date(Date.now() - 86400000 * 5).toISOString(),
+                usageCount: 89,
+                lastUsedAt: new Date(Date.now() - 86400000 * 3).toISOString(),
             }
         ]
     },
     {
         strategyId: 'strat_3',
-        name: "Old Scalping System",
-        type: 'Scalping',
+        name: "Range Fade",
+        type: 'Reversal',
         timeframe: '5m',
-        createdAt: new Date(Date.now() - 86400000 * 30).toISOString(),
-        status: 'archived',
+        createdAt: new Date(Date.now() - 86400000 * 40).toISOString(),
+        status: 'active',
         versions: [
             {
                 versionId: 'sv_3_1',
                 versionNumber: 1,
                 isActiveVersion: true,
-                createdAt: new Date(Date.now() - 86400000 * 30).toISOString(),
-                fields: { 
-                    entryConditions: ["Scalp entry"], 
-                    exitConditions: ["Scalp exit"], 
-                    riskManagementRules: ["Max risk 0.5% of account", "Max daily loss 2%"] 
+                createdAt: new Date(Date.now() - 86400000 * 40).toISOString(),
+                fields: {
+                    entryConditions: ["Price is in a clearly defined range on 1H", "Price sweeps the high/low of the range on 5m", "Enter when 5m candle closes back inside the range"],
+                    exitConditions: ["Target is the mid-point of the range (0.5 level)", "Stop-loss is above/below the wick of the sweep candle"],
+                    riskManagementRules: ["Max risk 0.75% of account", "Max daily loss 2.5%", "Leverage cap 50x"],
+                    contextRules: ["Only valid when VIX is 'Normal' or 'Calm'", "Do not trade this during trend-following days"]
                 },
-                usageCount: 102,
-                lastUsedAt: new Date(Date.now() - 86400000 * 20).toISOString(),
+                usageCount: 153,
+                lastUsedAt: new Date(Date.now() - 86400000 * 2).toISOString(),
             }
         ]
     }
@@ -157,21 +148,20 @@ function StrategyCard({ strategy, onOpen }: { strategy: StrategyGroup, onOpen: (
     const parseRule = (rules: string[], keyword: string): string | null => {
         const rule = rules.find(r => r.toLowerCase().includes(keyword.toLowerCase()));
         if (!rule) return null;
-        const value = rule.replace(new RegExp(keyword, 'i'), '').trim();
-        // Extract just the core value, e.g., "1%" from "Max risk 1% of account"
-        return value.split(' ')[0];
+        const value = rule.split(' ').find(part => part.includes('%') || part.includes('x') || Number.isInteger(Number(part)));
+        return value || null;
     };
 
     const riskRules = activeVersion?.fields.riskManagementRules || [];
-    const contextRules = activeVersion?.fields.riskManagementRules || [];
+    const contextRules = activeVersion?.fields.contextRules || [];
 
     const riskPerTrade = parseRule(riskRules, "Max risk");
     const maxDailyLoss = parseRule(riskRules, "Max daily loss");
     const maxDailyTrades = parseRule(riskRules, "Max daily trades");
     const leverageCap = parseRule(riskRules, "Leverage cap");
 
-    const timeRestriction = parseRule(contextRules, "Only trade during");
-    const vixRestriction = parseRule(contextRules, "Avoid");
+    const timeRestriction = contextRules.find(r => r.toLowerCase().includes('session'));
+    const vixRestriction = contextRules.find(r => r.toLowerCase().includes('vix'));
     
     return (
         <Card className="bg-muted/40 hover:bg-muted/60 transition-colors flex flex-col">
@@ -202,8 +192,8 @@ function StrategyCard({ strategy, onOpen }: { strategy: StrategyGroup, onOpen: (
                 <div className="p-3 rounded-md bg-muted border space-y-3">
                     <h4 className="font-semibold text-xs text-muted-foreground">Context Rules Snapshot</h4>
                      <div className="grid grid-cols-2 gap-2">
-                        <RuleItem icon={Clock} label="Time" value={timeRestriction} />
-                        <RuleItem icon={Calendar} label="Volatility" value={vixRestriction} />
+                        <RuleItem icon={Clock} label="Time" value={timeRestriction ? timeRestriction.split(' ').slice(-2).join(' ') : 'Any'} />
+                        <RuleItem icon={Calendar} label="Volatility" value={vixRestriction ? vixRestriction.split(' ').slice(1,3).join(' ') : 'Any'} />
                     </div>
                 </div>
             </CardContent>
@@ -383,9 +373,10 @@ function StrategyDetailView({
 
                     {/* Right Column */}
                     <div className="lg:col-span-2 space-y-6">
-                        <RulesCard title="Entry Conditions" rules={selectedVersion.fields.entryConditions} />
-                        <RulesCard title="Exit Conditions" rules={selectedVersion.fields.exitConditions} />
+                        <RulesCard title="Entry Rules" rules={selectedVersion.fields.entryConditions} />
+                        <RulesCard title="Exit Rules" rules={selectedVersion.fields.exitConditions} />
                         <RulesCard title="Risk Management Rules" rules={selectedVersion.fields.riskManagementRules} />
+                        <RulesCard title="Context Rules" rules={selectedVersion.fields.contextRules} />
                     </div>
                 </div>
             </div>
@@ -419,6 +410,7 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
                 if (!savedStrategies || forceSeed) {
                     localStorage.setItem("ec_strategies", JSON.stringify(seedStrategies));
                     setStrategies(seedStrategies);
+                    if(forceSeed) toast({ title: "Demo strategies generated." });
                 } else {
                     setStrategies(JSON.parse(savedStrategies));
                 }
@@ -519,8 +511,8 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
     const activeStrategies = filteredStrategies.filter(s => s.status === 'active');
     const archivedStrategies = filteredStrategies.filter(s => s.status === 'archived');
     
-    const strategyTypes = ['All', ...Array.from(new Set(strategies.map(s => s.type)))];
-    const timeframes = ['All', ...Array.from(new Set(strategies.map(s => s.timeframe)))];
+    const strategyTypes = ['All', 'Breakout', 'Pullback', 'Reversal', 'Scalping', 'SMC', 'Custom'];
+    const timeframes = ['All', '5m', '15m', '1H', '4H'];
 
     if (viewingStrategy) {
         return <StrategyDetailView 
