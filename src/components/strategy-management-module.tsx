@@ -36,6 +36,7 @@ type StrategyVersion = {
     versionNumber: number;
     isActiveVersion: boolean;
     createdAt: string;
+    changeNotes?: string;
     fields: {
         description?: string;
         difficulty?: 'Beginner' | 'Intermediate' | 'Advanced';
@@ -74,6 +75,7 @@ const seedStrategies: StrategyGroup[] = [
                 versionNumber: 1,
                 isActiveVersion: true,
                 createdAt: new Date(Date.now() - 86400000 * 10).toISOString(),
+                changeNotes: "Initial creation of the strategy.",
                 fields: {
                     description: "A classic breakout strategy for trending markets.",
                     difficulty: "Intermediate",
@@ -101,6 +103,7 @@ const seedStrategies: StrategyGroup[] = [
                 versionNumber: 1,
                 isActiveVersion: true,
                 createdAt: new Date(Date.now() - 86400000 * 25).toISOString(),
+                changeNotes: "Initial creation.",
                 fields: {
                     description: "Entering a strong existing trend on a dip.",
                     difficulty: "Intermediate",
@@ -128,6 +131,7 @@ const seedStrategies: StrategyGroup[] = [
                 versionNumber: 1,
                 isActiveVersion: true,
                 createdAt: new Date(Date.now() - 86400000 * 40).toISOString(),
+                changeNotes: "Initial creation.",
                 fields: {
                     description: "Trading mean reversion in a range-bound market.",
                     difficulty: "Advanced",
@@ -320,10 +324,8 @@ function StrategyDetailView({
     onSetModule: (module: any, context?: any) => void;
 }) {
     const [selectedVersionId, setSelectedVersionId] = useState<string>(strategy.versions.find(v => v.isActiveVersion)?.versionId || strategy.versions[0].versionId);
-    const [compareVersionId, setCompareVersionId] = useState<string | null>(null);
 
     const selectedVersion = strategy.versions.find(v => v.versionId === selectedVersionId);
-    const compareVersion = compareVersionId ? strategy.versions.find(v => v.versionId === compareVersionId) : null;
 
     if (!selectedVersion) return null; // Should not happen if data is correct
 
@@ -393,63 +395,28 @@ function StrategyDetailView({
                                     </div>
                                 </CardDescription>
                             </CardHeader>
-                            <CardContent>
-                                <div className="space-y-4">
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <div>
-                                            <Label htmlFor="version-selector">Viewing Version</Label>
-                                            <Select
-                                                value={selectedVersion.versionId}
-                                                onValueChange={setSelectedVersionId}
-                                            >
-                                                <SelectTrigger id="version-selector">
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {strategy.versions.map(v => (
-                                                        <SelectItem key={v.versionId} value={v.versionId}>
-                                                            <div className="flex items-center gap-2">
-                                                                {v.isActiveVersion && <Star className="h-4 w-4 text-primary" />}
-                                                                <span>Version {v.versionNumber} {v.isActiveVersion && '(Active)'}</span>
-                                                            </div>
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
+                             <CardContent>
+                                <h4 className="font-semibold text-foreground mb-3 text-sm">Version History</h4>
+                                <div className="space-y-3">
+                                    {strategy.versions.map(v => (
+                                        <div
+                                            key={v.versionId}
+                                            onClick={() => setSelectedVersionId(v.versionId)}
+                                            className={cn("p-3 rounded-md border cursor-pointer transition-colors", selectedVersionId === v.versionId ? "bg-muted border-primary/50" : "bg-muted/50 hover:bg-muted")}
+                                        >
+                                            <div className="flex justify-between items-center">
+                                                <p className="font-semibold text-sm">Version {v.versionNumber}</p>
+                                                {v.isActiveVersion && <Badge variant="secondary" className="bg-primary/10 text-primary">Active</Badge>}
+                                            </div>
+                                            <p className="text-xs text-muted-foreground mt-1">Created: {new Date(v.createdAt).toLocaleDateString()}</p>
+                                             {v.changeNotes && <p className="text-xs text-muted-foreground mt-2 italic">"{v.changeNotes}"</p>}
+                                             {!v.isActiveVersion && selectedVersionId !== v.versionId && (
+                                                <Button variant="link" size="sm" className="p-0 h-auto text-xs mt-2" onClick={(e) => { e.stopPropagation(); onMakeActive(v.versionId); }}>
+                                                    Make active
+                                                </Button>
+                                            )}
                                         </div>
-                                         <div>
-                                            <Label htmlFor="compare-version-selector">Compare With</Label>
-                                            <Select
-                                                value={compareVersionId || 'none'}
-                                                onValueChange={(vId) => setCompareVersionId(vId === 'none' ? null : vId)}
-                                            >
-                                                <SelectTrigger id="compare-version-selector">
-                                                    <SelectValue placeholder="Compare..."/>
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="none">None</SelectItem>
-                                                    {strategy.versions.filter(v => v.versionId !== selectedVersionId).map(v => (
-                                                        <SelectItem key={v.versionId} value={v.versionId}>
-                                                             <div className="flex items-center gap-2">
-                                                                {v.isActiveVersion && <Star className="h-4 w-4 text-primary" />}
-                                                                <span>Version {v.versionNumber} {v.isActiveVersion && '(Active)'}</span>
-                                                            </div>
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                    </div>
-                                    <div className="text-sm text-muted-foreground space-y-2 pt-2">
-                                        <div className="flex justify-between"><span>Created:</span> <span className="font-medium text-foreground">{new Date(selectedVersion.createdAt).toLocaleDateString()}</span></div>
-                                        <div className="flex justify-between"><span>Trades with this version:</span> <span className="font-medium text-foreground">{selectedVersion.usageCount}</span></div>
-                                    </div>
-                                    {!selectedVersion.isActiveVersion && (
-                                        <Button className="w-full" variant="outline" onClick={() => onMakeActive(selectedVersion.versionId)}>
-                                            <Star className="mr-2 h-4 w-4" />
-                                            Make this version active
-                                        </Button>
-                                    )}
+                                    ))}
                                 </div>
                             </CardContent>
                         </Card>
@@ -457,37 +424,12 @@ function StrategyDetailView({
 
                     {/* Right Column */}
                     <div className="lg:col-span-2 space-y-6">
-                        {compareVersion ? (
-                            <div className="grid md:grid-cols-2 gap-6">
-                                <div className="space-y-4">
-                                    <h3 className="font-semibold text-center">Version {selectedVersion.versionNumber}</h3>
-                                    <RulesCard title="Description / When to Use" rules={selectedVersion.fields.description} />
-                                    <RulesCard title="Entry Rules" rules={selectedVersion.fields.entryConditions} />
-                                    <RulesCard title="Stop Loss Rules" rules={selectedVersion.fields.stopLossRules} />
-                                    <RulesCard title="Take Profit Rules" rules={selectedVersion.fields.takeProfitRules} />
-                                    <RulesCard title="Risk Rules" rules={selectedVersion.fields.riskManagementRules} />
-                                    <RulesCard title="Context Rules" rules={selectedVersion.fields.contextRules} />
-                                </div>
-                                <div className="space-y-4">
-                                     <h3 className="font-semibold text-center">Version {compareVersion.versionNumber}</h3>
-                                    <RulesCard title="Description / When to Use" rules={compareVersion.fields.description} />
-                                    <RulesCard title="Entry Rules" rules={compareVersion.fields.entryConditions} />
-                                    <RulesCard title="Stop Loss Rules" rules={compareVersion.fields.stopLossRules} />
-                                    <RulesCard title="Take Profit Rules" rules={compareVersion.fields.takeProfitRules} />
-                                    <RulesCard title="Risk Rules" rules={compareVersion.fields.riskManagementRules} />
-                                    <RulesCard title="Context Rules" rules={compareVersion.fields.contextRules} />
-                                </div>
-                            </div>
-                        ) : (
-                             <>
-                                <RulesCard title="Description / When to Use" rules={selectedVersion.fields.description} />
-                                <RulesCard title="Entry Rules" rules={selectedVersion.fields.entryConditions} />
-                                <RulesCard title="Stop Loss Rules" rules={selectedVersion.fields.stopLossRules} />
-                                <RulesCard title="Take Profit Rules" rules={selectedVersion.fields.takeProfitRules} />
-                                <RulesCard title="Risk Management Rules" rules={selectedVersion.fields.riskManagementRules} />
-                                <RulesCard title="Context Rules" rules={selectedVersion.fields.contextRules} />
-                            </>
-                        )}
+                        <RulesCard title="Description / When to Use" rules={selectedVersion.fields.description} />
+                        <RulesCard title="Entry Rules" rules={selectedVersion.fields.entryConditions} />
+                        <RulesCard title="Stop Loss Rules" rules={selectedVersion.fields.stopLossRules} />
+                        <RulesCard title="Take Profit Rules" rules={selectedVersion.fields.takeProfitRules} />
+                        <RulesCard title="Risk Management Rules" rules={selectedVersion.fields.riskManagementRules} />
+                        <RulesCard title="Context Rules" rules={selectedVersion.fields.contextRules} />
                     </div>
                 </div>
             </div>
@@ -501,6 +443,7 @@ const strategyCreationSchema = z.object({
     timeframes: z.array(z.string()).min(1, "Select at least one timeframe."),
     description: z.string().optional(),
     difficulty: z.string().optional(),
+    changeNotes: z.string().optional(),
     entryConditions: z.array(z.string()).min(1, "At least one entry rule is required."),
     stopLossRules: z.array(z.string()).min(1, "At least one stop loss rule is required."),
     takeProfitRules: z.array(z.string()),
@@ -610,7 +553,7 @@ const RuleEditor = ({ value, onChange, placeholder }: { value: string[]; onChang
     );
 };
   
-const strategyTemplates: (Omit<StrategyCreationValues, 'name'> & {id: string, name: string, description: string})[] = [
+const strategyTemplates: (Omit<StrategyCreationValues, 'name' | 'changeNotes'> & {id: string, name: string, description: string})[] = [
     {
         id: 'breakout',
         name: "Breakout Trend",
@@ -734,12 +677,14 @@ function StrategyCreatorView({
     onBack, 
     onSave, 
     onSaveDraft, 
-    initialData 
+    initialData,
+    editingId,
 }: { 
     onBack: () => void; 
     onSave: (data: StrategyCreationValues) => void; 
     onSaveDraft: (data: StrategyCreationValues) => void; 
-    initialData?: StrategyCreationValues | null; 
+    initialData?: StrategyCreationValues | null;
+    editingId?: string;
 }) {
     const [currentStep, setCurrentStep] = useState(0);
     const { toast } = useToast();
@@ -768,6 +713,7 @@ function StrategyCreatorView({
             timeframes: [],
             description: '',
             difficulty: '',
+            changeNotes: '',
             entryConditions: [],
             stopLossRules: [],
             takeProfitRules: [],
@@ -805,16 +751,8 @@ function StrategyCreatorView({
         const template = strategyTemplates.find(t => t.id === templateId);
         if(template) {
             form.reset({
-                name: template.name,
-                type: template.type,
-                timeframes: template.timeframes,
-                description: template.description,
-                difficulty: '',
-                entryConditions: template.entryConditions,
-                stopLossRules: template.stopLossRules,
-                takeProfitRules: template.takeProfitRules,
-                riskManagementRules: template.riskManagementRules,
-                contextRules: template.contextRules,
+                ...template,
+                changeNotes: 'Created from template.',
             });
             setWizardStarted(true);
         }
@@ -838,8 +776,8 @@ function StrategyCreatorView({
             </AlertDialog>
 
             <div>
-                <h1 className="text-2xl font-bold tracking-tight text-foreground">{initialData ? 'Edit Strategy' : 'Create Strategy'}</h1>
-                <p className="text-muted-foreground">Build a rulebook Arjun can enforce.</p>
+                <h1 className="text-2xl font-bold tracking-tight text-foreground">{editingId ? 'Edit Strategy' : 'Create Strategy'}</h1>
+                <p className="text-muted-foreground">{editingId ? 'Create a new version of your strategy.' : 'Build a rulebook Arjun can enforce.'}</p>
             </div>
             
             <div className="grid lg:grid-cols-3 gap-8 items-start">
@@ -871,7 +809,7 @@ function StrategyCreatorView({
                                                                 <FormControl>
                                                                     <div className="flex flex-wrap gap-2 pt-2">
                                                                         {timeframeOptions.map(tf => {
-                                                                            const isSelected = field.value.includes(tf);
+                                                                            const isSelected = field.value?.includes(tf);
                                                                             return (
                                                                                 <Button
                                                                                     key={tf}
@@ -879,8 +817,8 @@ function StrategyCreatorView({
                                                                                     variant={isSelected ? "secondary" : "outline"}
                                                                                     onClick={() => {
                                                                                         const newValue = isSelected
-                                                                                            ? field.value.filter(v => v !== tf)
-                                                                                            : [...field.value, tf];
+                                                                                            ? (field.value || []).filter(v => v !== tf)
+                                                                                            : [...(field.value || []), tf];
                                                                                         field.onChange(newValue);
                                                                                     }}
                                                                                 >
@@ -912,7 +850,22 @@ function StrategyCreatorView({
                                             {currentStep === 6 && (
                                                 <div className="space-y-4">
                                                     <h3 className="font-semibold">Review & Save</h3>
-                                                    <RulesCard title="Basic Info" rules={[`Name: ${form.getValues().name}`, `Type: ${form.getValues().type}`, `Timeframes: ${form.getValues().timeframes.join(', ')}`]} />
+                                                    {editingId && (
+                                                        <FormField
+                                                            control={form.control}
+                                                            name="changeNotes"
+                                                            render={({ field }) => (
+                                                                <FormItem>
+                                                                    <FormLabel>What's new in this version?</FormLabel>
+                                                                    <FormControl>
+                                                                        <Textarea placeholder="e.g., 'Tightened SL rule and added a new entry confirmation.'" {...field} />
+                                                                    </FormControl>
+                                                                    <FormMessage />
+                                                                </FormItem>
+                                                            )}
+                                                        />
+                                                    )}
+                                                    <RulesCard title="Basic Info" rules={[`Name: ${form.getValues().name}`, `Type: ${form.getValues().type}`, `Timeframes: ${(form.getValues().timeframes || []).join(', ')}`]} />
                                                     <RulesCard title="Entry Rules" rules={form.getValues().entryConditions} />
                                                     <RulesCard title="Stop Loss Rules" rules={form.getValues().stopLossRules} />
                                                     <RulesCard title="Take Profit Rules" rules={form.getValues().takeProfitRules} />
@@ -973,7 +926,7 @@ function StrategyCreatorView({
                 {wizardStarted && (
                      <div className="flex gap-2">
                         <Button type="button" variant="outline" onClick={() => onSaveDraft(form.getValues())}><Save className="mr-2 h-4 w-4"/>Save as Draft</Button>
-                        <Button type="button" onClick={handleNext}>{currentStep === creationSteps.length - 1 ? "Save Strategy" : "Next"}</Button>
+                        <Button type="button" onClick={handleNext}>{currentStep === creationSteps.length - 1 ? (editingId ? "Save New Version" : "Save Strategy") : "Next"}</Button>
                     </div>
                 )}
             </div>
@@ -1093,6 +1046,7 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
                         versionNumber: latestVersionNumber + 1,
                         isActiveVersion: true,
                         createdAt: new Date().toISOString(),
+                        changeNotes: data.changeNotes,
                         fields: {
                             description: data.description,
                             difficulty: data.difficulty as any,
@@ -1143,6 +1097,7 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
                         versionNumber: 1,
                         isActiveVersion: true,
                         createdAt: new Date().toISOString(),
+                        changeNotes: "Initial creation.",
                         fields: {
                             description: data.description,
                             difficulty: data.difficulty as any,
@@ -1197,6 +1152,7 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
     };
 
     const filteredStrategies = useMemo(() => {
+        if (!strategies) return [];
         return strategies.filter(s => {
             if (!s.timeframes) s.timeframes = []; // Data correction
             const searchMatch = s.name.toLowerCase().includes(filters.search.toLowerCase()) || s.type.toLowerCase().includes(filters.search.toLowerCase());
@@ -1232,13 +1188,14 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
 
     if (viewMode === 'create' || viewMode === 'edit') {
         const initialData = viewMode === 'edit' && editingStrategy 
-            ? { ...editingStrategy.versions.find(v => v.isActiveVersion)?.fields, name: editingStrategy.name, type: editingStrategy.type, timeframes: editingStrategy.timeframes } as StrategyCreationValues
+            ? { ...editingStrategy.versions.find(v => v.isActiveVersion)?.fields, name: editingStrategy.name, type: editingStrategy.type, timeframes: editingStrategy.timeframes, changeNotes: '' } as StrategyCreationValues
             : null;
         return <StrategyCreatorView 
             onBack={() => { setViewMode('list'); setEditingStrategy(null); }} 
             onSave={(data) => handleSaveStrategy(data, 'active', editingStrategy?.strategyId)}
             onSaveDraft={(data) => handleSaveStrategy(data, 'draft', editingStrategy?.strategyId)}
-            initialData={initialData} 
+            initialData={initialData}
+            editingId={editingStrategy?.strategyId}
         />;
     }
 
