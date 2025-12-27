@@ -3,7 +3,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { BrainCircuit, PlusCircle, CheckCircle, Search, Filter as FilterIcon, Clock, ListOrdered, FileText, Gauge, Calendar, ShieldCheck, Zap, MoreHorizontal, ArrowLeft, Edit, Archive, Star, BookOpen, BarChartHorizontal, Trash2, ChevronsUpDown, Info, Check, Save, Copy, CircleDashed, ArrowRight, X } from "lucide-react";
+import { BrainCircuit, PlusCircle, CheckCircle, Search, Filter as FilterIcon, Clock, ListOrdered, FileText, Gauge, Calendar, ShieldCheck, Zap, MoreHorizontal, ArrowLeft, Edit, Archive, Star, BookOpen, BarChartHorizontal, Trash2, ChevronsUpDown, Info, Check, Save, Copy, CircleDashed, ArrowRight, X, AlertTriangle } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -22,7 +22,6 @@ import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "./ui/t
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "./ui/alert-dialog";
 import { Textarea } from "./ui/textarea";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "./ui/form";
-import { Progress } from "./ui/progress";
 import { Checkbox } from "./ui/checkbox";
 import { Dialog, DialogClose, DialogContent as DialogContentNonAlertDialog, DialogFooter as DialogFooterNonAlertDialog, DialogHeader as DialogHeaderNonAlertDialog, DialogTitle as DialogTitleNonAlertDialog } from "./ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
@@ -808,7 +807,7 @@ function StrategyCreatorView({
         }
     };
 
-    const RuleFormItem = ({ name, label, tooltipText, placeholder, description }: { name: keyof StrategyCreationValues, label: string, tooltipText: string, placeholder: string, description?: string }) => (
+    const RuleFormItem = ({ name, label, tooltipText, placeholder, description, callout }: { name: keyof StrategyCreationValues, label: string, tooltipText: string, placeholder: string, description?: string, callout?: React.ReactNode }) => (
         <FormField
             control={form.control}
             name={name}
@@ -823,6 +822,7 @@ function StrategyCreatorView({
                     <FormControl>
                         <RuleEditor {...field} placeholder={placeholder} description={description} />
                     </FormControl>
+                    {callout}
                     <FormMessage />
                 </FormItem>
             )}
@@ -925,15 +925,25 @@ function StrategyCreatorView({
                                             )}
                                             {currentStep === 1 && <RuleFormItem name="entryConditions" label="Entry Rules" tooltipText="What specific, observable conditions must be true on the chart for you to consider entering a trade?" placeholder="e.g., Price breaks 4H consolidation..." />}
                                             {currentStep === 2 && (
-                                                <div className="space-y-4">
-                                                    <RuleFormItem name="stopLossRules" label="Stop Loss Rules" tooltipText="Your stop-loss is your non-negotiable exit point if a trade goes against you. It defines your risk." placeholder="e.g., Below previous swing low OR fixed 0.8% from entry" />
-                                                    <p className="text-xs text-muted-foreground p-3 rounded-md bg-amber-950/20 border border-amber-500/20">
-                                                        <span className="font-semibold text-amber-300">Why this matters:</span> Your Stop Loss is your psychological anchor. It's your promise to yourself about how much you're willing to risk. No SL = no EdgeCipher trade.
-                                                    </p>
-                                                </div>
+                                                <RuleFormItem 
+                                                    name="stopLossRules" 
+                                                    label="Stop Loss Rules" 
+                                                    tooltipText="Your stop-loss is your non-negotiable exit point if a trade goes against you. It defines your risk."
+                                                    placeholder="e.g., Below previous swing low OR fixed 0.8% from entry"
+                                                    callout={<Alert variant="default" className="mt-4 bg-amber-950/20 border-amber-500/20 text-amber-300/90"><AlertTriangle className="h-4 w-4 text-amber-400" /><AlertTitle className="text-amber-400 text-sm">Why this matters</AlertTitle><AlertDescription className="text-xs">Your Stop Loss is your psychological anchor. It's your promise to yourself about how much you're willing to risk. No SL = no EdgeCipher trade.</AlertDescription></Alert>}
+                                                />
                                             )}
                                             {currentStep === 3 && <RuleFormItem name="takeProfitRules" label="Take Profit Rules" tooltipText="Where will you take profit? Defining this helps prevent exiting too early or getting too greedy." description="It's highly recommended to define at least one exit condition for taking profit." placeholder="e.g., Target next major liquidity level or 2R" />}
-                                            {currentStep === 4 && <RuleFormItem name="riskManagementRules" label="Risk Management Rules" tooltipText="These are your hard capital-protection rules. They apply to all trades under this strategy." description="Define your hard constraints for every trade." placeholder="e.g., Max risk 1% of account..." />}
+                                            {currentStep === 4 && (
+                                                <RuleFormItem
+                                                    name="riskManagementRules"
+                                                    label="Risk Management Rules"
+                                                    tooltipText="These are your hard capital-protection rules. They apply to all trades under this strategy."
+                                                    description="Define your hard constraints for every trade."
+                                                    placeholder="e.g., Max risk 1% of account..."
+                                                    callout={<Alert variant="default" className="mt-4 bg-amber-950/20 border-amber-500/20 text-amber-300/90"><AlertTriangle className="h-4 w-4 text-amber-400" /><AlertTitle className="text-amber-400 text-sm">Why this matters</AlertTitle><AlertDescription className="text-xs">These are the rules Arjun will enforce most strictly in Trade Planning. They are your firewall against blowing up your account.</AlertDescription></Alert>}
+                                                />
+                                            )}
                                             {currentStep === 5 && <RuleFormItem name="contextRules" label="Context Rules (when to trade/not trade)" tooltipText="Define the market environment where this strategy works best, and when to avoid it." placeholder="e.g., Only trade during NY session..." />}
                                             {currentStep === 6 && (
                                                 <div className="space-y-4">
@@ -971,19 +981,12 @@ function StrategyCreatorView({
                             <CardHeader>
                                 <CardTitle>Start with a Template</CardTitle>
                                 <CardDescription>
-                                    <TooltipProvider>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <span className="flex items-center gap-1.5 cursor-help">
-                                                    Recommended for most users. You can edit everything.
-                                                    <Info className="h-3 w-3 text-muted-foreground/80" />
-                                                </span>
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>Templates are editable. Saving creates your v1 strategy.</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
+                                    <InfoTooltip text="Templates are editable. Saving creates your v1 strategy.">
+                                        <span className="flex items-center gap-1.5 cursor-help">
+                                            Recommended for most users. You can edit everything.
+                                            <Info className="h-3 w-3 text-muted-foreground/80" />
+                                        </span>
+                                    </InfoTooltip>
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1219,6 +1222,7 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
     };
 
     const handleEdit = (strategy: StrategyGroup) => {
+        setViewingStrategy(null);
         setEditingStrategy(strategy);
         setViewMode('edit');
     };
