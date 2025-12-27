@@ -109,6 +109,12 @@
     .animate-metric-pulse {
         animation: metric-pulse 0.5s ease-out;
     }
-}
 
-    
+    @media (prefers-reduced-motion) {
+      .animate-in,
+      .animate-out,
+      .animate-metric-pulse {
+        animation: none;
+      }
+    }
+}

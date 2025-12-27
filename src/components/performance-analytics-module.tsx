@@ -1,5 +1,4 @@
 
-
       "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
@@ -45,7 +44,7 @@ function seededRandom(seed: number) {
 
 
 const SectionCard: React.FC<{id?: string, title: React.ReactNode, description: string, icon: React.ElementType, children: React.ReactNode, headerContent?: React.ReactNode, onExport?: () => void, className?: string}> = ({ id, title, description, icon: Icon, children, headerContent, onExport, className }) => (
-    <Card id={id} className={cn("bg-muted/30 border-border/50 scroll-mt-40 animate-in fade-in-50 duration-500", className)}>
+    <Card id={id} className={cn("bg-muted/30 border-border/50 scroll-mt-40 motion-reduce:animate-none animate-in fade-in-50 duration-500", className)}>
         <CardHeader>
             <div className="flex items-start justify-between gap-4">
                 <div>
@@ -92,7 +91,7 @@ const DeltaIndicator = ({ delta, unit = "" }: { delta: number; unit?: string }) 
 };
 
 const MetricCard = ({ title, value, hint, delta, deltaUnit, onClick }: { title: string; value: string | React.ReactNode; hint: string, delta?: number, deltaUnit?: string, onClick?: () => void }) => (
-    <Card className={cn("bg-muted/50 border-border/50 animate-metric-pulse", onClick && "cursor-pointer hover:bg-muted hover:border-primary/20 transition-all")} onClick={onClick}>
+    <Card className={cn("bg-muted/50 border-border/50 motion-reduce:animate-none", onClick && "cursor-pointer hover:bg-muted hover:border-primary/20 transition-all")} onClick={onClick}>
         <CardHeader className="pb-2">
             <CardTitle className="text-base">{title}</CardTitle>
         </CardHeader>
@@ -408,7 +407,7 @@ function ScoreGauge({ score, label, interpretation, delta }: { score: number; la
     const interpretationColor = score < 40 ? colorClasses.bad : score < 70 ? colorClasses.medium : colorClasses.good;
 
     return (
-        <div className="flex flex-col items-center gap-2 animate-in fade-in-50 duration-500">
+        <div className="flex flex-col items-center gap-2 motion-reduce:animate-none">
             <svg viewBox="0 0 100 60" className="w-full h-auto">
                 <path
                     d={`M ${getArc(0, 40)} A 40,40 0 1,1 ${getArc(1, 40)}`}
@@ -472,7 +471,7 @@ const RadarChart = ({ data, onSetModule }: { data: { axis: string, value: number
     };
 
     return (
-        <svg width="100%" height="100%" viewBox={`0 0 ${size} ${size}`} className="animate-in fade-in-50 duration-500">
+        <svg width="100%" height="100%" viewBox={`0 0 ${size} ${size}`} className="motion-reduce:animate-none">
             {/* Background Webs */}
             {[...Array(numLevels)].map((_, levelIndex) => {
                 const levelRadius = radius * ((levelIndex + 1) / numLevels);
@@ -694,7 +693,7 @@ function GrowthPlanDialog({ isOpen, onOpenChange, onApply }: { isOpen: boolean, 
 
 function DemoNarrativePanel({ onScrollTo }: { onScrollTo: (id: string) => void }) {
     const steps = [
-        { id: "summary", label: "High-Level Summary", description: "Start here to see the big picture: PnL, Win Rate, and overall quality." },
+        { id: "analytics-quality-badge", label: "High-Level Summary", description: "Start here to see the big picture: PnL, Win Rate, and overall quality." },
         { id: "equity", label: "Equity Curve & Events", description: "See how specific behavioral mistakes directly impacted your account balance." },
         { id: "loss-drivers", label: "Top Loss Drivers", description: "Identify which specific mistakes are costing you the most money." },
         { id: "thresholds", label: "Threshold Alerts & Guardrails", description: "Turn these data-driven insights into real-time warnings for your next trade." },
@@ -732,6 +731,36 @@ function DemoNarrativePanel({ onScrollTo }: { onScrollTo: (id: string) => void }
 }
 
 type SortKey = "name" | "pnl" | "winRate" | "mistakeRate";
+
+const SortableHeader = ({
+  sortKey,
+  label,
+  sortConfig,
+  onSort,
+}: {
+  sortKey: SortKey;
+  label: string;
+  sortConfig: { key: SortKey; direction: 'ascending' | 'descending' };
+  onSort: (key: SortKey) => void;
+}) => {
+  const isSorted = sortConfig.key === sortKey;
+  return (
+    <TableHead>
+      <Button variant="ghost" onClick={() => onSort(sortKey)} className="-ml-4">
+        {label}
+        {isSorted && (
+          <ChevronsUpDown
+            className={cn(
+              "ml-2 h-4 w-4 transform",
+              sortConfig.direction === 'descending' && "rotate-180"
+            )}
+          />
+        )}
+      </Button>
+    </TableHead>
+  );
+};
+
 
 export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalyticsModuleProps) {
     const [timeRange, setTimeRange] = useState("30d");
@@ -857,7 +886,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
           acc.push({
             date: entry.timestamps.executedAt,
             equity,
-            marker: hasMarker ? { type: entry.review?.mistakesTags?.split(',')[0], color: "hsl(var(--chart-5))" } : null,
+            marker: hasMarker ? { type: entry.review?.mistakesTags?.split(',')[0], color: "hsl(var(--chart-5))", pnl: entry.review?.pnl } : null,
             journalId: entry.id,
           });
           return acc;
@@ -1105,168 +1134,92 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
             const stopDistance = entryPrice * (0.005 + random() * 0.015);
             const stopLoss = direction === 'Long' ? entryPrice - stopDistance : entryPrice + stopDistance;
 
-            const baseRR = 0.5 + random() * 2.5;
-            const rewardDistance = stopDistance * baseRR;
-            const takeProfit = direction === 'Long' ? entryPrice + rewardDistance : entryPrice - rewardDistance;
+            const rrrRoll = random();
+            let rrr = 1.5 + random();
+            if (rrrRoll < 0.2) rrr = 0.8 + random() * 0.5; // low RRR
 
-            let winChance = 0.5; // Base win rate
-            if (isRevengeTrade) winChance = 0.2;
-            else if (mistakes.includes("None (disciplined)")) winChance = 0.65;
-            if (vixZone === 'Elevated') winChance -= 0.1;
+            const takeProfit = direction === 'Long' ? entryPrice + (stopDistance * rrr) : entryPrice - (stopDistance * rrr);
+
+            let winRoll = random();
+            if (mistakes.includes("Forced Entry")) winRoll += 0.3; // Lower win chance
+            if (strategy === "Mean Reversion") winRoll -= 0.15; // Higher win chance
+            if (isRevengeTrade) winRoll += 0.4;
             
-            let isWin = random() < winChance;
-            
+            const isWin = winRoll < 0.55;
+
             let pnl;
-            if (mistakes.includes("Moved SL")) {
-                isWin = false;
-                pnl = -riskAmount * (1.5 + random()); // Bigger loss if SL is moved
-            } else if (isRevengeTrade) {
-                isWin = random() < 0.15;
-                pnl = isWin ? riskAmount * baseRR * 0.5 : -riskAmount;
+            if (isWin) {
+                pnl = riskAmount * rrr * (0.8 + random() * 0.4);
+                lastResult = 'win';
+                consecutiveLosses = 0;
             } else {
-                pnl = isWin ? riskAmount * baseRR : -riskAmount;
+                pnl = -riskAmount * (0.9 + random() * 0.2);
+                lastResult = 'loss';
+                consecutiveLosses++;
             }
-            
+            if (isRevengeTrade) pnl = -riskAmount * (1 + random());
+
             runningPnl += pnl;
 
-            if (isWin) {
-                consecutiveLosses = 0;
-                lastResult = 'win';
-            } else {
-                consecutiveLosses++;
-                lastResult = 'loss';
-            }
-
-            const journalingSkipped = lastResult === 'loss' && random() < 0.4;
-            
-            const entry: JournalEntry = {
+            entries.push({
                 id: `demo-${i}`,
-                status: journalingSkipped ? 'pending' : 'completed',
+                tradeId: `DEMO-${1000 + i}`,
+                status: 'completed',
                 timestamps: {
                     plannedAt: date.toISOString(),
                     executedAt: date.toISOString(),
-                    closedAt: new Date(date.getTime() + 60000 * (15 + random() * 120)).toISOString()
+                    closedAt: new Date(date.getTime() + (1000 * 60 * (30 + random() * 120))).toISOString(),
                 },
                 technical: {
                     instrument: instruments[Math.floor(random() * instruments.length)],
                     direction,
-                    strategy,
                     entryPrice,
                     stopLoss,
                     takeProfit,
-                    leverage: 20,
-                    positionSize: 0.1 + random(),
-                    riskPercent,
-                    rrRatio: baseRR
+                    leverage: [10, 20, 50][Math.floor(random() * 3)],
+                    positionSize: riskAmount / stopDistance,
+                    riskPercent: riskPercent,
+                    rrRatio: rrr,
+                    strategy,
                 },
                 planning: {
-                    planNotes: "Generated demo trade.",
-                    mindset: isRevengeTrade ? "Anxious, need to make it back" : "Calm and focused"
+                    planNotes: "Demo generated trade plan.",
+                    mindset: "Neutral"
                 },
                 review: {
                     pnl,
                     exitPrice: isWin ? takeProfit : stopLoss,
-                    emotionsTags: emotions.join(','),
-                    mistakesTags: mistakes.join(','),
-                    learningNotes: "This is a generated learning note for a demo trade.",
-                    newsContextTags: "No special context",
+                    emotionsTags: [...new Set(emotions)].join(','),
+                    mistakesTags: [...new Set(mistakes)].join(','),
+                    learningNotes: "This is a demo-generated learning note."
                 },
                 meta: {
-                    journalingCompletedAt: journalingSkipped ? undefined : new Date(date.getTime() + 60000 * (150 + random() * 60)).toISOString()
+                    journalingCompletedAt: new Date(date.getTime() + (1000 * 60 * (150 + random() * 60))).toISOString(),
+                    ruleAdherenceSummary: {
+                        followedEntryRules: random() < 0.8,
+                        movedSL: mistakes.includes("Moved SL"),
+                        exitedEarly: mistakes.includes("Exited early"),
+                        rrBelowMin: rrr < 1.5,
+                    }
                 }
-            };
-            entries.push(entry);
-        }
-
-        localStorage.setItem("ec_journal_entries", JSON.stringify(entries));
-        toast({
-            title: "Demo Dataset Generated",
-            description: "A realistic story of a trader has been created. The analytics are now visible.",
-        });
-        loadData();
-    };
-
-    const dataSources = [
-      { name: "Broker (Delta)", status: "Simulated", description: "Trade history, PnL, positions." },
-      { name: "Trade Planning", status: "Partial", description: "Planned vs. actual entries/exits." },
-      { name: "Journal", status: "Live", description: "Emotions & mistakes tags, notes." },
-      { name: "Arjun Events", status: "Simulated", description: "Alerts and rule breaches." },
-      { name: "Strategy Management", status: "Prototype", description: "List of defined strategies." },
-    ];
-
-    const handleExport = (title: string, data: any) => {
-        let summary = `### ${title} Snapshot\n\n`;
-        if (title === 'Equity Curve') {
-            summary += `Total PnL (${timeRange}): $${analyticsData?.current?.totalPnL.toFixed(2)}\n`;
-            summary += `Total Trades: ${analyticsData?.current?.totalTrades}\n`;
-        } else if (title === 'Behaviour Analytics') {
-            summary += `Discipline Score: ${data.disciplineScore}\n`;
-            summary += `Emotional Control: ${100 - data.emotionalScore}\n`;
-            summary += `Consistency: ${data.consistencyScore}\n`;
-        } else if (title === 'Psychological Patterns') {
-            data.forEach((item: any) => {
-                summary += `- ${item.axis}: ${item.value.toFixed(0)} (Count: ${item.count}, Impact: ${item.impact})\n`;
             });
         }
-        setExportData({ title, summary });
+        localStorage.setItem("ec_journal_entries", JSON.stringify(entries));
+        loadData();
+        toast({ title: "Demo Data Generated", description: `${numTrades} realistic trades have been added to your journal.` });
     };
 
-    const thresholdInsights = useMemo(() => {
-        if (!analyticsData || !analyticsData.current) return [];
-        return [
-            { id: "warnAfterLosses", status: "warn", text: "After 2 consecutive losses, your win rate drops to 14%." },
-            { id: "warnOnHighRisk", status: "warn", text: "After 2 wins, you oversized risk in 28% of cases." },
-            { id: "warnOnHighVIX", status: "warn", text: "When VIX is Elevated, your SL moved rate doubles." },
-            { id: "info", status: "info", text: "When journaling is skipped, next-trade loss rate increases." },
-        ];
-    }, [analyticsData]);
+    const clearDemoData = () => {
+        localStorage.removeItem("ec_journal_entries");
+        localStorage.removeItem("ec_analytics_seed");
+        loadData();
+        toast({ title: "Demo Data Cleared", variant: "destructive" });
+    }
 
-    const handleApplyThresholdGuardrails = () => {
-        const currentGuardrails = JSON.parse(localStorage.getItem("ec_guardrails") || "{}");
-        const newGuardrails = {
-            ...currentGuardrails,
-            warnOnHighRisk: true,
-            warnOnHighVIX: true,
-            warnAfterLosses: true,
-        };
-        localStorage.setItem("ec_guardrails", JSON.stringify(newGuardrails));
-        toast({
-            title: "Guardrails Applied",
-            description: "Recommended guardrails have been activated in your Trade Planning module.",
-        });
-    };
-    
-    const handleApplyGrowthPlan = (tasks: string[]) => {
-        localStorage.setItem('ec_growth_plan_today', JSON.stringify(tasks));
-        toast({
-            title: "Growth Plan Applied!",
-            description: "Your 'Today's Focus' on the dashboard has been updated."
-        });
-    };
-
-    const handleScrollToSection = (id: string) => {
-        const element = document.getElementById(id);
-        if (element) {
-            element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-    };
-    
-    const handleSort = (key: SortKey) => {
-        let direction: 'ascending' | 'descending' = 'ascending';
-        if (sortConfig.key === key && sortConfig.direction === 'ascending') {
-            direction = 'descending';
-        }
-        if (key !== sortConfig.key) {
-            if (key === 'pnl') direction = 'descending';
-            if (key === 'mistakeRate') direction = 'ascending';
-        }
-        setSortConfig({ key, direction });
-    };
-    
     const sortedStrategies = useMemo(() => {
         if (!analyticsData?.current?.mockStrategyData) return [];
         const sortableStrategies = [...analyticsData.current.mockStrategyData];
-        sortableStrategies.sort((a: any, b: any) => {
+        sortableStrategies.sort((a, b) => {
             if (sortConfig.key === 'name') {
                 return a.name.localeCompare(b.name) * (sortConfig.direction === 'ascending' ? 1 : -1);
             }
@@ -1281,118 +1234,494 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
         return sortableStrategies;
     }, [analyticsData, sortConfig]);
 
+    const handleSort = (key: SortKey) => {
+        let direction: 'ascending' | 'descending' = 'ascending';
+        if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+            direction = 'descending';
+        }
+        if (key !== sortConfig.key) {
+            if (key === 'pnl') direction = 'descending';
+            if (key === 'mistakeRate') direction = 'ascending';
+        }
 
+        setSortConfig({ key, direction });
+    };
+    
+    const handleApplyGuardrails = () => {
+        setIsGuardrailDialogOpen(true);
+    };
+
+    const handleApplyGrowthPlan = (tasks: string[]) => {
+        localStorage.setItem("ec_growth_plan_today", JSON.stringify(tasks));
+        toast({
+            title: "Growth Plan Applied",
+            description: "Your 'Today's Focus' on the dashboard has been updated.",
+        });
+    }
+    
+    const handleScrollTo = (id: string) => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    };
+    
     if (!hasData) {
         return (
-            <div className="flex h-[60vh] flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 text-center">
-                <BarChartIcon className="mx-auto h-12 w-12 text-muted-foreground" />
-                <h3 className="mt-4 text-lg font-semibold">No trade data yet</h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                    This module will light up once you have journal entries.
+            <div className="flex flex-col items-center justify-center text-center p-8 border-2 border-dashed rounded-lg min-h-[60vh]">
+                <BarChartIcon className="h-16 w-16 text-muted-foreground/50 mb-4" />
+                <h2 className="text-2xl font-bold">No Analytics Data</h2>
+                <p className="text-muted-foreground mt-2 max-w-md">
+                    To unlock these insights, you need to complete some journal entries. This data powers all of Arjun's analysis.
                 </p>
-                <Button className="mt-4" onClick={generateDemoData}>
-                    Generate Demo Dataset
-                </Button>
-            </div>
-        );
-    }
-
-    if (!analyticsData || !analyticsData.current) {
-        return (
-            <div className="flex h-[60vh] flex-col items-center justify-center">
-                <Skeleton className="h-12 w-12 rounded-full" />
-                <div className="space-y-2 mt-4">
-                    <Skeleton className="h-4 w-[250px]" />
-                    <Skeleton className="h-4 w-[200px]" />
+                <div className="mt-6 flex gap-4">
+                    <Button onClick={generateDemoData}><Zap className="mr-2 h-4 w-4" /> Generate Demo Dataset</Button>
+                    <Button variant="outline" onClick={() => onSetModule('tradeJournal')}><BookOpen className="mr-2 h-4 w-4" /> Go to Journal</Button>
                 </div>
             </div>
-        );
-    };
-    const currentData = analyticsData.current;
-    const previousData = analyticsData.previous;
+        )
+    }
 
-    const qualityConfig = {
-        Disciplined: { label: "Disciplined", color: "bg-green-500/20 text-green-300 border-green-500/30", icon: Award },
-        Mixed: { label: "Mixed", color: "bg-amber-500/20 text-amber-300 border-amber-500/30", icon: AlertCircle },
-        Emotional: { label: "Emotional", color: "bg-red-500/20 text-red-300 border-red-500/30", icon: Zap },
-    }[currentData.quality] || { label: "Mixed", color: "bg-amber-500/20 text-amber-300 border-amber-500/30", icon: AlertCircle };
-    const QualityIcon = qualityConfig.icon;
+    if (!analyticsData?.current) {
+        return <p>Loading...</p>; // Or a skeleton loader
+    }
 
-    const askArjunAboutStrategy = (strategyName: string) => {
-        const prompt = `Arjun, can we dive into my "${strategyName}" strategy? It seems to be my most profitable one, but I'd like to know how to improve its execution.`;
-        onSetModule('aiCoaching', { initialMessage: prompt });
-    };
-
-    const discussPsychology = () => {
-        const topIssues = currentData.radarChartData.filter((d: any) => d.value > 60).map((p: any) => p.axis).join(' and ');
-        if (!topIssues) {
-            onSetModule('aiCoaching', { initialMessage: "Arjun, let's discuss my psychological profile. What are my biggest strengths and weaknesses based on my data?" });
-            return;
-        }
-        const prompt = `Arjun, my analytics show my biggest psychological issues are ${topIssues}. Can you help me create a plan to work on these?`;
-        onSetModule('aiCoaching', { initialMessage: prompt });
-    };
-
-    const handleCellClick = (emotion: string, result: string) => {
-        setSelectedBehavior({ behavior: `${emotion} & ${result}`, trades: currentData.topLossDrivers[0]?.trades || [] });
-    };
+    const { current: currentData, previous: previousData } = analyticsData;
+    const { totalTrades, winRate, lossRate, avgRR, totalPnL, quality, scores, discipline, topLossDrivers, mockEquityData, topEvents, mockStrategyData, timingHeatmapData, volatilityData, emotionResultMatrixData, radarChartData, planAdherence, disciplineBreakdown, disciplineByVolatility } = currentData;
     
-    const equityChartConfig = {
-      equity: { label: "Equity", color: "hsl(var(--chart-2))" }
+    const equityChartData = mockEquityData.map((d: any, i: number) => ({
+      ...d,
+      previousEquity: previousData?.mockEquityData[i]?.equity,
+    }));
+    
+    const getDelta = (current: number, previous?: number) => previous !== undefined ? current - previous : 0;
+    
+    const getHeatmapColor = (pnl: number) => {
+        if (pnl > 500) return 'bg-green-500/60';
+        if (pnl > 0) return 'bg-green-500/30';
+        if (pnl < -500) return 'bg-red-500/60';
+        if (pnl < 0) return 'bg-red-500/30';
+        return 'bg-muted/50';
     };
-    
-    const eventTypeIcon: Record<string, React.ElementType> = {
-        'Moved SL': Flag,
-        'Revenge': Bot,
-        'Forced Entry': AlertTriangle,
-        'default': Info,
-    };
-    
-    const EmptyState = ({ icon: Icon, title, description }: { icon: React.ElementType, title: string, description: string }) => (
-        <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-full p-4 border-2 border-dashed rounded-lg min-h-[200px]">
-            <Icon className="h-8 w-8 text-muted-foreground/50 mb-2" />
-            <h4 className="font-semibold text-foreground">{title}</h4>
-            <p className="text-xs">{description}</p>
-        </div>
-    );
-    
-    const adherenceData = currentData.planAdherence;
-    const adherenceTotal = adherenceData.followedPlan + adherenceData.minorDeviations + adherenceData.majorViolations;
-    const followedPct = adherenceTotal > 0 ? (adherenceData.followedPlan / adherenceTotal) * 100 : 0;
-    const minorPct = adherenceTotal > 0 ? (adherenceData.minorDeviations / adherenceTotal) * 100 : 0;
-    const majorPct = adherenceTotal > 0 ? (adherenceData.majorViolations / adherenceTotal) * 100 : 0;
 
-    const hotspotMetricKey = {
-      "Revenge": "revenge",
-      "FOMO": "fomo",
-      "Moved SL": "slMoved",
-      "Overtraded": "overtraded"
-    }[hotspotMetric] as "revenge" | "fomo" | "slMoved" | "overtraded";
+    const getBehaviorHeatmapStyle = (block: any, metric: typeof hotspotMetric) => {
+        const metricKey = {
+            'Revenge': 'revenge',
+            'FOMO': 'fomo',
+            'Moved SL': 'slMoved',
+            'Overtraded': 'overtraded',
+        }[metric];
+
+        const count = block[metricKey];
+        if (count === 0) return { background: 'hsl(var(--muted))', color: 'hsl(var(--muted-foreground))' };
+        
+        const opacity = Math.min(1, 0.2 + count / 5);
+        return {
+            background: `hsla(var(--destructive-hsl), ${opacity})`,
+            color: `hsl(var(--destructive-foreground))`,
+        };
+    };
+
+    const handleExport = (title: string, data: any) => {
+      const summaryText = `
+Analytics Snapshot: ${title}
+-----------------------------
+Data as of: ${new Date().toLocaleString()}
+Period: Last ${timeRange}
+-----------------------------
+${JSON.stringify(data, null, 2)}
+      `.trim();
+      setExportData({ title, summary: summaryText });
+    };
 
     return (
-        <>
+        <div className="space-y-8">
             <AnalyticsTour isOpen={isTourOpen} onOpenChange={setIsTourOpen} />
-            <GrowthPlanDialog isOpen={isGrowthPlanDialogOpen} onOpenChange={setIsGrowthPlanDialogOpen} onApply={handleApplyGrowthPlan} />
+            <ExportDialog isOpen={!!exportData} onOpenChange={(open) => !open && setExportData(null)} title={exportData?.title || ""} summaryText={exportData?.summary || ""} />
+             <Dialog open={isGuardrailDialogOpen} onOpenChange={setIsGuardrailDialogOpen}>
+                <GuardrailDialog />
+            </Dialog>
+             <Dialog open={isGrowthPlanDialogOpen} onOpenChange={setIsGrowthPlanDialogOpen}>
+                <GrowthPlanDialog isOpen={isGrowthPlanDialogOpen} onOpenChange={setIsGrowthPlanDialogOpen} onApply={handleApplyGrowthPlan} />
+            </Dialog>
+
+            <Drawer open={isDataSourcesOpen} onOpenChange={setIsDataSourcesOpen}>
+                <DrawerContent>
+                    <DrawerHeader>
+                        <DrawerTitle>About Your Analytics Data</DrawerTitle>
+                        <DrawerDescription>This prototype uses a mix of real and simulated data.</DrawerDescription>
+                    </DrawerHeader>
+                    <div className="p-4 space-y-4">
+                        <Alert variant="default" className="bg-green-950/50 border-green-500/20 text-green-300">
+                             <CheckCircle className="h-4 w-4 text-green-400" />
+                            <AlertTitle>What's Real (in this demo)</AlertTitle>
+                            <AlertDescription>
+                                The emotions, mistakes, and strategies you tag in your journal directly power the "By Behaviour" and "By Strategy" analytics. The more you journal, the more accurate these become.
+                            </AlertDescription>
+                        </Alert>
+                         <Alert variant="default" className="bg-amber-950/50 border-amber-500/20 text-amber-300">
+                             <Zap className="h-4 w-4 text-amber-400" />
+                            <AlertTitle>What's Simulated</AlertTitle>
+                            <AlertDescription>
+                                PnL, equity curves, and trade execution data are generated by a script to tell a realistic story. In the live product, this will come from your connected broker.
+                            </AlertDescription>
+                        </Alert>
+                         <Alert variant="default" className="bg-blue-950/50 border-blue-500/20 text-blue-300">
+                             <Database className="h-4 w-4 text-blue-400" />
+                            <AlertTitle>Phase 1 (Live Build)</AlertTitle>
+                            <AlertDescription>
+                                In the live version, all PnL and trade data will be pulled from the Delta Exchange API, providing a complete and accurate picture of your performance.
+                            </AlertDescription>
+                        </Alert>
+                    </div>
+                </DrawerContent>
+            </Drawer>
+
+            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold tracking-tight text-foreground">Performance Analytics</h1>
+                    <p className="text-muted-foreground">Go beyond P&L to understand your true edge.</p>
+                </div>
+                <div className="flex items-center gap-2 self-start">
+                    <Button variant="outline" size="sm" onClick={() => setIsTourOpen(true)}>
+                        <View className="mr-2 h-4 w-4" /> 2-Min Tour
+                    </Button>
+                     <Button variant="outline" size="sm" onClick={() => setIsPresentationMode(prev => !prev)}>
+                        <Presentation className="mr-2 h-4 w-4" /> {isPresentationMode ? 'Exit' : 'Enter'} Demo Mode
+                    </Button>
+                    {isRecoveryMode && (
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Badge className="bg-red-500/20 text-red-300 border-red-500/30">Recovery Mode ON</Badge>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Your Trade Planning has stricter risk limits active.</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    )}
+                </div>
+            </div>
+
+            {isPresentationMode && <DemoNarrativePanel onScrollTo={handleScrollTo} />}
+
+            <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+                <div className={cn("flex flex-col md:flex-row md:items-center md:justify-between gap-4", isPresentationMode && "hidden")}>
+                    <TabsList className="grid w-full grid-cols-2 max-w-sm md:w-auto">
+                        <TabsTrigger value="overview">Overview</TabsTrigger>
+                        <TabsTrigger value="by-behaviour">By Behaviour</TabsTrigger>
+                    </TabsList>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex items-center gap-1 rounded-full bg-muted p-1">
+                            {(['7d', '30d', '90d', 'all'] as const).map(range => (
+                                <Button
+                                    key={range}
+                                    size="sm"
+                                    variant={timeRange === range ? 'secondary' : 'ghost'}
+                                    onClick={() => setTimeRange(range)}
+                                    className="rounded-full h-8 px-3 text-xs w-full"
+                                >
+                                    {range.toUpperCase()}
+                                </Button>
+                            ))}
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <Switch id="compare-mode" checked={compareMode} onCheckedChange={setCompareMode} />
+                            <Label htmlFor="compare-mode" className="text-sm">Compare</Label>
+                        </div>
+                        <Button variant="outline" size="sm" onClick={generateDemoData}><Zap className="mr-2 h-4 w-4"/> Regenerate Data</Button>
+                        <Button variant="destructive" size="sm" onClick={clearDemoData}>Clear Data</Button>
+                        
+                        <Dialog>
+                            <DialogTrigger asChild>
+                                <Button variant="outline" size="sm" id="analytics-guardrails-button">
+                                    <ShieldCheck className="mr-2 h-4 w-4" /> Guardrails
+                                </Button>
+                            </DialogTrigger>
+                            <GuardrailDialog />
+                        </Dialog>
+
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => setIsDataSourcesOpen(true)}>
+                                    <Database className="mr-2 h-4 w-4" /> Data Sources
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+
+                    </div>
+                </div>
+                <TabsContent value="overview" className="mt-6 space-y-8">
+                    <PinnedInsightsCard analyticsData={analyticsData} onSetModule={onSetModule} onApplyGuardrails={handleApplyGuardrails} />
+                    {/* --- Overview Tab --- */}
+                    <SectionCard
+                        id="summary"
+                        title="High-Level Summary"
+                        description={`Your performance snapshot for the last ${timeRange}.`}
+                        icon={BarChartIcon}
+                        headerContent={
+                             <Badge id="analytics-quality-badge" variant="outline" className={cn(
+                                "text-base px-3 py-1",
+                                quality === "Disciplined" && "bg-green-500/20 text-green-300 border-green-500/30",
+                                quality === "Emotional" && "bg-red-500/20 text-red-300 border-red-500/30"
+                            )}>
+                                Quality: {quality}
+                            </Badge>
+                        }
+                    >
+                         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <MetricCard title="Total PnL" value={`$${totalPnL.toFixed(2)}`} hint={`${totalTrades} trades`} delta={getDelta(totalPnL, previousData?.totalPnL)} deltaUnit="$" />
+                            <MetricCard title="Win Rate" value={`${winRate.toFixed(0)}%`} hint={`${wins}W / ${losses}L`} delta={getDelta(winRate, previousData?.winRate)} deltaUnit="%" />
+                            <MetricCard title="Avg. R:R" value={`${avgRR.toFixed(2)}`} hint="Avg win / Avg loss" delta={getDelta(avgRR, previousData?.avgRR)} />
+                            <MetricCard title="Best Condition" value={bestCondition} hint="VIX Zone / Session" />
+                        </div>
+                    </SectionCard>
+                    
+                    <SectionCard
+                        id="equity"
+                        title="Behaviour Events Timeline"
+                        description="See how specific events impacted your equity curve."
+                        icon={Activity}
+                        headerContent={
+                            <div className="flex items-center space-x-2">
+                                <Switch id="show-behavior-layer" checked={showBehaviorLayer} onCheckedChange={setShowBehaviorLayer} />
+                                <Label htmlFor="show-behavior-layer" className="text-sm">Show events</Label>
+                            </div>
+                        }
+                        onExport={() => handleExport("Equity Curve", { data: equityChartData })}
+                    >
+                        <div className="grid lg:grid-cols-3 gap-8">
+                            <div className="lg:col-span-2">
+                                <ChartContainer config={{}} className="h-64 w-full">
+                                    <LineChart data={equityChartData}>
+                                        <CartesianGrid vertical={false} />
+                                        <XAxis dataKey="date" tickFormatter={(val) => new Date(val).toLocaleDateString()} tick={{fontSize: 12}} />
+                                        <YAxis tickFormatter={(val) => `$${val/1000}k`} tick={{fontSize: 12}} domain={['dataMin - 100', 'dataMax + 100']} />
+                                        <ChartTooltip content={<ChartTooltipContent />} />
+                                        {compareMode && <Line type="monotone" dataKey="previousEquity" stroke="hsl(var(--border))" strokeWidth={2} strokeDasharray="3 3" dot={false} name="Previous Period" />}
+                                        <Line type="monotone" dataKey="equity" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} name="Current Period" />
+                                        {showBehaviorLayer && topEvents.map((event: any, index: number) => (
+                                            <ReferenceDot
+                                                key={index}
+                                                x={event.date}
+                                                y={equityChartData.find((d: any) => d.date === event.date)?.equity}
+                                                r={5}
+                                                fill={event.impact > 0 ? "hsl(var(--chart-2))" : "hsl(var(--chart-5))"}
+                                                stroke="hsl(var(--background))"
+                                                strokeWidth={2}
+                                                isFront={true}
+                                                tabIndex={0}
+                                                aria-label={`Behavioral Event: ${event.label} on trade with PnL ${event.impact.toFixed(2)}. Press Enter to view details.`}
+                                                className="focus:outline-none focus:ring-2 focus:ring-ring rounded-full cursor-pointer"
+                                                onClick={() => handleEventClick(event.journalId)}
+                                                onKeyDown={(e) => e.key === 'Enter' && handleEventClick(event.journalId)}
+                                            />
+                                        ))}
+                                    </LineChart>
+                                </ChartContainer>
+                            </div>
+                            <div className="lg:col-span-1">
+                                <h4 className="font-semibold text-foreground mb-3">Key Events</h4>
+                                <div className="space-y-3 max-h-64 overflow-y-auto">
+                                    {topEvents.length > 0 ? topEvents.map((event: any, i: number) => (
+                                        <Card key={i} className="bg-muted/50 border-border/50 p-3 cursor-pointer hover:bg-muted" onClick={() => handleEventClick(event.journalId)}>
+                                            <div className="flex justify-between items-center text-sm">
+                                                <Badge variant="destructive" className={cn("text-xs", event.impact > 0 && "bg-green-500/20 text-green-300 border-green-500/30")}>{event.label}</Badge>
+                                                <p className={cn("font-mono font-semibold", event.impact > 0 ? "text-green-400" : "text-red-400")}>{event.impact > 0 ? '+' : ''}${event.impact.toFixed(2)}</p>
+                                            </div>
+                                            <p className="text-xs text-muted-foreground mt-1">{new Date(event.date).toLocaleDateString()} on {event.instrument}</p>
+                                        </Card>
+                                    )) : <p className="text-sm text-muted-foreground">No significant behavioral events in this period.</p>}
+                                </div>
+                            </div>
+                        </div>
+                    </SectionCard>
+                    
+                    <SectionCard
+                        id="loss-drivers"
+                        title="Top Loss Drivers"
+                        description="The specific behaviors and emotions costing you the most money."
+                        icon={AlertCircle}
+                    >
+                        {topLossDrivers.length > 0 ? (
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Behavior Tag</TableHead>
+                                        <TableHead>Occurrences</TableHead>
+                                        <TableHead>Total Impact (R)</TableHead>
+                                        <TableHead>Avg. Impact (R)</TableHead>
+                                        <TableHead className="text-right">Actions</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {topLossDrivers.slice(0, 5).map(driver => (
+                                        <TableRow key={driver.behavior}>
+                                            <TableCell>
+                                                <Badge variant={driver.totalR > 0 ? 'secondary' : 'destructive'}>{driver.behavior}</Badge>
+                                            </TableCell>
+                                            <TableCell>{driver.occurrences}</TableCell>
+                                            <TableCell className="font-mono text-red-400">{driver.totalR.toFixed(1)}R</TableCell>
+                                            <TableCell className="font-mono text-red-400">{driver.avgR.toFixed(1)}R</TableCell>
+                                            <TableCell className="text-right">
+                                                 <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                            <MoreHorizontal className="h-4 w-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuItem onClick={() => setSelectedBehavior({ behavior: driver.behavior, trades: driver.trades })}>
+                                                            <View className="mr-2 h-4 w-4" /> View Trades
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={handleApplyGuardrails}>
+                                                            <ShieldCheck className="mr-2 h-4 w-4" /> Set Guardrail
+                                                        </DropdownMenuItem>
+                                                         <DropdownMenuItem onClick={() => onSetModule('aiCoaching', { initialMessage: `Arjun, my biggest loss driver is "${driver.behavior}". How can I fix this?` })}>
+                                                            <Bot className="mr-2 h-4 w-4" /> Ask Arjun
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        ) : <p className="text-sm text-muted-foreground">No significant loss drivers identified yet.</p>}
+                    </SectionCard>
+
+                    <TradesInFocusPanel 
+                        behavior={selectedBehavior}
+                        onClear={() => setSelectedBehavior(null)}
+                        onOpenJournal={(journalId) => onSetModule('tradeJournal', { draftId: journalId })}
+                    />
+                </TabsContent>
+                <TabsContent value="by-behaviour" className="mt-6 space-y-8">
+                    <PinnedInsightsCard analyticsData={analyticsData} onSetModule={onSetModule} onApplyGuardrails={handleApplyGuardrails} />
+                    <SectionCard
+                        id="discipline-scores"
+                        title="Behaviour Scores"
+                        description="Your psychological fingerprint, quantified over time."
+                        icon={Gauge}
+                    >
+                         <div className="grid md:grid-cols-3 gap-8">
+                            <ScoreGauge score={scores.disciplineScore} delta={getDelta(scores.disciplineScore, previousData?.scores.disciplineScore)} label="Discipline" interpretation={scores.disciplineScore > 70 ? 'Consistent' : scores.disciplineScore > 40 ? 'Inconsistent' : 'Poor'} />
+                            <ScoreGauge score={scores.emotionalScore} delta={getDelta(scores.emotionalScore, previousData?.scores.emotionalScore)} label="Emotional Control" interpretation={scores.emotionalScore < 30 ? 'Controlled' : scores.emotionalScore < 60 ? 'Reactive' : 'Impulsive'} />
+                            <ScoreGauge score={scores.consistencyScore} delta={getDelta(scores.consistencyScore, previousData?.scores.consistencyScore)} label="Consistency" interpretation={scores.consistencyScore > 70 ? 'High' : 'Medium'} />
+                         </div>
+                    </SectionCard>
+                    
+                    <SectionCard
+                        id="psych-profile"
+                        title="Psychological Profile"
+                        description="Your primary behavioral tendencies visualized."
+                        icon={Brain}
+                    >
+                        <div className="grid md:grid-cols-2 gap-8 items-center">
+                            <div className="h-80">
+                                <RadarChart data={radarChartData} onSetModule={onSetModule} />
+                            </div>
+                            <div className="space-y-4">
+                                <h4 className="font-semibold text-foreground">What this means:</h4>
+                                <p className="text-sm text-muted-foreground">
+                                    This radar chart shows your most frequent behaviors. Areas that are further from the center represent stronger tendencies. Your profile shows a high tendency for <strong className="text-primary">{radarChartData[0]?.axis || "FOMO"}</strong> and low <strong className="text-primary">{radarChartData[5]?.axis || "Discipline"}</strong>.
+                                </p>
+                                <Button variant="outline" onClick={() => onSetModule('aiCoaching', { initialMessage: "Arjun, let's break down my psychological profile."})}>
+                                    <Bot className="mr-2 h-4 w-4" /> Discuss with Arjun
+                                </Button>
+                            </div>
+                        </div>
+                    </SectionCard>
+                    
+                    <SectionCard
+                        id="thresholds"
+                        title="Threshold Alerts"
+                        description="Key behavioral patterns Arjun is watching for you."
+                        icon={Flag}
+                    >
+                         <div className="space-y-3">
+                             <Alert variant="default" className="bg-amber-950/40 border-amber-500/20 text-amber-300">
+                                <AlertTriangle className="h-4 w-4 text-amber-400" />
+                                <AlertTitle className="text-amber-400">After 2 consecutive losses, your win rate drops to 14%.</AlertTitle>
+                            </Alert>
+                             <Alert variant="default" className="bg-amber-950/40 border-amber-500/20 text-amber-300">
+                                <AlertTriangle className="h-4 w-4 text-amber-400" />
+                                <AlertTitle className="text-amber-400">When VIX is 'Elevated', your 'Moved SL' rate doubles.</AlertTitle>
+                            </Alert>
+                             <Alert variant="default" className="bg-amber-950/40 border-amber-500/20 text-amber-300">
+                                <AlertTriangle className="h-4 w-4 text-amber-400" />
+                                <AlertTitle className="text-amber-400">After a win > 3R, you oversize risk on the next trade 28% of the time.</AlertTitle>
+                            </Alert>
+                             <Alert variant="default" className="bg-green-950/50 border-green-500/20 text-green-300">
+                                 <CheckCircle className="h-4 w-4 text-green-400" />
+                                <AlertTitle className="text-green-400">When you journal within 15 minutes, your next-day loss rate decreases.</AlertTitle>
+                            </Alert>
+                        </div>
+                         <div className="mt-6 flex justify-end">
+                            <Button onClick={handleApplyGuardrails}>
+                                <ShieldCheck className="mr-2 h-4 w-4" /> Turn on Recommended Guardrails
+                            </Button>
+                        </div>
+                    </SectionCard>
+
+                    <SectionCard
+                        id="plan-adherence"
+                        title="Plan Adherence"
+                        description="How well are you following your own rules?"
+                        icon={Award}
+                    >
+                        <div className="grid md:grid-cols-2 gap-8 items-center">
+                            <div className="space-y-4">
+                                <MetricCard title="Adherence Rate" value={`${planAdherence.adherenceRate.toFixed(0)}%`} hint="Trades that followed plan exactly" />
+                                <div className="p-4 bg-muted/50 rounded-lg">
+                                    <p className="text-sm text-muted-foreground">Followed plan: {planAdherence.followedPlan} trades</p>
+                                    <p className="text-sm text-muted-foreground">Minor deviations: {planAdherence.minorDeviations} trades</p>
+                                    <p className="text-sm text-muted-foreground">Major violations: {planAdherence.majorViolations} trades</p>
+                                </div>
+                            </div>
+                             <ChartContainer config={{}} className="h-64">
+                                <BarChart
+                                    data={[
+                                        { name: 'Followed Plan', value: planAdherence.followedPlan, fill: 'hsl(var(--chart-2))' },
+                                        { name: 'Minor Deviations', value: planAdherence.minorDeviations, fill: 'hsl(var(--chart-4))' },
+                                        { name: 'Major Violations', value: planAdherence.majorViolations, fill: 'hsl(var(--chart-5))' },
+                                    ]}
+                                    layout="vertical"
+                                    margin={{ left: 20 }}
+                                >
+                                    <XAxis type="number" hide />
+                                    <YAxis type="category" dataKey="name" hide />
+                                    <ChartTooltip cursor={false} content={<ChartTooltipContent hideIndicator />} />
+                                    <Bar dataKey="value" radius={4} />
+                                </BarChart>
+                            </ChartContainer>
+                        </div>
+                    </SectionCard>
+                </TabsContent>
+            </Tabs>
             <Drawer open={!!selectedEvent} onOpenChange={(open) => !open && setSelectedEvent(null)}>
                 <DrawerContent>
                     {selectedEvent && (
-                        <div className="mx-auto w-full max-w-2xl p-4 md:p-6">
-                            <DrawerHeader>
-                                <DrawerTitle className="text-2xl">Event Details</DrawerTitle>
+                        <div className="mx-auto w-full max-w-lg p-4">
+                             <DrawerHeader>
+                                <DrawerTitle>Trade Details</DrawerTitle>
                                 <DrawerDescription>
-                                    Details for the trade event on {new Date(selectedEvent.timestamps.executedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}.
+                                    A snapshot of the trade associated with this event.
                                 </DrawerDescription>
                             </DrawerHeader>
-                            <div className="px-4 py-6 space-y-4">
-                                <Card className="bg-muted/50">
-                                    <CardContent className="p-4">
-                                        <SummaryRow label="Instrument" value={`${selectedEvent.technical.instrument} ${selectedEvent.technical.direction}`} />
-                                        <SummaryRow label="Result (PnL)" value={`$${selectedEvent.review?.pnl.toFixed(2)}`} className={cn(selectedEvent.review && selectedEvent.review.pnl >= 0 ? 'text-green-400' : 'text-red-400')} />
-                                        <SummaryRow label="Mistakes" value={selectedEvent.review?.mistakesTags || "None"} />
-                                        <SummaryRow label="Emotions" value={selectedEvent.review?.emotionsTags || "None"} />
-                                    </CardContent>
-                                </Card>
-                                <Button className="w-full" onClick={() => { setSelectedEvent(null); onSetModule('tradeJournal', { draftId: selectedEvent.id }); }}>
+                            <div className="p-4">
+                                {/* Simplified view for the drawer */}
+                                <p><strong>Instrument:</strong> {selectedEvent.technical.instrument}</p>
+                                <p><strong>Direction:</strong> {selectedEvent.technical.direction}</p>
+                                <p><strong>PnL:</strong> ${selectedEvent.review?.pnl.toFixed(2)}</p>
+                                <p><strong>Mistake:</strong> {selectedEvent.review?.mistakesTags}</p>
+                                <Button className="mt-4 w-full" onClick={() => { setSelectedEvent(null); onSetModule('tradeJournal', { draftId: selectedEvent.id })}}>
                                     Open Full Journal Entry
                                 </Button>
                             </div>
@@ -1400,886 +1729,8 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                     )}
                 </DrawerContent>
             </Drawer>
-            <div className="space-y-8">
-                 <div className="flex items-start justify-between">
-                    <div>
-                        <h1 className="text-2xl font-bold tracking-tight text-foreground">Performance Analytics</h1>
-                        <p className="text-muted-foreground">The backbone of self-awareness — performance, discipline, and psychology in one place.</p>
-                    </div>
-                     <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" onClick={() => setIsTourOpen(true)}>
-                            <HelpCircle className="mr-2 h-4 w-4" />
-                            2-Minute Tour
-                        </Button>
-                        {isRecoveryMode && <Badge className="bg-red-500/20 text-red-300 border-red-500/30">Recovery Mode ON</Badge>}
-                        <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => setIsDataSourcesOpen(true)}>
-                                        <Database className="mr-2 h-4 w-4" />
-                                        Data Sources
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    <p>See where this data comes from.</p>
-                                </TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
-                         <div className="flex items-center gap-2">
-                            <Label htmlFor="presentation-mode" className="text-sm">Presentation Mode</Label>
-                            <Switch
-                                id="presentation-mode"
-                                checked={isPresentationMode}
-                                onCheckedChange={(checked) => {
-                                    setIsPresentationMode(checked);
-                                    if(checked) setTimeRange('30d');
-                                }}
-                            />
-                        </div>
-                    </div>
-                </div>
-                
-                {isPresentationMode && <DemoNarrativePanel onScrollTo={handleScrollToSection} />}
-                
-                {!isPresentationMode && (
-                    <Card className="bg-muted/30 border-border/50 sticky top-[88px] z-20 backdrop-blur-sm">
-                        <CardContent className="p-2 flex flex-wrap items-center gap-x-4 gap-y-3">
-                            <div className="flex items-center gap-1 rounded-full bg-muted p-1 border">
-                                {(['7d', '30d', '90d', 'All'] as const).map(range => (
-                                    <Button key={range} size="sm" variant={timeRange === range ? 'secondary' : 'ghost'} onClick={() => setTimeRange(range)} className="rounded-full h-7 px-3 text-xs">
-                                        {range.toUpperCase()}
-                                    </Button>
-                                ))}
-                            </div>
-                            <Select><SelectTrigger className="w-full sm:w-[180px] h-9 text-xs"><SelectValue placeholder="All strategies" /></SelectTrigger><SelectContent><SelectItem value="all">All strategies</SelectItem></SelectContent></Select>
-                            <Select><SelectTrigger className="w-full sm:w-[180px] h-9 text-xs"><SelectValue placeholder="All VIX zones" /></SelectTrigger><SelectContent><SelectItem value="all">All VIX zones</SelectItem></SelectContent></Select>
-                            <Select><SelectTrigger className="w-full sm:w-[180px] h-9 text-xs"><SelectValue placeholder="All sessions" /></SelectTrigger><SelectContent><SelectItem value="all">All sessions</SelectItem></SelectContent></Select>
-                            <div className="flex items-center space-x-2"><Switch id="include-pending" /><Label htmlFor="include-pending" className="text-xs">Include pending</Label></div>
-                            <Separator orientation="vertical" className="h-6 hidden lg:block" />
-                            <div className="flex items-center space-x-2">
-                                <Switch id="compare-mode" checked={compareMode} onCheckedChange={setCompareMode} />
-                                <Label htmlFor="compare-mode" className="text-xs">Compare period</Label>
-                            </div>
-                        </CardContent>
-                    </Card>
-                )}
-
-
-                <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-                    <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
-                        <TabsTrigger value="overview"><BarChartIcon className="mr-2 h-4 w-4" />Overview</TabsTrigger>
-                        <TabsTrigger value="behaviour"><Activity className="mr-2 h-4 w-4" />Behaviour</TabsTrigger>
-                        <TabsTrigger value="strategies"><BookOpen className="mr-2 h-4 w-4" />Strategies</TabsTrigger>
-                        <TabsTrigger value="reports"><Award className="mr-2 h-4 w-4" />Reports</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="overview" className="mt-6 space-y-8">
-                        <PinnedInsightsCard analyticsData={analyticsData} onSetModule={onSetModule} onApplyGuardrails={handleApplyThresholdGuardrails} />
-                        <div className="grid lg:grid-cols-3 gap-8">
-                            <div className="lg:col-span-3 space-y-8">
-                                <SectionCard 
-                                    id="summary"
-                                    title={
-                                        <div className="flex items-center gap-4">
-                                            <span>High-Level Summary</span>
-                                            <Badge id="analytics-quality-badge" className={qualityConfig.color}>
-                                                <QualityIcon className="mr-2 h-4 w-4" />
-                                                {qualityConfig.label}
-                                            </Badge>
-                                        </div>
-                                    }
-                                    description="Your core metrics at a glance for the selected period." 
-                                    icon={DollarSign}
-                                >
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                                        <MetricCard title="Total Trades" value={String(currentData.totalTrades)} hint="+5% vs last period" delta={compareMode && previousData ? currentData.totalTrades - previousData.totalTrades : undefined} onClick={() => onSetModule('tradeJournal', { filters: { timeRange: timeRange } })}/>
-                                        <MetricCard title="Win Rate" value={`${currentData.winRate.toFixed(1)}%`} hint="-2% vs last period" delta={compareMode && previousData ? currentData.winRate - previousData.winRate : undefined} deltaUnit="%" />
-                                        <MetricCard title="Loss Rate" value={`${currentData.lossRate.toFixed(1)}%`} hint="+2% vs last period" delta={compareMode && previousData ? currentData.lossRate - previousData.lossRate : undefined} deltaUnit="%" />
-                                        <MetricCard title="Average R:R" value={String(currentData.avgRR.toFixed(2))} hint="Target: >1.5" delta={compareMode && previousData ? currentData.avgRR - previousData.avgRR : undefined} />
-                                        <MetricCard title="Total PnL" value={`$${currentData.totalPnL.toFixed(2)}`} hint="+12% vs last period" delta={compareMode && previousData ? currentData.totalPnL - previousData.totalPnL : undefined} />
-                                        <MetricCard title="Best Condition" value={currentData.bestCondition} hint="NY session / Normal VIX" />
-                                    </div>
-                                </SectionCard>
-
-                                <SectionCard
-                                    id="equity"
-                                    title="Equity Curve"
-                                    description="Your account balance over time, with markers for key psychological events."
-                                    icon={TrendingUp}
-                                    onExport={() => handleExport('Equity Curve', analyticsData?.current)}
-                                    className={cn(isPresentationMode && "ring-2 ring-primary/50 ring-offset-4 ring-offset-background")}
-                                    headerContent={
-                                        <div className="flex items-center gap-2">
-                                            <Label htmlFor="show-behavior-layer" className="text-sm">Show behaviour layer</Label>
-                                            <Switch
-                                                id="show-behavior-layer"
-                                                checked={showBehaviorLayer}
-                                                onCheckedChange={setShowBehaviorLayer}
-                                            />
-                                        </div>
-                                    }
-                                >
-                                    <div className="h-[350px]">
-                                    {currentData.mockEquityData.length > 0 ? (
-                                        <ChartContainer config={equityChartConfig} className="h-full w-full">
-                                            <LineChart data={currentData.mockEquityData} margin={{ top: 5, right: 20, left: -20, bottom: 0 }}>
-                                                <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50" />
-                                                <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={10} tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} />
-                                                <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `$${value / 1000}k`} />
-                                                <ChartTooltip cursor={{ strokeDasharray: '3 3' }} content={<ChartTooltipContent />} />
-                                                <Line type="monotone" dataKey="equity" stroke="hsl(var(--color-equity))" strokeWidth={2} isAnimationActive={false} dot={
-                                                    (props: any) => {
-                                                        const { cx, cy, payload } = props;
-                                                        if (showBehaviorLayer && payload.marker) {
-                                                            const { key, ...rest } = props;
-                                                            return (
-                                                                <TooltipProvider key={key}>
-                                                                    <Tooltip>
-                                                                        <TooltipTrigger asChild>
-                                                                            <Dot {...rest} cx={cx} cy={cy} r={5} fill={payload.marker.color} stroke="hsl(var(--background))" strokeWidth={2} onClick={() => handleEventClick(payload.journalId)} className="cursor-pointer" />
-                                                                        </TooltipTrigger>
-                                                                        <TooltipContent>
-                                                                            <p>{payload.marker.type}</p>
-                                                                        </TooltipContent>
-                                                                    </Tooltip>
-                                                                </TooltipProvider>
-                                                            )
-                                                        }
-                                                        const { key, ...rest } = props;
-                                                        return <Dot key={`dot-empty-${key}-${props.index}`} {...rest} r={0} />;
-                                                    }
-                                                } />
-                                            </LineChart>
-                                        </ChartContainer>
-                                    ) : (
-                                            <EmptyState icon={TrendingUp} title="No Equity Data" description="Your equity curve will appear here once you have trades." />
-                                    )}
-                                    </div>
-                                </SectionCard>
-
-                                <SectionCard
-                                id="timeline"
-                                title="Behaviour Events Timeline"
-                                description="A narrative view of your recent trading decisions, linked to your journal."
-                                icon={BookOpen}
-                                >
-                                    {currentData.topEvents.length > 0 ? (
-                                    <div className="space-y-4">
-                                        {currentData.topEvents.slice(0, 5).map((event: any, i: number) => {
-                                            const EventIcon = eventTypeIcon[event.label] || eventTypeIcon.default;
-                                            return (
-                                                <div key={i} className="flex items-center justify-between p-3 rounded-md bg-muted/50 border border-border/50 transition-colors hover:bg-muted">
-                                                    <div className="flex items-center gap-3">
-                                                        <EventIcon className="h-5 w-5 text-muted-foreground" />
-                                                        <div>
-                                                            <p className="font-semibold text-foreground text-sm">{event.label} <span className="text-muted-foreground font-normal">on {event.instrument}</span></p>
-                                                            <p className={cn("text-xs font-mono", event.impact >= 0 ? "text-green-400" : "text-red-400")}>
-                                                                Result: {event.impact > 0 ? '+' : ''}${event.impact.toFixed(2)}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                    <Button variant="ghost" size="sm" onClick={() => setSelectedEvent(event)}>
-                                                        View Journal <ArrowRight className="ml-2 h-4 w-4" />
-                                                    </Button>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                    ) : (
-                                        <EmptyState icon={BookOpen} title="No Behavioral Events" description="Mistakes and significant emotional trades will be flagged here." />
-                                    )}
-                                </SectionCard>
-
-                            </div>
-                        </div>
-                    </TabsContent>
-                    <TabsContent value="behaviour" className="mt-6 space-y-8">
-                        <PinnedInsightsCard analyticsData={analyticsData} onSetModule={onSetModule} onApplyGuardrails={handleApplyThresholdGuardrails} />
-                        <SectionCard 
-                            id="discipline-scores" 
-                            title="Behaviour Analytics" 
-                            description="Where you lose your edge isn’t price — it’s behaviour." 
-                            icon={Activity}
-                            onExport={() => handleExport('Behaviour Analytics', analyticsData?.current?.scores)}
-                        >
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                                <ScoreGauge score={currentData.scores.disciplineScore} label="Discipline" interpretation={currentData.scores.disciplineScore > 75 ? "Strong" : currentData.scores.disciplineScore > 50 ? "Mixed" : "Leaky"} delta={compareMode && previousData ? currentData.scores.disciplineScore - previousData.scores.disciplineScore : undefined} />
-                                <ScoreGauge score={100 - currentData.scores.emotionalScore} label="Emotional Control" interpretation={currentData.scores.emotionalScore < 30 ? "Calm" : currentData.scores.emotionalScore < 60 ? "Reactive" : "Volatile"} delta={compareMode && previousData ? (100 - currentData.scores.emotionalScore) - (100 - previousData.scores.emotionalScore) : undefined} />
-                                <ScoreGauge score={currentData.scores.consistencyScore} label="Consistency" interpretation={currentData.scores.consistencyScore > 75 ? "Stable" : currentData.scores.consistencyScore > 50 ? "Inconsistent" : "Chaotic"} delta={compareMode && previousData ? currentData.scores.consistencyScore - previousData.scores.consistencyScore : undefined} />
-                            </div>
-                        </SectionCard>
-                        
-                        <SectionCard
-                            id="plan-adherence"
-                            title="Planned vs. Actual Discipline"
-                            description="This is where professionalism lives: planning is meaningless without adherence."
-                            icon={Target}
-                        >
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-                                <div className="space-y-4">
-                                    <MetricCard title="Plan Adherence" value={`${adherenceData.adherenceRate.toFixed(0)}%`} hint="Trades that followed the plan exactly." />
-                                    <MetricCard title="Override Count" value={adherenceData.majorViolations} hint="Times you justified breaking a rule." />
-                                </div>
-                                <div className="space-y-4">
-                                    <h4 className="text-sm font-semibold text-foreground">Trade Breakdown</h4>
-                                    <div className="w-full h-8 flex rounded-full overflow-hidden border">
-                                        <TooltipProvider>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild><div className="bg-green-500 h-full" style={{ width: `${followedPct}%` }} /></TooltipTrigger>
-                                                <TooltipContent>{`Followed Plan: ${adherenceData.followedPlan} trades (${followedPct.toFixed(0)}%)`}</TooltipContent>
-                                            </Tooltip>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild><div className="bg-amber-500 h-full" style={{ width: `${minorPct}%` }} /></TooltipTrigger>
-                                                <TooltipContent>{`Minor Deviations: ${adherenceData.minorDeviations} trades (${minorPct.toFixed(0)}%)`}</TooltipContent>
-                                            </Tooltip>
-                                            <Tooltip>
-                                                <TooltipTrigger asChild><div className="bg-red-500 h-full" style={{ width: `${majorPct}%` }} /></TooltipTrigger>
-                                                <TooltipContent>{`Major Violations: ${adherenceData.majorViolations} trades (${majorPct.toFixed(0)}%)`}</TooltipContent>
-                                            </Tooltip>
-                                        </TooltipProvider>
-                                    </div>
-                                    <div className="flex justify-between items-center text-xs">
-                                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-green-500" /> Followed Plan</div>
-                                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-500" /> Minor Deviations</div>
-                                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-red-500" /> Major Violations</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </SectionCard>
-                        
-                        <SectionCard
-                            id="discipline-breakdown"
-                            title="Discipline Breakdown"
-                            description="Your most common rule violations and their financial impact."
-                            icon={Zap}
-                        >
-                            {currentData.disciplineBreakdown.length > 0 ? (
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Violation</TableHead>
-                                            <TableHead>Frequency</TableHead>
-                                            <TableHead>Avg. R Impact</TableHead>
-                                            <TableHead className="text-right">Action</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {currentData.disciplineBreakdown.map((item: any) => (
-                                            <TableRow key={item.violation}>
-                                                <TableCell className="font-medium text-foreground">{item.violation}</TableCell>
-                                                <TableCell>{item.frequency} times</TableCell>
-                                                <TableCell className={cn("font-mono", item.avgR < 0 ? "text-red-400" : "text-green-400")}>{item.avgR.toFixed(1)}R</TableCell>
-                                                <TableCell className="text-right">
-                                                    <Button variant="ghost" size="sm" onClick={() => setSelectedBehavior({ behavior: item.violation, trades: item.trades })}>
-                                                        View Examples
-                                                    </Button>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            ) : (
-                                <EmptyState icon={Zap} title="No Violations Logged" description="This table will populate as you tag mistakes in your journal." />
-                            )}
-                            <Separator className="my-6" />
-                            <Dialog open={isGuardrailDialogOpen} onOpenChange={setIsGuardrailDialogOpen}>
-                                <DialogTrigger asChild>
-                                    <Button id="analytics-guardrails-button" variant="outline"><Bot className="mr-2 h-4 w-4"/>Apply Discipline Guardrails (Prototype)</Button>
-                                </DialogTrigger>
-                                <GuardrailDialog />
-                            </Dialog>
-                        </SectionCard>
-
-                         <SectionCard
-                            id="discipline-volatility"
-                            title="Discipline under Volatility"
-                            description="How your adherence to rules changes when the market is chaotic."
-                            icon={Activity}
-                        >
-                             {currentData.disciplineByVolatility && currentData.disciplineByVolatility.length > 0 ? (
-                                <>
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>VIX Zone</TableHead>
-                                                <TableHead>Plan Adherence</TableHead>
-                                                <TableHead>SL Moved %</TableHead>
-                                                <TableHead>Revenge Trades</TableHead>
-                                                <TableHead>Avg. R</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {currentData.disciplineByVolatility.map((row: any) => (
-                                                <TableRow key={row.vixZone}>
-                                                    <TableCell className="font-medium">{row.vixZone}</TableCell>
-                                                    <TableCell className={cn("font-mono", row.planAdherence < 70 && "text-amber-400")}>{row.planAdherence}%</TableCell>
-                                                    <TableCell className={cn("font-mono", row.slMovedPct > 15 && "text-red-400")}>{row.slMovedPct}%</TableCell>
-                                                    <TableCell className={cn("font-mono", row.revengeCount > 1 && "text-red-400")}>{row.revengeCount}</TableCell>
-                                                    <TableCell className={cn("font-mono", row.avgR < 0 ? "text-red-400" : "text-green-400")}>{row.avgR.toFixed(1)}R</TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                    {currentData.disciplineByVolatility.find((r:any) => (r.vixZone === 'Elevated' || r.vixZone === 'Extreme') && r.planAdherence < 70) && (
-                                        <Alert variant="default" className="mt-4 bg-amber-950/30 border-amber-500/20 text-amber-300">
-                                            <AlertTriangle className="h-4 w-4 text-amber-400" />
-                                            <AlertTitle className="text-amber-400">Warning: Discipline Deteriorates in High Volatility</AlertTitle>
-                                            <AlertDescription>
-                                                Your data shows a significant drop in plan adherence during volatile periods. This is a common but costly profit leak.
-                                                <Button variant="link" size="sm" className="p-0 h-auto ml-2 text-amber-300" onClick={() => setIsGuardrailDialogOpen(true)}>Set a high-VIX guardrail →</Button>
-                                            </AlertDescription>
-                                        </Alert>
-                                    )}
-                                </>
-                             ) : (
-                                <EmptyState icon={Activity} title="Not Enough Data" description="This view requires more trades across different volatility zones." />
-                             )}
-                        </SectionCard>
-
-                        <SectionCard
-                            id="thresholds"
-                            title="Threshold Alerts"
-                            description="Patterns Arjun is watching for in your trading sequences."
-                            icon={Zap}
-                            className={cn(isPresentationMode && "ring-2 ring-primary/50 ring-offset-4 ring-offset-background")}
-                        >
-                            <div className="space-y-3">
-                                {thresholdInsights.map(insight => (
-                                    <Alert key={insight.id} variant="default" className={cn(
-                                        insight.status === 'warn' ? "bg-amber-950/40 border-amber-500/20 text-amber-300" : "bg-muted/50 border-border/50",
-                                    )}>
-                                        <AlertTriangle className={cn("h-4 w-4", insight.status === 'warn' ? 'text-amber-400' : 'text-blue-400')} />
-                                        <AlertDescription className="text-sm">{insight.text}</AlertDescription>
-                                    </Alert>
-                                ))}
-                            </div>
-                            <Button variant="outline" className="mt-6" onClick={handleApplyThresholdGuardrails}>
-                                <Bot className="mr-2 h-4 w-4" /> Turn on Recommended Guardrails
-                            </Button>
-                        </SectionCard>
-
-                        <SectionCard 
-                            id="psychology" 
-                            title="Psychological Patterns" 
-                            description="The emotions and biases that drive your decisions." 
-                            icon={Brain}
-                            onExport={() => handleExport('Psychological Patterns', analyticsData?.current?.radarChartData)}
-                        >
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-                                <div className="h-80 w-full">
-                                    <RadarChart data={currentData.radarChartData} onSetModule={onSetModule} />
-                                </div>
-                                <div className="space-y-4">
-                                    <Card className="bg-muted/50">
-                                        <CardHeader>
-                                            <CardTitle className="text-base flex items-center gap-2">
-                                                <Bot className="h-5 w-5 text-primary" /> Pattern Notes
-                                            </CardTitle>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <ul className="space-y-2 text-sm text-muted-foreground list-disc list-inside">
-                                                <li>Your <strong className="text-foreground">Revenge</strong> and <strong className="text-foreground">FOMO</strong> scores are high, indicating emotional decision-making.</li>
-                                                <li>Your <strong className="text-foreground">SL Discipline</strong> is low, suggesting you're not respecting your own exit plans.</li>
-                                            </ul>
-                                        </CardContent>
-                                    </Card>
-                                    <Card className="bg-muted/50 flex flex-col items-center justify-center text-center p-6">
-                                        <h3 className="font-semibold text-foreground">Turn these insights into action.</h3>
-                                        <p className="text-sm text-muted-foreground mt-1 mb-4">Discuss your profile with Arjun to build a personalized growth plan.</p>
-                                        <Button onClick={discussPsychology}>
-                                            Discuss Patterns with Arjun <ArrowRight className="ml-2 h-4 w-4" />
-                                        </Button>
-                                    </Card>
-                                </div>
-                            </div>
-                        </SectionCard>
-                        <SectionCard id="loss-drivers" title="Top Loss Drivers" description="The specific behaviours that are costing you the most money, ranked by total impact." icon={Zap} className={cn(isPresentationMode && "ring-2 ring-primary/50 ring-offset-4 ring-offset-background")}>
-                            {currentData.topLossDrivers.length > 0 ? (
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Behaviour</TableHead>
-                                            <TableHead>Occurrences</TableHead>
-                                            <TableHead>Avg. R Impact</TableHead>
-                                            <TableHead>Total R Impact</TableHead>
-                                            <TableHead className="text-right">Actions</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {currentData.topLossDrivers.map((driver: any) => (
-                                            <TableRow key={driver.behavior} >
-                                                <TableCell><Badge variant="destructive">{driver.behavior}</Badge></TableCell>
-                                                <TableCell>{driver.occurrences}</TableCell>
-                                                <TableCell className="font-mono text-red-400">{driver.avgR.toFixed(2)}R</TableCell>
-                                                <TableCell className="font-mono text-red-400">{driver.totalR.toFixed(2)}R</TableCell>
-                                                <TableCell className="text-right">
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild>
-                                                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                                <MoreHorizontal className="h-4 w-4" />
-                                                            </Button>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent align="end">
-                                                            <DropdownMenuItem onClick={() => onSetModule('tradeJournal', { filters: { mistake: driver.behavior } })}>
-                                                                View matching trades
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuItem onClick={() => setIsGuardrailDialogOpen(true)}>
-                                                                Add a guardrail
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuItem onClick={() => onSetModule('aiCoaching', { initialMessage: `Arjun, let's talk about why I keep making the mistake: ${driver.behavior}` })}>
-                                                                Ask Arjun about this
-                                                            </DropdownMenuItem>
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            ) : (
-                                <EmptyState icon={Zap} title="No Loss Drivers Identified" description="This section will highlight which mistakes cost you the most." />
-                            )}
-                        </SectionCard>
-                        <SectionCard id="emotion-matrix" title="Emotion × Result Matrix" description="Where do your emotions lead you? See which feelings correlate with wins and losses." icon={Brain}>
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-center text-xs border-separate border-spacing-1">
-                                    <thead>
-                                        <tr>
-                                            <th className="p-2 text-left">Emotion</th>
-                                            {currentData.emotionResultMatrixData.results.map((result: string) => (
-                                                <th key={result} className="p-2 font-normal text-muted-foreground">{result}</th>
-                                            ))}
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {currentData.emotionResultMatrixData.emotions.map((emotion: string, rowIndex: number) => (
-                                            <tr key={emotion}>
-                                                <td className="font-semibold text-foreground text-left p-2">{emotion}</td>
-                                                {currentData.emotionResultMatrixData.data[rowIndex].map((count: number, colIndex: number) => {
-                                                    const opacity = count > 0 ? Math.min(1, (count / currentData.emotionResultMatrixData.maxCount) * 0.9 + 0.1) : 0;
-                                                    const result = currentData.emotionResultMatrixData.results[colIndex];
-                                                    const isLoss = result.includes("Loss");
-                                                    const isWin = result.includes("Win");
-                                                    
-                                                    let bgColor = `rgba(100, 116, 139, ${opacity * 0.5})`; // Muted for zero
-                                                    if (count > 0) {
-                                                        if (isLoss) bgColor = `rgba(239, 68, 68, ${opacity})`; // Red
-                                                        if (isWin) bgColor = `rgba(34, 197, 94, ${opacity})`; // Green
-                                                    }
-
-                                                    return (
-                                                        <td
-                                                            key={colIndex}
-                                                            style={{ backgroundColor: bgColor }}
-                                                            className="p-3 rounded-md font-mono text-white cursor-pointer transition-all hover:ring-2 hover:ring-primary"
-                                                            onClick={() => handleCellClick(emotion, result)}
-                                                        >
-                                                            {count}
-                                                        </td>
-                                                    );
-                                                })}
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                            <div className="flex justify-end items-center gap-4 text-xs text-muted-foreground mt-4">
-                                <span>Fewer trades</span>
-                                <div className="flex gap-1">
-                                    <div className="w-4 h-4 rounded bg-primary/20" />
-                                    <div className="w-4 h-4 rounded bg-primary/40" />
-                                    <div className="w-4 h-4 rounded bg-primary/60" />
-                                    <div className="w-4 h-4 rounded bg-primary/80" />
-                                    <div className="w-4 h-4 rounded bg-primary" />
-                                </div>
-                                <span>More trades</span>
-                            </div>
-                        </SectionCard>
-                        <TradesInFocusPanel 
-                            behavior={selectedBehavior}
-                            onClear={() => setSelectedBehavior(null)}
-                            onOpenJournal={(journalId) => onSetModule('tradeJournal', { draftId: journalId })}
-                        />
-                         <Card className="bg-muted/30 border-border/50 text-center">
-                            <CardContent className="p-6">
-                                <h3 className="font-semibold text-foreground">Turn insights into action.</h3>
-                                <p className="text-sm text-muted-foreground mt-1 mb-4">Generate a personalized growth plan based on these analytics.</p>
-                                <Button onClick={() => setIsGrowthPlanDialogOpen(true)}>
-                                    <Bot className="mr-2 h-4 w-4" />
-                                    Generate Growth Plan (Prototype)
-                                </Button>
-                            </CardContent>
-                        </Card>
-                    </TabsContent>
-                    <TabsContent value="strategies" className="mt-6 space-y-8">
-                        <SectionCard id="strategy" title="Strategy Analytics" description="Which of your strategies are performing best, and where they leak money." icon={BookOpen}>
-                        {currentData.mockStrategyData.length > 0 ? (
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <SortableHeader sortKey="name" label="Strategy" sortConfig={sortConfig} onSort={handleSort} />
-                                            <SortableHeader sortKey="pnl" label="Total PnL ($)" sortConfig={sortConfig} onSort={handleSort} />
-                                            <SortableHeader sortKey="winRate" label="Win Rate" sortConfig={sortConfig} onSort={handleSort} />
-                                            <SortableHeader sortKey="mistakeRate" label="Mistake Rate" sortConfig={sortConfig} onSort={handleSort} />
-                                            <TableHead>Emotion Mix</TableHead>
-                                             <TableHead className="text-right">Actions</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {sortedStrategies.map((strategy: any) => (
-                                            <TableRow key={strategy.name}>
-                                                <TableCell>
-                                                    <div className="font-medium text-foreground">{strategy.name}</div>
-                                                    <div className="text-xs text-muted-foreground">{strategy.trades} trades</div>
-                                                </TableCell>
-                                                <TableCell className={cn(strategy.pnl >= 0 ? "text-green-400" : "text-red-400")}>
-                                                    {strategy.pnl >= 0 ? '+' : ''}${strategy.pnl.toLocaleString()}
-                                                </TableCell>
-                                                <TableCell>{strategy.winRate}%</TableCell>
-                                                <TableCell className={cn(strategy.mistakeRate > 20 ? "text-amber-400" : "text-muted-foreground")}>
-                                                    {strategy.mistakeRate}%
-                                                </TableCell>
-                                                 <TableCell>
-                                                    <div className="flex flex-col gap-1.5">
-                                                        {strategy.emotionMix.map((mix: any) => (
-                                                            <div key={mix.emotion} className="flex items-center gap-2 text-xs">
-                                                                <Badge variant="outline" className="w-24 justify-center">{mix.emotion}</Badge>
-                                                                <span className="text-muted-foreground font-mono">{mix.percentage}%</span>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="text-right">
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild>
-                                                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                                <MoreHorizontal className="h-4 w-4" />
-                                                            </Button>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent align="end">
-                                                            <DropdownMenuItem onClick={() => onSetModule('strategyManagement', { strategyId: strategy.id })}>
-                                                                Go to Strategy Management
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuItem onClick={() => onSetModule('tradePlanning', { planContext: { instrument: 'BTC-PERP', strategyId: strategy.id } })}>
-                                                                Start a plan with this strategy
-                                                            </DropdownMenuItem>
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                        ) : (
-                                <EmptyState icon={BookOpen} title="No Strategies Found" description="Define strategies in Strategy Management and tag your trades." />
-                        )}
-                        </SectionCard>
-                        
-                        <SectionCard id="timing" 
-                            title="Timing Analytics" 
-                            description="When you trade best (and worst)." 
-                            icon={Calendar} 
-                            headerContent={
-                                <div className="flex flex-wrap items-center gap-4">
-                                     <div className="flex items-center gap-2">
-                                        <Label htmlFor="behavior-hotspots" className="text-sm">Behaviour Hotspots</Label>
-                                        <Switch
-                                            id="behavior-hotspots"
-                                            checked={showBehaviorHotspots}
-                                            onCheckedChange={setShowBehaviorHotspots}
-                                        />
-                                    </div>
-                                    {showBehaviorHotspots && (
-                                        <div className="flex items-center gap-2">
-                                            <Select value={hotspotMetric} onValueChange={(v) => setHotspotMetric(v as any)}>
-                                                <SelectTrigger className="w-[150px] h-8 text-xs">
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="Revenge">Revenge</SelectItem>
-                                                    <SelectItem value="FOMO">FOMO</SelectItem>
-                                                    <SelectItem value="Moved SL">Moved SL</SelectItem>
-                                                    <SelectItem value="Overtraded">Overtraded</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                    )}
-                                </div>
-                            }>
-                            <div className="grid md:grid-cols-3 gap-6 animate-in fade-in-50 duration-500">
-                                <div className="md:col-span-2">
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full text-center text-xs border-separate border-spacing-1">
-                                            <thead>
-                                                <tr>
-                                                    <th className="p-2">Session</th>
-                                                    {currentData.timingHeatmapData.timeBlocks.map((block: string) => (
-                                                        <th key={block} className="p-2 font-normal text-muted-foreground">{block}</th>
-                                                    ))}
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {currentData.timingHeatmapData.sessions.map((session: any) => (
-                                                    <tr key={session.name}>
-                                                        <td className="font-semibold text-foreground text-left p-2">{session.name}</td>
-                                                        {currentData.timingHeatmapData.timeBlocks.map((block: string) => {
-                                                            const cellData = session.blocks.find((b: any) => b.time === block);
-                                                            if (!cellData) {
-                                                                return <td key={block} className="p-2 bg-muted/30 rounded-md" />;
-                                                            }
-                                                            
-                                                            let opacity = 0;
-                                                            let bgColor = 'rgba(100, 116, 139, 0.15)';
-                                                            let cellText, hintText;
-
-                                                            if (showBehaviorHotspots) {
-                                                                const behaviorCount = cellData[hotspotMetricKey] || 0;
-                                                                const maxBehaviorCount = 5; // mock max for scaling
-                                                                opacity = behaviorCount > 0 ? Math.min(1, (behaviorCount / maxBehaviorCount) * 0.9 + 0.1) : 0;
-                                                                bgColor = `rgba(239, 68, 68, ${opacity})`; // Red scale for mistakes
-                                                                cellText = `${behaviorCount}`;
-                                                                hintText = `Trades: ${cellData.trades}`;
-                                                            } else {
-                                                                const maxTrades = 30; // Mock max for opacity scaling
-                                                                opacity = Math.min(1, (cellData.trades / maxTrades) * 0.9 + 0.1);
-                                                                bgColor = cellData.pnl > 0 ? `rgba(34, 197, 94, ${opacity})` : `rgba(239, 68, 68, ${opacity})`;
-                                                                cellText = `${cellData.pnl > 0 ? '+' : ''}${cellData.pnl.toFixed(0)}`;
-                                                                hintText = `n=${cellData.trades}`;
-                                                            }
-                                                            
-                                                            return (
-                                                                <td key={block} style={{ backgroundColor: bgColor }} className="p-2 rounded-md">
-                                                                    <TooltipProvider><Tooltip>
-                                                                        <TooltipTrigger asChild>
-                                                                            <div className="font-mono text-white cursor-pointer" onClick={() => onSetModule('tradeJournal', {})}>
-                                                                                <p>{cellText}</p>
-                                                                                <p className="text-white/60 text-[10px]">{hintText}</p>
-                                                                            </div>
-                                                                        </TooltipTrigger>
-                                                                        <TooltipContent>
-                                                                            <p>Session: {session.name} ({block})</p>
-                                                                            <p>Trades: {cellData.trades}</p>
-                                                                            <p>Total PnL: ${cellData.pnl.toFixed(2)}</p>
-                                                                            {showBehaviorHotspots && <p>{hotspotMetric}: {cellData[hotspotMetricKey] || 0}</p>}
-                                                                        </TooltipContent>
-                                                                    </Tooltip></TooltipProvider>
-                                                                </td>
-                                                            );
-                                                        })}
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                    <div className="flex justify-end items-center gap-4 text-xs text-muted-foreground mt-4">
-                                        <span>{showBehaviorHotspots ? "Low density" : "Fewer trades"}</span>
-                                        <div className="flex gap-1">
-                                            <div className="w-4 h-4 rounded bg-primary/20" />
-                                            <div className="w-4 h-4 rounded bg-primary/40" />
-                                            <div className="w-4 h-4 rounded bg-primary/60" />
-                                            <div className="w-4 h-4 rounded bg-primary/80" />
-                                            <div className="w-4 h-4 rounded bg-primary" />
-                                        </div>
-                                        <span>{showBehaviorHotspots ? "High density" : "More trades"}</span>
-                                    </div>
-                                </div>
-                                <div className="md:col-span-1">
-                                    <Card className="bg-muted/50 h-full">
-                                        <CardHeader>
-                                            <CardTitle className="text-base flex items-center gap-2">
-                                                <Bot className="h-5 w-5 text-primary" /> Arjun's Insight
-                                            </CardTitle>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <p className="text-sm text-muted-foreground">
-                                                You lose most of your PnL during the <strong className="text-foreground">London session open (08-12 block)</strong>. It seems you're getting caught in fakeouts.
-                                            </p>
-                                            <p className="text-sm text-muted-foreground mt-2">
-                                                <strong className="text-primary">Actionable advice:</strong> Consider avoiding the first hour of the London session, or reduce your size by 50% during that period for the next week.
-                                            </p>
-                                        </CardContent>
-                                    </Card>
-                                </div>
-                            </div>
-                        </SectionCard>
-                        
-                        <SectionCard id="volatility" title="Volatility Analytics" description="How you perform in different market conditions." icon={Zap}
-                            headerContent={
-                                <div className="flex items-center gap-2">
-                                    <p className="text-xs text-muted-foreground">View by:</p>
-                                    <div className="flex items-center gap-1 rounded-full bg-muted p-1">
-                                        {(['winRate', 'avgPnL', 'mistakes'] as const).map(v => (
-                                            <Button
-                                                key={v}
-                                                size="sm"
-                                                variant={volatilityView === v ? 'secondary' : 'ghost'}
-                                                onClick={() => setVolatilityView(v)}
-                                                className="rounded-full h-7 px-3 text-xs capitalize"
-                                            >
-                                                {v === 'avgPnL' ? 'Avg PnL' : v === 'winRate' ? 'Win Rate' : 'Mistakes'}
-                                            </Button>
-                                        ))}
-                                    </div>
-                                </div>
-                            }
-                        >
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-in fade-in-50 duration-500">
-                                {currentData.volatilityData.map((d: any) => {
-                                    const mistakeDensity = d.trades > 0 ? (d.mistakesCount / d.trades) * 100 : 0;
-                                    const isWinRateActive = volatilityView === 'winRate';
-                                    const isAvgPnlActive = volatilityView === 'avgPnL';
-                                    const isMistakesActive = volatilityView === 'mistakes';
-
-                                    return (
-                                        <Card key={d.vixZone} className="bg-muted/50 transition-all hover:bg-muted">
-                                            <CardHeader className="pb-4">
-                                                <CardTitle className="text-base">{d.vixZone}</CardTitle>
-                                                <CardDescription className="text-xs">{d.trades} trades</CardDescription>
-                                            </CardHeader>
-                                            <CardContent className="space-y-4">
-                                                <div className={cn("p-2 rounded-md transition-colors", isWinRateActive ? "bg-primary/10" : "bg-muted")}>
-                                                    <p className="text-xs text-muted-foreground">Win Rate</p>
-                                                    <p className={cn("text-lg font-bold font-mono", isWinRateActive && "text-primary")}>{d.winRate}%</p>
-                                                </div>
-                                                <div className={cn("p-2 rounded-md transition-colors", isAvgPnlActive ? "bg-primary/10" : "bg-muted")}>
-                                                    <p className="text-xs text-muted-foreground">Avg. PnL</p>
-                                                    <p className={cn("text-lg font-bold font-mono", d.avgPnL >= 0 ? (isAvgPnlActive ? 'text-primary' : 'text-green-400') : (isAvgPnlActive ? 'text-destructive' : 'text-red-400'))}>${d.avgPnL.toFixed(2)}</p>
-                                                </div>
-                                                <div className={cn("p-2 rounded-md transition-colors", isMistakesActive ? "bg-primary/10" : "bg-muted")}>
-                                                    <p className="text-xs text-muted-foreground">Mistakes</p>
-                                                    <p className={cn("text-lg font-bold font-mono", isMistakesActive && "text-primary")}>{d.mistakesCount}</p>
-                                                </div>
-                                                <div>
-                                                    <Label className="text-xs text-muted-foreground">Mistake Density</Label>
-                                                    <Progress value={mistakeDensity} indicatorClassName="bg-amber-500" className="h-2 mt-1" />
-                                                </div>
-                                            </CardContent>
-                                        </Card>
-                                    );
-                                })}
-                            </div>
-                        </SectionCard>
-                    </TabsContent>
-                    <TabsContent value="reports" className="mt-6 space-y-8">
-                        <SectionCard 
-                            id="reports" 
-                            title="Weekly & Monthly Reports" 
-                            description="Your performance summarized into actionable report cards." 
-                            icon={Award}
-                        >
-                            <div className="grid md:grid-cols-2 gap-8">
-                                <Dialog>
-                                    <Card className="bg-muted/50 transition-all hover:bg-muted">
-                                        <CardHeader>
-                                            <CardTitle className="text-lg">Weekly Report</CardTitle>
-                                            <CardDescription>Your performance summary for last week.</CardDescription>
-                                        </CardHeader>
-                                        <CardContent className="space-y-3">
-                                            <p className="text-sm"><strong className="text-green-400">This Week's Edge:</strong> Reduced revenge trading.</p>
-                                            <p className="text-sm"><strong className="text-red-400">This Week's Leak:</strong> Still exiting winners early.</p>
-                                            <p className="text-sm"><strong className="text-primary">Behavioural Goal:</strong> Try a partial TP to let trades run.</p>
-                                        </CardContent>
-                                        <CardContent>
-                                            <DialogTrigger asChild>
-                                                <Button variant="outline" className="w-full">View Full Report</Button>
-                                            </DialogTrigger>
-                                        </CardContent>
-                                    </Card>
-                                    <ReportDialog reportType="Weekly" />
-                                </Dialog>
-
-                                <Dialog>
-                                    <Card className="bg-muted/50 transition-all hover:bg-muted">
-                                        <CardHeader>
-                                            <CardTitle className="text-lg">Monthly Report</CardTitle>
-                                            <CardDescription>Your performance summary for last month.</CardDescription>
-                                        </CardHeader>
-                                        <CardContent className="space-y-3">
-                                            <p className="text-sm"><strong className="text-green-400">This Month's Edge:</strong> Sticking to A+ setups.</p>
-                                            <p className="text-sm"><strong className="text-red-400">This Month's Leak:</strong> Performance in high VIX.</p>
-                                            <p className="text-sm"><strong className="text-primary">Behavioural Goal:</strong> Reduce size when VIX is 'Elevated'.</p>
-                                        </CardContent>
-                                        <CardContent>
-                                            <DialogTrigger asChild>
-                                                <Button variant="outline" className="w-full">View Full Report</Button>
-                                            </DialogTrigger>
-                                        </CardContent>
-                                    </Card>
-                                    <ReportDialog reportType="Monthly" />
-                                </Dialog>
-                            </div>
-                        </SectionCard>
-                    </TabsContent>
-                </Tabs>
-
-                <Drawer open={!!selectedStrategy} onOpenChange={(open) => !open && setSelectedStrategy(null)}>
-                    <DrawerContent>
-                        {selectedStrategy && (
-                            <div className="mx-auto w-full max-w-2xl p-4 md:p-6">
-                                <DrawerHeader>
-                                    <DrawerTitle className="text-2xl">{selectedStrategy.name} Drilldown</DrawerTitle>
-                                    <DrawerDescription>Deep dive into your most profitable strategy.</DrawerDescription>
-                                </DrawerHeader>
-                                <div className="px-4 py-6 space-y-6">
-                                    <div className="grid grid-cols-3 gap-4 text-center">
-                                        <MetricCard title="Win Rate" value={`${selectedStrategy.winRate}%`} hint="" />
-                                        <MetricCard title="Avg. R:R" value={String(selectedStrategy.avgR)} hint="" />
-                                        <MetricCard title="Total PnL" value={`$${selectedStrategy.pnl}`} hint="" />
-                                    </div>
-                                    <div className="space-y-4">
-                                        <div>
-                                            <h4 className="font-semibold text-foreground">Common Emotions</h4>
-                                            <div className="flex gap-2 mt-2">
-                                                <Badge variant="outline">Focused</Badge>
-                                                <Badge variant="outline">Calm</Badge>
-                                                <Badge variant="outline" className="border-amber-500/50 text-amber-400">Overconfidence</Badge>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <h4 className="font-semibold text-foreground">Common Mistakes</h4>
-                                            <div className="flex gap-2 mt-2">
-                                                <Badge variant="destructive">Exited early</Badge>
-                                                <Badge variant="destructive">Forced Entry</Badge>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <Button className="w-full" onClick={() => askArjunAboutStrategy(selectedStrategy.name)}>
-                                        Ask Arjun to improve this strategy
-                                    </Button>
-                                </div>
-                            </div>
-                        )}
-                    </DrawerContent>
-                </Drawer>
-            </div>
-            <Drawer open={isDataSourcesOpen} onOpenChange={setIsDataSourcesOpen}>
-                <DrawerContent>
-                    <DrawerHeader>
-                        <DrawerTitle>Data Sources</DrawerTitle>
-                        <DrawerDescription>This analytics view is a synthesis of multiple data points.</DrawerDescription>
-                    </DrawerHeader>
-                    <div className="p-4">
-                        <div className="space-y-4">
-                            {dataSources.map(source => (
-                                <Card key={source.name} className="bg-muted/50">
-                                    <CardContent className="p-4 flex items-center justify-between">
-                                        <div>
-                                            <h4 className="font-semibold text-foreground">{source.name}</h4>
-                                            <p className="text-xs text-muted-foreground">{source.description}</p>
-                                        </div>
-                                        <Badge variant={source.status === 'Live' ? 'default' : 'outline'}>{source.status}</Badge>
-                                    </CardContent>
-                                </Card>
-                            ))}
-                        </div>
-                    </div>
-                </DrawerContent>
-            </Drawer>
-            <ExportDialog 
-                isOpen={!!exportData}
-                onOpenChange={(open) => !open && setExportData(null)}
-                title={exportData?.title || ''}
-                summaryText={exportData?.summary || ''}
-            />
-        </>
+        </div>
     );
 }
+
+    
