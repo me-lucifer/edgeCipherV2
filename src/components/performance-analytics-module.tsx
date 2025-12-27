@@ -1,4 +1,5 @@
 
+
       "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
@@ -971,7 +972,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
       ];
 
       return {
-          totalTrades, winRate, lossRate, avgRR, totalPnL,
+          totalTrades, wins, losses, winRate, lossRate, avgRR, totalPnL,
           bestCondition: "Normal VIX / NY Session", quality,
           discipline: { slRespectedPct: 100 - slMovedPct, slMovedPct, slRemovedPct: 3, tpExitedEarlyPct: 25, avgRiskPct: 1.1, riskOverLimitPct: 15 },
           scores: { disciplineScore, emotionalScore, consistencyScore },
@@ -1239,6 +1240,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
         if (sortConfig.key === key && sortConfig.direction === 'ascending') {
             direction = 'descending';
         }
+        // Default PnL to descending, Mistake Rate to ascending
         if (key !== sortConfig.key) {
             if (key === 'pnl') direction = 'descending';
             if (key === 'mistakeRate') direction = 'ascending';
@@ -1287,7 +1289,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
     }
 
     const { current: currentData, previous: previousData } = analyticsData;
-    const { totalTrades, winRate, lossRate, avgRR, totalPnL, quality, scores, discipline, topLossDrivers, mockEquityData, topEvents, mockStrategyData, timingHeatmapData, volatilityData, emotionResultMatrixData, radarChartData, planAdherence, disciplineBreakdown, disciplineByVolatility } = currentData;
+    const { totalTrades, wins, losses, winRate, lossRate, avgRR, totalPnL, quality, scores, discipline, topLossDrivers, mockEquityData, topEvents, mockStrategyData, timingHeatmapData, volatilityData, emotionResultMatrixData, radarChartData, planAdherence, disciplineBreakdown, disciplineByVolatility } = currentData;
     
     const equityChartData = mockEquityData.map((d: any, i: number) => ({
       ...d,
@@ -1433,7 +1435,7 @@ ${JSON.stringify(data, null, 2)}
                         <Button variant="outline" size="sm" onClick={generateDemoData}><Zap className="mr-2 h-4 w-4"/> Regenerate Data</Button>
                         <Button variant="destructive" size="sm" onClick={clearDemoData}>Clear Data</Button>
                         
-                        <Dialog>
+                        <Dialog open={isGuardrailDialogOpen} onOpenChange={setIsGuardrailDialogOpen}>
                             <DialogTrigger asChild>
                                 <Button variant="outline" size="sm" id="analytics-guardrails-button">
                                     <ShieldCheck className="mr-2 h-4 w-4" /> Guardrails
@@ -1479,7 +1481,7 @@ ${JSON.stringify(data, null, 2)}
                             <MetricCard title="Total PnL" value={`$${totalPnL.toFixed(2)}`} hint={`${totalTrades} trades`} delta={getDelta(totalPnL, previousData?.totalPnL)} deltaUnit="$" />
                             <MetricCard title="Win Rate" value={`${winRate.toFixed(0)}%`} hint={`${wins}W / ${losses}L`} delta={getDelta(winRate, previousData?.winRate)} deltaUnit="%" />
                             <MetricCard title="Avg. R:R" value={`${avgRR.toFixed(2)}`} hint="Avg win / Avg loss" delta={getDelta(avgRR, previousData?.avgRR)} />
-                            <MetricCard title="Best Condition" value={bestCondition} hint="VIX Zone / Session" />
+                            <MetricCard title="Best Condition" value={currentData.bestCondition} hint="VIX Zone / Session" />
                         </div>
                     </SectionCard>
                     
@@ -1732,5 +1734,3 @@ ${JSON.stringify(data, null, 2)}
         </div>
     );
 }
-
-    
