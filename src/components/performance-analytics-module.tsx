@@ -585,6 +585,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
     const [volatilityView, setVolatilityView] = useState<'winRate' | 'avgPnL' | 'mistakes'>('winRate');
     const [compareMode, setCompareMode] = useState(false);
     const [exportData, setExportData] = useState<{ title: string, summary: string } | null>(null);
+    const [isGuardrailDialogOpen, setIsGuardrailDialogOpen] = useState(false);
 
 
     const { toast } = useToast();
@@ -767,7 +768,14 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
         { violation: "R:R below minimum", frequency: 12, avgR: -0.4, trades: [] },
         { violation: "Traded in high VIX", frequency: 8, avgR: -1.1, trades: [] },
         { violation: "Skipped journal", frequency: 2, avgR: 0, trades: [] },
-      ]
+      ];
+
+      const disciplineByVolatility = [
+        { vixZone: "Calm", planAdherence: 90, slMovedPct: 5, revengeCount: 0, avgR: 0.8 },
+        { vixZone: "Normal", planAdherence: 85, slMovedPct: 10, revengeCount: 1, avgR: 0.6 },
+        { vixZone: "Elevated", planAdherence: 60, slMovedPct: 25, revengeCount: 3, avgR: -0.9 },
+        { vixZone: "Extreme", planAdherence: 40, slMovedPct: 40, revengeCount: 2, avgR: -1.8 },
+      ];
 
       return {
           totalTrades, winRate, lossRate, avgRR, totalPnL,
@@ -780,6 +788,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
           radarChartData,
           planAdherence,
           disciplineBreakdown,
+          disciplineByVolatility,
       };
     }
 
@@ -1257,12 +1266,58 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                 <EmptyState icon={Zap} title="No Violations Logged" description="This table will populate as you tag mistakes in your journal." />
                             )}
                             <Separator className="my-6" />
-                            <Dialog>
+                            <Dialog open={isGuardrailDialogOpen} onOpenChange={setIsGuardrailDialogOpen}>
                                 <DialogTrigger asChild>
                                     <Button variant="outline"><Bot className="mr-2 h-4 w-4"/>Apply Discipline Guardrails (Prototype)</Button>
                                 </DialogTrigger>
                                 <GuardrailDialog />
                             </Dialog>
+                        </SectionCard>
+
+                         <SectionCard
+                            id="discipline-volatility"
+                            title="Discipline under Volatility"
+                            description="How your adherence to rules changes when the market is chaotic."
+                            icon={Activity}
+                        >
+                             {currentData.disciplineByVolatility && currentData.disciplineByVolatility.length > 0 ? (
+                                <>
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>VIX Zone</TableHead>
+                                                <TableHead>Plan Adherence</TableHead>
+                                                <TableHead>SL Moved %</TableHead>
+                                                <TableHead>Revenge Trades</TableHead>
+                                                <TableHead>Avg. R</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {currentData.disciplineByVolatility.map((row: any) => (
+                                                <TableRow key={row.vixZone}>
+                                                    <TableCell className="font-medium">{row.vixZone}</TableCell>
+                                                    <TableCell className={cn("font-mono", row.planAdherence < 70 && "text-amber-400")}>{row.planAdherence}%</TableCell>
+                                                    <TableCell className={cn("font-mono", row.slMovedPct > 15 && "text-red-400")}>{row.slMovedPct}%</TableCell>
+                                                    <TableCell className={cn("font-mono", row.revengeCount > 1 && "text-red-400")}>{row.revengeCount}</TableCell>
+                                                    <TableCell className={cn("font-mono", row.avgR < 0 ? "text-red-400" : "text-green-400")}>{row.avgR.toFixed(1)}R</TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                    {currentData.disciplineByVolatility.find((r:any) => (r.vixZone === 'Elevated' || r.vixZone === 'Extreme') && r.planAdherence < 70) && (
+                                        <Alert variant="default" className="mt-4 bg-amber-950/30 border-amber-500/20 text-amber-300">
+                                            <AlertTriangle className="h-4 w-4 text-amber-400" />
+                                            <AlertTitle className="text-amber-400">Warning: Discipline Deteriorates in High Volatility</AlertTitle>
+                                            <AlertDescription>
+                                                Your data shows a significant drop in plan adherence during volatile periods. This is a common but costly profit leak.
+                                                <Button variant="link" size="sm" className="p-0 h-auto ml-2 text-amber-300" onClick={() => setIsGuardrailDialogOpen(true)}>Set a high-VIX guardrail →</Button>
+                                            </AlertDescription>
+                                        </Alert>
+                                    )}
+                                </>
+                             ) : (
+                                <EmptyState icon={Activity} title="Not Enough Data" description="This view requires more trades across different volatility zones." />
+                             )}
                         </SectionCard>
 
                         <SectionCard 
