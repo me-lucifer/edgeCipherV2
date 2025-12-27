@@ -1,5 +1,4 @@
 
-
       "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
@@ -173,8 +172,7 @@ ${reportData.recommendations.map(r => `- ${r}`).join('\n')}
     };
 
     const handleCopy = (short: boolean) => {
-        const textToCopy = generateReportText(short);
-        navigator.clipboard.writeText(textToCopy);
+        navigator.clipboard.writeText(generateReportText(short));
         toast({ title: short ? "Short summary copied" : "Full report copied" });
     }
 
@@ -414,34 +412,28 @@ function ScoreGauge({ score, label, interpretation, delta }: { score: number; la
     
     const interpretationColor = score < 40 ? colorClasses.bad : score < 70 ? colorClasses.medium : colorClasses.good;
 
+    const conicGradient = `conic-gradient(
+        hsl(var(${score < 40 ? '--destructive' : score < 70 ? '--chart-4' : '--chart-2'})) 0deg,
+        hsl(var(${score < 40 ? '--destructive' : score < 70 ? '--chart-4' : '--chart-2'})) calc(${score} * 1.8deg),
+        hsl(var(--muted)) calc(${score} * 1.8deg),
+        hsl(var(--muted)) 180deg
+    )`;
+
     return (
-        <div className="flex flex-col items-center gap-2 motion-reduce:animate-none">
+        <div className="flex flex-col items-center gap-2 text-center motion-reduce:animate-none">
             <div 
                 className="relative flex items-center justify-center w-40 h-20 overflow-hidden rounded-t-full bg-muted"
-                style={{
-                    // @ts-ignore
-                    "--score": score,
-                    "--color": `var(--${interpretation.toLowerCase()})`,
-                }}
             >
                 <div 
                     className="absolute top-0 left-0 w-full h-full rounded-t-full"
-                    style={{
-                        background: `conic-gradient(
-                            from 180deg at 50% 100%,
-                            hsl(var(${score < 40 ? '--destructive' : score < 70 ? '--chart-4' : '--chart-2'})) 0deg,
-                            hsl(var(${score < 40 ? '--destructive' : score < 70 ? '--chart-4' : '--chart-2'})) calc(${score} * 1.8deg),
-                            hsl(var(--muted)) calc(${score} * 1.8deg),
-                            hsl(var(--muted)) 180deg
-                        )`
-                    }}
+                    style={{ background: conicGradient }}
                 />
                 <div className="absolute w-[85%] h-[85%] bg-muted/80 backdrop-blur-sm rounded-t-full" />
                  <div className="relative flex flex-col items-center justify-center z-10 -mt-2">
                     <p className="text-4xl font-bold text-foreground">{score}</p>
                 </div>
             </div>
-             <p className="text-sm font-medium text-foreground -mt-4">{label}</p>
+             <p className="text-sm font-medium text-foreground -mt-4 h-10 flex items-center justify-center px-2">{label}</p>
             <div className="flex items-baseline">
                 <p className={cn("text-sm font-semibold", interpretationColor)}>{interpretation}</p>
                 {delta !== undefined && <DeltaIndicator delta={delta} />}
@@ -1917,6 +1909,7 @@ const computeSinglePeriodAnalytics = (entries: JournalEntry[], random: () => num
         disciplineByVolatility,
     };
   }
+
 
 
 
