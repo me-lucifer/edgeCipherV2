@@ -30,7 +30,7 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } f
 import { Skeleton } from "./ui/skeleton";
 import { formatDistanceToNow } from "date-fns";
 import type { JournalEntry } from "./trade-journal-module";
-import type { StrategyGroup as Strategy } from './strategy-management-module';
+import type { StrategyGroup as Strategy, RuleSet } from './strategy-management-module';
 
 
 interface TradePlanningModuleProps {
@@ -90,6 +90,115 @@ type SavedDraft = {
     draftStep: TradePlanStep;
     timestamp: string;
 };
+
+// Validation Engine Types
+type ValidationStatus = "PASS" | "WARN" | "FAIL" | "N/A";
+type ValidationCheck = {
+  ruleId: string;
+  title: string;
+  status: ValidationStatus;
+  message: string;
+  fixHint?: string;
+};
+type ValidationOutput = {
+  validations: ValidationCheck[];
+  overallStatus: "PASS" | "WARN" | "FAIL";
+  requiresJustification: boolean;
+};
+type PlanInputs = {
+    leverage: number;
+    riskPct: number;
+    rr: number;
+    session: "Asia" | "London" | "New York"; // Mocked
+};
+type ValidationContext = {
+    todayTradeCountAll: number;
+    lossStreak: number;
+    vixZone: "Calm" | "Normal" | "Elevated" | "Extreme";
+};
+
+// The Validation Engine
+const validatePlanAgainstStrategy = (plan: PlanInputs, strategy: RuleSet, context: ValidationContext): ValidationOutput => {
+    const validations: ValidationCheck[] = [];
+
+    // Risk Rules
+    validations.push({
+        ruleId: 'riskPerTrade',
+        title: `Risk per trade <= ${strategy.riskRules.riskPerTradePct}%`,
+        status: plan.riskPct > strategy.riskRules.riskPerTradePct ? "FAIL" : "PASS",
+        message: plan.riskPct > strategy.riskRules.riskPerTradePct 
+            ? `Your plan risks ${plan.riskPct}%, exceeding the strategy's max of ${strategy.riskRules.riskPerTradePct}%.`
+            : "Risk is within strategy limits.",
+        fixHint: "Lower your Risk %."
+    });
+
+    validations.push({
+        ruleId: 'maxDailyTrades',
+        title: `Max daily trades <= ${strategy.riskRules.maxDailyTrades}`,
+        status: context.todayTradeCountAll >= strategy.riskRules.maxDailyTrades ? "FAIL" : "PASS",
+        message: context.todayTradeCountAll >= strategy.riskRules.maxDailyTrades
+            ? `You've already made ${context.todayTradeCountAll} trades today. Your limit is ${strategy.riskRules.maxDailyTrades}.`
+            : "Within daily trade limit.",
+    });
+
+    validations.push({
+        ruleId: 'leverageCap',
+        title: `Leverage <= ${strategy.riskRules.leverageCap}x`,
+        status: plan.leverage > strategy.riskRules.leverageCap ? "WARN" : "PASS",
+        message: plan.leverage > strategy.riskRules.leverageCap
+            ? `Leverage of ${plan.leverage}x is higher than the strategy's recommended cap of ${strategy.riskRules.leverageCap}x.`
+            : "Leverage is within strategy limits."
+    });
+
+    if (strategy.riskRules.cooldownAfterLosses && context.lossStreak >= 2) {
+        validations.push({
+            ruleId: 'cooldown',
+            title: `Cooldown after ${2} losses`,
+            status: "FAIL",
+            message: `You are on a ${context.lossStreak}-trade losing streak. This rule requires a cooldown.`
+        });
+    }
+
+    // TP Rules
+    if (strategy.tpRules.minRR && plan.rr > 0) {
+        validations.push({
+            ruleId: 'minRR',
+            title: `R:R Ratio >= ${strategy.tpRules.minRR}`,
+            status: plan.rr < strategy.tpRules.minRR ? "WARN" : "PASS",
+            message: plan.rr < strategy.tpRules.minRR
+                ? `R:R of ${plan.rr.toFixed(2)} is below the strategy minimum of ${strategy.tpRules.minRR}.`
+                : "R:R meets minimum requirement."
+        });
+    }
+
+    // Context Rules
+    if (strategy.contextRules.vixPolicy !== 'allowAll') {
+        let status: ValidationStatus = 'PASS';
+        if (strategy.contextRules.vixPolicy === 'avoidHigh' && (context.vixZone === 'Elevated' || context.vixZone === 'Extreme')) {
+            status = 'WARN';
+        }
+        if (strategy.contextRules.vixPolicy === 'onlyLowNormal' && (context.vixZone === 'Elevated' || context.vixZone === 'Extreme')) {
+            status = 'FAIL';
+        }
+        validations.push({
+            ruleId: 'vixPolicy',
+            title: `VIX Policy: ${strategy.contextRules.vixPolicy}`,
+            status,
+            message: status !== 'PASS' ? `Current VIX is '${context.vixZone}', which conflicts with your strategy rule.` : "Volatility is within strategy parameters."
+        });
+    }
+
+    const overallStatus = validations.some(v => v.status === 'FAIL') ? 'FAIL'
+                        : validations.some(v => v.status === 'WARN') ? 'WARN'
+                        : 'PASS';
+
+    return {
+        validations,
+        overallStatus,
+        requiresJustification: overallStatus === 'FAIL'
+    };
+};
+
 
 const planTemplates: ({ id: string, name: string, values: Partial<PlanFormValues> })[] = [
     { id: 'blank', name: "Blank plan", values: {} },
@@ -179,7 +288,7 @@ function MarketContext() {
             if (vix > 25) return "Normal";
             return "Calm";
         }
-        setMarket({ vixValue, vixZone: getVixZone(vixValue) });
+        setMarket({ vixValue, vixZone: getVixZone(vixValue) as "Calm" | "Normal" | "Elevated" | "Extreme" });
     }, []);
     
     const isHighVol = market.vixZone === 'Extreme' || market.vixZone === 'Elevated';
@@ -228,39 +337,7 @@ function MarketContext() {
     )
 }
 
-type RuleStatus = "PASS" | "WARN" | "FAIL" | "N/A";
-type RuleCheck = { label: string; status: RuleStatus, note: string };
-
-const getRuleChecks = (rrr: number, riskPercent: number): RuleCheck[] => {
-    // In a real app, this data would come from context/props
-    const vixZone = (localStorage.getItem('ec_demo_scenario') === 'high_vol') ? 'Elevated' : 'Normal';
-    const performanceState = (localStorage.getItem('ec_demo_scenario') === 'drawdown') ? 'drawdown' : 'stable';
-
-    return [
-        {
-            label: "R:R Ratio must be >= 1.5",
-            status: !rrr || rrr === 0 ? "N/A" : rrr < 1.5 ? "WARN" : "PASS",
-            note: "If your winners aren't meaningfully larger than your losers, you need a very high win rate just to break even. Aim for at least 1.5R."
-        },
-        {
-            label: "Risk per trade <= 2%",
-            status: !riskPercent ? "N/A" : riskPercent > 3 ? "FAIL" : riskPercent > 2 ? "WARN" : "PASS",
-            note: "Risking a small percentage of your capital on any single trade is the #1 rule for survival. Large risk makes it easy to blow up an account on a bad day."
-        },
-        {
-            label: "Trade only in Calm/Normal VIX",
-            status: vixZone === "Extreme" ? "FAIL" : vixZone === "Elevated" ? "WARN" : "PASS",
-            note: "This rule is based on your strategy's ideal conditions. Trading outside of the optimal volatility regime often leads to poor performance."
-        },
-        {
-            label: "Avoid trading in a drawdown",
-            status: performanceState === 'drawdown' ? "WARN" : "PASS",
-            note: "When in a drawdown, your psychology is compromised. This rule recommends reducing size or taking a break to avoid revenge trading."
-        }
-    ];
-};
-
-const StatusBadge = ({ status }: { status: RuleStatus }) => {
+const StatusBadge = ({ status }: { status: ValidationStatus }) => {
     const config = {
         "PASS": "bg-green-500/20 text-green-400 border-green-500/30",
         "WARN": "bg-amber-500/20 text-amber-400 border-amber-500/30",
@@ -270,7 +347,7 @@ const StatusBadge = ({ status }: { status: RuleStatus }) => {
     return <Badge variant="secondary" className={cn("text-xs font-mono", config[status])}>{status}</Badge>;
 }
 
-function RuleChecks({ checks }: { checks: RuleCheck[] }) {
+function RuleChecks({ checks }: { checks: ValidationCheck[] }) {
     return (
         <div>
             <h3 className="text-sm font-semibold text-foreground mb-3">Strategy Rule Checks</h3>
@@ -281,12 +358,12 @@ function RuleChecks({ checks }: { checks: RuleCheck[] }) {
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <div className="flex justify-between items-center text-sm">
-                                    <p className="text-muted-foreground">{check.label}</p>
+                                    <p className="text-muted-foreground">{check.title}</p>
                                     <StatusBadge status={check.status} />
                                 </div>
                             </TooltipTrigger>
                             <TooltipContent>
-                                <p className="max-w-xs">{check.note}</p>
+                                <p className="max-w-xs">{check.message}</p>
                             </TooltipContent>
                         </Tooltip>
                     </TooltipProvider>
@@ -559,60 +636,69 @@ function ArjunGuardrailAlerts({ form }: { form: any }) {
     );
 }
 
-function StrategyGuardrailChecklist({ strategyId, form }: { strategyId: string, form: any }) {
-    const [guardrail, setGuardrail] = useState<{ strategyId: string; strategyName: string; rules: string[] } | null>(null);
-    const { toast } = useToast();
+function StrategyGuardrailChecklist({ strategyId, onSetModule }: { strategyId: string, onSetModule: (module: any, context?: any) => void; }) {
+    const [strategy, setStrategy] = useState<Strategy | null>(null);
 
     useEffect(() => {
         if (!strategyId) {
-            setGuardrail(null);
+            setStrategy(null);
             return;
         }
-        const saved = localStorage.getItem(`ec_strategy_guardrails_${strategyId}`);
-        if (saved) {
-            setGuardrail(JSON.parse(saved));
-        } else {
-            setGuardrail(null);
-        }
+        const strategies: Strategy[] = JSON.parse(localStorage.getItem("ec_strategies") || "[]");
+        const found = strategies.find(s => s.strategyId === strategyId);
+        setStrategy(found || null);
     }, [strategyId]);
 
-    if (!guardrail) {
+    if (!strategy) {
         return (
             <Card className="bg-muted/50 border-dashed">
                 <CardContent className="p-4 text-center">
-                    <p className="text-xs text-muted-foreground">No guardrails applied for this strategy.</p>
-                    <Button variant="link" size="sm" className="text-xs h-auto p-0 mt-1" onClick={() => toast({title: "Navigate to Strategy Management"})}>
-                        Open in Strategy Management to set them.
-                    </Button>
+                    <p className="text-xs text-muted-foreground">Select a strategy to see its pre-flight checklist.</p>
                 </CardContent>
             </Card>
         );
     }
-    
+
+    const activeVersion = strategy.versions.find(v => v.isActiveVersion);
+    const checklistItems = activeVersion?.ruleSet.entryRules.conditions.slice(0, 3) || [];
+
     return (
         <Card className="bg-muted/50 border-primary/20">
             <CardHeader className="pb-4">
                 <CardTitle className="text-base flex items-center gap-2">
                     <ShieldCheck className="h-5 w-5 text-primary" />
-                    Guardrails for: {guardrail.strategyName}
+                    Checklist for: {strategy.name}
                 </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-                <p className="text-xs text-muted-foreground">This is your pre-flight checklist. Does this trade meet these conditions?</p>
-                {guardrail.rules.map((rule, i) => (
+                <p className="text-xs text-muted-foreground">Does this trade meet your core entry conditions?</p>
+                {checklistItems.map((rule, i) => (
                     <div key={i} className="flex items-center space-x-2">
                         <Checkbox id={`guardrail-check-${i}`} />
                         <Label htmlFor={`guardrail-check-${i}`} className="text-sm font-normal text-muted-foreground">{rule}</Label>
                     </div>
                 ))}
+                {checklistItems.length === 0 && <p className="text-xs text-muted-foreground italic">No entry conditions defined in this strategy.</p>}
+                 <Button variant="link" size="sm" className="text-xs h-auto p-0" onClick={() => onSetModule('strategyManagement')}>
+                    Edit in Strategy Management
+                </Button>
             </CardContent>
         </Card>
     );
 }
 
 function PlanSummary({ control, setPlanStatus, onSetModule }: { control: any, setPlanStatus: (status: PlanStatusType) => void, onSetModule: (module: any) => void }) {
-    const values = useWatch({ control });
-    const { direction, entryPrice, stopLoss, takeProfit, riskPercent, accountCapital, justification } = values;
+    const values = useWatch({ control }) as PlanFormValues;
+    const { direction, entryPrice, stopLoss, takeProfit, riskPercent, accountCapital, justification, strategyId } = values;
+
+    const [strategies, setStrategies] = useState<Strategy[]>([]);
+    useEffect(() => {
+        const stored = localStorage.getItem("ec_strategies");
+        if(stored) setStrategies(JSON.parse(stored));
+    }, []);
+
+    const selectedStrategy = strategies.find(s => s.strategyId === strategyId);
+    const activeRuleset = selectedStrategy?.versions.find(v => v.isActiveVersion)?.ruleSet;
 
     const riskPerUnit = (entryPrice && stopLoss) ? Math.abs(entryPrice - stopLoss) : 0;
     const rewardPerUnit = (takeProfit && entryPrice) ? Math.abs(takeProfit - entryPrice) : 0;
@@ -623,23 +709,41 @@ function PlanSummary({ control, setPlanStatus, onSetModule }: { control: any, se
 
     const positionSize = riskPerUnit > 0 ? potentialLoss / riskPerUnit : 0;
 
-    const ruleChecks = getRuleChecks(rrr, riskPercent);
-    const hasFail = ruleChecks.some(c => c.status === 'FAIL');
-    const hasWarn = ruleChecks.some(c => c.status === 'WARN');
-    const isComplete = entryPrice > 0 && stopLoss > 0 && riskPercent > 0;
-    
-    let status: PlanStatusType = 'incomplete';
-    let message = "Fill in Entry, SL, and Risk % to see your plan summary.";
+    // This is where the validation engine is used
+    const validationResult = useMemo(() => {
+        if (!activeRuleset) return null;
+        
+        const scenario = localStorage.getItem('ec_demo_scenario') as DemoScenario | null;
+        const vixZone = scenario === 'high_vol' ? 'Elevated' : 'Normal';
+        const lossStreak = scenario === 'drawdown' ? 3 : 0;
+        
+        const planInputs: PlanInputs = {
+            leverage: values.leverage,
+            riskPct: values.riskPercent,
+            rr: rrr,
+            session: "New York" // Mock
+        };
+        const validationContext: ValidationContext = {
+            todayTradeCountAll: 2, // Mock
+            lossStreak,
+            vixZone
+        };
+        return validatePlanAgainstStrategy(planInputs, activeRuleset, validationContext);
+    }, [values, activeRuleset, rrr]);
 
-    if (isComplete) {
-        if (hasFail) {
+
+    let status: PlanStatusType = 'incomplete';
+    let message = "Fill in Entry, SL, Strategy and Risk % to see your plan summary.";
+
+    if (validationResult && entryPrice > 0 && stopLoss > 0 && riskPercent > 0) {
+        if (validationResult.requiresJustification) {
             status = 'blocked';
             message = "This plan breaks a critical rule. Add justification to proceed.";
             if (justification && justification.length > 0) {
                 status = 'overridden';
                 message = "Critical rule overridden. Proceed with caution.";
             }
-        } else if (hasWarn) {
+        } else if (validationResult.overallStatus === 'WARN') {
             status = 'needs_attention';
             message = "This plan has some warnings. Review the rule checks before proceeding.";
         } else {
@@ -661,7 +765,7 @@ function PlanSummary({ control, setPlanStatus, onSetModule }: { control: any, se
                 <PlanStatus status={status} message={message} />
                 <Separator />
                 <div className="space-y-2">
-                    <SummaryRow label="R:R Ratio" value={rrr > 0 ? `${rrr.toFixed(2)} : 1` : '-'} className={rrr > 0 ? (rrr < 1.5 ? 'text-amber-400' : 'text-green-400') : ''} />
+                    <SummaryRow label="R:R Ratio" value={rrr > 0 ? `${rrr.toFixed(2)} : 1` : '-'} className={rrr > 0 ? (rrr < (activeRuleset?.tpRules.minRR || 1.5) ? 'text-amber-400' : 'text-green-400') : ''} />
                     <SummaryRow label="Potential Gain" value={potentialGain > 0 ? `$${potentialGain.toFixed(2)}` : '-'} className="text-green-400" />
                     <SummaryRow label="Potential Loss" value={potentialLoss > 0 ? `$${potentialLoss.toFixed(2)}` : '-'} className="text-red-400" />
                     <SummaryRow label="Position Size" value={positionSize > 0 ? positionSize.toFixed(4) : '-'} />
@@ -669,8 +773,12 @@ function PlanSummary({ control, setPlanStatus, onSetModule }: { control: any, se
                 <div className="h-40">
                    <PriceLadder direction={direction} entryPrice={entryPrice} stopLoss={stopLoss} takeProfit={takeProfit} />
                 </div>
-                <Separator />
-                <RuleChecks checks={ruleChecks} />
+                {validationResult && (
+                    <>
+                        <Separator />
+                        <RuleChecks checks={validationResult.validations} />
+                    </>
+                )}
                 <Separator />
                 <DisciplineAlerts onSetModule={onSetModule} />
                 <Separator />
@@ -698,8 +806,10 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
         if (typeof window !== "undefined") {
             const stored = localStorage.getItem("ec_strategies");
             if (stored) {
-                const allStrategies: Strategy[] = JSON.parse(stored);
-                setAvailableStrategies(allStrategies.filter(s => s.status === 'active'));
+                try {
+                    const allStrategies: Strategy[] = JSON.parse(stored);
+                    setAvailableStrategies(allStrategies.filter(s => s.status === 'active'));
+                } catch(e) { console.error("Could not parse strategies", e); }
             }
         }
     }, []);
@@ -867,7 +977,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
                                 </Button>
                             </div>
 
-                            {strategyId && <StrategyGuardrailChecklist strategyId={strategyId} form={form} />}
+                            {strategyId && <StrategyGuardrailChecklist strategyId={strategyId} onSetModule={onSetModule} />}
 
                             <FormField control={form.control} name="notes" render={({ field }) => (
                                 <FormItem>
@@ -889,34 +999,49 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
             
             <Drawer open={isStrategyDrawerOpen} onOpenChange={setIsStrategyDrawerOpen}>
                 <DrawerContent>
-                    {viewedStrategy && (
+                    {viewedStrategy && viewedStrategy.versions.find(v => v.isActiveVersion) && (
                         <div className="mx-auto w-full max-w-2xl p-4 md:p-6" role="dialog" aria-modal="true" aria-labelledby="strategy-drawer-title">
                             <DrawerHeader>
                                 <DrawerTitle className="text-2xl" id="strategy-drawer-title">{viewedStrategy.name}</DrawerTitle>
-                                {viewedStrategy.versions.find(v => v.isActiveVersion)?.fields.description &&
-                                  <DrawerDescription>{viewedStrategy.versions.find(v => v.isActiveVersion)?.fields.description}</DrawerDescription>
+                                {viewedStrategy.versions.find(v => v.isActiveVersion)?.description &&
+                                  <DrawerDescription>{viewedStrategy.versions.find(v => v.isActiveVersion)?.description}</DrawerDescription>
                                 }
                             </DrawerHeader>
                             <div className="px-4 py-6 space-y-6">
-                                <div className="space-y-3">
-                                    <h4 className="font-semibold text-foreground">Entry Criteria</h4>
-                                    <ul className="space-y-2 text-sm text-muted-foreground list-disc list-inside">
-                                        {viewedStrategy.versions.find(v => v.isActiveVersion)?.fields.entryConditions.map((item, i) => <li key={i}>{item}</li>)}
-                                    </ul>
-                                </div>
-                                <div className="space-y-3">
-                                    <h4 className="font-semibold text-foreground">Exit Criteria</h4>
-                                    <ul className="space-y-2 text-sm text-muted-foreground list-disc list-inside">
-                                         {viewedStrategy.versions.find(v => v.isActiveVersion)?.fields.stopLossRules.map((item, i) => <li key={i}>{item}</li>)}
-                                         {viewedStrategy.versions.find(v => v.isActiveVersion)?.fields.takeProfitRules.map((item, i) => <li key={i}>{item}</li>)}
-                                    </ul>
-                                </div>
-                                 <div className="space-y-3">
-                                    <h4 className="font-semibold text-foreground">Risk Rules</h4>
-                                    <ul className="space-y-2 text-sm text-muted-foreground list-disc list-inside">
-                                        {viewedStrategy.versions.find(v => v.isActiveVersion)?.fields.riskManagementRules.map((item, i) => <li key={i}>{item}</li>)}
-                                    </ul>
-                                </div>
+                                {(['entryRules', 'slRules', 'tpRules', 'riskRules', 'contextRules'] as const).map(key => {
+                                    const ruleset = viewedStrategy.versions.find(v => v.isActiveVersion)?.ruleSet;
+                                    if (!ruleset || !ruleset[key]) return null;
+                                    const rulesData = ruleset[key];
+                                    
+                                    const titles = {
+                                        entryRules: 'Entry Criteria',
+                                        slRules: 'Exit Criteria',
+                                        tpRules: 'Take Profit Criteria',
+                                        riskRules: 'Risk Rules',
+                                        contextRules: 'Context Rules',
+                                    };
+
+                                    return (
+                                        <div key={key} className="space-y-3">
+                                            <h4 className="font-semibold text-foreground">{titles[key]}</h4>
+                                            <ul className="space-y-2 text-sm text-muted-foreground list-disc list-inside">
+                                                {Object.entries(rulesData).map(([ruleKey, ruleValue]) => {
+                                                    if (Array.isArray(ruleValue) && ruleValue.length > 0) {
+                                                        return ruleValue.map((item, i) => <li key={`${ruleKey}-${i}`}>{item}</li>)
+                                                    }
+                                                    if (typeof ruleValue === 'string' || typeof ruleValue === 'number') {
+                                                        return <li key={ruleKey}>{ruleKey}: {String(ruleValue)}</li>
+                                                    }
+                                                    if (typeof ruleValue === 'boolean') {
+                                                        return <li key={ruleKey}>{ruleKey}: {ruleValue ? 'Yes' : 'No'}</li>
+                                                    }
+                                                    return null;
+                                                })}
+                                            </ul>
+                                        </div>
+                                    )
+                                })}
+                                
                                 <Separator />
                                 <div className="space-y-3 p-4 bg-muted/50 rounded-lg">
                                     <h4 className="font-semibold text-foreground">Pre-flight Checklist</h4>
@@ -1220,39 +1345,44 @@ function ExecuteStep({ form, onSetModule, onSetStep, planStatus, executionHeadin
     );
 }
 
-const RuleCheckRow = ({ check }: { check: RuleCheck }) => {
-    const Icon = {
-        PASS: CheckCircle,
-        WARN: AlertTriangle,
-        FAIL: XCircle,
-        "N/A": Circle
-    }[check.status];
-
-    const color = {
-        PASS: 'text-green-400',
-        WARN: 'text-amber-400',
-        FAIL: 'text-destructive',
-        "N/A": 'text-muted-foreground'
-    }[check.status];
-
-    return (
-        <div className="flex items-center gap-2 text-sm">
-            <Icon className={cn("h-4 w-4", color)} />
-            <span className={cn(check.status === 'FAIL' && 'text-destructive', check.status === 'WARN' && 'text-amber-400')}>{check.label}</span>
-        </div>
-    );
-};
-
 function PlanSnapshot({ form, onSetStep }: { form: any; onSetStep: (step: TradePlanStep) => void }) {
     const values = form.getValues();
-    const { instrument, direction, entryPrice, stopLoss, takeProfit, leverage, riskPercent } = values;
+    const { instrument, direction, entryPrice, stopLoss, takeProfit, leverage, riskPercent, strategyId } = values;
+
+    const [strategies, setStrategies] = useState<Strategy[]>([]);
+    useEffect(() => {
+        const stored = localStorage.getItem("ec_strategies");
+        if(stored) setStrategies(JSON.parse(stored));
+    }, []);
+
+    const selectedStrategy = strategies.find(s => s.strategyId === strategyId);
+    const activeRuleset = selectedStrategy?.versions.find(v => v.isActiveVersion)?.ruleSet;
 
     // Recalculate summary for snapshot
     const riskPerUnit = (entryPrice && stopLoss) ? Math.abs(entryPrice - stopLoss) : 0;
     const rewardPerUnit = (takeProfit && entryPrice) ? Math.abs(takeProfit - entryPrice) : 0;
     const rrr = (riskPerUnit > 0 && rewardPerUnit > 0) ? rewardPerUnit / riskPerUnit : 0;
     
-    const ruleChecks = getRuleChecks(rrr, riskPercent);
+    const validationResult = useMemo(() => {
+        if (!activeRuleset) return null;
+        
+        const scenario = localStorage.getItem('ec_demo_scenario') as DemoScenario | null;
+        const vixZone = scenario === 'high_vol' ? 'Elevated' : 'Normal';
+        const lossStreak = scenario === 'drawdown' ? 3 : 0;
+        
+        const planInputs: PlanInputs = {
+            leverage: values.leverage,
+            riskPct: values.riskPercent,
+            rr: rrr,
+            session: "New York" // Mock
+        };
+        const validationContext: ValidationContext = {
+            todayTradeCountAll: 2, // Mock
+            lossStreak,
+            vixZone
+        };
+        return validatePlanAgainstStrategy(planInputs, activeRuleset, validationContext);
+    }, [values, activeRuleset, rrr]);
 
     return (
         <div className="space-y-6 p-4 border rounded-lg bg-muted/50">
@@ -1267,18 +1397,20 @@ function PlanSnapshot({ form, onSetStep }: { form: any; onSetStep: (step: TradeP
             </div>
             <Separator />
             <div className="space-y-2">
-                <SummaryRow label="R:R Ratio" value={rrr > 0 ? `${rrr.toFixed(2)} : 1` : '-'} className={rrr > 0 ? (rrr < 1.5 ? 'text-amber-400' : 'text-green-400') : ''} />
-                <SummaryRow label="Risk %" value={`${riskPercent}%`} className={riskPercent > 2 ? 'text-destructive' : ''} />
+                <SummaryRow label="R:R Ratio" value={rrr > 0 ? `${rrr.toFixed(2)} : 1` : '-'} className={rrr > 0 ? (rrr < (activeRuleset?.tpRules.minRR || 1.5) ? 'text-amber-400' : 'text-green-400') : ''} />
+                <SummaryRow label="Risk %" value={`${riskPercent}%`} className={riskPercent > (activeRuleset?.riskRules.riskPerTradePct || 2) ? 'text-destructive' : ''} />
             </div>
             <Separator />
-            <div>
-                <h3 className="text-sm font-semibold text-foreground mb-3">Rule Checklist</h3>
-                <div className="space-y-3">
-                    {ruleChecks.map((check, i) => (
-                        <RuleCheckRow key={i} check={check} />
-                    ))}
+            {validationResult && (
+                <div>
+                    <h3 className="text-sm font-semibold text-foreground mb-3">Rule Checklist</h3>
+                    <div className="space-y-3">
+                        {validationResult.validations.map((check, i) => (
+                            <RuleCheckRow key={i} check={check} />
+                        ))}
+                    </div>
                 </div>
-            </div>
+            )}
 
             <div className="pt-4">
                  <Button variant="link" className="p-0 h-auto text-primary" onClick={() => onSetStep('plan')}>
@@ -1432,7 +1564,12 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
         mode: "onBlur",
     });
 
-    const canProceedToReview = planStatus !== 'incomplete' && (planStatus !== 'blocked' || (form.getValues('justification') && (form.getValues('justification')?.length || 0) > 0));
+    const justificationValue = useWatch({
+        control: form.control,
+        name: 'justification'
+    });
+    
+    const canProceedToReview = planStatus !== 'incomplete' && (planStatus !== 'blocked' || (justificationValue && justificationValue.length > 0));
     const canProceedToExecution = canProceedToReview && arjunFeedbackAccepted;
 
     useEffect(() => {
@@ -1601,11 +1738,6 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
         setIsWalkthroughOpen(false);
     };
 
-    const justificationValue = useWatch({
-        control: form.control,
-        name: 'justification'
-    });
-    
     const onValidSubmit = (values: PlanFormValues) => {
         setShowValidationBanner(false);
         if (currentStep === 'plan') {
@@ -1843,3 +1975,26 @@ function SummaryRow({ label, value, className }: { label: string, value: string 
         </div>
     )
 }
+
+const RuleCheckRow = ({ check }: { check: ValidationCheck }) => {
+    const Icon = {
+        PASS: CheckCircle,
+        WARN: AlertTriangle,
+        FAIL: XCircle,
+        "N/A": Circle
+    }[check.status];
+
+    const color = {
+        PASS: 'text-green-400',
+        WARN: 'text-amber-400',
+        FAIL: 'text-destructive',
+        "N/A": 'text-muted-foreground'
+    }[check.status];
+
+    return (
+        <div className="flex items-center gap-2 text-sm">
+            <Icon className={cn("h-4 w-4", color)} />
+            <span className={cn(check.status === 'FAIL' && 'text-destructive', check.status === 'WARN' && 'text-amber-400')}>{check.title}</span>
+        </div>
+    );
+};
