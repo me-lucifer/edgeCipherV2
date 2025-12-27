@@ -3,7 +3,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { BrainCircuit, PlusCircle, CheckCircle, Search, Filter as FilterIcon, Clock, ListOrdered, FileText, Gauge, Calendar, ShieldCheck, Zap, MoreHorizontal, ArrowLeft, Edit, Archive, Star, BookOpen, BarChartHorizontal } from "lucide-react";
+import { BrainCircuit, PlusCircle, CheckCircle, Search, Filter as FilterIcon, Clock, ListOrdered, FileText, Gauge, Calendar, ShieldCheck, Zap, MoreHorizontal, ArrowLeft, Edit, Archive, Star, BookOpen, BarChartHorizontal, Trash2 } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardDescription, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
@@ -13,8 +13,10 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "./ui/dropdown-menu";
 import { Label } from "./ui/label";
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "./ui/tooltip";
+
 
 interface StrategyManagementModuleProps {
     onSetModule: (module: any, context?: any) => void;
@@ -313,6 +315,26 @@ function StrategyDetailView({
                                 <Archive className="mr-2 h-4 w-4" />
                                 {strategy.status === 'active' ? 'Archive' : 'Restore'}
                             </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <div>
+                                            <DropdownMenuItem
+                                                disabled
+                                                className="text-red-500 focus:text-red-500 focus:bg-red-500/10"
+                                                onSelect={(e) => e.preventDefault()}
+                                            >
+                                                <Trash2 className="mr-2 h-4 w-4" />
+                                                Delete strategy
+                                            </DropdownMenuItem>
+                                        </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="left">
+                                        <p>Delete is allowed only if strategy has never been used in any executed trade.</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </div>
