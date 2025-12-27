@@ -441,7 +441,7 @@ const strategyCreationSchema = z.object({
     entryConditions: z.array(z.string()).min(1, "At least one entry rule is required."),
     stopLossRules: z.array(z.string()).min(1, "At least one stop loss rule is required."),
     takeProfitRules: z.array(z.string()),
-    riskManagementRules: z.array(z.string()),
+    riskManagementRules: z.array(z.string()).min(1, "At least one risk management rule is required."),
     contextRules: z.array(z.string()),
 });
 
@@ -847,7 +847,7 @@ function StrategyCreatorView({ onBack, onSave }: { onBack: () => void; onSave: (
                                                 </div>
                                             )}
                                             {currentStep === 3 && <FormField control={form.control} name="takeProfitRules" render={({ field }) => (<FormItem><FormLabel>Take Profit Rules (Optional)</FormLabel><FormDescription className="mb-2">It's highly recommended to define at least one exit condition for taking profit.</FormDescription><FormControl><RuleEditor {...field} placeholder="e.g., Target next major liquidity level or 2R" /></FormControl><FormMessage /></FormItem>)} />}
-                                            {currentStep === 4 && <FormField control={form.control} name="riskManagementRules" render={({ field }) => (<FormItem><FormLabel>Risk Management Rules</FormLabel><FormControl><RuleEditor {...field} placeholder="e.g., Max risk 1% of account..." /></FormControl><FormMessage /></FormItem>)} />}
+                                            {currentStep === 4 && <FormField control={form.control} name="riskManagementRules" render={({ field }) => (<FormItem><FormLabel>Risk Management Rules</FormLabel><FormDescription className="mb-2">Define your hard constraints for every trade.</FormDescription><FormControl><RuleEditor {...field} placeholder="e.g., Max risk 1% of account..." /></FormControl><FormMessage /></FormItem>)} />}
                                             {currentStep === 5 && <FormField control={form.control} name="contextRules" render={({ field }) => (<FormItem><FormLabel>Context Rules (when to trade/not trade)</FormLabel><FormControl><RuleEditor {...field} placeholder="e.g., Only trade during NY session..." /></FormControl><FormMessage /></FormItem>)} />}
                                             {currentStep === 6 && (
                                                 <div className="space-y-4">
@@ -1216,3 +1216,4 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
         </div>
     );
 }
+
