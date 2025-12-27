@@ -41,8 +41,8 @@ function seededRandom(seed: number) {
 }
 
 
-const SectionCard: React.FC<{id?: string, title: React.ReactNode, description: string, icon: React.ElementType, children: React.ReactNode, headerContent?: React.ReactNode, onExport?: () => void}> = ({ id, title, description, icon: Icon, children, headerContent, onExport }) => (
-    <Card id={id} className="bg-muted/30 border-border/50 scroll-mt-40 animate-in fade-in-50 duration-500">
+const SectionCard: React.FC<{id?: string, title: React.ReactNode, description: string, icon: React.ElementType, children: React.ReactNode, headerContent?: React.ReactNode, onExport?: () => void, className?: string}> = ({ id, title, description, icon: Icon, children, headerContent, onExport, className }) => (
+    <Card id={id} className={cn("bg-muted/30 border-border/50 scroll-mt-40 animate-in fade-in-50 duration-500", className)}>
         <CardHeader>
             <div className="flex items-start justify-between gap-4">
                 <div>
@@ -614,6 +614,45 @@ function GrowthPlanDialog({ isOpen, onOpenChange, onApply }: { isOpen: boolean, 
     )
 }
 
+function DemoNarrativePanel({ onScrollTo }: { onScrollTo: (id: string) => void }) {
+    const steps = [
+        { id: "summary", label: "High-Level Summary", description: "Start here to see the big picture: PnL, Win Rate, and overall quality." },
+        { id: "equity", label: "Equity Curve & Events", description: "See how specific behavioral mistakes directly impacted your account balance." },
+        { id: "loss-drivers", label: "Top Loss Drivers", description: "Identify which specific mistakes are costing you the most money." },
+        { id: "thresholds", label: "Threshold Alerts & Guardrails", description: "Turn these data-driven insights into real-time warnings for your next trade." },
+    ];
+    
+    return (
+        <Card className="bg-primary/5 border-primary/20">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Presentation className="h-5 w-5 text-primary" /> Presentation Narrative</CardTitle>
+                <CardDescription>Follow this story to demonstrate the core value loop.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="space-y-4">
+                    {steps.map((step, index) => (
+                        <div key={step.id} className="flex items-start gap-4">
+                            <div className="flex flex-col items-center">
+                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground font-bold">
+                                    {index + 1}
+                                </div>
+                                {index < steps.length - 1 && <div className="h-8 w-px bg-primary/30" />}
+                            </div>
+                            <div>
+                                <h4 className="font-semibold text-foreground">{step.label}</h4>
+                                <p className="text-sm text-muted-foreground">{step.description}</p>
+                                <Button variant="link" size="sm" className="p-0 h-auto text-xs" onClick={() => onScrollTo(step.id)}>
+                                    Go to section
+                                </Button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
 export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalyticsModuleProps) {
     const [timeRange, setTimeRange] = useState("30d");
     const [activeTab, setActiveTab] = useState("overview");
@@ -633,6 +672,8 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
     const { toast } = useToast();
     const [isRecoveryMode, setIsRecoveryMode] = useState(false);
     const [isGrowthPlanDialogOpen, setIsGrowthPlanDialogOpen] = useState(false);
+    const [isPresentationMode, setIsPresentationMode] = useState(false);
+
 
     const computeSinglePeriodAnalytics = (entries: JournalEntry[], random: () => number) => {
       if (entries.length === 0) return null;
@@ -871,12 +912,13 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
             try {
                 const savedState = localStorage.getItem("ec_analytics_ui_state");
                 if (savedState) {
-                    const { activeTab, compareMode, timeRange, showBehaviorHotspots, hotspotMetric } = JSON.parse(savedState);
+                    const { activeTab, compareMode, timeRange, showBehaviorHotspots, hotspotMetric, isPresentationMode } = JSON.parse(savedState);
                     setActiveTab(activeTab || 'overview');
                     setCompareMode(compareMode || false);
                     setTimeRange(timeRange || '30d');
                     setShowBehaviorHotspots(showBehaviorHotspots || false);
                     setHotspotMetric(hotspotMetric || 'Revenge');
+                    setIsPresentationMode(isPresentationMode || false);
                 }
             } catch (error) {
                 console.error("Failed to parse analytics UI state from localStorage", error);
@@ -888,13 +930,13 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
     useEffect(() => {
         if (typeof window !== "undefined") {
             try {
-                const stateToSave = JSON.stringify({ activeTab, compareMode, timeRange, showBehaviorHotspots, hotspotMetric });
+                const stateToSave = JSON.stringify({ activeTab, compareMode, timeRange, showBehaviorHotspots, hotspotMetric, isPresentationMode });
                 localStorage.setItem("ec_analytics_ui_state", stateToSave);
             } catch (error) {
                 console.error("Failed to save analytics UI state to localStorage", error);
             }
         }
-    }, [activeTab, compareMode, timeRange, showBehaviorHotspots, hotspotMetric]);
+    }, [activeTab, compareMode, timeRange, showBehaviorHotspots, hotspotMetric, isPresentationMode]);
 
     const handleTabChange = (tab: string) => {
         setActiveTab(tab);
@@ -1090,6 +1132,14 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
         });
     };
 
+    const handleScrollToSection = (id: string) => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    };
+
+
     if (!hasData) {
         return (
             <div className="flex h-[60vh] flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 text-center">
@@ -1228,29 +1278,45 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                 </TooltipContent>
                             </Tooltip>
                         </TooltipProvider>
+                         <div className="flex items-center gap-2">
+                            <Label htmlFor="presentation-mode" className="text-sm">Presentation Mode</Label>
+                            <Switch
+                                id="presentation-mode"
+                                checked={isPresentationMode}
+                                onCheckedChange={(checked) => {
+                                    setIsPresentationMode(checked);
+                                    if(checked) setTimeRange('30d');
+                                }}
+                            />
+                        </div>
                     </div>
                 </div>
                 
-                <Card className="bg-muted/30 border-border/50 sticky top-[88px] z-20 backdrop-blur-sm">
-                    <CardContent className="p-2 flex flex-wrap items-center gap-x-4 gap-y-3">
-                        <div className="flex items-center gap-1 rounded-full bg-muted p-1 border">
-                            {(['7d', '30d', '90d', 'All'] as const).map(range => (
-                                <Button key={range} size="sm" variant={timeRange === range ? 'secondary' : 'ghost'} onClick={() => setTimeRange(range)} className="rounded-full h-7 px-3 text-xs">
-                                    {range.toUpperCase()}
-                                </Button>
-                            ))}
-                        </div>
-                        <Select><SelectTrigger className="w-full sm:w-[180px] h-9 text-xs"><SelectValue placeholder="All strategies" /></SelectTrigger><SelectContent><SelectItem value="all">All strategies</SelectItem></SelectContent></Select>
-                        <Select><SelectTrigger className="w-full sm:w-[180px] h-9 text-xs"><SelectValue placeholder="All VIX zones" /></SelectTrigger><SelectContent><SelectItem value="all">All VIX zones</SelectItem></SelectContent></Select>
-                        <Select><SelectTrigger className="w-full sm:w-[180px] h-9 text-xs"><SelectValue placeholder="All sessions" /></SelectTrigger><SelectContent><SelectItem value="all">All sessions</SelectItem></SelectContent></Select>
-                        <div className="flex items-center space-x-2"><Switch id="include-pending" /><Label htmlFor="include-pending" className="text-xs">Include pending</Label></div>
-                        <Separator orientation="vertical" className="h-6 hidden lg:block" />
-                        <div className="flex items-center space-x-2">
-                            <Switch id="compare-mode" checked={compareMode} onCheckedChange={setCompareMode} />
-                            <Label htmlFor="compare-mode" className="text-xs">Compare period</Label>
-                        </div>
-                    </CardContent>
-                </Card>
+                {isPresentationMode && <DemoNarrativePanel onScrollTo={handleScrollToSection} />}
+                
+                {!isPresentationMode && (
+                    <Card className="bg-muted/30 border-border/50 sticky top-[88px] z-20 backdrop-blur-sm">
+                        <CardContent className="p-2 flex flex-wrap items-center gap-x-4 gap-y-3">
+                            <div className="flex items-center gap-1 rounded-full bg-muted p-1 border">
+                                {(['7d', '30d', '90d', 'All'] as const).map(range => (
+                                    <Button key={range} size="sm" variant={timeRange === range ? 'secondary' : 'ghost'} onClick={() => setTimeRange(range)} className="rounded-full h-7 px-3 text-xs">
+                                        {range.toUpperCase()}
+                                    </Button>
+                                ))}
+                            </div>
+                            <Select><SelectTrigger className="w-full sm:w-[180px] h-9 text-xs"><SelectValue placeholder="All strategies" /></SelectTrigger><SelectContent><SelectItem value="all">All strategies</SelectItem></SelectContent></Select>
+                            <Select><SelectTrigger className="w-full sm:w-[180px] h-9 text-xs"><SelectValue placeholder="All VIX zones" /></SelectTrigger><SelectContent><SelectItem value="all">All VIX zones</SelectItem></SelectContent></Select>
+                            <Select><SelectTrigger className="w-full sm:w-[180px] h-9 text-xs"><SelectValue placeholder="All sessions" /></SelectTrigger><SelectContent><SelectItem value="all">All sessions</SelectItem></SelectContent></Select>
+                            <div className="flex items-center space-x-2"><Switch id="include-pending" /><Label htmlFor="include-pending" className="text-xs">Include pending</Label></div>
+                            <Separator orientation="vertical" className="h-6 hidden lg:block" />
+                            <div className="flex items-center space-x-2">
+                                <Switch id="compare-mode" checked={compareMode} onCheckedChange={setCompareMode} />
+                                <Label htmlFor="compare-mode" className="text-xs">Compare period</Label>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+
 
                 <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
                     <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
@@ -1292,6 +1358,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                     description="Your account balance over time, with markers for key psychological events."
                                     icon={TrendingUp}
                                     onExport={() => handleExport('Equity Curve', analyticsData?.current)}
+                                    className={cn(isPresentationMode && "ring-2 ring-primary/50 ring-offset-4 ring-offset-background")}
                                     headerContent={
                                         <div className="flex items-center gap-2">
                                             <Label htmlFor="show-behavior-layer" className="text-sm">Show behaviour layer</Label>
@@ -1527,6 +1594,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                             title="Threshold Alerts"
                             description="Patterns Arjun is watching for in your trading sequences."
                             icon={Zap}
+                            className={cn(isPresentationMode && "ring-2 ring-primary/50 ring-offset-4 ring-offset-background")}
                         >
                             <div className="space-y-3">
                                 {thresholdInsights.map(insight => (
@@ -1578,7 +1646,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                 </div>
                             </div>
                         </SectionCard>
-                        <SectionCard id="loss-drivers" title="Top Loss Drivers" description="The specific behaviours that are costing you the most money, ranked by total impact." icon={Zap}>
+                        <SectionCard id="loss-drivers" title="Top Loss Drivers" description="The specific behaviours that are costing you the most money, ranked by total impact." icon={Zap} className={cn(isPresentationMode && "ring-2 ring-primary/50 ring-offset-4 ring-offset-background")}>
                             {currentData.topLossDrivers.length > 0 ? (
                                 <Table>
                                     <TableHeader>
@@ -1681,29 +1749,36 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
-                                            <TableHead>Strategy</TableHead>
-                                            <TableHead>Trades</TableHead>
-                                            <TableHead>Win %</TableHead>
-                                            <TableHead>Total PnL ($)</TableHead>
-                                            <TableHead>Top Mistake</TableHead>
-                                            <TableHead className="text-right">Actions</TableHead>
+                                            <SortableHeader sortKey="name" label="Strategy" sortConfig={sortConfig} onSort={handleSort} />
+                                            <SortableHeader sortKey="pnl" label="Total PnL ($)" sortConfig={sortConfig} onSort={handleSort} />
+                                            <SortableHeader sortKey="winRate" label="Win Rate" sortConfig={sortConfig} onSort={handleSort} />
+                                            <SortableHeader sortKey="mistakeRate" label="Mistake Rate" sortConfig={sortConfig} onSort={handleSort} />
+                                            <TableHead>Emotion Mix</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {currentData.mockStrategyData.map((strategy: any) => (
+                                        {sortedStrategies.map((strategy: any) => (
                                             <TableRow key={strategy.name} className="transition-colors hover:bg-muted/50 cursor-pointer" onClick={() => setSelectedStrategy(strategy)}>
-                                                <TableCell className="font-medium">{strategy.name}</TableCell>
-                                                <TableCell>{strategy.trades}</TableCell>
-                                                <TableCell>{strategy.winRate}%</TableCell>
+                                                <TableCell>
+                                                    <div className="font-medium text-foreground">{strategy.name}</div>
+                                                    <div className="text-xs text-muted-foreground">{strategy.trades} trades</div>
+                                                </TableCell>
                                                 <TableCell className={cn(strategy.pnl >= 0 ? "text-green-400" : "text-red-400")}>
                                                     {strategy.pnl >= 0 ? '+' : ''}${strategy.pnl.toLocaleString()}
                                                 </TableCell>
-                                                <TableCell><Badge variant="destructive">{strategy.topMistake}</Badge></TableCell>
-                                                <TableCell className="text-right">
-                                                    <Button variant="ghost" size="sm" onClick={(e) => {e.stopPropagation(); onSetModule('tradeJournal', { filters: { strategy: strategy.name }})}}>
-                                                        <View className="mr-2 h-3 w-3" />
-                                                        View trades
-                                                    </Button>
+                                                <TableCell>{strategy.winRate}%</TableCell>
+                                                <TableCell className={cn(strategy.mistakeRate > 20 ? "text-amber-400" : "text-muted-foreground")}>
+                                                    {strategy.mistakeRate}%
+                                                </TableCell>
+                                                 <TableCell>
+                                                    <div className="flex flex-col gap-1.5">
+                                                        {strategy.emotionMix.map((mix: any) => (
+                                                            <div key={mix.emotion} className="flex items-center gap-2 text-xs">
+                                                                <Badge variant="outline" className="w-24 justify-center">{mix.emotion}</Badge>
+                                                                <span className="text-muted-foreground font-mono">{mix.percentage}%</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
                                                 </TableCell>
                                             </TableRow>
                                         ))}
