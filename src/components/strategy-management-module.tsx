@@ -3,7 +3,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { BrainCircuit, PlusCircle, CheckCircle, Search, Filter as FilterIcon, Clock, ListOrdered, FileText, Gauge, Calendar, ShieldCheck, Zap, MoreHorizontal, ArrowLeft, Edit, Archive, Star, BookOpen, BarChartHorizontal, Trash2, ChevronsUpDown, Info, Check, Save, Copy, CircleDashed } from "lucide-react";
+import { BrainCircuit, PlusCircle, CheckCircle, Search, Filter as FilterIcon, Clock, ListOrdered, FileText, Gauge, Calendar, ShieldCheck, Zap, MoreHorizontal, ArrowLeft, Edit, Archive, Star, BookOpen, BarChartHorizontal, Trash2, ChevronsUpDown, Info, Check, Save, Copy, CircleDashed, ArrowRight } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -199,7 +199,7 @@ function StrategyCard({ strategy, onOpen }: { strategy: StrategyGroup, onOpen: (
                 <CardDescription>
                     <Badge variant="outline">{strategy.type}</Badge>
                     <div className="flex flex-wrap gap-1 mt-2">
-                        {strategy.timeframes.map(tf => <Badge key={tf} variant="outline" className="text-xs">{tf}</Badge>)}
+                        {strategy.timeframes && strategy.timeframes.map(tf => <Badge key={tf} variant="outline" className="text-xs">{tf}</Badge>)}
                     </div>
                 </CardDescription>
             </CardHeader>
@@ -674,7 +674,7 @@ function StrategyCreatorView({ onBack, onSave }: { onBack: () => void; onSave: (
     const [wizardStarted, setWizardStarted] = useState(false);
 
     const creationSteps = [
-        { name: "Basic Info", fields: ["name", "type", "timeframes", "description", "difficulty"] },
+        { name: "Basic Info", fields: ["name", "type", "timeframes"] },
         { name: "Entry Rules", fields: ["entryConditions"] },
         { name: "Stop Loss Rules", fields: ["stopLossRules"] },
         { name: "Take Profit Rules", fields: ["takeProfitRules"] },
@@ -1060,7 +1060,7 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
         return strategies.filter(s => {
             const searchMatch = s.name.toLowerCase().includes(filters.search.toLowerCase()) || s.type.toLowerCase().includes(filters.search.toLowerCase());
             const typeMatch = filters.type === 'All' || s.type === filters.type;
-            const timeframeMatch = filters.timeframe === 'All' || s.timeframes.includes(filters.timeframe);
+            const timeframeMatch = filters.timeframe === 'All' || (s.timeframes && s.timeframes.includes(filters.timeframe));
             return searchMatch && typeMatch && timeframeMatch;
         }).sort((a, b) => {
             const aLastUsed = a.versions.find(v => v.isActiveVersion)?.lastUsedAt;
