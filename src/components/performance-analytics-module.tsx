@@ -192,63 +192,91 @@ const SummaryRow = ({ label, value, className }: { label: string, value: React.R
 );
 
 
-const ArjunInsightsSidebar = ({ analyticsData, onSetModule }: { analyticsData: any, onSetModule: PerformanceAnalyticsModuleProps['onSetModule'] }) => {
+const PinnedInsightsCard = ({ analyticsData, onSetModule, onApplyGuardrails }: { analyticsData: any, onSetModule: PerformanceAnalyticsModuleProps['onSetModule'], onApplyGuardrails: () => void }) => {
     const insights = useMemo(() => {
         if (!analyticsData || !analyticsData.current) return [];
         const data = analyticsData.current;
         const generatedInsights = [];
 
         if (data.winRate < 50) {
-            generatedInsights.push("Your win rate is below 50%. Focus on improving your setup selection criteria.");
-        } else {
-            generatedInsights.push("Your win rate is stable. The key now is to maximize the size of your wins versus your losses.");
+            generatedInsights.push({
+                text: "Your win rate is below 50%. Focus on improving your setup selection criteria.",
+                cta: "Discuss with Arjun",
+                action: () => onSetModule('aiCoaching', { initialMessage: "My win rate is low, how can I improve my setup selection?" })
+            });
         }
 
         if (data.topLossDrivers && data.topLossDrivers.length > 0) {
             const topDriver = data.topLossDrivers[0];
             if (topDriver) {
-                generatedInsights.push(`Your biggest financial drain is from trades tagged with "${topDriver.behavior}". This cost you ${topDriver.totalR.toFixed(1)}R.`);
+                generatedInsights.push({
+                    text: `Your biggest profit leak is from trades tagged with "${topDriver.behavior}". This cost you ${topDriver.totalR.toFixed(1)}R.`,
+                    cta: "View these trades",
+                    action: () => onSetModule('tradeJournal', { filters: { mistake: topDriver.behavior } })
+                });
             }
         }
         
         if (data.scores.disciplineScore < 70) {
-            generatedInsights.push("Discipline score is low. This suggests you're not consistently following your own rules, which is a major profit leak.");
+            generatedInsights.push({
+                text: "Your discipline score is low. This suggests you're not consistently following your own rules.",
+                cta: "Set a Guardrail",
+                action: onApplyGuardrails
+            });
         }
         
         if (data.volatilityData.find((v: any) => v.vixZone === "Elevated" && v.avgPnL < 0)) {
-            generatedInsights.push("Performance drops significantly in 'Elevated' volatility. Consider reducing size or sitting out during these periods.");
+            generatedInsights.push({
+                text: "Performance drops significantly in 'Elevated' volatility. Consider reducing size or sitting out during these periods.",
+                cta: "Set a VIX guardrail",
+                action: onApplyGuardrails
+            });
         }
 
         if (data.timingHeatmapData.sessions.find((s: any) => s.name === "London" && s.totalPnl < 0)) {
-            generatedInsights.push("The London session appears to be your most challenging time to trade. Review journal entries from this period.");
+            generatedInsights.push({
+                text: "The London session appears to be your most challenging time to trade. Review journal entries from this period.",
+                cta: "Review London trades",
+                action: () => onSetModule('tradeJournal', {})
+            });
         }
 
-        return generatedInsights.slice(0, 4);
+        return generatedInsights.slice(0, 3);
 
-    }, [analyticsData]);
+    }, [analyticsData, onSetModule, onApplyGuardrails]);
 
     if (insights.length === 0) return null;
 
-    const handleDiscuss = () => {
-        const prompt = `Arjun, my dashboard analytics generated these insights for me. Can we discuss them?\n\n- ${insights.join('\n- ')}`;
+    const handleDiscussAll = () => {
+        const prompt = `Arjun, my analytics dashboard highlighted these key takeaways for me. Can we create a plan to address them?\n\n- ${insights.map(i => i.text).join('\n- ')}`;
         onSetModule('aiCoaching', { initialMessage: prompt });
     }
 
     return (
-        <Card id="analytics-discuss-arjun" className="bg-muted/30 border-primary/20 sticky top-24">
+        <Card id="analytics-discuss-arjun" className="bg-muted/30 border-primary/20">
             <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2"><Bot className="h-5 w-5 text-primary" /> Arjun's Insights</CardTitle>
-                <CardDescription className="text-xs">Key patterns from your analytics data.</CardDescription>
+                <CardTitle className="text-base flex items-center gap-2"><Bot className="h-5 w-5 text-primary" /> Your 3 Key Takeaways</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-                <ul className="space-y-3 list-disc list-inside text-sm text-muted-foreground">
+                <ul className="space-y-3 list-decimal list-inside text-sm text-muted-foreground">
                     {insights.map((insight, i) => (
-                        <li key={i}>{insight}</li>
+                        <li key={i}>
+                            <span className="text-foreground">{insight.text}</span>
+                            <Button variant="link" size="sm" className="p-0 h-auto ml-1 text-primary/80 hover:text-primary" onClick={insight.action}>
+                                {insight.cta}
+                            </Button>
+                        </li>
                     ))}
                 </ul>
-                <Button variant="outline" className="w-full" onClick={handleDiscuss}>
-                    Discuss these with Arjun
-                </Button>
+                <Separator />
+                <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" size="sm" onClick={handleDiscussAll}>
+                        <Bot className="mr-2 h-4 w-4" /> Discuss with Arjun
+                    </Button>
+                     <Button variant="outline" size="sm" onClick={onApplyGuardrails}>
+                        <ShieldCheck className="mr-2 h-4 w-4" /> Enable Recommended Guardrails
+                    </Button>
+                </div>
             </CardContent>
         </Card>
     );
@@ -653,6 +681,8 @@ function DemoNarrativePanel({ onScrollTo }: { onScrollTo: (id: string) => void }
         </Card>
     );
 }
+
+type SortKey = "name" | "pnl" | "winRate" | "mistakeRate";
 
 export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalyticsModuleProps) {
     const [timeRange, setTimeRange] = useState("30d");
@@ -1382,9 +1412,10 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                         <TabsTrigger value="strategies"><BookOpen className="mr-2 h-4 w-4" />Strategies</TabsTrigger>
                         <TabsTrigger value="reports"><Award className="mr-2 h-4 w-4" />Reports</TabsTrigger>
                     </TabsList>
-                    <TabsContent value="overview" className="mt-6">
+                    <TabsContent value="overview" className="mt-6 space-y-8">
+                        <PinnedInsightsCard analyticsData={analyticsData} onSetModule={onSetModule} onApplyGuardrails={handleApplyThresholdGuardrails} />
                         <div className="grid lg:grid-cols-3 gap-8">
-                            <div className="lg:col-span-2 space-y-8">
+                            <div className="lg:col-span-3 space-y-8">
                                 <SectionCard 
                                     id="summary"
                                     title={
@@ -1499,12 +1530,10 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                 </SectionCard>
 
                             </div>
-                            <div className="lg:col-span-1 space-y-8">
-                                <ArjunInsightsSidebar analyticsData={analyticsData} onSetModule={onSetModule} />
-                            </div>
                         </div>
                     </TabsContent>
                     <TabsContent value="behaviour" className="mt-6 space-y-8">
+                        <PinnedInsightsCard analyticsData={analyticsData} onSetModule={onSetModule} onApplyGuardrails={handleApplyThresholdGuardrails} />
                         <SectionCard 
                             id="discipline-scores" 
                             title="Behaviour Analytics" 
@@ -2155,5 +2184,3 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
         </>
     );
 }
-
-    
