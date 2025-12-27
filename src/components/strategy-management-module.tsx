@@ -3,8 +3,8 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { BrainCircuit, PlusCircle, CheckCircle, Search, Filter as FilterIcon, Clock, ListOrdered, FileText, Gauge, Calendar, ShieldCheck, Zap, MoreHorizontal, ArrowLeft, Edit, Archive, Star, BookOpen, BarChartHorizontal, Trash2, ChevronsUpDown, Info, Check, Save, Copy, CircleDashed, ArrowRight, X, AlertTriangle } from "lucide-react";
-import { useState, useEffect, useMemo } from "react";
+import { BrainCircuit, PlusCircle, CheckCircle, Search, Filter as FilterIcon, Clock, ListOrdered, FileText, Gauge, Calendar, ShieldCheck, Zap, MoreHorizontal, ArrowLeft, Edit, Archive, Star, BookOpen, BarChartHorizontal, Trash2, ChevronsUpDown, Info, Check, Save, Copy, CircleDashed, ArrowRight, X, AlertTriangle, ChevronUp } from "lucide-react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -25,28 +25,66 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Checkbox } from "./ui/checkbox";
 import { Dialog, DialogClose, DialogContent as DialogContentNonAlertDialog, DialogFooter as DialogFooterNonAlertDialog, DialogHeader as DialogHeaderNonAlertDialog, DialogTitle as DialogTitleNonAlertDialog } from "./ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
 
 
 interface StrategyManagementModuleProps {
     onSetModule: (module: any, context?: any) => void;
 }
 
-// Data models based on user request
+// =================================================================
+// DATA MODELS
+// =================================================================
+const ruleSetSchema = z.object({
+    entryRules: z.object({
+        conditions: z.array(z.string()).min(1, "At least one entry rule is required."),
+        confirmations: z.array(z.string()),
+    }),
+    slRules: z.object({
+        rules: z.array(z.string()).min(1, "At least one stop loss rule is required."),
+    }),
+    tpRules: z.object({
+        minRR: z.number().optional(),
+        preferredRR: z.number().optional(),
+        otherRules: z.array(z.string()),
+    }),
+    riskRules: z.object({
+        riskPerTradePct: z.number().min(0.1).max(5),
+        maxDailyLossPct: z.number().min(1).max(10),
+        maxDailyTrades: z.number().min(1).max(20),
+        leverageCap: z.number().min(1).max(50),
+        cooldownAfterLosses: z.boolean().default(false),
+    }),
+    contextRules: z.object({
+        allowedSessions: z.array(z.string()),
+        vixPolicy: z.enum(["allowAll", "avoidHigh", "onlyLowNormal"]),
+        avoidNews: z.boolean().default(false),
+        otherRules: z.array(z.string()),
+    }),
+});
+
+const strategyCreationSchema = z.object({
+    name: z.string().min(3, "Name must be at least 3 characters."),
+    type: z.string().min(1, "Please select a type."),
+    timeframes: z.array(z.string()).min(1, "Select at least one timeframe."),
+    description: z.string().optional(),
+    difficulty: z.string().optional(),
+    changeNotes: z.string().optional(),
+    ruleSet: ruleSetSchema,
+});
+
+type RuleSet = z.infer<typeof ruleSetSchema>;
+type StrategyCreationValues = z.infer<typeof strategyCreationSchema>;
+
 type StrategyVersion = {
     versionId: string;
     versionNumber: number;
     isActiveVersion: boolean;
     createdAt: string;
     changeNotes?: string;
-    fields: {
-        description?: string;
-        difficulty?: 'Beginner' | 'Intermediate' | 'Advanced';
-        entryConditions: string[];
-        stopLossRules: string[];
-        takeProfitRules: string[];
-        riskManagementRules: string[];
-        contextRules: string[];
-    };
+    ruleSet: RuleSet;
+    description?: string;
+    difficulty?: 'Beginner' | 'Intermediate' | 'Advanced';
     usageCount: number;
     lastUsedAt: string | null;
 };
@@ -61,7 +99,9 @@ type StrategyGroup = {
     versions: StrategyVersion[];
 };
 
-
+// =================================================================
+// MOCK DATA
+// =================================================================
 const seedStrategies: StrategyGroup[] = [
     {
         strategyId: 'strat_1',
@@ -77,14 +117,14 @@ const seedStrategies: StrategyGroup[] = [
                 isActiveVersion: true,
                 createdAt: new Date(Date.now() - 86400000 * 10).toISOString(),
                 changeNotes: "Initial creation of the strategy.",
-                fields: {
-                    description: "A classic breakout strategy for trending markets.",
-                    difficulty: "Intermediate",
-                    entryConditions: ["Price breaks out of a 4-hour consolidation range", "Breakout candle has above-average volume", "Enter on a retest of the broken level"],
-                    stopLossRules: ["Stop-loss is below the mid-point of the consolidation range"],
-                    takeProfitRules: ["Target is the next major liquidity level"],
-                    riskManagementRules: ["Max risk 1% of account", "Max daily loss 3%", "Max daily trades 4", "Leverage cap 20x"],
-                    contextRules: ["Only trade during NY session", "Avoid trading during major news events (e.g., FOMC)"]
+                description: "A classic breakout strategy for trending markets.",
+                difficulty: "Intermediate",
+                ruleSet: {
+                    entryRules: { conditions: ["Price breaks out of a 4-hour consolidation range", "Breakout candle has above-average volume"], confirmations: ["Enter on a retest of the broken level"] },
+                    slRules: { rules: ["Stop-loss is below the mid-point of the consolidation range"] },
+                    tpRules: { minRR: 2, preferredRR: 3, otherRules: ["Target is the next major liquidity level"] },
+                    riskRules: { riskPerTradePct: 1, maxDailyLossPct: 3, maxDailyTrades: 4, leverageCap: 20, cooldownAfterLosses: false },
+                    contextRules: { allowedSessions: ["New York"], vixPolicy: "avoidHigh", avoidNews: true, otherRules: [] }
                 },
                 usageCount: 42,
                 lastUsedAt: new Date(Date.now() - 86400000 * 1).toISOString(),
@@ -105,14 +145,14 @@ const seedStrategies: StrategyGroup[] = [
                 isActiveVersion: true,
                 createdAt: new Date(Date.now() - 86400000 * 25).toISOString(),
                 changeNotes: "Initial creation.",
-                fields: {
-                    description: "Entering a strong existing trend on a dip.",
-                    difficulty: "Intermediate",
-                    entryConditions: ["Market is in a clear uptrend/downtrend on 4H", "Price pulls back to the 1H 21 EMA", "Enter on a bullish/bearish candle that respects the EMA"],
-                    stopLossRules: ["Stop-loss is behind the most recent swing structure"],
-                    takeProfitRules: ["Target is the previous swing high/low"],
-                    riskManagementRules: ["Max risk 1.5% of account", "Max daily loss 4%", "Max daily trades 3"],
-                    contextRules: ["Only valid when 1H and 4H timeframes are aligned", "Avoid if VIX is in 'Extreme' zone"]
+                description: "Entering a strong existing trend on a dip.",
+                difficulty: "Intermediate",
+                ruleSet: {
+                    entryRules: { conditions: ["Market is in a clear uptrend/downtrend on 4H", "Price pulls back to the 1H 21 EMA"], confirmations: ["Enter on a bullish/bearish candle that respects the EMA"] },
+                    slRules: { rules: ["Stop-loss is behind the most recent swing structure"] },
+                    tpRules: { minRR: 1.5, preferredRR: 2.5, otherRules: ["Target is the previous swing high/low"] },
+                    riskRules: { riskPerTradePct: 1.5, maxDailyLossPct: 4, maxDailyTrades: 3, leverageCap: 10, cooldownAfterLosses: true },
+                    contextRules: { allowedSessions: ["London", "New York"], vixPolicy: "avoidHigh", avoidNews: false, otherRules: ["Only valid when 1H and 4H timeframes are aligned"] }
                 },
                 usageCount: 89,
                 lastUsedAt: new Date(Date.now() - 86400000 * 3).toISOString(),
@@ -133,14 +173,14 @@ const seedStrategies: StrategyGroup[] = [
                 isActiveVersion: true,
                 createdAt: new Date(Date.now() - 86400000 * 40).toISOString(),
                 changeNotes: "Initial creation.",
-                fields: {
-                    description: "Trading mean reversion in a range-bound market.",
-                    difficulty: "Advanced",
-                    entryConditions: ["Price is in a clearly defined range on 1H", "Price sweeps the high/low of the range on 5m", "Enter when 5m candle closes back inside the range"],
-                    stopLossRules: ["Stop-loss is above/below the wick of the sweep candle"],
-                    takeProfitRules: ["Target is the mid-point of the range (0.5 level)"],
-                    riskManagementRules: ["Max risk 0.75% of account", "Max daily loss 2.5%", "Leverage cap 50x"],
-                    contextRules: ["Only valid when VIX is 'Normal' or 'Calm'", "Do not trade this during trend-following days"]
+                description: "Trading mean reversion in a range-bound market.",
+                difficulty: "Advanced",
+                ruleSet: {
+                    entryRules: { conditions: ["Price is in a clearly defined range on 1H", "Price sweeps the high/low of the range on 5m"], confirmations: ["Enter when 5m candle closes back inside the range"] },
+                    slRules: { rules: ["Stop-loss is above/below the wick of the sweep candle"] },
+                    tpRules: { minRR: 1.8, preferredRR: 2, otherRules: ["Target is the mid-point of the range (0.5 level)"] },
+                    riskRules: { riskPerTradePct: 0.75, maxDailyLossPct: 2.5, maxDailyTrades: 5, leverageCap: 50, cooldownAfterLosses: true },
+                    contextRules: { allowedSessions: ["Asia"], vixPolicy: "onlyLowNormal", avoidNews: false, otherRules: [] }
                 },
                 usageCount: 153,
                 lastUsedAt: new Date(Date.now() - 86400000 * 2).toISOString(),
@@ -158,12 +198,25 @@ interface StrategyFilters {
     sort: SortOption;
 }
 
-const RuleItem = ({ icon: Icon, label, value }: { icon: React.ElementType, label: string, value: string | null }) => {
-    if (!value) return null;
+const InfoTooltip = ({ text, children }: { text: React.ReactNode, children: React.ReactNode }) => {
+    return (
+        <TooltipProvider>
+            <Tooltip>
+                <TooltipTrigger asChild>{children}</TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                    {typeof text === 'string' ? <p>{text}</p> : text}
+                </TooltipContent>
+            </Tooltip>
+        </TooltipProvider>
+    );
+};
+
+const RuleItem = ({ icon: Icon, label, value, unit }: { icon: React.ElementType, label: string, value: string | null | number, unit?: string }) => {
+    if (value === null || value === undefined || value === '') return null;
     return (
         <div className="flex items-center gap-2">
             <Icon className="h-4 w-4 text-muted-foreground" />
-            <p className="text-xs text-muted-foreground">{label}: <span className="font-semibold text-foreground">{value}</span></p>
+            <p className="text-xs text-muted-foreground">{label}: <span className="font-semibold text-foreground">{value}{unit}</span></p>
         </div>
     );
 };
@@ -172,23 +225,8 @@ function StrategyCard({ strategy, onOpen, onEdit, onDuplicate }: { strategy: Str
     const activeVersion = strategy.versions.find(v => v.isActiveVersion);
     const totalUsage = strategy.versions.reduce((sum, v) => sum + v.usageCount, 0);
 
-    const parseRule = (rules: string[], keyword: string): string | null => {
-        const rule = rules.find(r => r.toLowerCase().includes(keyword.toLowerCase()));
-        if (!rule) return null;
-        const value = rule.split(' ').find(part => part.includes('%') || part.includes('x') || Number.isInteger(Number(part)));
-        return value || null;
-    };
-
-    const riskRules = activeVersion?.fields.riskManagementRules || [];
-    const contextRules = activeVersion?.fields.contextRules || [];
-
-    const riskPerTrade = parseRule(riskRules, "Max risk");
-    const maxDailyLoss = parseRule(riskRules, "Max daily loss");
-    const maxDailyTrades = parseRule(riskRules, "Max daily trades");
-    const leverageCap = parseRule(riskRules, "Leverage cap");
-
-    const timeRestriction = contextRules.find(r => r.toLowerCase().includes('session'));
-    const vixRestriction = contextRules.find(r => r.toLowerCase().includes('vix'));
+    const { riskPerTradePct, maxDailyLossPct, maxDailyTrades, leverageCap } = activeVersion?.ruleSet.riskRules || {};
+    const { allowedSessions, vixPolicy } = activeVersion?.ruleSet.contextRules || {};
     
     return (
         <Card className="bg-muted/40 hover:bg-muted/60 transition-colors flex flex-col">
@@ -213,17 +251,17 @@ function StrategyCard({ strategy, onOpen, onEdit, onDuplicate }: { strategy: Str
                 <div className="p-3 rounded-md bg-muted border space-y-3">
                     <h4 className="font-semibold text-xs text-muted-foreground">Risk Rules Snapshot</h4>
                     <div className="grid grid-cols-2 gap-2">
-                        <RuleItem icon={ShieldCheck} label="Risk/trade" value={riskPerTrade} />
-                        <RuleItem icon={Gauge} label="Max loss/day" value={maxDailyLoss} />
+                        <RuleItem icon={ShieldCheck} label="Risk/trade" value={riskPerTradePct} unit="%" />
+                        <RuleItem icon={Gauge} label="Max loss/day" value={maxDailyLossPct} unit="%" />
                         <RuleItem icon={ListOrdered} label="Max trades/day" value={maxDailyTrades} />
-                        <RuleItem icon={FileText} label="Leverage cap" value={leverageCap} />
+                        <RuleItem icon={FileText} label="Leverage cap" value={leverageCap} unit="x" />
                     </div>
                 </div>
                 <div className="p-3 rounded-md bg-muted border space-y-3">
                     <h4 className="font-semibold text-xs text-muted-foreground">Context Rules Snapshot</h4>
                      <div className="grid grid-cols-2 gap-2">
-                        <RuleItem icon={Clock} label="Time" value={timeRestriction ? timeRestriction.split(' ').slice(-2).join(' ') : 'Any'} />
-                        <RuleItem icon={Calendar} label="Volatility" value={vixRestriction ? vixRestriction.split(' ').slice(1,3).join(' ') : 'Any'} />
+                        <RuleItem icon={Clock} label="Session" value={(allowedSessions || []).join(', ') || "Any"} />
+                        <RuleItem icon={Calendar} label="Volatility" value={vixPolicy || 'Any'} />
                     </div>
                 </div>
             </CardContent>
@@ -258,22 +296,14 @@ function StrategyCard({ strategy, onOpen, onEdit, onDuplicate }: { strategy: Str
     );
 }
 
-const RulesCard = ({ title, rules }: { title: string; rules: string[] | string | undefined}) => {
-    const rulesArray = Array.isArray(rules) ? rules : (rules ? [rules] : []);
-    
+const RulesCard = ({ title, children }: { title: string; children: React.ReactNode }) => {
     return (
         <Card className="bg-muted/50 border-border/50">
             <CardHeader>
                 <CardTitle className="text-base">{title}</CardTitle>
             </CardHeader>
             <CardContent>
-                {rulesArray && rulesArray.length > 0 ? (
-                    <ul className="space-y-2 text-sm text-muted-foreground list-disc list-inside">
-                        {rulesArray.map((rule, i) => <li key={i}>{rule}</li>)}
-                    </ul>
-                ) : (
-                    <p className="text-sm text-muted-foreground italic">Not defined (add in next version)</p>
-                )}
+                {children}
             </CardContent>
         </Card>
     );
@@ -332,6 +362,8 @@ function StrategyDetailView({
     const selectedVersion = strategy.versions.find(v => v.versionId === selectedVersionId);
 
     if (!selectedVersion) return null; // Should not happen if data is correct
+
+    const { entryRules, slRules, tpRules, riskRules, contextRules } = selectedVersion.ruleSet;
 
     return (
         <div>
@@ -428,34 +460,52 @@ function StrategyDetailView({
 
                     {/* Right Column */}
                     <div className="lg:col-span-2 space-y-6">
-                        <RulesCard title="Description / When to Use" rules={selectedVersion.fields.description} />
-                        <RulesCard title="Entry Rules" rules={selectedVersion.fields.entryConditions} />
-                        <RulesCard title="Stop Loss Rules" rules={selectedVersion.fields.stopLossRules} />
-                        <RulesCard title="Take Profit Rules" rules={selectedVersion.fields.takeProfitRules} />
-                        <RulesCard title="Risk Management Rules" rules={selectedVersion.fields.riskManagementRules} />
-                        <RulesCard title="Context Rules" rules={selectedVersion.fields.contextRules} />
+                        <RulesCard title="Description / When to Use"><p className="text-sm text-muted-foreground italic">{selectedVersion.description || 'Not defined.'}</p></RulesCard>
+                        <RulesCard title="Entry Rules">
+                           <div className="space-y-4">
+                                <p className="text-xs text-muted-foreground font-semibold uppercase">Conditions</p>
+                                <ul className="space-y-2 text-sm text-muted-foreground list-disc list-inside">
+                                    {entryRules.conditions.map((rule, i) => <li key={i}>{rule}</li>)}
+                                </ul>
+                                {entryRules.confirmations.length > 0 && <>
+                                    <p className="text-xs text-muted-foreground font-semibold uppercase pt-2">Confirmations</p>
+                                    <ul className="space-y-2 text-sm text-muted-foreground list-disc list-inside">
+                                        {entryRules.confirmations.map((rule, i) => <li key={i}>{rule}</li>)}
+                                    </ul>
+                                </>}
+                           </div>
+                        </RulesCard>
+                        <RulesCard title="Stop Loss Rules"><ul className="space-y-2 text-sm text-muted-foreground list-disc list-inside">{slRules.rules.map((rule, i) => <li key={i}>{rule}</li>)}</ul></RulesCard>
+                        <RulesCard title="Take Profit Rules">
+                            <div className="space-y-4">
+                               {tpRules.minRR && <p className="text-sm text-muted-foreground">Minimum R:R: <span className="font-semibold text-foreground">{tpRules.minRR}:1</span></p>}
+                               {tpRules.preferredRR && <p className="text-sm text-muted-foreground">Preferred R:R: <span className="font-semibold text-foreground">{tpRules.preferredRR}:1</span></p>}
+                               {tpRules.otherRules.length > 0 && <ul className="space-y-2 text-sm text-muted-foreground list-disc list-inside">{tpRules.otherRules.map((rule, i) => <li key={i}>{rule}</li>)}</ul>}
+                            </div>
+                        </RulesCard>
+                        <RulesCard title="Risk Management Rules">
+                            <div className="grid grid-cols-2 gap-4">
+                                <p className="text-sm text-muted-foreground">Risk per trade: <span className="font-semibold text-foreground">{riskRules.riskPerTradePct}%</span></p>
+                                <p className="text-sm text-muted-foreground">Max daily loss: <span className="font-semibold text-foreground">{riskRules.maxDailyLossPct}%</span></p>
+                                <p className="text-sm text-muted-foreground">Max daily trades: <span className="font-semibold text-foreground">{riskRules.maxDailyTrades}</span></p>
+                                <p className="text-sm text-muted-foreground">Leverage cap: <span className="font-semibold text-foreground">{riskRules.leverageCap}x</span></p>
+                                <p className="text-sm text-muted-foreground">Cooldown after losses: <span className="font-semibold text-foreground">{riskRules.cooldownAfterLosses ? 'Yes' : 'No'}</span></p>
+                            </div>
+                        </RulesCard>
+                        <RulesCard title="Context Rules">
+                            <div className="grid grid-cols-2 gap-4">
+                                <p className="text-sm text-muted-foreground">Allowed Sessions: <span className="font-semibold text-foreground">{contextRules.allowedSessions.join(', ') || 'Any'}</span></p>
+                                <p className="text-sm text-muted-foreground">VIX Policy: <span className="font-semibold text-foreground">{contextRules.vixPolicy}</span></p>
+                                <p className="text-sm text-muted-foreground">Avoid News: <span className="font-semibold text-foreground">{contextRules.avoidNews ? 'Yes' : 'No'}</span></p>
+                            </div>
+                            {contextRules.otherRules.length > 0 && <ul className="space-y-2 text-sm text-muted-foreground list-disc list-inside mt-4">{contextRules.otherRules.map((rule, i) => <li key={i}>{rule}</li>)}</ul>}
+                        </RulesCard>
                     </div>
                 </div>
             </div>
         </div>
     );
 }
-
-const strategyCreationSchema = z.object({
-    name: z.string().min(3, "Name must be at least 3 characters."),
-    type: z.string().min(1, "Please select a type."),
-    timeframes: z.array(z.string()).min(1, "Select at least one timeframe."),
-    description: z.string().optional(),
-    difficulty: z.string().optional(),
-    changeNotes: z.string().optional(),
-    entryConditions: z.array(z.string()).min(1, "At least one entry rule is required."),
-    stopLossRules: z.array(z.string()).min(1, "At least one stop loss rule is required."),
-    takeProfitRules: z.array(z.string()),
-    riskManagementRules: z.array(z.string()).min(1, "At least one risk management rule is required."),
-    contextRules: z.array(z.string()),
-});
-
-type StrategyCreationValues = z.infer<typeof strategyCreationSchema>;
 
 const Stepper = ({ currentStep, steps }: { currentStep: number; steps: { name: string }[] }) => (
     <nav aria-label="Progress">
@@ -503,19 +553,6 @@ const getClarity = (text: string): { status: ClarityStatus, hint: string | null 
     }
 
     return { status: 'neutral', hint: null };
-};
-
-const InfoTooltip = ({ text, children }: { text: React.ReactNode, children: React.ReactNode }) => {
-    return (
-        <TooltipProvider>
-            <Tooltip>
-                <TooltipTrigger asChild>{children}</TooltipTrigger>
-                <TooltipContent className="max-w-xs">
-                    {typeof text === 'string' ? <p>{text}</p> : text}
-                </TooltipContent>
-            </Tooltip>
-        </TooltipProvider>
-    );
 };
 
 const RuleEditor = ({ value, onChange, placeholder, description }: { value: string[]; onChange: (value: string[]) => void; placeholder: string; description?: string; }) => {
@@ -571,18 +608,20 @@ const RuleEditor = ({ value, onChange, placeholder, description }: { value: stri
     );
 };
   
-const strategyTemplates: (Omit<StrategyCreationValues, 'name' | 'changeNotes'> & {id: string, name: string, description: string})[] = [
+const strategyTemplates: (Omit<StrategyCreationValues, 'name' | 'changeNotes' | 'difficulty'> & {id: string, name: string, description: string})[] = [
     {
         id: 'breakout',
         name: "Breakout Trend",
         description: "For clear trends after consolidation.",
         type: 'Breakout',
         timeframes: ['15m'],
-        entryConditions: ["Price breaks out of a 4-hour consolidation range", "Breakout candle has above-average volume"],
-        stopLossRules: ["Stop-loss is below the mid-point of the consolidation range"],
-        takeProfitRules: ["Target is the next major liquidity level"],
-        riskManagementRules: ["Max risk 1% of account", "Leverage cap 20x"],
-        contextRules: ["Only trade during NY session"]
+        ruleSet: {
+            entryRules: { conditions: ["Price breaks out of a 4-hour consolidation range", "Breakout candle has above-average volume"], confirmations: [] },
+            slRules: { rules: ["Stop-loss is below the mid-point of the consolidation range"] },
+            tpRules: { minRR: 2, preferredRR: 3, otherRules: [] },
+            riskRules: { riskPerTradePct: 1, maxDailyLossPct: 3, maxDailyTrades: 4, leverageCap: 20, cooldownAfterLosses: false },
+            contextRules: { allowedSessions: ["New York"], vixPolicy: "avoidHigh", avoidNews: true, otherRules: [] }
+        }
     },
     {
         id: 'pullback',
@@ -590,11 +629,13 @@ const strategyTemplates: (Omit<StrategyCreationValues, 'name' | 'changeNotes'> &
         description: "For entering an existing strong trend.",
         type: 'Pullback',
         timeframes: ['1H'],
-        entryConditions: ["Market is in a clear uptrend on 4H", "Price pulls back to the 1H 21 EMA"],
-        stopLossRules: ["Stop-loss is behind the most recent swing structure"],
-        takeProfitRules: ["Target is the previous swing high/low"],
-        riskManagementRules: ["Max risk 1.5% of account"],
-        contextRules: ["Avoid if VIX is in 'Extreme' zone"]
+        ruleSet: {
+            entryRules: { conditions: ["Market is in a clear uptrend on 4H", "Price pulls back to the 1H 21 EMA"], confirmations: [] },
+            slRules: { rules: ["Stop-loss is behind the most recent swing structure"] },
+            tpRules: { minRR: 1.5, preferredRR: 2.5, otherRules: [] },
+            riskRules: { riskPerTradePct: 1.5, maxDailyLossPct: 4, maxDailyTrades: 3, leverageCap: 10, cooldownAfterLosses: true },
+            contextRules: { allowedSessions: ["London", "New York"], vixPolicy: "avoidHigh", avoidNews: false, otherRules: ["Only valid when 1H and 4H timeframes are aligned"] }
+        }
     },
     {
         id: 'range',
@@ -602,11 +643,13 @@ const strategyTemplates: (Omit<StrategyCreationValues, 'name' | 'changeNotes'> &
         description: "For non-trending, range-bound markets.",
         type: 'Reversal',
         timeframes: ['5m'],
-        entryConditions: ["Price is in a clearly defined range on 1H", "Price sweeps the high/low of the range on 5m"],
-        stopLossRules: ["Stop-loss is above/below the wick of the sweep candle"],
-        takeProfitRules: ["Target is the mid-point of the range"],
-        riskManagementRules: ["Max risk 0.75% of account", "Max daily loss 2.5%"],
-        contextRules: ["Only valid when VIX is 'Normal' or 'Calm'"]
+        ruleSet: {
+            entryRules: { conditions: ["Price is in a clearly defined range on 1H", "Price sweeps the high/low of the range on 5m"], confirmations: [] },
+            slRules: { rules: ["Stop-loss is above/below the wick of the sweep candle"] },
+            tpRules: { minRR: 1.8, preferredRR: 2, otherRules: [] },
+            riskRules: { riskPerTradePct: 0.75, maxDailyLossPct: 2.5, maxDailyTrades: 5, leverageCap: 50, cooldownAfterLosses: true },
+            contextRules: { allowedSessions: ["Asia"], vixPolicy: "onlyLowNormal", avoidNews: false, otherRules: [] }
+        }
     },
     {
         id: 'beginner',
@@ -614,11 +657,13 @@ const strategyTemplates: (Omit<StrategyCreationValues, 'name' | 'changeNotes'> &
         description: "A basic, easy-to-follow plan.",
         type: 'Custom',
         timeframes: ['15m'],
-        entryConditions: ["Price is above the 200 EMA", "RSI is not overbought/oversold"],
-        stopLossRules: ["Stop-loss is 1.5x ATR below entry"],
-        takeProfitRules: ["Take profit at 1.5R"],
-        riskManagementRules: ["Max risk 1% of account"],
-        contextRules: ["Only trade BTC or ETH", "Do not trade on weekends"]
+        ruleSet: {
+            entryRules: { conditions: ["Price is above the 200 EMA", "RSI is not overbought/oversold"], confirmations: [] },
+            slRules: { rules: ["Stop-loss is 1.5x ATR below entry"] },
+            tpRules: { minRR: 1.5, otherRules: [] },
+            riskRules: { riskPerTradePct: 1, maxDailyLossPct: 2, maxDailyTrades: 3, leverageCap: 10, cooldownAfterLosses: true },
+            contextRules: { allowedSessions: ["New York"], vixPolicy: "onlyLowNormal", avoidNews: true, otherRules: [] }
+        }
     }
 ];
 
@@ -626,10 +671,10 @@ const RulebookPreview = ({ form }: { form: any }) => {
     const values = useWatch({ control: form.control }) as StrategyCreationValues;
 
     const checks = {
-      entry: (values.entryConditions || []).length > 0,
-      sl: (values.stopLossRules || []).length > 0,
-      riskPerTrade: (values.riskManagementRules || []).some(r => r.toLowerCase().includes('risk')),
-      maxTrades: (values.riskManagementRules || []).some(r => r.toLowerCase().includes('max daily trades')),
+      entry: (values.ruleSet?.entryRules?.conditions || []).length > 0,
+      sl: (values.ruleSet?.slRules?.rules || []).length > 0,
+      riskPerTrade: values.ruleSet?.riskRules?.riskPerTradePct > 0,
+      maxTrades: values.ruleSet?.riskRules?.maxDailyTrades > 0,
     };
 
     const isReady = checks.entry && checks.sl && checks.riskPerTrade && checks.maxTrades;
@@ -698,7 +743,6 @@ function StrategyCreatorView({
     editingId?: string;
 }) {
     const [currentStep, setCurrentStep] = useState(0);
-    const { toast } = useToast();
     const [showCancelDialog, setShowCancelDialog] = useState(false);
     const [wizardStarted, setWizardStarted] = useState(!!initialData);
     const [persona, setPersona] = useState<{ primaryPersonaName?: string } | null>(null);
@@ -715,10 +759,10 @@ function StrategyCreatorView({
 
     const creationSteps = [
         { name: "Basic Info", fields: ["name", "type", "timeframes"] },
-        { name: "Entry Rules", fields: ["entryConditions"] },
-        { name: "Stop Loss", fields: ["stopLossRules"] },
+        { name: "Entry Rules", fields: ["ruleSet.entryRules.conditions"] },
+        { name: "Stop Loss", fields: ["ruleSet.slRules.rules"] },
         { name: "Take Profit" },
-        { name: "Risk Rules", fields: ["riskManagementRules"] },
+        { name: "Risk Rules", fields: ["ruleSet.riskRules.riskPerTradePct", "ruleSet.riskRules.maxDailyLossPct", "ruleSet.riskRules.maxDailyTrades", "ruleSet.riskRules.leverageCap"] },
         { name: "Context Rules" },
         { name: "Review & Save" },
     ];
@@ -736,11 +780,13 @@ function StrategyCreatorView({
             description: '',
             difficulty: '',
             changeNotes: '',
-            entryConditions: [],
-            stopLossRules: [],
-            takeProfitRules: [],
-            riskManagementRules: [],
-            contextRules: [],
+            ruleSet: {
+                entryRules: { conditions: [], confirmations: [] },
+                slRules: { rules: [] },
+                tpRules: { otherRules: [] },
+                riskRules: { riskPerTradePct: 1, maxDailyLossPct: 3, maxDailyTrades: 3, leverageCap: 10, cooldownAfterLosses: false },
+                contextRules: { allowedSessions: [], vixPolicy: 'allowAll', avoidNews: false, otherRules: [] },
+            }
         },
     });
 
@@ -785,29 +831,29 @@ function StrategyCreatorView({
     const handleTemplateSelect = (templateId: string) => {
         const template = strategyTemplates.find(t => t.id === templateId);
         if(template) {
-            let modifiedTemplate = { ...template };
+            let modifiedRuleSet = { ...template.ruleSet };
 
             if(persona?.primaryPersonaName?.includes("Impulsive")) {
-                if (!modifiedTemplate.riskManagementRules.some(r => r.toLowerCase().includes('max daily trades'))) {
-                    modifiedTemplate.riskManagementRules.push("Max daily trades: 3");
-                    setShowPersonaAlert(true);
-                }
+                modifiedRuleSet.riskRules.maxDailyTrades = 3;
+                setShowPersonaAlert(true);
             } else if (persona?.primaryPersonaName?.includes("Fearful")) {
-                 if (!modifiedTemplate.takeProfitRules.some(r => r.toLowerCase().includes('let winners run'))) {
-                    modifiedTemplate.takeProfitRules.push("Let winners run to target, do not exit early");
-                    setShowPersonaAlert(true);
-                 }
+                 modifiedRuleSet.tpRules.otherRules.push("Let winners run to target, do not exit early");
+                 setShowPersonaAlert(true);
             }
             
             form.reset({
-                ...modifiedTemplate,
+                name: template.name,
+                type: template.type,
+                timeframes: template.timeframes,
+                description: template.description,
+                ruleSet: modifiedRuleSet,
                 changeNotes: 'Created from template.',
             });
             setWizardStarted(true);
         }
     };
 
-    const RuleFormItem = ({ name, label, tooltipText, placeholder, description, callout }: { name: keyof StrategyCreationValues, label: string, tooltipText: string, placeholder: string, description?: string, callout?: React.ReactNode }) => (
+    const RuleEditorFormItem = ({ name, label, tooltipText, placeholder, description }: { name: `ruleSet.entryRules.conditions` | `ruleSet.entryRules.confirmations` | `ruleSet.slRules.rules` | `ruleSet.tpRules.otherRules` | `ruleSet.contextRules.otherRules`, label: string, tooltipText: string, placeholder: string, description?: string }) => (
         <FormField
             control={form.control}
             name={name}
@@ -822,7 +868,6 @@ function StrategyCreatorView({
                     <FormControl>
                         <RuleEditor {...field} placeholder={placeholder} description={description} />
                     </FormControl>
-                    {callout}
                     <FormMessage />
                 </FormItem>
             )}
@@ -886,7 +931,7 @@ function StrategyCreatorView({
 
                                                     <div className="grid md:grid-cols-2 gap-4">
                                                         <FormField control={form.control} name="type" render={({ field }) => (<FormItem><FormLabel>Type</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger></FormControl><SelectContent>{strategyTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>)} />
-                                                        <FormField control={form.control} name="difficulty" render={({ field }) => (<FormItem><FormLabel>Difficulty (Optional)</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select difficulty" /></SelectTrigger></FormControl><SelectContent>{difficultyOptions.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>)} />
+                                                        <FormField control={form.control} name="difficulty" render={({ field }) => (<FormItem><FormLabel>Difficulty (Optional)</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select difficulty" /></SelectTrigger></FormControl><SelectContent>{difficultyOptions.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>)} />
                                                     </div>
                                                     <FormField
                                                         control={form.control}
@@ -923,52 +968,47 @@ function StrategyCreatorView({
                                                     />
                                                 </div>
                                             )}
-                                            {currentStep === 1 && <RuleFormItem name="entryConditions" label="Entry Rules" tooltipText="What specific, observable conditions must be true on the chart for you to consider entering a trade?" placeholder="e.g., Price breaks 4H consolidation..." />}
-                                            {currentStep === 2 && (
-                                                <RuleFormItem 
-                                                    name="stopLossRules" 
-                                                    label="Stop Loss Rules" 
-                                                    tooltipText="Your stop-loss is your non-negotiable exit point if a trade goes against you. It defines your risk."
-                                                    placeholder="e.g., Below previous swing low OR fixed 0.8% from entry"
-                                                    callout={<Alert variant="default" className="mt-4 bg-amber-950/20 border-amber-500/20 text-amber-300/90"><AlertTriangle className="h-4 w-4 text-amber-400" /><AlertTitle className="text-amber-400 text-sm">Why this matters</AlertTitle><AlertDescription className="text-xs">Your Stop Loss is your psychological anchor. It's your promise to yourself about how much you're willing to risk. No SL = no EdgeCipher trade.</AlertDescription></Alert>}
-                                                />
+                                            {currentStep === 1 && (
+                                                <div className="space-y-6">
+                                                    <RuleEditorFormItem name="ruleSet.entryRules.conditions" label="Entry Conditions" tooltipText="What specific, observable conditions must be true on the chart for you to consider entering a trade?" placeholder="e.g., Price breaks 4H consolidation range" />
+                                                    <RuleEditorFormItem name="ruleSet.entryRules.confirmations" label="Entry Confirmations (Optional)" tooltipText="What final signal confirms your entry? This could be a specific candle pattern or indicator signal." placeholder="e.g., Enter on a retest of the broken level" />
+                                                </div>
                                             )}
-                                            {currentStep === 3 && <RuleFormItem name="takeProfitRules" label="Take Profit Rules" tooltipText="Where will you take profit? Defining this helps prevent exiting too early or getting too greedy." description="It's highly recommended to define at least one exit condition for taking profit." placeholder="e.g., Target next major liquidity level or 2R" />}
+                                            {currentStep === 2 && <RuleEditorFormItem name="ruleSet.slRules.rules" label="Stop Loss Rules" tooltipText="Your stop-loss is your non-negotiable exit point if a trade goes against you. It defines your risk." placeholder="e.g., Below previous swing low OR fixed 0.8% from entry" />}
+                                            {currentStep === 3 && (
+                                                <div className="space-y-6">
+                                                    <div className="grid md:grid-cols-2 gap-4">
+                                                        <FormField control={form.control} name="ruleSet.tpRules.minRR" render={({ field }) => (<FormItem><FormLabel>Minimum R:R</FormLabel><FormControl><Input type="number" placeholder="1.5" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} /></FormControl><FormMessage /></FormItem>)} />
+                                                        <FormField control={form.control} name="ruleSet.tpRules.preferredRR" render={({ field }) => (<FormItem><FormLabel>Preferred R:R</FormLabel><FormControl><Input type="number" placeholder="2.5" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} /></FormControl><FormMessage /></FormItem>)} />
+                                                    </div>
+                                                    <RuleEditorFormItem name="ruleSet.tpRules.otherRules" label="Other TP Rules" tooltipText="Define any other rules for taking profit, such as partial profit-taking or trailing stops." placeholder="e.g., Take 50% profit at 1R, move SL to entry" />
+                                                </div>
+                                            )}
                                             {currentStep === 4 && (
-                                                <RuleFormItem
-                                                    name="riskManagementRules"
-                                                    label="Risk Management Rules"
-                                                    tooltipText="These are your hard capital-protection rules. They apply to all trades under this strategy."
-                                                    description="Define your hard constraints for every trade."
-                                                    placeholder="e.g., Max risk 1% of account..."
-                                                    callout={<Alert variant="default" className="mt-4 bg-amber-950/20 border-amber-500/20 text-amber-300/90"><AlertTriangle className="h-4 w-4 text-amber-400" /><AlertTitle className="text-amber-400 text-sm">Why this matters</AlertTitle><AlertDescription className="text-xs">These are the rules Arjun will enforce most strictly in Trade Planning. They are your firewall against blowing up your account.</AlertDescription></Alert>}
-                                                />
+                                                <div className="space-y-4">
+                                                    <div className="grid md:grid-cols-2 gap-4">
+                                                        <FormField control={form.control} name="ruleSet.riskRules.riskPerTradePct" render={({ field }) => (<FormItem><FormLabel>Risk per trade (%)</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} /></FormControl><FormMessage /></FormItem>)} />
+                                                        <FormField control={form.control} name="ruleSet.riskRules.maxDailyLossPct" render={({ field }) => (<FormItem><FormLabel>Max daily loss (%)</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} /></FormControl><FormMessage /></FormItem>)} />
+                                                        <FormField control={form.control} name="ruleSet.riskRules.maxDailyTrades" render={({ field }) => (<FormItem><FormLabel>Max daily trades</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10))} /></FormControl><FormMessage /></FormItem>)} />
+                                                        <FormField control={form.control} name="ruleSet.riskRules.leverageCap" render={({ field }) => (<FormItem><FormLabel>Leverage cap</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10))} /></FormControl><FormMessage /></FormItem>)} />
+                                                    </div>
+                                                    <FormField control={form.control} name="ruleSet.riskRules.cooldownAfterLosses" render={({ field }) => (<FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 bg-muted/50"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Enable cooldown rule</FormLabel><FormDescription>After 2 consecutive losses, stop trading for the day.</FormDescription></div></FormItem>)} />
+                                                </div>
                                             )}
-                                            {currentStep === 5 && <RuleFormItem name="contextRules" label="Context Rules (when to trade/not trade)" tooltipText="Define the market environment where this strategy works best, and when to avoid it." placeholder="e.g., Only trade during NY session..." />}
+                                            {currentStep === 5 && (
+                                                <div className="space-y-6">
+                                                    <FormField control={form.control} name="ruleSet.contextRules.allowedSessions" render={() => ( <FormItem> <FormLabel>Allowed Trading Sessions</FormLabel> <div className="flex flex-wrap gap-2 pt-2"> {['Asia', 'London', 'New York'].map((item) => ( <FormField key={item} control={form.control} name="ruleSet.contextRules.allowedSessions" render={({ field }) => ( <FormItem key={item} className="flex flex-row items-center space-x-3 space-y-0"> <FormControl> <Checkbox checked={field.value?.includes(item)} onCheckedChange={(checked) => { return checked ? field.onChange([...(field.value || []), item]) : field.onChange((field.value || []).filter((value) => value !== item)) }} /> </FormControl> <FormLabel className="font-normal">{item}</FormLabel> </FormItem> )} /> ))} </div> </FormItem> )}/>
+                                                    <FormField control={form.control} name="ruleSet.contextRules.vixPolicy" render={({ field }) => ( <FormItem> <FormLabel>Volatility Policy</FormLabel> <Select onValueChange={field.onChange} value={field.value}> <FormControl><SelectTrigger><SelectValue placeholder="Select VIX policy" /></SelectTrigger></FormControl> <SelectContent> <SelectItem value="allowAll">Allow all conditions</SelectItem> <SelectItem value="avoidHigh">Avoid Elevated/Extreme VIX</SelectItem> <SelectItem value="onlyLowNormal">Only trade in Calm/Normal VIX</SelectItem> </SelectContent> </Select> <FormMessage /> </FormItem> )}/>
+                                                    <FormField control={form.control} name="ruleSet.contextRules.avoidNews" render={({ field }) => (<FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 bg-muted/50"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Avoid major news events</FormLabel><FormDescription>Requires manual awareness in prototype.</FormDescription></div></FormItem>)} />
+                                                    <RuleEditorFormItem name="ruleSet.contextRules.otherRules" label="Other Context Rules" tooltipText="Any other environmental conditions that must be met." placeholder="e.g., BTC.D must be trending up" />
+                                                </div>
+                                            )}
                                             {currentStep === 6 && (
                                                 <div className="space-y-4">
                                                     <h3 className="font-semibold">Review & Save</h3>
-                                                    {editingId && (
-                                                        <FormField
-                                                            control={form.control}
-                                                            name="changeNotes"
-                                                            render={({ field }) => (
-                                                                <FormItem>
-                                                                    <FormLabel>What's new in this version?</FormLabel>
-                                                                    <FormControl>
-                                                                        <Textarea placeholder="e.g., 'Tightened SL rule and added a new entry confirmation.'" {...field} />
-                                                                    </FormControl>
-                                                                    <FormMessage />
-                                                                </FormItem>
-                                                            )}
-                                                        />
+                                                    {editingId && ( <FormField control={form.control} name="changeNotes" render={({ field }) => ( <FormItem> <FormLabel>What's new in this version?</FormLabel> <FormControl> <Textarea placeholder="e.g., 'Tightened SL rule and added a new entry confirmation.'" {...field} /> </FormControl> <FormMessage /> </FormItem> )}/>
                                                     )}
-                                                    <RulesCard title="Basic Info" rules={[`Name: ${form.getValues().name}`, `Type: ${form.getValues().type}`, `Timeframes: ${(form.getValues().timeframes || []).join(', ')}`]} />
-                                                    <RulesCard title="Entry Rules" rules={form.getValues().entryConditions} />
-                                                    <RulesCard title="Stop Loss Rules" rules={form.getValues().stopLossRules} />
-                                                    <RulesCard title="Take Profit Rules" rules={form.getValues().takeProfitRules} />
-                                                    <RulesCard title="Risk Rules" rules={form.getValues().riskManagementRules} />
-                                                    <RulesCard title="Context Rules" rules={form.getValues().contextRules} />
+                                                    <p>Final review of all structured rules will be available in the detail view after saving.</p>
                                                 </div>
                                             )}
                                         </form>
@@ -1141,15 +1181,9 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
                         isActiveVersion: true,
                         createdAt: new Date().toISOString(),
                         changeNotes: data.changeNotes,
-                        fields: {
-                            description: data.description,
-                            difficulty: data.difficulty as any,
-                            entryConditions: data.entryConditions,
-                            stopLossRules: data.stopLossRules,
-                            takeProfitRules: data.takeProfitRules,
-                            riskManagementRules: data.riskManagementRules,
-                            contextRules: data.contextRules,
-                        },
+                        description: data.description,
+                        difficulty: data.difficulty as any,
+                        ruleSet: data.ruleSet,
                         usageCount: 0,
                         lastUsedAt: null,
                     };
@@ -1192,15 +1226,9 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
                         isActiveVersion: true,
                         createdAt: new Date().toISOString(),
                         changeNotes: "Initial creation.",
-                        fields: {
-                            description: data.description,
-                            difficulty: data.difficulty as any,
-                            entryConditions: data.entryConditions,
-                            stopLossRules: data.stopLossRules,
-                            takeProfitRules: data.takeProfitRules,
-                            riskManagementRules: data.riskManagementRules,
-                            contextRules: data.contextRules,
-                        },
+                        description: data.description,
+                        difficulty: data.difficulty as any,
+                        ruleSet: data.ruleSet,
                         usageCount: 0,
                         lastUsedAt: null,
                     }
@@ -1265,14 +1293,10 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
             name: newStrategyName,
             type: strategyToDuplicate.type,
             timeframes: strategyToDuplicate.timeframes,
-            description: activeVersion.fields.description,
-            difficulty: activeVersion.fields.difficulty,
+            description: activeVersion.description,
+            difficulty: activeVersion.difficulty,
             changeNotes: `Copied from ${strategyToDuplicate.name} v${activeVersion.versionNumber}`,
-            entryConditions: [...activeVersion.fields.entryConditions],
-            stopLossRules: [...activeVersion.fields.stopLossRules],
-            takeProfitRules: [...activeVersion.fields.takeProfitRules],
-            riskManagementRules: [...activeVersion.fields.riskManagementRules],
-            contextRules: [...activeVersion.fields.contextRules],
+            ruleSet: JSON.parse(JSON.stringify(activeVersion.ruleSet)), // deep copy
         };
         
         // This is a bit of a hack: Pass data via state to the create view
@@ -1282,7 +1306,7 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
             versions: [ // Fake a version to pass data
                 {
                     ...activeVersion,
-                    fields: { ...newStrategyData }
+                    ruleSet: { ...newStrategyData.ruleSet }
                 }
             ],
             name: newStrategyName,
@@ -1331,10 +1355,14 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
     
     useEffect(() => {
         if(viewMode === 'create' && editingStrategy && editingStrategy.strategyId === 'temp_duplicate_id') {
-            const initialData = {
-                ...editingStrategy.versions[0].fields,
-                name: editingStrategy.name
-            } as StrategyCreationValues;
+            const initialData: StrategyCreationValues = {
+                name: editingStrategy.name,
+                type: editingStrategy.type,
+                timeframes: editingStrategy.timeframes,
+                description: editingStrategy.versions[0].description,
+                difficulty: editingStrategy.versions[0].difficulty,
+                ruleSet: { ...editingStrategy.versions[0].ruleSet }
+            };
 
             const event = new CustomEvent('populate-creator-form', { detail: initialData });
             window.dispatchEvent(event);
@@ -1342,33 +1370,34 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
         }
     }, [viewMode, editingStrategy]);
 
-
     if (viewMode === 'create' || viewMode === 'edit') {
         let initialData: StrategyCreationValues | null = null;
         if(viewMode === 'edit' && editingStrategy) {
             const activeVersion = editingStrategy.versions.find(v => v.isActiveVersion);
             if (activeVersion) {
                 initialData = { 
-                    ...activeVersion.fields, 
                     name: editingStrategy.name, 
                     type: editingStrategy.type, 
                     timeframes: editingStrategy.timeframes, 
-                    changeNotes: '' 
+                    changeNotes: '',
+                    description: activeVersion.description,
+                    difficulty: activeVersion.difficulty,
+                    ruleSet: activeVersion.ruleSet
                 }
             }
         }
         
-        // This handles the duplication case where editingStrategy is used to pass data
         if(viewMode === 'create' && editingStrategy && editingStrategy.strategyId === 'temp_duplicate_id'){
-            const fields = editingStrategy.versions[0].fields as StrategyCreationValues;
+            const activeVersion = editingStrategy.versions[0];
             initialData = {
-                ...fields,
                 name: editingStrategy.name,
                 type: editingStrategy.type,
-                timeframes: editingStrategy.timeframes
+                timeframes: editingStrategy.timeframes,
+                description: activeVersion.description,
+                difficulty: activeVersion.difficulty,
+                ruleSet: activeVersion.ruleSet
             };
         }
-
 
         return <StrategyCreatorView 
             onBack={() => { setViewMode('list'); setEditingStrategy(null); }} 
