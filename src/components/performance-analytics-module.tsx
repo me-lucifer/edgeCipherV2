@@ -89,7 +89,7 @@ const DeltaIndicator = ({ delta, unit = "" }: { delta: number; unit?: string }) 
 };
 
 const MetricCard = ({ title, value, hint, delta, deltaUnit, onClick }: { title: string; value: string | React.ReactNode; hint: string, delta?: number, deltaUnit?: string, onClick?: () => void }) => (
-    <Card className={cn("bg-muted/50 border-border/50 animate-in fade-in-50 duration-500", onClick && "cursor-pointer hover:bg-muted hover:border-primary/20 transition-all")} onClick={onClick}>
+    <Card className={cn("bg-muted/50 border-border/50 animate-metric-pulse", onClick && "cursor-pointer hover:bg-muted hover:border-primary/20 transition-all")} onClick={onClick}>
         <CardHeader className="pb-2">
             <CardTitle className="text-base">{title}</CardTitle>
         </CardHeader>
@@ -588,23 +588,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
     const [isGuardrailDialogOpen, setIsGuardrailDialogOpen] = useState(false);
     const [showBehaviorHotspots, setShowBehaviorHotspots] = useState(false);
     const [hotspotMetric, setHotspotMetric] = useState<"Revenge" | "FOMO" | "Moved SL" | "Overtraded">("Revenge");
-
-
     const { toast } = useToast();
-
-    useEffect(() => {
-        if (typeof window !== "undefined") {
-            const savedTab = localStorage.getItem("ec_analytics_active_tab");
-            if (savedTab) {
-                setActiveTab(savedTab);
-            }
-        }
-    }, []);
-
-    const handleTabChange = (tab: string) => {
-        setActiveTab(tab);
-        localStorage.setItem("ec_analytics_active_tab", tab);
-    }
 
     const computeSinglePeriodAnalytics = (entries: JournalEntry[], random: () => number) => {
       if (entries.length === 0) return null;
@@ -838,6 +822,20 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
         loadData();
     }, [loadData, compareMode]);
 
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            const savedTab = localStorage.getItem("ec_analytics_active_tab");
+            if (savedTab) {
+                setActiveTab(savedTab);
+            }
+        }
+    }, []);
+
+    const handleTabChange = (tab: string) => {
+        setActiveTab(tab);
+        localStorage.setItem("ec_analytics_active_tab", tab);
+    }
+
     const handleEventClick = (journalId: string | null) => {
         if (!journalId) return;
         const entry = journalEntries.find(e => e.id === journalId);
@@ -898,6 +896,31 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
             });
         }
         setExportData({ title, summary });
+    };
+
+    const thresholdInsights = useMemo(() => {
+        if (!analyticsData || !analyticsData.current) return [];
+        return [
+            { id: "warnAfterLosses", status: "warn", text: "After 2 consecutive losses, your win rate drops to 14%." },
+            { id: "warnOnHighRisk", status: "warn", text: "After 2 wins, you oversized risk in 28% of cases." },
+            { id: "warnOnHighVIX", status: "warn", text: "When VIX is Elevated, your SL moved rate doubles." },
+            { id: "info", status: "info", text: "When journaling is skipped, next-trade loss rate increases." },
+        ];
+    }, [analyticsData]);
+
+    const handleApplyThresholdGuardrails = () => {
+        const currentGuardrails = JSON.parse(localStorage.getItem("ec_guardrails") || "{}");
+        const newGuardrails = {
+            ...currentGuardrails,
+            warnOnHighRisk: true,
+            warnOnHighVIX: true,
+            warnAfterLosses: true,
+        };
+        localStorage.setItem("ec_guardrails", JSON.stringify(newGuardrails));
+        toast({
+            title: "Guardrails Applied",
+            description: "Recommended guardrails have been activated in your Trade Planning module.",
+        });
     };
 
     if (!hasData) {
@@ -989,33 +1012,33 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
 
     return (
         <>
-        <Drawer open={!!selectedEvent} onOpenChange={(open) => !open && setSelectedEvent(null)}>
-            <DrawerContent>
-                {selectedEvent && (
-                    <div className="mx-auto w-full max-w-2xl p-4 md:p-6">
-                        <DrawerHeader>
-                            <DrawerTitle className="text-2xl">Event Details</DrawerTitle>
-                            <DrawerDescription>
-                                Details for the trade event on {new Date(selectedEvent.timestamps.executedAt).toLocaleDateString()}.
-                            </DrawerDescription>
-                        </DrawerHeader>
-                        <div className="px-4 py-6 space-y-4">
-                            <Card className="bg-muted/50">
-                                <CardContent className="p-4">
-                                    <SummaryRow label="Instrument" value={`${selectedEvent.technical.instrument} ${selectedEvent.technical.direction}`} />
-                                    <SummaryRow label="Result (PnL)" value={`$${selectedEvent.review?.pnl.toFixed(2)}`} className={cn(selectedEvent.review && selectedEvent.review.pnl >= 0 ? 'text-green-400' : 'text-red-400')} />
-                                    <SummaryRow label="Mistakes" value={selectedEvent.review?.mistakesTags || "None"} />
-                                    <SummaryRow label="Emotions" value={selectedEvent.review?.emotionsTags || "None"} />
-                                </CardContent>
-                            </Card>
-                            <Button className="w-full" onClick={() => { setSelectedEvent(null); onSetModule('tradeJournal', { draftId: selectedEvent.id }); }}>
-                                Open Full Journal Entry
-                            </Button>
+            <Drawer open={!!selectedEvent} onOpenChange={(open) => !open && setSelectedEvent(null)}>
+                <DrawerContent>
+                    {selectedEvent && (
+                        <div className="mx-auto w-full max-w-2xl p-4 md:p-6">
+                            <DrawerHeader>
+                                <DrawerTitle className="text-2xl">Event Details</DrawerTitle>
+                                <DrawerDescription>
+                                    Details for the trade event on {new Date(selectedEvent.timestamps.executedAt).toLocaleDateString()}.
+                                </DrawerDescription>
+                            </DrawerHeader>
+                            <div className="px-4 py-6 space-y-4">
+                                <Card className="bg-muted/50">
+                                    <CardContent className="p-4">
+                                        <SummaryRow label="Instrument" value={`${selectedEvent.technical.instrument} ${selectedEvent.technical.direction}`} />
+                                        <SummaryRow label="Result (PnL)" value={`$${selectedEvent.review?.pnl.toFixed(2)}`} className={cn(selectedEvent.review && selectedEvent.review.pnl >= 0 ? 'text-green-400' : 'text-red-400')} />
+                                        <SummaryRow label="Mistakes" value={selectedEvent.review?.mistakesTags || "None"} />
+                                        <SummaryRow label="Emotions" value={selectedEvent.review?.emotionsTags || "None"} />
+                                    </CardContent>
+                                </Card>
+                                <Button className="w-full" onClick={() => { setSelectedEvent(null); onSetModule('tradeJournal', { draftId: selectedEvent.id }); }}>
+                                    Open Full Journal Entry
+                                </Button>
+                            </div>
                         </div>
-                    </div>
-                )}
-            </DrawerContent>
-        </Drawer>
+                    )}
+                </DrawerContent>
+            </Drawer>
             <div className="space-y-8">
                  <div className="flex items-start justify-between">
                     <div>
@@ -1326,6 +1349,27 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                              ) : (
                                 <EmptyState icon={Activity} title="Not Enough Data" description="This view requires more trades across different volatility zones." />
                              )}
+                        </SectionCard>
+
+                        <SectionCard
+                            id="thresholds"
+                            title="Threshold Alerts"
+                            description="Patterns Arjun is watching for in your trading sequences."
+                            icon={Zap}
+                        >
+                            <div className="space-y-3">
+                                {thresholdInsights.map(insight => (
+                                    <Alert key={insight.id} variant="default" className={cn(
+                                        insight.status === 'warn' ? "bg-amber-950/40 border-amber-500/20 text-amber-300" : "bg-muted/50 border-border/50",
+                                    )}>
+                                        <AlertTriangle className={cn("h-4 w-4", insight.status === 'warn' ? 'text-amber-400' : 'text-blue-400')} />
+                                        <AlertDescription className="text-sm">{insight.text}</AlertDescription>
+                                    </Alert>
+                                ))}
+                            </div>
+                            <Button variant="outline" className="mt-6" onClick={handleApplyThresholdGuardrails}>
+                                <Bot className="mr-2 h-4 w-4" /> Turn on Recommended Guardrails
+                            </Button>
                         </SectionCard>
 
                         <SectionCard 
@@ -1766,35 +1810,35 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                     </DrawerContent>
                 </Drawer>
             </div>
-        <Drawer open={isDataSourcesOpen} onOpenChange={setIsDataSourcesOpen}>
-            <DrawerContent>
-                <DrawerHeader>
-                    <DrawerTitle>Data Sources</DrawerTitle>
-                    <DrawerDescription>This analytics view is a synthesis of multiple data points.</DrawerDescription>
-                </DrawerHeader>
-                <div className="p-4">
-                    <div className="space-y-4">
-                        {dataSources.map(source => (
-                            <Card key={source.name} className="bg-muted/50">
-                                <CardContent className="p-4 flex items-center justify-between">
-                                    <div>
-                                        <h4 className="font-semibold text-foreground">{source.name}</h4>
-                                        <p className="text-xs text-muted-foreground">{source.description}</p>
-                                    </div>
-                                    <Badge variant={source.status === 'Live' ? 'default' : 'outline'}>{source.status}</Badge>
-                                </CardContent>
-                            </Card>
-                        ))}
+            <Drawer open={isDataSourcesOpen} onOpenChange={setIsDataSourcesOpen}>
+                <DrawerContent>
+                    <DrawerHeader>
+                        <DrawerTitle>Data Sources</DrawerTitle>
+                        <DrawerDescription>This analytics view is a synthesis of multiple data points.</DrawerDescription>
+                    </DrawerHeader>
+                    <div className="p-4">
+                        <div className="space-y-4">
+                            {dataSources.map(source => (
+                                <Card key={source.name} className="bg-muted/50">
+                                    <CardContent className="p-4 flex items-center justify-between">
+                                        <div>
+                                            <h4 className="font-semibold text-foreground">{source.name}</h4>
+                                            <p className="text-xs text-muted-foreground">{source.description}</p>
+                                        </div>
+                                        <Badge variant={source.status === 'Live' ? 'default' : 'outline'}>{source.status}</Badge>
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
                     </div>
-                </div>
-            </DrawerContent>
-        </Drawer>
-        <ExportDialog 
-            isOpen={!!exportData}
-            onOpenChange={(open) => !open && setExportData(null)}
-            title={exportData?.title || ''}
-            summaryText={exportData?.summary || ''}
-        />
-    </>
+                </DrawerContent>
+            </Drawer>
+            <ExportDialog 
+                isOpen={!!exportData}
+                onOpenChange={(open) => !open && setExportData(null)}
+                title={exportData?.title || ''}
+                summaryText={exportData?.summary || ''}
+            />
+        </>
     );
 }
