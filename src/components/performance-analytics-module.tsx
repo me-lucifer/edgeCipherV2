@@ -25,6 +25,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
 import { Skeleton } from "./ui/skeleton";
 import { HelpCircle, ChevronUp } from "lucide-react";
+import { AnalyticsTour } from "./analytics-tour";
 
 
 interface PerformanceAnalyticsModuleProps {
@@ -234,7 +235,7 @@ const ArjunInsightsSidebar = ({ analyticsData, onSetModule }: { analyticsData: a
     }
 
     return (
-        <Card className="bg-muted/30 border-primary/20 sticky top-24">
+        <Card id="analytics-discuss-arjun" className="bg-muted/30 border-primary/20 sticky top-24">
             <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2"><Bot className="h-5 w-5 text-primary" /> Arjun's Insights</CardTitle>
                 <CardDescription className="text-xs">Key patterns from your analytics data.</CardDescription>
@@ -673,6 +674,8 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
     const [isRecoveryMode, setIsRecoveryMode] = useState(false);
     const [isGrowthPlanDialogOpen, setIsGrowthPlanDialogOpen] = useState(false);
     const [isPresentationMode, setIsPresentationMode] = useState(false);
+    const [isTourOpen, setIsTourOpen] = useState(false);
+    const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'ascending' | 'descending' }>({ key: 'pnl', direction: 'descending' });
 
 
     const computeSinglePeriodAnalytics = (entries: JournalEntry[], random: () => number) => {
@@ -755,20 +758,20 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
         }))
         .sort((a, b) => a.totalR - b.totalR);
 
-        const mockEquityData = entries.reduce((acc: any[], entry, i) => {
-            const prevEquity = acc.length > 0 ? acc[acc.length - 1].equity : 10000;
-            const pnl = entry.review?.pnl || 0;
-            const equity = prevEquity + pnl;
-            const hasMarker = entry.review?.mistakesTags && entry.review.mistakesTags !== "None (disciplined)";
-            
-            acc.push({
-              date: entry.timestamps.executedAt,
-              equity,
-              marker: hasMarker ? { type: entry.review?.mistakesTags?.split(',')[0], color: "hsl(var(--chart-5))" } : null,
-              journalId: entry.id,
-            });
-            return acc;
-          }, []);
+      const mockEquityData = entries.reduce((acc: any[], entry, i) => {
+          const prevEquity = acc.length > 0 ? acc[acc.length - 1].equity : 10000;
+          const pnl = entry.review?.pnl || 0;
+          const equity = prevEquity + pnl;
+          const hasMarker = entry.review?.mistakesTags && entry.review.mistakesTags !== "None (disciplined)";
+          
+          acc.push({
+            date: entry.timestamps.executedAt,
+            equity,
+            marker: hasMarker ? { type: entry.review?.mistakesTags?.split(',')[0], color: "hsl(var(--chart-5))" } : null,
+            journalId: entry.id,
+          });
+          return acc;
+        }, []);
       
       const topEvents = entries.filter(e => e.review?.mistakesTags && e.review.mistakesTags !== "None (disciplined)")
         .map(e => ({
@@ -782,10 +785,10 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
 
 
       const mockStrategyData = [
-        { name: "Breakout", trades: Math.floor(random() * 50) + 20, winRate: 40 + Math.floor(random() * 20), avgR: 1.5 + random() * 0.5, pnl: 2000 + random() * 1000, topMistake: "Exited early" },
-        { name: "Mean Reversion", trades: Math.floor(random() * 50) + 20, winRate: 60 + Math.floor(random() * 15), avgR: 0.8 + random() * 0.3, pnl: 1000 + random() * 500, topMistake: "Moved SL" },
-        { name: "Trend Following", trades: Math.floor(random() * 30) + 15, winRate: 35 + Math.floor(random() * 15), avgR: 2.2 + random() * 0.8, pnl: 2500 + random() * 1500, topMistake: "Forced Entry" },
-        { name: "Range Play", trades: Math.floor(random() * 20) + 10, winRate: 65 + Math.floor(random() * 10), avgR: 0.6 + random() * 0.2, pnl: -200 - random() * 500, topMistake: "Oversized risk" },
+        { name: "Breakout", trades: Math.floor(random() * 50) + 20, winRate: 40 + Math.floor(random() * 20), mistakeRate: 20 + Math.floor(random() * 10), avgR: 1.5 + random() * 0.5, pnl: 2000 + random() * 1000, topMistake: "Exited early", emotionMix: [{emotion: 'FOMO', percentage: 25}, {emotion: 'Confident', percentage: 40}] },
+        { name: "Mean Reversion", trades: Math.floor(random() * 50) + 20, winRate: 60 + Math.floor(random() * 15), mistakeRate: 10 + Math.floor(random() * 5), avgR: 0.8 + random() * 0.3, pnl: 1000 + random() * 500, topMistake: "Moved SL", emotionMix: [{emotion: 'Anxious', percentage: 30}, {emotion: 'Calm', percentage: 50}] },
+        { name: "Trend Following", trades: Math.floor(random() * 30) + 15, winRate: 35 + Math.floor(random() * 15), mistakeRate: 30 + Math.floor(random() * 15), avgR: 2.2 + random() * 0.8, pnl: 2500 + random() * 1500, topMistake: "Forced Entry", emotionMix: [{emotion: 'Confident', percentage: 45}, {emotion: 'Greed', percentage: 20}] },
+        { name: "Range Play", trades: Math.floor(random() * 20) + 10, winRate: 65 + Math.floor(random() * 10), mistakeRate: 40 + Math.floor(random() * 20), avgR: 0.6 + random() * 0.2, pnl: -200 - random() * 500, topMistake: "Oversized risk", emotionMix: [{emotion: 'Bored', percentage: 40}, {emotion: 'Hope', percentage: 30}] },
       ];
 
       const timingHeatmapData = {
@@ -924,6 +927,12 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                 console.error("Failed to parse analytics UI state from localStorage", error);
             }
              setIsRecoveryMode(localStorage.getItem('ec_recovery_mode') === 'true');
+            
+            const tourSeen = localStorage.getItem('ec_analytics_tour_seen');
+            if (!tourSeen) {
+                setIsTourOpen(true);
+                localStorage.setItem('ec_analytics_tour_seen', 'true');
+            }
         }
     }, []);
 
@@ -976,6 +985,8 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
         let consecutiveLosses = 0;
 
         const entries: JournalEntry[] = [];
+        let runningPnl = 0;
+
         for (let i = 0; i < numTrades; i++) {
             const date = new Date();
             date.setDate(date.getDate() - Math.floor(random() * numDays));
@@ -998,24 +1009,35 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
             else if (mistakes.length === 0) mistakes.push("Exited early");
 
             const entryPrice = 50000 + random() * 20000;
-            const stopLoss = direction === 'Long' ? entryPrice * (1 - (0.005 + random() * 0.01)) : entryPrice * (1 + (0.005 + random() * 0.01));
-            
-            const baseRR = 0.5 + random() * 2;
-            const rewardPerUnit = Math.abs(entryPrice - stopLoss) * baseRR;
-            const takeProfit = direction === 'Long' ? entryPrice + rewardPerUnit : entryPrice - rewardPerUnit;
+            const riskPercent = 0.5 + random() * 2.5;
+            const riskAmount = 10000 * (riskPercent / 100);
 
-            const winChance = isRevengeTrade ? 0.2 : vixZone === 'Elevated' ? 0.35 : 0.5;
+            const stopDistance = entryPrice * (0.005 + random() * 0.015);
+            const stopLoss = direction === 'Long' ? entryPrice - stopDistance : entryPrice + stopDistance;
+
+            const baseRR = 0.5 + random() * 2.5;
+            const rewardDistance = stopDistance * baseRR;
+            const takeProfit = direction === 'Long' ? entryPrice + rewardDistance : entryPrice - rewardDistance;
+
+            let winChance = 0.5; // Base win rate
+            if (isRevengeTrade) winChance = 0.2;
+            else if (mistakes.includes("None (disciplined)")) winChance = 0.65;
+            if (vixZone === 'Elevated') winChance -= 0.1;
+            
             let isWin = random() < winChance;
             
-            if (mistakes.includes("Moved SL")) isWin = false; // Moved SL often results in a loss
-            if (mistakes.includes("Revenge")) isWin = random() < 0.15; // Revenge trading rarely works
+            let pnl;
+            if (mistakes.includes("Moved SL")) {
+                isWin = false;
+                pnl = -riskAmount * (1.5 + random()); // Bigger loss if SL is moved
+            } else if (isRevengeTrade) {
+                isWin = random() < 0.15;
+                pnl = isWin ? riskAmount * baseRR * 0.5 : -riskAmount;
+            } else {
+                pnl = isWin ? riskAmount * baseRR : -riskAmount;
+            }
             
-            const pnlMultiplier = isWin ? baseRR : -1;
-            
-            let randomFactor = 1 + (random() - 0.5) * 0.2;
-            if (mistakes.includes("Moved SL")) randomFactor = 1.5 + random() * 0.5; // Bigger loss if SL is moved
-
-            const pnl = Math.abs(entryPrice - stopLoss) * pnlMultiplier * randomFactor * 5; // *5 for contract size mock
+            runningPnl += pnl;
 
             if (isWin) {
                 consecutiveLosses = 0;
@@ -1044,7 +1066,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                     takeProfit,
                     leverage: 20,
                     positionSize: 0.1 + random(),
-                    riskPercent: 0.5 + random() * 1.5,
+                    riskPercent,
                     rrRatio: baseRR
                 },
                 planning: {
@@ -1138,6 +1160,36 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
             element.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
     };
+    
+    const handleSort = (key: SortKey) => {
+        let direction: 'ascending' | 'descending' = 'ascending';
+        if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+            direction = 'descending';
+        }
+        if (key !== sortConfig.key) {
+            if (key === 'pnl') direction = 'descending';
+            if (key === 'mistakeRate') direction = 'ascending';
+        }
+        setSortConfig({ key, direction });
+    };
+    
+    const sortedStrategies = useMemo(() => {
+        if (!analyticsData?.current?.mockStrategyData) return [];
+        const sortableStrategies = [...analyticsData.current.mockStrategyData];
+        sortableStrategies.sort((a: any, b: any) => {
+            if (sortConfig.key === 'name') {
+                return a.name.localeCompare(b.name) * (sortConfig.direction === 'ascending' ? 1 : -1);
+            }
+            if (a[sortConfig.key] < b[sortConfig.key]) {
+                return sortConfig.direction === 'ascending' ? -1 : 1;
+            }
+            if (a[sortConfig.key] > b[sortConfig.key]) {
+                return sortConfig.direction === 'ascending' ? 1 : -1;
+            }
+            return 0;
+        });
+        return sortableStrategies;
+    }, [analyticsData, sortConfig]);
 
 
     if (!hasData) {
@@ -1229,6 +1281,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
 
     return (
         <>
+            <AnalyticsTour isOpen={isTourOpen} onOpenChange={setIsTourOpen} />
             <GrowthPlanDialog isOpen={isGrowthPlanDialogOpen} onOpenChange={setIsGrowthPlanDialogOpen} onApply={handleApplyGrowthPlan} />
             <Drawer open={!!selectedEvent} onOpenChange={(open) => !open && setSelectedEvent(null)}>
                 <DrawerContent>
@@ -1264,6 +1317,10 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                         <p className="text-muted-foreground">The backbone of self-awareness — performance, discipline, and psychology in one place.</p>
                     </div>
                      <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" onClick={() => setIsTourOpen(true)}>
+                            <HelpCircle className="mr-2 h-4 w-4" />
+                            2-Minute Tour
+                        </Button>
                         {isRecoveryMode && <Badge className="bg-red-500/20 text-red-300 border-red-500/30">Recovery Mode ON</Badge>}
                         <TooltipProvider>
                             <Tooltip>
@@ -1333,7 +1390,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                     title={
                                         <div className="flex items-center gap-4">
                                             <span>High-Level Summary</span>
-                                            <Badge className={qualityConfig.color}>
+                                            <Badge id="analytics-quality-badge" className={qualityConfig.color}>
                                                 <QualityIcon className="mr-2 h-4 w-4" />
                                                 {qualityConfig.label}
                                             </Badge>
@@ -1449,7 +1506,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                     </TabsContent>
                     <TabsContent value="behaviour" className="mt-6 space-y-8">
                         <SectionCard 
-                            id="discipline" 
+                            id="discipline-scores" 
                             title="Behaviour Analytics" 
                             description="Where you lose your edge isn’t price — it’s behaviour." 
                             icon={Activity}
@@ -1537,7 +1594,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                             <Separator className="my-6" />
                             <Dialog open={isGuardrailDialogOpen} onOpenChange={setIsGuardrailDialogOpen}>
                                 <DialogTrigger asChild>
-                                    <Button variant="outline"><Bot className="mr-2 h-4 w-4"/>Apply Discipline Guardrails (Prototype)</Button>
+                                    <Button id="analytics-guardrails-button" variant="outline"><Bot className="mr-2 h-4 w-4"/>Apply Discipline Guardrails (Prototype)</Button>
                                 </DialogTrigger>
                                 <GuardrailDialog />
                             </Dialog>
