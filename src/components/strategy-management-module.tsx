@@ -3,7 +3,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { BrainCircuit, PlusCircle, CheckCircle, Search, Filter as FilterIcon, Clock, ListOrdered, FileText, Gauge, Calendar, ShieldCheck, Zap, MoreHorizontal, ArrowLeft, Edit, Archive, Star } from "lucide-react";
+import { BrainCircuit, PlusCircle, CheckCircle, Search, Filter as FilterIcon, Clock, ListOrdered, FileText, Gauge, Calendar, ShieldCheck, Zap, MoreHorizontal, ArrowLeft, Edit, Archive, Star, BookOpen, BarChartHorizontal } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardDescription, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
@@ -239,16 +239,47 @@ const RulesCard = ({ title, rules }: { title: string; rules: string[] }) => (
             <CardTitle className="text-base">{title}</CardTitle>
         </CardHeader>
         <CardContent>
-            {rules.length > 0 ? (
+            {rules && rules.length > 0 ? (
                 <ul className="space-y-2 text-sm text-muted-foreground list-disc list-inside">
                     {rules.map((rule, i) => <li key={i}>{rule}</li>)}
                 </ul>
             ) : (
-                <p className="text-sm text-muted-foreground italic">No rules defined for this section in this version.</p>
+                <p className="text-sm text-muted-foreground italic">Not defined (add in next version)</p>
             )}
         </CardContent>
     </Card>
 );
+
+const WhereThisMatters = ({ onSetModule }: { onSetModule: (module: any, context?: any) => void; }) => {
+    const items = [
+        { icon: ShieldCheck, text: "Used by Trade Planning for PASS/WARN/FAIL checks." },
+        { icon: BookOpen, text: "Shown in Journal for rule adherence analysis." },
+        { icon: BarChartHorizontal, text: "Grouped in Performance Analytics by strategy." },
+    ];
+    return (
+        <Card className="bg-muted/30 border-border/50">
+            <CardHeader className="pb-4">
+                <CardTitle className="text-base">Where This Matters</CardTitle>
+                <CardDescription className="text-xs">This strategy rulebook connects to other modules:</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="grid md:grid-cols-3 gap-4">
+                    {items.map((item, i) => (
+                        <div key={i} className="flex items-start gap-3 text-sm">
+                            <item.icon className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                            <p className="text-muted-foreground">{item.text}</p>
+                        </div>
+                    ))}
+                </div>
+                <Separator className="my-4" />
+                <div className="flex gap-2">
+                    <Button variant="link" size="sm" className="p-0 h-auto text-xs" onClick={() => onSetModule('tradePlanning')}>Open Trade Planning</Button>
+                    <Button variant="link" size="sm" className="p-0 h-auto text-xs" onClick={() => onSetModule('analytics')}>Open Analytics</Button>
+                </div>
+            </CardContent>
+        </Card>
+    );
+};
 
 function StrategyDetailView({ 
     strategy, 
@@ -256,12 +287,14 @@ function StrategyDetailView({
     onArchive,
     onDelete,
     onMakeActive,
+    onSetModule,
 }: { 
     strategy: StrategyGroup; 
     onBack: () => void;
     onArchive: () => void;
     onDelete: () => void;
     onMakeActive: (versionId: string) => void;
+    onSetModule: (module: any, context?: any) => void;
 }) {
     const [selectedVersion, setSelectedVersion] = useState<StrategyVersion | undefined>(strategy.versions.find(v => v.isActiveVersion));
 
@@ -295,62 +328,67 @@ function StrategyDetailView({
                 </div>
             </div>
 
-             <div className="grid lg:grid-cols-3 gap-8 items-start">
-                {/* Left Column */}
-                <div className="lg:col-span-1 space-y-6 sticky top-24">
-                    <Card className="bg-muted/30 border-border/50">
-                        <CardHeader>
-                            <CardTitle>{strategy.name}</CardTitle>
-                            <CardDescription>
-                                <Badge variant="outline">{strategy.type}</Badge>
-                                <Badge variant="outline" className="ml-2">{strategy.timeframe}</Badge>
-                            </CardDescription>
-                        </CardHeader>
-                         <CardContent>
-                             <div className="space-y-4">
-                                <div>
-                                    <Label htmlFor="version-selector">Viewing Version</Label>
-                                    <Select 
-                                        value={selectedVersion.versionId} 
-                                        onValueChange={(vId) => setSelectedVersion(strategy.versions.find(v => v.versionId === vId))}
-                                    >
-                                        <SelectTrigger id="version-selector">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {strategy.versions.map(v => (
-                                                <SelectItem key={v.versionId} value={v.versionId}>
-                                                    <div className="flex items-center gap-2">
-                                                        {v.isActiveVersion && <Star className="h-4 w-4 text-primary" />}
-                                                        <span>Version {v.versionNumber} {v.isActiveVersion && '(Active)'}</span>
-                                                    </div>
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="text-sm text-muted-foreground space-y-2 pt-2">
-                                     <div className="flex justify-between"><span>Created:</span> <span className="font-medium text-foreground">{new Date(selectedVersion.createdAt).toLocaleDateString()}</span></div>
-                                     <div className="flex justify-between"><span>Trades with this version:</span> <span className="font-medium text-foreground">{selectedVersion.usageCount}</span></div>
-                                </div>
-                                {!selectedVersion.isActiveVersion && (
-                                    <Button className="w-full" variant="outline" onClick={() => onMakeActive(selectedVersion.versionId)}>
-                                        <Star className="mr-2 h-4 w-4" />
-                                        Make this version active
-                                    </Button>
-                                )}
-                            </div>
-                         </CardContent>
-                    </Card>
-                </div>
+            <div className="space-y-6">
+                <WhereThisMatters onSetModule={onSetModule} />
 
-                {/* Right Column */}
-                <div className="lg:col-span-2 space-y-6">
-                    <RulesCard title="Entry Conditions" rules={selectedVersion.fields.entryConditions} />
-                    <RulesCard title="Exit Conditions" rules={selectedVersion.fields.exitConditions} />
-                    <RulesCard title="Risk Management Rules" rules={selectedVersion.fields.riskManagementRules} />
+                <div className="grid lg:grid-cols-3 gap-8 items-start">
+                    {/* Left Column */}
+                    <div className="lg:col-span-1 space-y-6 sticky top-24">
+                        <Card className="bg-muted/30 border-border/50">
+                            <CardHeader>
+                                <CardTitle>{strategy.name}</CardTitle>
+                                <CardDescription>
+                                    <Badge variant="outline">{strategy.type}</Badge>
+                                    <Badge variant="outline" className="ml-2">{strategy.timeframe}</Badge>
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="space-y-4">
+                                    <div>
+                                        <Label htmlFor="version-selector">Viewing Version</Label>
+                                        <Select
+                                            value={selectedVersion.versionId}
+                                            onValueChange={(vId) => setSelectedVersion(strategy.versions.find(v => v.versionId === vId))}
+                                        >
+                                            <SelectTrigger id="version-selector">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {strategy.versions.map(v => (
+                                                    <SelectItem key={v.versionId} value={v.versionId}>
+                                                        <div className="flex items-center gap-2">
+                                                            {v.isActiveVersion && <Star className="h-4 w-4 text-primary" />}
+                                                            <span>Version {v.versionNumber} {v.isActiveVersion && '(Active)'}</span>
+                                                            <span className="ml-auto text-xs text-muted-foreground">({new Date(v.createdAt).toLocaleDateString()})</span>
+                                                        </div>
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="text-sm text-muted-foreground space-y-2 pt-2">
+                                        <div className="flex justify-between"><span>Created:</span> <span className="font-medium text-foreground">{new Date(selectedVersion.createdAt).toLocaleDateString()}</span></div>
+                                        <div className="flex justify-between"><span>Trades with this version:</span> <span className="font-medium text-foreground">{selectedVersion.usageCount}</span></div>
+                                    </div>
+                                    {!selectedVersion.isActiveVersion && (
+                                        <Button className="w-full" variant="outline" onClick={() => onMakeActive(selectedVersion.versionId)}>
+                                            <Star className="mr-2 h-4 w-4" />
+                                            Make this version active
+                                        </Button>
+                                    )}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    {/* Right Column */}
+                    <div className="lg:col-span-2 space-y-6">
+                        <RulesCard title="Entry Conditions" rules={selectedVersion.fields.entryConditions} />
+                        <RulesCard title="Exit Conditions" rules={selectedVersion.fields.exitConditions} />
+                        <RulesCard title="Risk Management Rules" rules={selectedVersion.fields.riskManagementRules} />
+                    </div>
                 </div>
-             </div>
+            </div>
         </div>
     );
 }
@@ -491,6 +529,7 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
             onArchive={handleArchive}
             onDelete={() => { /* no-op for now */ }}
             onMakeActive={handleMakeActive}
+            onSetModule={onSetModule}
         />;
     }
 
