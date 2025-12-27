@@ -490,11 +490,11 @@ const getClarity = (text: string): { status: ClarityStatus, hint: string | null 
     const lowerText = text.toLowerCase();
     
     if (text.length === 0) return { status: 'neutral', hint: null };
-    if (text.length < 12) return { status: 'vague', hint: "This seems too short to be a testable rule." };
+    if (text.length < 12) return { status: 'vague', hint: "This seems too short to be a testable rule. Add more detail." };
 
     const vagueWords = ['good', 'nice', 'strong', 'weak', 'seems', 'looks like', 'feel', 'maybe', 'probably', 'might'];
     if (vagueWords.some(word => lowerText.includes(word))) {
-        return { status: 'vague', hint: "Try to avoid subjective words like 'good' or 'strong'. Use measurable terms." };
+        return { status: 'vague', hint: "Try to avoid subjective words like 'good' or 'strong'. Use measurable terms (e.g., 'price is above 200 EMA')." };
     }
 
     const clearWords = ['ema', 'rsi', 'macd', 'volume', 'break', 'retest', 'high', 'low', 'close', 'above', 'below', 'cross', 'divergence', 'consolidation', 'range', 'wick', 'sweep'];
@@ -505,7 +505,20 @@ const getClarity = (text: string): { status: ClarityStatus, hint: string | null 
     return { status: 'neutral', hint: null };
 };
 
-const RuleEditor = ({ value, onChange, placeholder }: { value: string[]; onChange: (value: string[]) => void; placeholder: string; }) => {
+const InfoTooltip = ({ text, children }: { text: React.ReactNode, children: React.ReactNode }) => {
+    return (
+        <TooltipProvider>
+            <Tooltip>
+                <TooltipTrigger asChild>{children}</TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                    {typeof text === 'string' ? <p>{text}</p> : text}
+                </TooltipContent>
+            </Tooltip>
+        </TooltipProvider>
+    );
+};
+
+const RuleEditor = ({ value, onChange, placeholder, description, tooltipText }: { value: string[]; onChange: (value: string[]) => void; placeholder: string; description?: string; tooltipText?: string; }) => {
     const [text, setText] = useState('');
     const clarity = getClarity(text);
 
@@ -530,6 +543,7 @@ const RuleEditor = ({ value, onChange, placeholder }: { value: string[]; onChang
 
     return (
         <div className="space-y-2">
+             {description && <FormDescription className="mb-2">{description}</FormDescription>}
             <ul className="space-y-2">
                 {value.map((rule, index) => (
                     <li key={index} className="flex items-center justify-between group p-2 rounded-md hover:bg-muted/50">
@@ -698,8 +712,8 @@ function StrategyCreatorView({
     const creationSteps = [
         { name: "Basic Info", fields: ["name", "type", "timeframes"] },
         { name: "Entry Rules", fields: ["entryConditions"] },
-        { name: "Stop Loss Rules", fields: ["stopLossRules"] },
-        { name: "Take Profit Rules" },
+        { name: "Stop Loss", fields: ["stopLossRules"] },
+        { name: "Take Profit" },
         { name: "Risk Rules", fields: ["riskManagementRules"] },
         { name: "Context Rules" },
         { name: "Review & Save" },
@@ -761,6 +775,28 @@ function StrategyCreatorView({
             setWizardStarted(true);
         }
     };
+
+    const RuleFormItem = ({ name, label, tooltipText, placeholder, description }: { name: keyof StrategyCreationValues, label: string, tooltipText: string, placeholder: string, description?: string }) => (
+        <FormField
+            control={form.control}
+            name={name}
+            render={({ field }) => (
+                <FormItem>
+                    <FormLabel className="flex items-center gap-2">
+                        {label}
+                        <InfoTooltip text={tooltipText}>
+                            <Info className="h-4 w-4 text-muted-foreground" />
+                        </InfoTooltip>
+                    </FormLabel>
+                    <FormControl>
+                        <RuleEditor {...field} placeholder={placeholder} description={description} />
+                    </FormControl>
+                    <FormMessage />
+                </FormItem>
+            )}
+        />
+    );
+
 
     return (
         <div className="space-y-8">
@@ -839,18 +875,18 @@ function StrategyCreatorView({
                                                     />
                                                 </div>
                                             )}
-                                            {currentStep === 1 && <FormField control={form.control} name="entryConditions" render={({ field }) => (<FormItem><FormLabel>Entry Rules</FormLabel><FormControl><RuleEditor {...field} placeholder="e.g., Price breaks 4H consolidation..." /></FormControl><FormMessage /></FormItem>)} />}
+                                            {currentStep === 1 && <RuleFormItem name="entryConditions" label="Entry Rules" tooltipText="What specific, observable conditions must be true on the chart for you to consider entering a trade?" placeholder="e.g., Price breaks 4H consolidation..." />}
                                             {currentStep === 2 && (
                                                 <div className="space-y-4">
-                                                    <FormField control={form.control} name="stopLossRules" render={({ field }) => (<FormItem><FormLabel>Stop Loss Rules</FormLabel><FormControl><RuleEditor {...field} placeholder="e.g., Below previous swing low OR fixed 0.8% from entry" /></FormControl><FormMessage /></FormItem>)} />
+                                                    <RuleFormItem name="stopLossRules" label="Stop Loss Rules" tooltipText="Your stop-loss is your non-negotiable exit point if a trade goes against you. It defines your risk." placeholder="e.g., Below previous swing low OR fixed 0.8% from entry" />
                                                     <p className="text-xs text-muted-foreground p-3 rounded-md bg-amber-950/20 border border-amber-500/20">
                                                         <span className="font-semibold text-amber-300">Why this matters:</span> Your Stop Loss is your psychological anchor. It's your promise to yourself about how much you're willing to risk. No SL = no EdgeCipher trade.
                                                     </p>
                                                 </div>
                                             )}
-                                            {currentStep === 3 && <FormField control={form.control} name="takeProfitRules" render={({ field }) => (<FormItem><FormLabel>Take Profit Rules (Optional)</FormLabel><FormDescription className="mb-2">It's highly recommended to define at least one exit condition for taking profit.</FormDescription><FormControl><RuleEditor {...field} placeholder="e.g., Target next major liquidity level or 2R" /></FormControl><FormMessage /></FormItem>)} />}
-                                            {currentStep === 4 && <FormField control={form.control} name="riskManagementRules" render={({ field }) => (<FormItem><FormLabel>Risk Management Rules</FormLabel><FormDescription className="mb-2">Define your hard constraints for every trade.</FormDescription><FormControl><RuleEditor {...field} placeholder="e.g., Max risk 1% of account..." /></FormControl><FormMessage /></FormItem>)} />}
-                                            {currentStep === 5 && <FormField control={form.control} name="contextRules" render={({ field }) => (<FormItem><FormLabel>Context Rules (when to trade/not trade)</FormLabel><FormControl><RuleEditor {...field} placeholder="e.g., Only trade during NY session..." /></FormControl><FormMessage /></FormItem>)} />}
+                                            {currentStep === 3 && <RuleFormItem name="takeProfitRules" label="Take Profit Rules (Optional)" tooltipText="Where will you take profit? Defining this helps prevent exiting too early or getting too greedy." description="It's highly recommended to define at least one exit condition for taking profit." placeholder="e.g., Target next major liquidity level or 2R" />}
+                                            {currentStep === 4 && <RuleFormItem name="riskManagementRules" label="Risk Management Rules" tooltipText="These are your hard capital-protection rules. They apply to all trades under this strategy." description="Define your hard constraints for every trade." placeholder="e.g., Max risk 1% of account..." />}
+                                            {currentStep === 5 && <RuleFormItem name="contextRules" label="Context Rules (when to trade/not trade)" tooltipText="Define the market environment where this strategy works best, and when to avoid it." placeholder="e.g., Only trade during NY session..." />}
                                             {currentStep === 6 && (
                                                 <div className="space-y-4">
                                                     <h3 className="font-semibold">Review & Save</h3>
@@ -1186,21 +1222,21 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
             riskManagementRules: [...activeVersion.fields.riskManagementRules],
             contextRules: [...activeVersion.fields.contextRules],
         };
-
-        setEditingStrategy({ 
-            ...strategyToDuplicate, 
-            name: newStrategyName, 
-            strategyId: `strat_new_${Date.now()}` // temporary
-        });
-        setViewMode('create'); // Use 'create' view but pre-filled
         
-        // A bit of a hack: wait for view to change, then populate form
-        setTimeout(() => {
-            // This is a stand-in for passing initialData to the creator view
-            // In a real app, this state would be managed more elegantly
-            const event = new CustomEvent('populate-creator-form', { detail: newStrategyData });
-            window.dispatchEvent(event);
-        }, 0);
+        // This is a bit of a hack: Pass data via state to the create view
+        setEditingStrategy({ 
+            ...strategyToDuplicate,
+            strategyId: 'temp_duplicate_id', // Temporary ID
+            versions: [ // Fake a version to pass data
+                {
+                    ...activeVersion,
+                    fields: { ...newStrategyData }
+                }
+            ],
+            name: newStrategyName,
+        });
+
+        setViewMode('create');
         
         setIsDuplicateDialogOpen(false);
         setStrategyToDuplicate(null);
@@ -1242,35 +1278,50 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
     const timeframes = ['All', '1m', '5m', '15m', '1H', '4H', '1D'];
     
     useEffect(() => {
-        const handler = (e: Event) => {
-            const detail = (e as CustomEvent).detail;
-            if (detail && viewMode === 'create' && editingStrategy) {
-                // This is a hacky way to prefill the form when duplicating
-                const formInstance = document.querySelector('form'); // This is not robust
-                if (formInstance) {
-                    // Logic to set form values would go here.
-                    // This is complex to do without direct access to the form instance.
-                    // For now, we rely on the component re-rendering with initialData.
-                }
-            }
-        };
+        if(viewMode === 'create' && editingStrategy && editingStrategy.strategyId === 'temp_duplicate_id') {
+            const initialData = {
+                ...editingStrategy.versions[0].fields,
+                name: editingStrategy.name
+            } as StrategyCreationValues;
 
-        window.addEventListener('populate-creator-form', handler);
-        return () => window.removeEventListener('populate-creator-form', handler);
+            const event = new CustomEvent('populate-creator-form', { detail: initialData });
+            window.dispatchEvent(event);
+            setEditingStrategy(null); // Clear temp state
+        }
     }, [viewMode, editingStrategy]);
 
 
     if (viewMode === 'create' || viewMode === 'edit') {
-        const initialData = (viewMode === 'edit' && editingStrategy) 
-            ? { ...editingStrategy.versions.find(v => v.isActiveVersion)?.fields, name: editingStrategy.name, type: editingStrategy.type, timeframes: editingStrategy.timeframes, changeNotes: '' } as StrategyCreationValues
-            : (viewMode === 'create' && editingStrategy) // Case for duplication
-            ? { ...editingStrategy.versions.find(v => v.isActiveVersion)?.fields, name: newStrategyName, type: editingStrategy.type, timeframes: editingStrategy.timeframes, changeNotes: `Copied from ${editingStrategy.name}` } as StrategyCreationValues
-            : null;
+        let initialData: StrategyCreationValues | null = null;
+        if(viewMode === 'edit' && editingStrategy) {
+            const activeVersion = editingStrategy.versions.find(v => v.isActiveVersion);
+            if (activeVersion) {
+                initialData = { 
+                    ...activeVersion.fields, 
+                    name: editingStrategy.name, 
+                    type: editingStrategy.type, 
+                    timeframes: editingStrategy.timeframes, 
+                    changeNotes: '' 
+                }
+            }
+        }
+        
+        // This handles the duplication case where editingStrategy is used to pass data
+        if(viewMode === 'create' && editingStrategy && editingStrategy.strategyId === 'temp_duplicate_id'){
+            const fields = editingStrategy.versions[0].fields as StrategyCreationValues;
+            initialData = {
+                ...fields,
+                name: editingStrategy.name,
+                type: editingStrategy.type,
+                timeframes: editingStrategy.timeframes
+            };
+        }
+
 
         return <StrategyCreatorView 
             onBack={() => { setViewMode('list'); setEditingStrategy(null); }} 
-            onSave={(data) => handleSaveStrategy(data, 'active', editingStrategy?.strategyId)}
-            onSaveDraft={(data) => handleSaveStrategy(data, 'draft', editingStrategy?.strategyId)}
+            onSave={(data) => handleSaveStrategy(data, 'active', viewMode === 'edit' ? editingStrategy?.strategyId : undefined)}
+            onSaveDraft={(data) => handleSaveStrategy(data, 'draft', viewMode === 'edit' ? editingStrategy?.strategyId : undefined)}
             initialData={initialData}
             editingId={viewMode === 'edit' ? editingStrategy?.strategyId : undefined}
         />;
