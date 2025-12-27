@@ -247,22 +247,26 @@ function StrategyCard({ strategy, onOpen }: { strategy: StrategyGroup, onOpen: (
     );
 }
 
-const RulesCard = ({ title, rules }: { title: string; rules: string[] }) => (
-    <Card className="bg-muted/50 border-border/50">
-        <CardHeader>
-            <CardTitle className="text-base">{title}</CardTitle>
-        </CardHeader>
-        <CardContent>
-            {rules && rules.length > 0 ? (
-                <ul className="space-y-2 text-sm text-muted-foreground list-disc list-inside">
-                    {rules.map((rule, i) => <li key={i}>{rule}</li>)}
-                </ul>
-            ) : (
-                <p className="text-sm text-muted-foreground italic">Not defined (add in next version)</p>
-            )}
-        </CardContent>
-    </Card>
-);
+const RulesCard = ({ title, rules }: { title: string; rules: string[] | string | undefined}) => {
+    const rulesArray = Array.isArray(rules) ? rules : (rules ? [rules] : []);
+    
+    return (
+        <Card className="bg-muted/50 border-border/50">
+            <CardHeader>
+                <CardTitle className="text-base">{title}</CardTitle>
+            </CardHeader>
+            <CardContent>
+                {rulesArray && rulesArray.length > 0 ? (
+                    <ul className="space-y-2 text-sm text-muted-foreground list-disc list-inside">
+                        {rulesArray.map((rule, i) => <li key={i}>{rule}</li>)}
+                    </ul>
+                ) : (
+                    <p className="text-sm text-muted-foreground italic">Not defined (add in next version)</p>
+                )}
+            </CardContent>
+        </Card>
+    );
+};
 
 const WhereThisMatters = ({ onSetModule }: { onSetModule: (module: any, context?: any) => void; }) => {
     const items = [
@@ -419,7 +423,7 @@ function StrategyDetailView({
 
                     {/* Right Column */}
                     <div className="lg:col-span-2 space-y-6">
-                        <RulesCard title="Description / When to Use" rules={selectedVersion.fields.description ? [selectedVersion.fields.description] : []} />
+                        <RulesCard title="Description / When to Use" rules={selectedVersion.fields.description} />
                         <RulesCard title="Entry Rules" rules={selectedVersion.fields.entryConditions} />
                         <RulesCard title="Stop Loss Rules" rules={selectedVersion.fields.stopLossRules} />
                         <RulesCard title="Take Profit Rules" rules={selectedVersion.fields.takeProfitRules} />
@@ -1058,6 +1062,7 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
 
     const filteredStrategies = useMemo(() => {
         return strategies.filter(s => {
+            if (!s.timeframes) s.timeframes = []; // Data correction
             const searchMatch = s.name.toLowerCase().includes(filters.search.toLowerCase()) || s.type.toLowerCase().includes(filters.search.toLowerCase());
             const typeMatch = filters.type === 'All' || s.type === filters.type;
             const timeframeMatch = filters.timeframe === 'All' || (s.timeframes && s.timeframes.includes(filters.timeframe));
@@ -1216,4 +1221,5 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
         </div>
     );
 }
+
 
