@@ -973,8 +973,34 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
     return (
         <>
         <Drawer open={!!selectedEvent} onOpenChange={(open) => !open && setSelectedEvent(null)}>
+            <DrawerContent>
+                {selectedEvent && (
+                    <div className="mx-auto w-full max-w-2xl p-4 md:p-6">
+                        <DrawerHeader>
+                            <DrawerTitle className="text-2xl">Event Details</DrawerTitle>
+                            <DrawerDescription>
+                                Details for the trade event on {new Date(selectedEvent.timestamps.executedAt).toLocaleDateString()}.
+                            </DrawerDescription>
+                        </DrawerHeader>
+                        <div className="px-4 py-6 space-y-4">
+                            <Card className="bg-muted/50">
+                                <CardContent className="p-4">
+                                    <SummaryRow label="Instrument" value={`${selectedEvent.technical.instrument} ${selectedEvent.technical.direction}`} />
+                                    <SummaryRow label="Result (PnL)" value={`$${selectedEvent.review?.pnl.toFixed(2)}`} className={cn(selectedEvent.review && selectedEvent.review.pnl >= 0 ? 'text-green-400' : 'text-red-400')} />
+                                    <SummaryRow label="Mistakes" value={selectedEvent.review?.mistakesTags || "None"} />
+                                    <SummaryRow label="Emotions" value={selectedEvent.review?.emotionsTags || "None"} />
+                                </CardContent>
+                            </Card>
+                            <Button className="w-full" onClick={() => { setSelectedEvent(null); onSetModule('tradeJournal', { draftId: selectedEvent.id }); }}>
+                                Open Full Journal Entry
+                            </Button>
+                        </div>
+                    </div>
+                )}
+            </DrawerContent>
+        </Drawer>
             <div className="space-y-8">
-                <div className="flex items-start justify-between">
+                 <div className="flex items-start justify-between">
                     <div>
                         <h1 className="text-2xl font-bold tracking-tight text-foreground">Performance Analytics</h1>
                         <p className="text-muted-foreground">The backbone of self-awareness — performance, discipline, and psychology in one place.</p>
@@ -1230,66 +1256,6 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                             ) : (
                                 <EmptyState icon={Zap} title="No Violations Logged" description="This table will populate as you tag mistakes in your journal." />
                             )}
-                        </SectionCard>
-
-                        <SectionCard id="risk-discipline" title="Risk & Discipline Analytics" description="How well you are following your own rules." icon={Target}>
-                            <div className="grid md:grid-cols-3 gap-6">
-                                <Card className="bg-muted/50 border-border/50">
-                                    <CardHeader>
-                                        <CardTitle className="text-base">Stop Loss Behavior</CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="space-y-4">
-                                        <div>
-                                            <div className="flex justify-between text-sm"><span className="text-muted-foreground">Respected</span><span>{currentData.discipline.slRespectedPct.toFixed(0)}%</span></div>
-                                            <Progress value={currentData.discipline.slRespectedPct} indicatorClassName="bg-green-500" className="h-2 mt-1" />
-                                        </div>
-                                        <div>
-                                            <div className="flex justify-between text-sm"><span className="text-muted-foreground">Moved</span><span>{currentData.discipline.slMovedPct.toFixed(0)}%</span></div>
-                                            <Progress value={currentData.discipline.slMovedPct} indicatorClassName="bg-amber-500" className="h-2 mt-1" />
-                                        </div>
-                                        <div>
-                                            <div className="flex justify-between text-sm"><span className="text-muted-foreground">Removed</span><span>{currentData.discipline.slRemovedPct}%</span></div>
-                                            <Progress value={currentData.discipline.slRemovedPct} indicatorClassName="bg-red-500" className="h-2 mt-1" />
-                                        </div>
-                                        <Alert variant="default" className="mt-4 bg-amber-500/10 border-amber-500/20 text-amber-300">
-                                            <AlertTriangle className="h-4 w-4 text-amber-400" />
-                                            <AlertDescription className="text-xs">
-                                                Your biggest drawdowns correlate with moving stop losses.
-                                            </AlertDescription>
-                                        </Alert>
-                                    </CardContent>
-                                </Card>
-                                <Card className="bg-muted/50 border-border/50">
-                                    <CardHeader>
-                                        <CardTitle className="text-base">Take Profit Behavior</CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="space-y-4">
-                                        <div className="p-4 bg-background/50 rounded-lg">
-                                            <p className="text-sm text-muted-foreground">Exited early %</p>
-                                            <p className="text-2xl font-bold font-mono">{currentData.discipline.tpExitedEarlyPct}%</p>
-                                        </div>
-                                        <p className="text-xs text-muted-foreground">Consider defining partial TP rules to let winners run (coming in Phase 2).</p>
-                                    </CardContent>
-                                </Card>
-                                <Card className="bg-muted/50 border-border/50">
-                                    <CardHeader>
-                                        <CardTitle className="text-base">Risk Compliance</CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="space-y-4">
-                                        <div className="p-4 bg-background/50 rounded-lg">
-                                            <p className="text-sm text-muted-foreground">Avg. risk per trade</p>
-                                            <p className="text-2xl font-bold font-mono">{currentData.discipline.avgRiskPct.toFixed(2)}%</p>
-                                        </div>
-                                        <div className="p-4 bg-background/50 rounded-lg">
-                                            <p className="text-sm text-muted-foreground">% of trades over limit</p>
-                                            <p className="text-2xl font-bold font-mono">{currentData.discipline.riskOverLimitPct}%</p>
-                                        </div>
-                                        {currentData.discipline.riskOverLimitPct > 10 && (
-                                            <Badge variant="destructive" className="gap-1.5"><XCircle className="h-3 w-3" /> Risk Leakage Detected</Badge>
-                                        )}
-                                    </CardContent>
-                                </Card>
-                            </div>
                             <Separator className="my-6" />
                             <Dialog>
                                 <DialogTrigger asChild>
@@ -1298,6 +1264,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                 <GuardrailDialog />
                             </Dialog>
                         </SectionCard>
+
                         <SectionCard 
                             id="psychology" 
                             title="Psychological Patterns" 
@@ -1683,34 +1650,6 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                     </DrawerContent>
                 </Drawer>
             </div>
-        </Drawer>
-        <Drawer open={!!selectedEvent} onOpenChange={(open) => !open && setSelectedEvent(null)}>
-            <DrawerContent>
-                {selectedEvent && (
-                    <div className="mx-auto w-full max-w-2xl p-4 md:p-6">
-                        <DrawerHeader>
-                            <DrawerTitle className="text-2xl">Event Details</DrawerTitle>
-                            <DrawerDescription>
-                                Details for the trade event on {new Date(selectedEvent.timestamps.executedAt).toLocaleDateString()}.
-                            </DrawerDescription>
-                        </DrawerHeader>
-                        <div className="px-4 py-6 space-y-4">
-                            <Card className="bg-muted/50">
-                                <CardContent className="p-4">
-                                    <SummaryRow label="Instrument" value={`${selectedEvent.technical.instrument} ${selectedEvent.technical.direction}`} />
-                                    <SummaryRow label="Result (PnL)" value={`$${selectedEvent.review?.pnl.toFixed(2)}`} className={cn(selectedEvent.review && selectedEvent.review.pnl >= 0 ? 'text-green-400' : 'text-red-400')} />
-                                    <SummaryRow label="Mistakes" value={selectedEvent.review?.mistakesTags || "None"} />
-                                    <SummaryRow label="Emotions" value={selectedEvent.review?.emotionsTags || "None"} />
-                                </CardContent>
-                            </Card>
-                            <Button className="w-full" onClick={() => { setSelectedEvent(null); onSetModule('tradeJournal', { draftId: selectedEvent.id }); }}>
-                                Open Full Journal Entry
-                            </Button>
-                        </div>
-                    </div>
-                )}
-            </DrawerContent>
-        </Drawer>
         <Drawer open={isDataSourcesOpen} onOpenChange={setIsDataSourcesOpen}>
             <DrawerContent>
                 <DrawerHeader>
