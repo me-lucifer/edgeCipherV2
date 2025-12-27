@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
+import { Label } from "./ui/label";
 
 interface StrategyManagementModuleProps {
     onSetModule: (module: any, context?: any) => void;
@@ -58,7 +59,7 @@ const seedStrategies: StrategyGroup[] = [
                 versionId: 'sv_1_1',
                 versionNumber: 1,
                 isActiveVersion: true,
-                createdAt: new Date().toISOString(),
+                createdAt: new Date(Date.now() - 86400000 * 10).toISOString(),
                 fields: {
                     entryConditions: ["Price sweeps Asia high/low", "Divergence on 5-min RSI", "Entry on first 15-min candle to close back inside range"],
                     exitConditions: ["Target is opposing side of daily range", "Stop-loss is 2x ATR above/below the wick"],
@@ -81,7 +82,7 @@ const seedStrategies: StrategyGroup[] = [
                 versionId: 'sv_2_2',
                 versionNumber: 2,
                 isActiveVersion: true,
-                createdAt: new Date().toISOString(),
+                createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
                 fields: {
                     entryConditions: ["4+ hours of consolidation", "Breakout candle closes with high volume", "Enter on retest of the breakout level"],
                     exitConditions: ["Target is 2R minimum", "Stop-loss is below the consolidation range"],
@@ -96,8 +97,8 @@ const seedStrategies: StrategyGroup[] = [
                 isActiveVersion: false,
                 createdAt: new Date(Date.now() - 86400000 * 4).toISOString(),
                 fields: { 
-                    entryConditions: ["Older entry condition"], 
-                    exitConditions: ["Older exit condition"], 
+                    entryConditions: ["Older entry condition", "Volume must be decreasing during consolidation"], 
+                    exitConditions: ["Older exit condition", "Partial TP at 1R"], 
                     riskManagementRules: ["Max risk 2% of account"] 
                 },
                 usageCount: 27,
@@ -156,7 +157,9 @@ function StrategyCard({ strategy, onOpen }: { strategy: StrategyGroup, onOpen: (
     const parseRule = (rules: string[], keyword: string): string | null => {
         const rule = rules.find(r => r.toLowerCase().includes(keyword.toLowerCase()));
         if (!rule) return null;
-        return rule.replace(new RegExp(keyword, 'i'), '').trim();
+        const value = rule.replace(new RegExp(keyword, 'i'), '').trim();
+        // Extract just the core value, e.g., "1%" from "Max risk 1% of account"
+        return value.split(' ')[0];
     };
 
     const riskRules = activeVersion?.fields.riskManagementRules || [];
@@ -183,6 +186,7 @@ function StrategyCard({ strategy, onOpen }: { strategy: StrategyGroup, onOpen: (
                 </div>
                 <CardDescription>
                     <Badge variant="outline">{strategy.type}</Badge>
+                    <Badge variant="outline" className="ml-2">{strategy.timeframe}</Badge>
                 </CardDescription>
             </CardHeader>
             <CardContent className="flex-1 space-y-4">
@@ -208,12 +212,21 @@ function StrategyCard({ strategy, onOpen }: { strategy: StrategyGroup, onOpen: (
                     <div className="flex justify-between"><span>Active version:</span> <span>v{activeVersion?.versionNumber || '-'}</span></div>
                     <div className="flex justify-between"><span>Total trades:</span> <span>{totalUsage}</span></div>
                 </div>
-                <div className="w-full grid grid-cols-3 gap-2">
-                    <Button size="sm" className="col-span-3" onClick={() => onOpen(strategy)}>Open</Button>
-                    <Button size="sm" variant="ghost" className="text-muted-foreground" disabled>Duplicate</Button>
-                    <Button size="sm" variant="ghost" className="text-muted-foreground" disabled>
-                        {strategy.status === 'active' ? "Archive" : "Unarchive"}
-                    </Button>
+                <div className="w-full flex gap-2">
+                    <Button size="sm" className="flex-1" onClick={() => onOpen(strategy)}>Open</Button>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button size="sm" variant="outline" className="px-2">
+                                <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem disabled>Duplicate</DropdownMenuItem>
+                            <DropdownMenuItem>
+                                {strategy.status === 'active' ? "Archive" : "Unarchive"}
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
             </CardFooter>
         </Card>
@@ -307,11 +320,18 @@ function StrategyDetailView({
                                         <SelectContent>
                                             {strategy.versions.map(v => (
                                                 <SelectItem key={v.versionId} value={v.versionId}>
-                                                    Version {v.versionNumber} {v.isActiveVersion && '(Active)'}
+                                                    <div className="flex items-center gap-2">
+                                                        {v.isActiveVersion && <Star className="h-4 w-4 text-primary" />}
+                                                        <span>Version {v.versionNumber} {v.isActiveVersion && '(Active)'}</span>
+                                                    </div>
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>
                                     </Select>
+                                </div>
+                                <div className="text-sm text-muted-foreground space-y-2 pt-2">
+                                     <div className="flex justify-between"><span>Created:</span> <span className="font-medium text-foreground">{new Date(selectedVersion.createdAt).toLocaleDateString()}</span></div>
+                                     <div className="flex justify-between"><span>Trades with this version:</span> <span className="font-medium text-foreground">{selectedVersion.usageCount}</span></div>
                                 </div>
                                 {!selectedVersion.isActiveVersion && (
                                     <Button className="w-full" variant="outline" onClick={() => onMakeActive(selectedVersion.versionId)}>
@@ -321,16 +341,6 @@ function StrategyDetailView({
                                 )}
                             </div>
                          </CardContent>
-                    </Card>
-                     <Card className="bg-muted/30 border-border/50">
-                        <CardHeader>
-                            <CardTitle className="text-base">Version Info</CardTitle>
-                        </CardHeader>
-                        <CardContent className="text-sm text-muted-foreground space-y-2">
-                             <div className="flex justify-between"><span>Created:</span> <span>{new Date(selectedVersion.createdAt).toLocaleDateString()}</span></div>
-                             <div className="flex justify-between"><span>Trades with this version:</span> <span>{selectedVersion.usageCount}</span></div>
-                             <div className="flex justify-between"><span>Last used:</span> <span>{selectedVersion.lastUsedAt ? new Date(selectedVersion.lastUsedAt).toLocaleDateString() : 'Never'}</span></div>
-                        </CardContent>
                     </Card>
                 </div>
 
@@ -471,8 +481,8 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
     const activeStrategies = filteredStrategies.filter(s => s.status === 'active');
     const archivedStrategies = filteredStrategies.filter(s => s.status === 'archived');
     
-    const strategyTypes = ['All', ...new Set(strategies.map(s => s.type))];
-    const timeframes = ['All', ...new Set(strategies.map(s => s.timeframe))];
+    const strategyTypes = ['All', ...Array.from(new Set(strategies.map(s => s.type)))];
+    const timeframes = ['All', ...Array.from(new Set(strategies.map(s => s.timeframe)))];
 
     if (viewingStrategy) {
         return <StrategyDetailView 
