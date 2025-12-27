@@ -23,6 +23,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Textarea } from "./ui/textarea";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "./ui/form";
 import { Progress } from "./ui/progress";
+import { Checkbox } from "./ui/checkbox";
 
 
 interface StrategyManagementModuleProps {
@@ -466,41 +467,80 @@ const Stepper = ({ currentStep, steps }: { currentStep: number; steps: { name: s
       </ol>
     </nav>
 );
-  
-const RuleEditor = ({ value, onChange, placeholder }: { value: string[]; onChange: (value: string[]) => void; placeholder: string; }) => {
-    const [text, setText] = useState('');
-  
-    const handleAddRule = () => {
-      if (text.trim()) {
-        onChange([...value, text.trim()]);
-        setText('');
-      }
-    };
-  
-    const handleRemoveRule = (index: number) => {
-      onChange(value.filter((_, i) => i !== index));
-    };
-  
-    return (
-      <div className="space-y-2">
-        <ul className="space-y-2">
-          {value.map((rule, index) => (
-            <li key={index} className="flex items-center justify-between group">
-              <span className="text-sm text-muted-foreground">{index + 1}. {rule}</span>
-              <Button type="button" variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => handleRemoveRule(index)}>
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </li>
-          ))}
-        </ul>
-        <div className="flex gap-2">
-          <Input value={text} onChange={(e) => setText(e.target.value)} placeholder={placeholder} onKeyDown={(e) => { if(e.key === 'Enter') { e.preventDefault(); handleAddRule(); }}} />
-          <Button type="button" variant="outline" onClick={handleAddRule} disabled={!text.trim()}>Add Rule</Button>
-        </div>
-      </div>
-    );
+
+type ClarityStatus = 'clear' | 'vague' | 'neutral';
+
+const getClarity = (text: string): { status: ClarityStatus, hint: string | null } => {
+    const lowerText = text.toLowerCase();
+    
+    if (text.length === 0) return { status: 'neutral', hint: null };
+    if (text.length < 12) return { status: 'vague', hint: "This seems too short to be a testable rule." };
+
+    const vagueWords = ['good', 'nice', 'strong', 'weak', 'seems', 'looks like', 'feel', 'maybe', 'probably', 'might'];
+    if (vagueWords.some(word => lowerText.includes(word))) {
+        return { status: 'vague', hint: "Try to avoid subjective words like 'good' or 'strong'. Use measurable terms." };
+    }
+
+    const clearWords = ['ema', 'rsi', 'macd', 'volume', 'break', 'retest', 'high', 'low', 'close', 'above', 'below', 'cross', 'divergence', 'consolidation', 'range', 'wick', 'sweep'];
+    if (clearWords.some(word => lowerText.includes(word))) {
+        return { status: 'clear', hint: "Good job! This rule includes specific, testable conditions." };
+    }
+
+    return { status: 'neutral', hint: null };
 };
 
+const RuleEditor = ({ value, onChange, placeholder }: { value: string[]; onChange: (value: string[]) => void; placeholder: string; }) => {
+    const [text, setText] = useState('');
+    const clarity = getClarity(text);
+
+    const handleAddRule = () => {
+        if (text.trim()) {
+            onChange([...value, text.trim()]);
+            setText('');
+        }
+    };
+
+    const handleRemoveRule = (index: number) => {
+        onChange(value.filter((_, i) => i !== index));
+    };
+
+    const clarityConfig = {
+        clear: { text: "Clear", className: "bg-green-500/20 text-green-300 border-green-500/30" },
+        vague: { text: "Vague", className: "bg-amber-500/20 text-amber-300 border-amber-500/30" },
+        neutral: { text: "", className: "hidden" },
+    };
+    
+    const { text: clarityText, className: clarityClassName } = clarityConfig[clarity.status];
+
+    return (
+        <div className="space-y-2">
+            <ul className="space-y-2">
+                {value.map((rule, index) => (
+                    <li key={index} className="flex items-center justify-between group p-2 rounded-md hover:bg-muted/50">
+                        <span className="text-sm text-muted-foreground">{index + 1}. {rule}</span>
+                        <Button type="button" variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => handleRemoveRule(index)}>
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                    </li>
+                ))}
+            </ul>
+            <div className="space-y-2">
+                <div className="flex gap-2 items-center">
+                    <Input value={text} onChange={(e) => setText(e.target.value)} placeholder={placeholder} onKeyDown={(e) => { if(e.key === 'Enter') { e.preventDefault(); handleAddRule(); }}} />
+                    <Badge variant="outline" className={clarityClassName}>{clarityText}</Badge>
+                    <Button type="button" variant="outline" onClick={handleAddRule} disabled={!text.trim()}>Add Rule</Button>
+                </div>
+                {clarity.status === 'vague' && clarity.hint && (
+                    <p className="text-xs text-amber-400/80 flex items-start gap-2">
+                        <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                        <span><span className="font-semibold">Hint:</span> {clarity.hint}</span>
+                    </p>
+                )}
+            </div>
+        </div>
+    );
+};
+  
 const strategyTemplates: (Omit<StrategyCreationValues, 'name'> & {id: string, name: string, description: string})[] = [
     {
         id: 'breakout',
@@ -1152,4 +1192,3 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
         </div>
     );
 }
-
