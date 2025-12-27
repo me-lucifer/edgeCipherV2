@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -599,253 +598,54 @@ function ArjunGuardrailAlerts({ form }: { form: any }) {
     );
 }
 
-
-function PlanSummary({ control, setPlanStatus, onSetModule }: { control: any, setPlanStatus: (status: PlanStatusType) => void, onSetModule: TradePlanningModuleProps['onSetModule'] }) {
-    const values = useWatch({ control }) as Partial<PlanFormValues>;
-    const { instrument, direction, entryPrice, stopLoss, takeProfit, riskPercent, accountCapital, strategyId, notes, justification } = values;
-
-    const [summary, setSummary] = useState({
-        rrr: 0,
-        positionSize: 0,
-        potentialLoss: 0,
-        potentialProfit: 0,
-        distanceToSl: 0,
-        distanceToSlPercent: 0,
-        distanceToTp: 0,
-        distanceToTpPercent: 0
-    });
-    
-    const [localPlanStatus, setLocalPlanStatus] = useState<PlanStatusType>("incomplete");
-    const [statusMessage, setStatusMessage] = useState("Fill in all required values to continue.");
-    const [ruleChecks, setRuleChecks] = useState<RuleCheck[]>([]);
+function StrategyGuardrailChecklist({ strategyId, form }: { strategyId: string, form: any }) {
+    const [guardrail, setGuardrail] = useState<{ strategyId: string; strategyName: string; rules: string[] } | null>(null);
+    const { toast } = useToast();
 
     useEffect(() => {
-        // --- Calculations ---
-        const isLong = direction === "Long";
-        const numEntryPrice = Number(entryPrice);
-        const numStopLoss = Number(stopLoss);
-        const numTakeProfit = Number(takeProfit);
-
-        const riskPerUnit = (numEntryPrice && numStopLoss) ? Math.abs(numEntryPrice - numStopLoss) : 0;
-        const rewardPerUnit = (numTakeProfit && numEntryPrice) ? Math.abs(numTakeProfit - numEntryPrice) : 0;
-        const rrr = (riskPerUnit > 0 && rewardPerUnit > 0) ? rewardPerUnit / riskPerUnit : 0;
-        
-        const potentialLoss = (accountCapital && riskPercent) ? (Number(accountCapital) * Number(riskPercent)) / 100 : 0;
-        const positionSize = riskPerUnit > 0 ? potentialLoss / riskPerUnit : 0;
-        const potentialProfit = potentialLoss * rrr;
-        
-        const distanceToSl = (numEntryPrice && numStopLoss) ? Math.abs(numEntryPrice - numStopLoss) : 0;
-        const distanceToSlPercent = numEntryPrice > 0 ? (distanceToSl / numEntryPrice) * 100 : 0;
-        const distanceToTp = (numTakeProfit && numEntryPrice) ? Math.abs(numTakeProfit - numEntryPrice) : 0;
-        const distanceToTpPercent = (numEntryPrice && numTakeProfit) ? (distanceToTp / numEntryPrice) * 100 : 0;
-        
-        setSummary({ rrr, positionSize, potentialLoss, potentialProfit, distanceToSl, distanceToSlPercent, distanceToTp, distanceToTpPercent });
-        
-        // --- Rule Checks & Status Logic ---
-        const currentChecks = getRuleChecks(rrr, riskPercent ? Number(riskPercent) : 0);
-        setRuleChecks(currentChecks);
-
-        const requiredFieldsSet = instrument && direction && numEntryPrice > 0 && numStopLoss > 0 && accountCapital && Number(accountCapital) > 0 && riskPercent && Number(riskPercent) > 0 && strategyId;
-        let currentStatus: PlanStatusType = 'incomplete';
-        let currentMessage = "Fill in all required values to continue.";
-
-        if (!requiredFieldsSet) {
-            currentStatus = 'incomplete';
-            currentMessage = "Fill in all required values to continue.";
-        } else {
-            const hasFails = currentChecks.some(c => c.status === 'FAIL');
-            const hasWarns = currentChecks.some(c => c.status === 'WARN');
-            const structuralWarning = rrr > 0 && rrr < 1.0;
-
-            if (hasFails) {
-                if (justification && justification.length >= 10) {
-                    currentStatus = "overridden";
-                    currentMessage = "Rules overridden with justification. Proceed with extreme caution.";
-                } else {
-                    currentStatus = "blocked";
-                    currentMessage = "One or more critical rules are failing. Add justification to override.";
-                }
-            } else if (hasWarns || structuralWarning) {
-                currentStatus = "needs_attention";
-                currentMessage = "This plan has warnings. Review the rule checks before proceeding.";
-            } else {
-                currentStatus = "ok";
-                currentMessage = "This plan looks structurally sound. Review the checks before proceeding.";
-            }
+        if (!strategyId) {
+            setGuardrail(null);
+            return;
         }
-        
-        setPlanStatus(currentStatus);
-        setLocalPlanStatus(currentStatus);
-        setStatusMessage(currentMessage);
+        const saved = localStorage.getItem(`ec_strategy_guardrails_${strategyId}`);
+        if (saved) {
+            setGuardrail(JSON.parse(saved));
+        } else {
+            setGuardrail(null);
+        }
+    }, [strategyId]);
 
-    }, [instrument, direction, entryPrice, stopLoss, takeProfit, riskPercent, accountCapital, strategyId, notes, justification, setPlanStatus]);
-
-    const isLong = direction === "Long";
-    const isSlSet = stopLoss && Number(stopLoss) > 0;
-    const isTpSet = takeProfit && Number(takeProfit) > 0;
-    const canCalcRisk = entryPrice && Number(entryPrice) > 0 && stopLoss && Number(stopLoss) > 0 && riskPercent && accountCapital;
-    const hasFails = ruleChecks.some(c => c.status === 'FAIL');
-
-    const SummaryRow = ({ label, value, className }: { label: string, value: React.ReactNode, className?: string }) => (
-        <div className="flex justify-between items-center text-sm">
-            <p className="text-muted-foreground">{label}</p>
-            <p className={cn("font-semibold font-mono text-foreground", className)}>{value}</p>
-        </div>
-    );
-
+    if (!guardrail) {
+        return (
+            <Card className="bg-muted/50 border-dashed">
+                <CardContent className="p-4 text-center">
+                    <p className="text-xs text-muted-foreground">No guardrails applied for this strategy.</p>
+                    <Button variant="link" size="sm" className="text-xs h-auto p-0 mt-1" onClick={() => toast({title: "Navigate to Strategy Management"})}>
+                        Open in Strategy Management to set them.
+                    </Button>
+                </CardContent>
+            </Card>
+        );
+    }
+    
     return (
-        <Card className="bg-muted/30 border-primary/20">
-            <CardHeader>
-                <CardTitle>Plan summary & checks</CardTitle>
-                <CardDescription>Live calculation based on your inputs.</CardDescription>
+        <Card className="bg-muted/50 border-primary/20">
+            <CardHeader className="pb-4">
+                <CardTitle className="text-base flex items-center gap-2">
+                    <ShieldCheck className="h-5 w-5 text-primary" />
+                    Guardrails for: {guardrail.strategyName}
+                </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
-                <PlanStatus status={localPlanStatus} message={statusMessage} />
-                
-                <div>
-                    <h3 className="text-sm font-semibold text-foreground mb-3">Numeric Summary</h3>
-                    <div className="space-y-2">
-                        <SummaryRow label="Pair / Direction" value={<span className={isLong ? 'text-green-400' : 'text-red-400'}>{instrument || '-'} {direction}</span>} />
-                        <SummaryRow label="Entry Price" value={entryPrice && Number(entryPrice) > 0 ? Number(entryPrice).toFixed(4) : '-'} />
-                        <SummaryRow label="Stop Loss (your promised exit)" value={isSlSet ? Number(stopLoss).toFixed(4) : <span className="text-destructive">Not set</span>} />
-                        <SummaryRow label="Take Profit" value={isTpSet ? Number(takeProfit).toFixed(4) : 'Not set'} />
+            <CardContent className="space-y-3">
+                <p className="text-xs text-muted-foreground">This is your pre-flight checklist. Does this trade meet these conditions?</p>
+                {guardrail.rules.map((rule, i) => (
+                    <div key={i} className="flex items-center space-x-2">
+                        <Checkbox id={`guardrail-check-${i}`} />
+                        <Label htmlFor={`guardrail-check-${i}`} className="text-sm font-normal text-muted-foreground">{rule}</Label>
                     </div>
-                </div>
-
-                <PriceLadder direction={direction as "Long" | "Short"} entryPrice={Number(entryPrice)} stopLoss={Number(stopLoss)} takeProfit={Number(takeProfit)} />
-                
-                <Separator />
-                
-                <div>
-                     <h3 className="text-sm font-semibold text-foreground mb-3">Risk & Sizing</h3>
-                    {canCalcRisk ? (
-                        <div className="space-y-2">
-                             <SummaryRow label="R:R Ratio" value={summary.rrr > 0 ? `${summary.rrr.toFixed(2)} : 1` : '-'} className={summary.rrr > 0 ? (summary.rrr < 1.5 ? 'text-amber-400' : 'text-green-400') : ''} />
-                             <SummaryRow label="Position Size" value={summary.positionSize > 0 ? `${summary.positionSize.toFixed(4)} ${instrument?.replace('-PERP','').replace('USDT','')} ` : '-'} />
-                             <SummaryRow label="Potential Loss" value={`-$${summary.potentialLoss > 0 ? summary.potentialLoss.toFixed(2) : '0.00'}`} className="text-destructive" />
-                             <SummaryRow label="Potential Profit" value={`+$${summary.potentialProfit > 0 ? summary.potentialProfit.toFixed(2) : '0.00'}`} className="text-green-400" />
-                        </div>
-                    ) : (
-                        <p className="text-sm text-muted-foreground text-center">Enter Entry, SL & account details to calculate risk.</p>
-                    )}
-                </div>
-
-                 <Separator />
-
-                <MarketContext />
-                
-                <Separator />
-
-                <RuleChecks checks={ruleChecks} />
-
-                <Separator />
-
-                <DisciplineAlerts onSetModule={onSetModule} />
-
-                {hasFails && (
-                    <>
-                    <Separator />
-                    <FormField
-                        control={control}
-                        name="justification"
-                        render={({ field }) => (
-                            <FormItem className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
-                                <FormLabel className="text-destructive">Justification to Override Rules</FormLabel>
-                                <FormControl>
-                                    <Textarea
-                                        placeholder="Why is this trade worth making despite rule violations? This will be logged."
-                                        className="bg-background/50 border-destructive/30 focus-visible:ring-destructive"
-                                        {...field}
-                                    />
-                                </FormControl>
-                                <p className="text-xs text-destructive/80">You are breaking your own rules. Explain why you want to proceed.</p>
-                                <FormMessage className="text-destructive" />
-                            </FormItem>
-                        )}
-                    />
-                    </>
-                )}
-                
-                {!isSlSet && (
-                    <Alert variant="destructive">
-                        <AlertTriangle className="h-4 w-4" />
-                        <AlertTitle>Stop Loss Required</AlertTitle>
-                        <AlertDescription>The plan is invalid until a stop loss is defined.</AlertDescription>
-                    </Alert>
-                )}
+                ))}
             </CardContent>
         </Card>
-    );
-}
-
-function WhatIfRiskSlider({ control, form }: { control: any; form: ReturnType<typeof useForm<PlanFormValues>> }) {
-    const { entryPrice, stopLoss, accountCapital, riskPercent } = useWatch({ control }) as Partial<PlanFormValues>;
-    const [whatIfRisk, setWhatIfRisk] = useState<number>(riskPercent || 1);
-
-    useEffect(() => {
-        setWhatIfRisk(riskPercent || 1);
-    }, [riskPercent]);
-
-    const numEntryPrice = Number(entryPrice);
-    const numStopLoss = Number(stopLoss);
-    const numAccountCapital = Number(accountCapital);
-
-    const riskPerUnit = (numEntryPrice && numStopLoss) ? Math.abs(numEntryPrice - numStopLoss) : 0;
-    
-    const calculateSizing = (currentRisk: number) => {
-        if (!numAccountCapital || !riskPerUnit) return { size: 0, loss: 0 };
-        const potentialLoss = (numAccountCapital * currentRisk) / 100;
-        const positionSize = riskPerUnit > 0 ? potentialLoss / riskPerUnit : 0;
-        return { size: positionSize, loss: potentialLoss };
-    };
-
-    const whatIfSizing = calculateSizing(whatIfRisk);
-    
-    const handleApply = () => {
-        form.setValue("riskPercent", whatIfRisk, { shouldValidate: true });
-    };
-
-    const handleReset = () => {
-        setWhatIfRisk(riskPercent || 1);
-    };
-
-    if (!numEntryPrice || !numStopLoss || !numAccountCapital) return null;
-
-    return (
-        <div className="p-4 bg-muted/50 rounded-lg space-y-4">
-             <h3 className="text-sm font-semibold text-muted-foreground">What-if Analysis: Risk</h3>
-             <div>
-                <Label>Adjust risk to see its impact</Label>
-                <Slider
-                    value={[whatIfRisk]}
-                    onValueChange={(val) => setWhatIfRisk(val[0])}
-                    min={0.25}
-                    max={3}
-                    step={0.25}
-                    className="my-2"
-                />
-                 <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>0.25%</span>
-                    <span>3%</span>
-                </div>
-            </div>
-            <div className="p-3 bg-background/50 rounded-md text-sm">
-                <p>At <span className="font-bold text-primary">{whatIfRisk}%</span> risk:</p>
-                <ul className="text-xs text-muted-foreground mt-1">
-                    <li>Position Size: <span className="font-mono">{whatIfSizing.size.toFixed(4)}</span></li>
-                    <li>Dollar Risk: <span className="font-mono text-destructive">-${whatIfSizing.loss.toFixed(2)}</span></li>
-                </ul>
-            </div>
-             <div className="flex gap-2">
-                <Button size="sm" variant="outline" onClick={handleApply} className="w-full">
-                    Apply {whatIfRisk}% to Plan
-                </Button>
-                <Button size="sm" variant="ghost" onClick={handleReset} className="w-full">
-                    <RefreshCw className="mr-2 h-3 w-3" />
-                    Reset
-                </Button>
-            </div>
-        </div>
     );
 }
 
@@ -1015,6 +815,9 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
                                     View strategy details <ArrowRight className="ml-1 h-3 w-3" />
                                 </Button>
                             </div>
+
+                            {strategyId && <StrategyGuardrailChecklist strategyId={strategyId} form={form} />}
+
                             <FormField control={form.control} name="notes" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Trade Rationale</FormLabel>
