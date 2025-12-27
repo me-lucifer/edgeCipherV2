@@ -586,6 +586,8 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
     const [compareMode, setCompareMode] = useState(false);
     const [exportData, setExportData] = useState<{ title: string, summary: string } | null>(null);
     const [isGuardrailDialogOpen, setIsGuardrailDialogOpen] = useState(false);
+    const [showBehaviorHotspots, setShowBehaviorHotspots] = useState(false);
+    const [hotspotMetric, setHotspotMetric] = useState<"Revenge" | "FOMO" | "Moved SL" | "Overtraded">("Revenge");
 
 
     const { toast } = useToast();
@@ -719,9 +721,9 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
 
       const timingHeatmapData = {
           sessions: [
-              { name: "Asia", totalPnl: 600 + random() * 400, blocks: [ { time: "00-04", pnl: 100 + random() * 200, trades: 5 + Math.floor(random() * 10) }, { time: "04-08", pnl: 400 + random() * 300, trades: 10 + Math.floor(random() * 10) } ] },
-              { name: "London", totalPnl: -1000 - random() * 500, blocks: [ { time: "08-12", pnl: -1000 - random() * 500, trades: 20 + Math.floor(random() * 10) } ] },
-              { name: "New York", totalPnl: 3000 + random() * 1000, blocks: [ { time: "12-16", pnl: 1800 + random() * 500, trades: 25 + Math.floor(random() * 10) }, { time: "16-20", pnl: 1200 + random() * 500, trades: 15 + Math.floor(random() * 10) } ] },
+              { name: "Asia", totalPnl: 600 + random() * 400, blocks: [ { time: "00-04", pnl: 100 + random() * 200, trades: 5 + Math.floor(random() * 10), fomo: 1, revenge: 0, slMoved: 0, overtraded: 0 }, { time: "04-08", pnl: 400 + random() * 300, trades: 10 + Math.floor(random() * 10), fomo: 0, revenge: 0, slMoved: 1, overtraded: 0 } ] },
+              { name: "London", totalPnl: -1000 - random() * 500, blocks: [ { time: "08-12", pnl: -1000 - random() * 500, trades: 20 + Math.floor(random() * 10), fomo: 3, revenge: 2, slMoved: 4, overtraded: 1 } ] },
+              { name: "New York", totalPnl: 3000 + random() * 1000, blocks: [ { time: "12-16", pnl: 1800 + random() * 500, trades: 25 + Math.floor(random() * 10), fomo: 2, revenge: 1, slMoved: 2, overtraded: 2 }, { time: "16-20", pnl: 1200 + random() * 500, trades: 15 + Math.floor(random() * 10), fomo: 0, revenge: 0, slMoved: 0, overtraded: 0 } ] },
           ],
           timeBlocks: ["00-04", "04-08", "08-12", "12-16", "16-20", "20-24"],
       };
@@ -763,7 +765,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
       };
 
       const disciplineBreakdown = [
-        { violation: "SL moved", frequency: slMovedCount, avgR: -1.8, trades: [] },
+        { violation: "Moved SL", frequency: slMovedCount, avgR: -1.8, trades: [] },
         { violation: "Risk oversized", frequency: 5, avgR: -2.2, trades: [] },
         { violation: "R:R below minimum", frequency: 12, avgR: -0.4, trades: [] },
         { violation: "Traded in high VIX", frequency: 8, avgR: -1.1, trades: [] },
@@ -978,6 +980,12 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
     const minorPct = adherenceTotal > 0 ? (adherenceData.minorDeviations / adherenceTotal) * 100 : 0;
     const majorPct = adherenceTotal > 0 ? (adherenceData.majorViolations / adherenceTotal) * 100 : 0;
 
+    const hotspotMetricKey = {
+      "Revenge": "revenge",
+      "FOMO": "fomo",
+      "Moved SL": "slMoved",
+      "Overtraded": "overtraded"
+    }[hotspotMetric] as "revenge" | "fomo" | "slMoved" | "overtraded";
 
     return (
         <>
@@ -1480,11 +1488,36 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                 <EmptyState icon={BookOpen} title="No Strategies Found" description="Define strategies in Strategy Management and tag your trades." />
                         )}
                         </SectionCard>
-                        <SectionCard id="timing" title="Timing Analytics" description="When you trade best (and worst)." icon={Calendar} headerContent={
-                                <div className="flex items-center gap-1 rounded-full bg-muted p-1">
-                                    <Button size="sm" variant="secondary" className="rounded-full h-7 px-3 text-xs">PnL ($)</Button>
-                                    <Button size="sm" variant="ghost" className="rounded-full h-7 px-3 text-xs">Win %</Button>
-                                    <Button size="sm" variant="ghost" className="rounded-full h-7 px-3 text-xs">Trades</Button>
+                        <SectionCard 
+                            id="timing" 
+                            title="Timing Analytics" 
+                            description="When you trade best (and worst)." 
+                            icon={Calendar} 
+                            headerContent={
+                                <div className="flex flex-wrap items-center gap-4">
+                                     <div className="flex items-center gap-2">
+                                        <Label htmlFor="behavior-hotspots" className="text-sm">Behaviour Hotspots</Label>
+                                        <Switch
+                                            id="behavior-hotspots"
+                                            checked={showBehaviorHotspots}
+                                            onCheckedChange={setShowBehaviorHotspots}
+                                        />
+                                    </div>
+                                    {showBehaviorHotspots && (
+                                        <div className="flex items-center gap-2">
+                                            <Select value={hotspotMetric} onValueChange={(v) => setHotspotMetric(v as any)}>
+                                                <SelectTrigger className="w-[150px] h-8 text-xs">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="Revenge">Revenge</SelectItem>
+                                                    <SelectItem value="FOMO">FOMO</SelectItem>
+                                                    <SelectItem value="Moved SL">Moved SL</SelectItem>
+                                                    <SelectItem value="Overtraded">Overtraded</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    )}
                                 </div>
                             }>
                             <div className="grid md:grid-cols-3 gap-6 animate-in fade-in-50 duration-500">
@@ -1508,23 +1541,40 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                                             if (!cellData) {
                                                                 return <td key={block} className="p-2 bg-muted/30 rounded-md" />;
                                                             }
-                                                            const maxTrades = 30; // Mock max for opacity scaling
-                                                            const opacity = Math.min(1, (cellData.trades / maxTrades) * 0.9 + 0.1);
-                                                            const bgColor = cellData.pnl > 0 ? `rgba(34, 197, 94, ${opacity})` : `rgba(239, 68, 68, ${opacity})`;
+                                                            
+                                                            let opacity = 0;
+                                                            let bgColor = 'rgba(100, 116, 139, 0.15)';
+                                                            let cellText, hintText;
+
+                                                            if (showBehaviorHotspots) {
+                                                                const behaviorCount = cellData[hotspotMetricKey] || 0;
+                                                                const maxBehaviorCount = 5; // mock max for scaling
+                                                                opacity = behaviorCount > 0 ? Math.min(1, (behaviorCount / maxBehaviorCount) * 0.9 + 0.1) : 0;
+                                                                bgColor = `rgba(239, 68, 68, ${opacity})`; // Red scale for mistakes
+                                                                cellText = `${behaviorCount}`;
+                                                                hintText = `Trades: ${cellData.trades}`;
+                                                            } else {
+                                                                const maxTrades = 30; // Mock max for opacity scaling
+                                                                opacity = Math.min(1, (cellData.trades / maxTrades) * 0.9 + 0.1);
+                                                                bgColor = cellData.pnl > 0 ? `rgba(34, 197, 94, ${opacity})` : `rgba(239, 68, 68, ${opacity})`;
+                                                                cellText = `${cellData.pnl > 0 ? '+' : ''}${cellData.pnl.toFixed(0)}`;
+                                                                hintText = `n=${cellData.trades}`;
+                                                            }
                                                             
                                                             return (
                                                                 <td key={block} style={{ backgroundColor: bgColor }} className="p-2 rounded-md">
                                                                     <TooltipProvider><Tooltip>
                                                                         <TooltipTrigger asChild>
                                                                             <div className="font-mono text-white cursor-pointer" onClick={() => onSetModule('tradeJournal', {})}>
-                                                                                <p>{cellData.pnl > 0 ? '+' : ''}{cellData.pnl.toFixed(0)}</p>
-                                                                                <p className="text-white/60 text-[10px]">n={cellData.trades}</p>
+                                                                                <p>{cellText}</p>
+                                                                                <p className="text-white/60 text-[10px]">{hintText}</p>
                                                                             </div>
                                                                         </TooltipTrigger>
                                                                         <TooltipContent>
                                                                             <p>Session: {session.name} ({block})</p>
                                                                             <p>Trades: {cellData.trades}</p>
                                                                             <p>Total PnL: ${cellData.pnl.toFixed(2)}</p>
+                                                                            {showBehaviorHotspots && <p>{hotspotMetric}: {cellData[hotspotMetricKey] || 0}</p>}
                                                                         </TooltipContent>
                                                                     </Tooltip></TooltipProvider>
                                                                 </td>
@@ -1534,6 +1584,17 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                                 ))}
                                             </tbody>
                                         </table>
+                                    </div>
+                                    <div className="flex justify-end items-center gap-4 text-xs text-muted-foreground mt-4">
+                                        <span>{showBehaviorHotspots ? "Low density" : "Fewer trades"}</span>
+                                        <div className="flex gap-1">
+                                            <div className="w-4 h-4 rounded bg-primary/20" />
+                                            <div className="w-4 h-4 rounded bg-primary/40" />
+                                            <div className="w-4 h-4 rounded bg-primary/60" />
+                                            <div className="w-4 h-4 rounded bg-primary/80" />
+                                            <div className="w-4 h-4 rounded bg-primary" />
+                                        </div>
+                                        <span>{showBehaviorHotspots ? "High density" : "More trades"}</span>
                                     </div>
                                 </div>
                                 <div className="md:col-span-1">
