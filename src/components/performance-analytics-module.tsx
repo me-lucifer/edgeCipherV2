@@ -404,14 +404,14 @@ const GuardrailDialog = () => {
 
 function ScoreGauge({ score, label, interpretation, delta }: { score: number; label: string; interpretation: string; delta?: number; }) {
     const getArc = (value: number, radius: number) => {
-        const x = 50 - radius * Math.cos(value * Math.PI);
-        const y = 50 + radius * Math.sin(value * Math.PI);
-        return `${x},${y}`;
+        const angle = value * Math.PI;
+        const x = 50 - radius * Math.cos(angle);
+        const y = 50 - radius * Math.sin(angle);
+        return `${x} ${y}`;
     };
 
     const percentage = score / 100;
-    // Add a tiny epsilon to prevent issues with 0 values
-    const endAngle = percentage > 0 ? percentage : 0.0001;
+    const endAngle = Math.max(0.0001, percentage); // Epsilon for 0 value
     const largeArcFlag = endAngle > 0.5 ? 1 : 0;
     
     const colorClasses = {
@@ -426,27 +426,27 @@ function ScoreGauge({ score, label, interpretation, delta }: { score: number; la
         <div className="flex flex-col items-center gap-2 motion-reduce:animate-none">
             <svg viewBox="0 0 100 65" className="w-full h-auto">
                 <path
-                    d={`M ${getArc(0, 40)} A 40,40 0 1,1 ${getArc(1, 40)}`}
+                    d={`M ${getArc(0, 40)} A 40 40 0 1 1 ${getArc(1, 40)}`}
                     stroke="hsl(var(--border))"
                     strokeWidth="8"
                     fill="none"
                     strokeLinecap="round"
                 />
                 <path
-                    d={`M ${getArc(0, 40)} A 40,40 0 ${largeArcFlag},1 ${getArc(endAngle, 40)}`}
+                    d={`M ${getArc(0, 40)} A 40 40 0 ${largeArcFlag} 1 ${getArc(endAngle, 40)}`}
                     stroke="currentColor"
                     className={interpretationColor}
                     strokeWidth="8"
                     fill="none"
                     strokeLinecap="round"
-                    style={{ transition: 'all 0.5s ease-in-out' }}
+                    style={{ transition: 'd 0.5s ease-in-out' }}
                 />
-                <text x="50" y="40" textAnchor="middle" className="text-3xl font-bold fill-current text-foreground">
-                    {score}
-                </text>
-                 <text x="50" y="55" textAnchor="middle" className="text-sm font-medium fill-current text-muted-foreground">
-                    {label}
-                </text>
+                <foreignObject x="0" y="20" width="100" height="50">
+                    <div className="w-full h-full flex flex-col items-center justify-center text-center">
+                        <p className="text-3xl font-bold text-foreground">{score}</p>
+                        <p className="text-sm font-medium text-muted-foreground -mt-1">{label}</p>
+                    </div>
+                </foreignObject>
             </svg>
             <div className="flex items-baseline">
                 <p className={cn("text-sm font-semibold", interpretationColor)}>{interpretation}</p>
@@ -1923,4 +1923,5 @@ const computeSinglePeriodAnalytics = (entries: JournalEntry[], random: () => num
         disciplineByVolatility,
     };
   }
+
 
