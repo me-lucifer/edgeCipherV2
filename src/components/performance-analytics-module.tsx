@@ -43,7 +43,7 @@ function seededRandom(seed: number) {
 }
 
 
-const SectionCard: React.FC<{id?: string, title: React.ReactNode, description: string, icon: React.ElementType, children: React.ReactNode, headerContent?: React.ReactNode, onExport?: () => void, className?: string}> = ({ id, title, description, icon: Icon, children, headerContent, onExport, className }) => (
+const SectionCard: React.FC<{id?: string, title: React.ReactNode, description: React.ReactNode, icon: React.ElementType, children: React.ReactNode, headerContent?: React.ReactNode, onExport?: () => void, className?: string}> = ({ id, title, description, icon: Icon, children, headerContent, onExport, className }) => (
     <Card id={id} className={cn("bg-muted/30 border-border/50 scroll-mt-40 motion-reduce:animate-none", className)}>
         <CardHeader>
             <div className="flex items-start justify-between gap-4">
@@ -81,7 +81,7 @@ const DeltaIndicator = ({ delta, unit = "" }: { delta: number; unit?: string }) 
     const isPositive = delta > 0;
     return (
         <span className={cn(
-            "text-xs font-mono flex items-center ml-2",
+            "text-xs font-mono flex items-center ml-2 motion-reduce:animate-none",
             isPositive ? "text-green-400" : "text-red-400"
         )}>
             {isPositive ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
@@ -97,7 +97,7 @@ const MetricCard = ({ title, value, hint, delta, deltaUnit, onClick }: { title: 
         </CardHeader>
         <CardContent>
             <div className="flex items-baseline">
-                <p className="text-3xl font-bold font-mono">{value}</p>
+                <p className="text-3xl font-bold font-mono animate-metric-pulse">{value}</p>
                 {delta !== undefined && <DeltaIndicator delta={delta} unit={deltaUnit} />}
             </div>
             <p className="text-xs text-muted-foreground">{hint}</p>
@@ -304,7 +304,21 @@ const PinnedInsightsCard = ({ analyticsData, onSetModule, onApplyGuardrails }: {
         <SectionCard
             id="analytics-discuss-arjun"
             title="Your 3 Key Takeaways"
-            description="Arjun's analysis of your most important patterns."
+            description={
+                <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                           <span className="flex items-center gap-1.5 cursor-help">
+                                Arjun's analysis of your most important patterns.
+                                <Info className="h-3 w-3 text-muted-foreground/80" />
+                            </span>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                            <p>This section automatically surfaces the 3 most impactful insights from your data below. It updates as you apply filters.</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
+            }
             icon={Bot}
         >
             <ul className="space-y-3 list-decimal list-inside text-sm text-muted-foreground">
@@ -822,6 +836,44 @@ const DataStatusRow = ({ label, status, description }: { label: string, status: 
     );
 };
 
+const QAChecklistDialog = ({ isOpen, onOpenChange }: { isOpen: boolean, onOpenChange: (open: boolean) => void }) => {
+    const checklistItems = [
+      "Filters update all sections without breaking layout",
+      "Equity curve renders with markers + tooltips",
+      "Clicking marker opens journal drilldown",
+      "Behaviour tab scores render + update",
+      "Emotion × result matrix works + filters trade list dock",
+      "Guardrails save and appear in Trade Planning",
+      "Reports modal opens and copy works",
+      "Presentation mode highlights correct elements",
+      "2-minute tour works end-to-end",
+    ];
+  
+    return (
+      <Dialog open={isOpen} onOpenChange={onOpenChange}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>QA Checklist for Analytics</DialogTitle>
+            <DialogDescription>
+              A quick smoke test for the analytics module before a client review.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-3 max-h-[60vh] overflow-y-auto">
+            {checklistItems.map((item, index) => (
+              <div key={index} className="flex items-center space-x-2">
+                <Checkbox id={`qa-item-${index}`} />
+                <Label htmlFor={`qa-item-${index}`} className="text-sm font-normal">{item}</Label>
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button onClick={() => onOpenChange(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+};
+
 
 export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalyticsModuleProps) {
     const [timeRange, setTimeRange] = useState("30d");
@@ -845,6 +897,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
     const [isPresentationMode, setIsPresentationMode] = useState(false);
     const [isTourOpen, setIsTourOpen] = useState(false);
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'ascending' | 'descending' }>({ key: 'pnl', direction: 'descending' });
+    const [isQAChecklistOpen, setIsQAChecklistOpen] = useState(false);
 
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
@@ -908,6 +961,16 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
     useEffect(() => {
         loadData();
     }, [loadData, compareMode]);
+    
+    useEffect(() => {
+      const handler = setTimeout(() => {
+        setDebouncedSearchQuery(searchQuery);
+      }, 300);
+  
+      return () => {
+        clearTimeout(handler);
+      };
+    }, [searchQuery]);
 
     useEffect(() => {
         if (typeof window !== "undefined") {
@@ -1225,6 +1288,7 @@ ${JSON.stringify(data, null, 2)}
              <Dialog open={isGrowthPlanDialogOpen} onOpenChange={setIsGrowthPlanDialogOpen}>
                 <GrowthPlanDialog isOpen={isGrowthPlanDialogOpen} onOpenChange={setIsGrowthPlanDialogOpen} onApply={handleApplyGrowthPlan} />
             </Dialog>
+             <QAChecklistDialog isOpen={isQAChecklistOpen} onOpenChange={setIsQAChecklistOpen} />
 
             <Drawer open={isDataSourcesOpen} onOpenChange={setIsDataSourcesOpen}>
                 <DrawerContent>
@@ -1333,6 +1397,9 @@ ${JSON.stringify(data, null, 2)}
                                 <DropdownMenuItem onClick={() => setIsDataSourcesOpen(true)}>
                                     <Database className="mr-2 h-4 w-4" /> Data Sources
                                 </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setIsQAChecklistOpen(true)}>
+                                    <CheckCircle className="mr-2 h-4 w-4" /> QA Checklist
+                                </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
 
@@ -1344,7 +1411,7 @@ ${JSON.stringify(data, null, 2)}
                     <SectionCard
                         id="summary"
                         title="High-Level Summary"
-                        description={`Your performance snapshot for the last ${timeRange}.`}
+                        description={<>Your performance snapshot for the last <span className="font-semibold text-foreground">{timeRange}</span>.</>}
                         icon={BarChartIcon}
                         headerContent={
                              <Badge id="analytics-quality-badge" variant="outline" className={cn(
@@ -1367,7 +1434,21 @@ ${JSON.stringify(data, null, 2)}
                     <SectionCard
                         id="equity"
                         title="Behaviour Events Timeline"
-                        description="See how specific events impacted your equity curve."
+                        description={
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                    <span className="flex items-center gap-1.5 cursor-help">
+                                        See how specific events impacted your equity curve.
+                                        <Info className="h-3 w-3 text-muted-foreground/80" />
+                                    </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent className="max-w-xs">
+                                        <p>Each dot on the chart represents a trade where you tagged a specific behavior (e.g., 'Moved SL', 'Revenge Trade'). This helps you visualize the direct financial impact of your psychological state.</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        }
                         icon={Activity}
                         headerContent={
                             <div className="flex items-center space-x-2">
@@ -1427,7 +1508,21 @@ ${JSON.stringify(data, null, 2)}
                     <SectionCard
                         id="loss-drivers"
                         title="Top Loss Drivers"
-                        description="The specific behaviors and emotions costing you the most money."
+                        description={
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                    <span className="flex items-center gap-1.5 cursor-help">
+                                        The specific behaviors and emotions costing you the most money.
+                                        <Info className="h-3 w-3 text-muted-foreground/80" />
+                                    </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent className="max-w-xs">
+                                        <p>This table analyzes trades where you tagged a mistake or negative emotion, then calculates the total impact in 'R' (your risk unit) to find your biggest profit leaks.</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        }
                         icon={AlertCircle}
                     >
                         {topLossDrivers.length > 0 ? (
@@ -1523,7 +1618,21 @@ ${JSON.stringify(data, null, 2)}
                     <SectionCard
                         id="thresholds"
                         title="Threshold Alerts"
-                        description="Key behavioral patterns Arjun is watching for you."
+                        description={
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                    <span className="flex items-center gap-1.5 cursor-help">
+                                        Key behavioral patterns Arjun is watching for you.
+                                        <Info className="h-3 w-3 text-muted-foreground/80" />
+                                    </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent className="max-w-xs">
+                                        <p>Arjun constantly scans your data for 'if-then' patterns. For example, 'IF you have 2 losses, THEN your win rate on the next trade drops significantly'. These become candidates for guardrails.</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        }
                         icon={Flag}
                     >
                          <div className="space-y-3">
@@ -1812,3 +1921,4 @@ const computeSinglePeriodAnalytics = (entries: JournalEntry[], random: () => num
         disciplineByVolatility,
     };
   }
+
