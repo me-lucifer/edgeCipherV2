@@ -1055,8 +1055,12 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
         };
         const updatedStrategies = [...strategies, newStrategy];
         updateStrategies(updatedStrategies);
-        toast({ title: "Strategy created!", description: `${data.name} has been added to your playbook.` });
+        toast({ title: "Strategy saved", description: "Trade Planning can now enforce this rulebook." });
+        
+        // Redirect to detail view of new strategy
+        setViewingStrategy(newStrategy);
         setViewMode('list');
+        
         localStorage.removeItem('ec_strategy_draft');
     };
 
@@ -1221,5 +1225,6 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
         </div>
     );
 }
+
 
 
