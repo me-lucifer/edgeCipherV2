@@ -410,7 +410,8 @@ function ScoreGauge({ score, label, interpretation, delta }: { score: number; la
     };
 
     const percentage = score / 100;
-    const endAngle = percentage;
+    // Add a tiny epsilon to prevent issues with 0 values
+    const endAngle = percentage > 0 ? percentage : 0.0001;
     const largeArcFlag = endAngle > 0.5 ? 1 : 0;
     
     const colorClasses = {
@@ -423,7 +424,7 @@ function ScoreGauge({ score, label, interpretation, delta }: { score: number; la
 
     return (
         <div className="flex flex-col items-center gap-2 motion-reduce:animate-none">
-            <svg viewBox="0 0 100 60" className="w-full h-auto">
+            <svg viewBox="0 0 100 65" className="w-full h-auto">
                 <path
                     d={`M ${getArc(0, 40)} A 40,40 0 1,1 ${getArc(1, 40)}`}
                     stroke="hsl(var(--border))"
