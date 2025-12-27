@@ -650,6 +650,76 @@ function StrategyGuardrailChecklist({ strategyId, form }: { strategyId: string, 
     );
 }
 
+function PlanSummary({ control, setPlanStatus, onSetModule }: { control: any, setPlanStatus: (status: PlanStatusType) => void, onSetModule: (module: any) => void }) {
+    const values = useWatch({ control });
+    const { direction, entryPrice, stopLoss, takeProfit, riskPercent, accountCapital, justification } = values;
+
+    const riskPerUnit = (entryPrice && stopLoss) ? Math.abs(entryPrice - stopLoss) : 0;
+    const rewardPerUnit = (takeProfit && entryPrice) ? Math.abs(takeProfit - entryPrice) : 0;
+    const rrr = (riskPerUnit > 0 && rewardPerUnit > 0) ? rewardPerUnit / riskPerUnit : 0;
+    
+    const potentialLoss = (accountCapital && riskPercent) ? (accountCapital * riskPercent) / 100 : 0;
+    const potentialGain = rrr > 0 ? potentialLoss * rrr : 0;
+
+    const positionSize = riskPerUnit > 0 ? potentialLoss / riskPerUnit : 0;
+
+    const ruleChecks = getRuleChecks(rrr, riskPercent);
+    const hasFail = ruleChecks.some(c => c.status === 'FAIL');
+    const hasWarn = ruleChecks.some(c => c.status === 'WARN');
+    const isComplete = entryPrice > 0 && stopLoss > 0 && riskPercent > 0;
+    
+    let status: PlanStatusType = 'incomplete';
+    let message = "Fill in Entry, SL, and Risk % to see your plan summary.";
+
+    if (isComplete) {
+        if (hasFail) {
+            status = 'blocked';
+            message = "This plan breaks a critical rule. Add justification to proceed.";
+            if (justification && justification.length > 0) {
+                status = 'overridden';
+                message = "Critical rule overridden. Proceed with caution.";
+            }
+        } else if (hasWarn) {
+            status = 'needs_attention';
+            message = "This plan has some warnings. Review the rule checks before proceeding.";
+        } else {
+            status = 'ok';
+            message = "This plan is structurally sound and follows your main rules.";
+        }
+    }
+    
+    useEffect(() => {
+        setPlanStatus(status);
+    }, [status, setPlanStatus]);
+
+    return (
+        <Card className="bg-muted/30 border-border/50">
+            <CardHeader>
+                <CardTitle className="text-base">Plan Summary</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <PlanStatus status={status} message={message} />
+                <Separator />
+                <div className="space-y-2">
+                    <SummaryRow label="R:R Ratio" value={rrr > 0 ? `${rrr.toFixed(2)} : 1` : '-'} className={rrr > 0 ? (rrr < 1.5 ? 'text-amber-400' : 'text-green-400') : ''} />
+                    <SummaryRow label="Potential Gain" value={potentialGain > 0 ? `$${potentialGain.toFixed(2)}` : '-'} className="text-green-400" />
+                    <SummaryRow label="Potential Loss" value={potentialLoss > 0 ? `$${potentialLoss.toFixed(2)}` : '-'} className="text-red-400" />
+                    <SummaryRow label="Position Size" value={positionSize > 0 ? positionSize.toFixed(4) : '-'} />
+                </div>
+                <div className="h-40">
+                   <PriceLadder direction={direction} entryPrice={entryPrice} stopLoss={stopLoss} takeProfit={takeProfit} />
+                </div>
+                <Separator />
+                <RuleChecks checks={ruleChecks} />
+                <Separator />
+                <DisciplineAlerts onSetModule={onSetModule} />
+                <Separator />
+                <MarketContext />
+            </CardContent>
+        </Card>
+    );
+}
+
 function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser, currentStep, draftToResume, onResume, onDiscard }: { form: any, onSetModule: any, setPlanStatus: any, onApplyTemplate: (templateId: string) => void, isNewUser: boolean, currentStep: TradePlanStep, draftToResume: SavedDraft | null, onResume: () => void, onDiscard: () => void }) {
     const entryType = useWatch({ control: form.control, name: 'entryType' });
     const strategyId = useWatch({ control: form.control, name: 'strategyId' });
