@@ -110,30 +110,67 @@ function ReportDialog({ reportType }: { reportType: ReportType }) {
     const { toast } = useToast();
     const reportData = {
         'Weekly': {
-            pnl: "+$850",
-            topImprovement: "Reduced revenge trading after losses.",
-            topWeakness: "Still exiting winning trades too early.",
-            focus: "Try a partial take-profit to let winners run."
+            pnl: "+$850.25",
+            winRate: "55%",
+            discipline: { journalingRate: "92%", slMovedPct: "8%" },
+            psychology: { topEmotion: "FOMO", topMistake: "Exited early" },
+            bestCondition: "NY Session / Normal VIX",
+            worstCondition: "London Open / High VIX",
+            recommendations: [
+                "Try a partial take-profit to let winners run.",
+                "Review trades where you exited early; what was the trigger?",
+                "Avoid trading the first 30 mins of London if feeling anxious.",
+            ]
         },
         'Monthly': {
-            pnl: "+$6,400",
-            topImprovement: "Significant improvement in sticking to A+ setups.",
-            topWeakness: "Performance drops in high volatility.",
-            focus: "Reduce size by 50% when VIX is 'Elevated'."
+            pnl: "+$6,430.80",
+            winRate: "49%",
+            discipline: { journalingRate: "85%", slMovedPct: "18%" },
+            psychology: { topEmotion: "Anxiety", topMistake: "Moved SL" },
+            bestCondition: "Trend following strategies",
+            worstCondition: "Range plays in high volatility",
+            recommendations: [
+                "Reduce size by 50% when VIX is 'Elevated' or higher.",
+                "Review all trades where you moved your stop loss.",
+                "Focus on your 'Breakout' strategy, as it's your most profitable.",
+            ]
         }
     }[reportType];
 
-    const handleCopy = () => {
-        const textToCopy = `
-### ${reportType} Trading Report
+    const generateReportText = (short = false) => {
+        const title = `### ${reportType} Trading Report ###`;
+        const performance = `**Performance:** PnL ${reportData.pnl} | Win Rate ${reportData.winRate}`;
+        if (short) {
+            return `${title}\n${performance}\n**Focus:** ${reportData.recommendations[0]}`;
+        }
+        return `
+${title}
 
-**Overall PnL:** ${reportData.pnl}
-**Top Improvement:** ${reportData.topImprovement}
-**Top Weakness:** ${reportData.topWeakness}
-**Recommended Focus:** ${reportData.focus}
-        `;
-        navigator.clipboard.writeText(textToCopy.trim());
-        toast({ title: "Report copied to clipboard" });
+**Performance Summary**
+- Overall PnL: ${reportData.pnl}
+- Win Rate: ${reportData.winRate}
+
+**Discipline Summary**
+- Journaling Rate: ${reportData.discipline.journalingRate}
+- Stop Loss Moved: ${reportData.discipline.slMovedPct} of trades
+
+**Psychology Summary**
+- Top Emotion: ${reportData.psychology.topEmotion}
+- Top Mistake: ${reportData.psychology.topMistake}
+
+**Conditions**
+- Best: ${reportData.bestCondition}
+- Worst: ${reportData.worstCondition}
+
+**Recommended Next Actions**
+${reportData.recommendations.map(r => `- ${r}`).join('\n')}
+        `.trim();
+    };
+
+    const handleCopy = (short: boolean) => {
+        const textToCopy = generateReportText(short);
+        navigator.clipboard.writeText(textToCopy);
+        toast({ title: short ? "Short summary copied" : "Full report copied" });
     }
 
     return (
@@ -144,39 +181,49 @@ function ReportDialog({ reportType }: { reportType: ReportType }) {
                     Your performance summarized into actionable insights for the period.
                 </DialogDescription>
             </DialogHeader>
-            <div className="py-4 space-y-6">
-                <div className="p-4 bg-muted rounded-lg border">
+            <div className="py-4 space-y-6 max-h-[70vh] overflow-y-auto pr-2">
+                <div className="p-4 bg-muted rounded-lg border grid grid-cols-2 gap-4">
                     <SummaryRow label="Overall PnL" value={reportData.pnl} className={reportData.pnl.startsWith('+') ? 'text-green-400' : 'text-red-400'} />
+                    <SummaryRow label="Win Rate" value={reportData.winRate} />
+                </div>
+                 <div className="space-y-4">
+                    <h4 className="font-semibold text-foreground">Discipline Summary</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                        <MetricCard title="Journaling Rate" value={reportData.discipline.journalingRate} hint="Completed journals" />
+                        <MetricCard title="SL Moved" value={reportData.discipline.slMovedPct} hint="Trades with moved stops" />
+                    </div>
                 </div>
                 <div className="space-y-4">
-                    <h4 className="font-semibold text-foreground">Summary</h4>
-                    <ul className="list-disc list-inside text-sm text-muted-foreground space-y-2">
-                        <li><strong className="text-green-400">This Period's Edge:</strong> {reportData.topImprovement}</li>
-                        <li><strong className="text-red-400">This Period's Leak:</strong> {reportData.topWeakness}</li>
-                        <li><strong className="text-primary">Next Period's Goal:</strong> {reportData.focus}</li>
+                    <h4 className="font-semibold text-foreground">Psychology Summary</h4>
+                     <div className="grid grid-cols-2 gap-4">
+                        <MetricCard title="Top Emotion" value={reportData.psychology.topEmotion} hint="Most tagged emotion" />
+                        <MetricCard title="Top Mistake" value={<Badge variant="destructive">{reportData.psychology.topMistake}</Badge>} hint="Costliest mistake" />
+                    </div>
+                </div>
+                <div className="space-y-4">
+                    <h4 className="font-semibold text-foreground">Conditions</h4>
+                    <Card className="bg-muted/50">
+                        <CardContent className="p-4 space-y-2">
+                            <SummaryRow label="Best Condition" value={reportData.bestCondition} />
+                            <SummaryRow label="Worst Condition" value={reportData.worstCondition} />
+                        </CardContent>
+                    </Card>
+                </div>
+                <div className="space-y-4">
+                     <h4 className="font-semibold text-foreground">Recommended Next Actions</h4>
+                     <ul className="list-disc list-inside text-sm text-muted-foreground space-y-2">
+                        {reportData.recommendations.map((rec, i) => <li key={i}>{rec}</li>)}
                     </ul>
                 </div>
-                <Separator />
-                <div className="space-y-4">
-                     <h4 className="font-semibold text-foreground">Chart Snapshots (Prototype)</h4>
-                     <div className="grid grid-cols-2 gap-4">
-                        <div className="h-32 bg-muted rounded-lg flex items-center justify-center border-2 border-dashed">
-                            <BarChartIcon className="h-8 w-8 text-muted-foreground" />
-                            <p className="text-xs text-muted-foreground ml-2">[PnL by day]</p>
-                        </div>
-                         <div className="h-32 bg-muted rounded-lg flex items-center justify-center border-2 border-dashed">
-                             <TrendingUp className="h-8 w-8 text-muted-foreground" />
-                            <p className="text-xs text-muted-foreground ml-2">[Equity curve]</p>
-                        </div>
-                     </div>
-                </div>
             </div>
-             <DialogFooter className="sm:justify-between gap-2">
+             <DialogFooter className="sm:justify-between gap-2 border-t pt-4">
                 <DialogClose asChild><Button variant="ghost">Close</Button></DialogClose>
                 <div className="flex gap-2">
-                    <Button variant="outline" disabled>Download (soon)</Button>
-                    <Button variant="outline" onClick={handleCopy}>
-                        <Clipboard className="mr-2 h-4 w-4" /> Copy Summary
+                    <Button variant="outline" onClick={() => handleCopy(true)}>
+                        <Clipboard className="mr-2 h-4 w-4" /> Copy Short Summary
+                    </Button>
+                    <Button variant="outline" onClick={() => handleCopy(false)}>
+                        <Copy className="mr-2 h-4 w-4" /> Copy Full Report
                     </Button>
                 </div>
             </DialogFooter>
