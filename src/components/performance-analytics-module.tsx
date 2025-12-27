@@ -1,10 +1,11 @@
 
+
       "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart as BarChartIcon, Brain, Calendar, Filter, AlertCircle, Info, TrendingUp, TrendingDown, Users, DollarSign, Target, Gauge, Zap, Award, ArrowRight, XCircle, CheckCircle, Circle, Bot, AlertTriangle, Clipboard, Star, Activity, BookOpen, BarChartHorizontal, Database, View, Flag, Presentation, ChevronsUpDown, Copy } from "lucide-react";
+import { BarChart as BarChartIcon, Brain, Calendar, Filter, AlertCircle, Info, TrendingUp, TrendingDown, Users, DollarSign, Target, Gauge, Zap, Award, ArrowRight, XCircle, CheckCircle, Circle, Bot, AlertTriangle, Clipboard, Star, Activity, BookOpen, BarChartHorizontal, Database, View, Flag, Presentation, ChevronsUpDown, Copy, MoreHorizontal } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, CartesianGrid, XAxis, YAxis, Bar, Line, LineChart, ResponsiveContainer, ReferenceDot, Dot } from "recharts";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -26,6 +27,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collap
 import { Skeleton } from "./ui/skeleton";
 import { HelpCircle, ChevronUp } from "lucide-react";
 import { AnalyticsTour } from "./analytics-tour";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
 
 
 interface PerformanceAnalyticsModuleProps {
@@ -837,7 +839,18 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
 
       const mockEquityData = entries.reduce((acc: any[], entry, i) => {
           const prevEquity = acc.length > 0 ? acc[acc.length - 1].equity : 10000;
-          const pnl = entry.review?.pnl || 0;
+          let pnl = entry.review?.pnl || 0;
+
+          const isRevenge = (entry.review?.mistakesTags || "").includes("Revenge");
+          const isDisciplined = (entry.review?.mistakesTags || "").includes("None (disciplined)");
+          
+          if (isRevenge && pnl >= 0) {
+              pnl = -Math.abs(pnl) * 1.5; // Ensure revenge trades are mostly losses
+          } else if (isDisciplined && pnl < 0) {
+              pnl = Math.abs(pnl) * 0.5; // Disciplined losses are smaller
+          }
+
+
           const equity = prevEquity + pnl;
           const hasMarker = entry.review?.mistakesTags && entry.review.mistakesTags !== "None (disciplined)";
           
@@ -1788,15 +1801,36 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                             <TableHead>Occurrences</TableHead>
                                             <TableHead>Avg. R Impact</TableHead>
                                             <TableHead>Total R Impact</TableHead>
+                                            <TableHead className="text-right">Actions</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         {currentData.topLossDrivers.map((driver: any) => (
-                                            <TableRow key={driver.behavior} className="cursor-pointer hover:bg-muted" onClick={() => setSelectedBehavior(driver)}>
+                                            <TableRow key={driver.behavior} >
                                                 <TableCell><Badge variant="destructive">{driver.behavior}</Badge></TableCell>
                                                 <TableCell>{driver.occurrences}</TableCell>
                                                 <TableCell className="font-mono text-red-400">{driver.avgR.toFixed(2)}R</TableCell>
                                                 <TableCell className="font-mono text-red-400">{driver.totalR.toFixed(2)}R</TableCell>
+                                                <TableCell className="text-right">
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                                <MoreHorizontal className="h-4 w-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end">
+                                                            <DropdownMenuItem onClick={() => onSetModule('tradeJournal', { filters: { mistake: driver.behavior } })}>
+                                                                View matching trades
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem onClick={() => setIsGuardrailDialogOpen(true)}>
+                                                                Add a guardrail
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem onClick={() => onSetModule('aiCoaching', { initialMessage: `Arjun, let's talk about why I keep making the mistake: ${driver.behavior}` })}>
+                                                                Ask Arjun about this
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </TableCell>
                                             </TableRow>
                                         ))}
                                     </TableBody>
@@ -1887,11 +1921,12 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                             <SortableHeader sortKey="winRate" label="Win Rate" sortConfig={sortConfig} onSort={handleSort} />
                                             <SortableHeader sortKey="mistakeRate" label="Mistake Rate" sortConfig={sortConfig} onSort={handleSort} />
                                             <TableHead>Emotion Mix</TableHead>
+                                             <TableHead className="text-right">Actions</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         {sortedStrategies.map((strategy: any) => (
-                                            <TableRow key={strategy.name} className="transition-colors hover:bg-muted/50 cursor-pointer" onClick={() => setSelectedStrategy(strategy)}>
+                                            <TableRow key={strategy.name}>
                                                 <TableCell>
                                                     <div className="font-medium text-foreground">{strategy.name}</div>
                                                     <div className="text-xs text-muted-foreground">{strategy.trades} trades</div>
@@ -1912,6 +1947,23 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                                             </div>
                                                         ))}
                                                     </div>
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                                                                <MoreHorizontal className="h-4 w-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end">
+                                                            <DropdownMenuItem onClick={() => onSetModule('strategyManagement', { strategyId: strategy.id })}>
+                                                                Go to Strategy Management
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem onClick={() => onSetModule('tradePlanning', { planContext: { instrument: 'BTC-PERP', strategyId: strategy.id } })}>
+                                                                Start a plan with this strategy
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
                                                 </TableCell>
                                             </TableRow>
                                         ))}
