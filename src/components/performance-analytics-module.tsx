@@ -573,6 +573,48 @@ const ExportDialog = ({ isOpen, onOpenChange, title, summaryText }: { isOpen: bo
     );
 };
 
+function GrowthPlanDialog({ isOpen, onOpenChange, onApply }: { isOpen: boolean, onOpenChange: (open: boolean) => void, onApply: (tasks: string[]) => void }) {
+    const growthPlanTasks = [
+        "Cap trades/day at 3 for the next 7 days.",
+        "Do not trade during Elevated/Extreme VIX periods.",
+        "Journal every trade within 15 minutes of closing.",
+        "Review your top 3 losing trades from this period with Arjun.",
+        "Watch: 'Handling Volatility Without Emotion' video in resources.",
+    ];
+
+    const handleApply = () => {
+        onApply(growthPlanTasks);
+        onOpenChange(false);
+    }
+    
+    return (
+        <Dialog open={isOpen} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Generated Growth Plan</DialogTitle>
+                    <DialogDescription>
+                        Here are Arjun's recommended focus tasks for the next 7 days based on your analytics.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="py-4 space-y-3">
+                    {growthPlanTasks.map((task, i) => (
+                        <div key={i} className="flex items-start gap-3 p-3 rounded-md bg-muted/50 border">
+                            <Bot className="h-4 w-4 text-primary mt-1" />
+                            <span className="text-sm text-muted-foreground">{task}</span>
+                        </div>
+                    ))}
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+                    <Button onClick={handleApply}>
+                        Apply to Dashboard's "Today's Focus"
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
 export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalyticsModuleProps) {
     const [timeRange, setTimeRange] = useState("30d");
     const [activeTab, setActiveTab] = useState("overview");
@@ -591,6 +633,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
     const [hotspotMetric, setHotspotMetric] = useState<"Revenge" | "FOMO" | "Moved SL" | "Overtraded">("Revenge");
     const { toast } = useToast();
     const [isRecoveryMode, setIsRecoveryMode] = useState(false);
+    const [isGrowthPlanDialogOpen, setIsGrowthPlanDialogOpen] = useState(false);
 
     const computeSinglePeriodAnalytics = (entries: JournalEntry[], random: () => number) => {
       if (entries.length === 0) return null;
@@ -925,6 +968,14 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
             description: "Recommended guardrails have been activated in your Trade Planning module.",
         });
     };
+    
+    const handleApplyGrowthPlan = (tasks: string[]) => {
+        localStorage.setItem('ec_growth_plan_today', JSON.stringify(tasks));
+        toast({
+            title: "Growth Plan Applied!",
+            description: "Your 'Today's Focus' on the dashboard has been updated."
+        });
+    };
 
     if (!hasData) {
         return (
@@ -1015,6 +1066,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
 
     return (
         <>
+            <GrowthPlanDialog isOpen={isGrowthPlanDialogOpen} onOpenChange={setIsGrowthPlanDialogOpen} onApply={handleApplyGrowthPlan} />
             <Drawer open={!!selectedEvent} onOpenChange={(open) => !open && setSelectedEvent(null)}>
                 <DrawerContent>
                     {selectedEvent && (
@@ -1499,6 +1551,16 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                             onClear={() => setSelectedBehavior(null)}
                             onOpenJournal={(journalId) => onSetModule('tradeJournal', { draftId: journalId })}
                         />
+                         <Card className="bg-muted/30 border-border/50 text-center">
+                            <CardContent className="p-6">
+                                <h3 className="font-semibold text-foreground">Turn insights into action.</h3>
+                                <p className="text-sm text-muted-foreground mt-1 mb-4">Generate a personalized growth plan based on these analytics.</p>
+                                <Button onClick={() => setIsGrowthPlanDialogOpen(true)}>
+                                    <Bot className="mr-2 h-4 w-4" />
+                                    Generate Growth Plan (Prototype)
+                                </Button>
+                            </CardContent>
+                        </Card>
                     </TabsContent>
                     <TabsContent value="strategies" className="mt-6 space-y-8">
                         <SectionCard id="strategy" title="Strategy Analytics" description="Which of your strategies are performing best, and where they leak money." icon={BookOpen}>
@@ -1538,8 +1600,8 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                                 <EmptyState icon={BookOpen} title="No Strategies Found" description="Define strategies in Strategy Management and tag your trades." />
                         )}
                         </SectionCard>
-                        <SectionCard 
-                            id="timing" 
+                        
+                        <SectionCard id="timing" 
                             title="Timing Analytics" 
                             description="When you trade best (and worst)." 
                             icon={Calendar} 
@@ -1848,4 +1910,5 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
         </>
     );
 }
+
 

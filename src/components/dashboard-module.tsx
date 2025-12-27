@@ -46,7 +46,7 @@ const newsItems = [
     { instrument: 'BTC-PERP', headline: "Regulatory uncertainty in Asia spooks investors", sentiment: "Bearish", summary: "New draft regulations have caused a sell-off in regional markets." },
 ]
 
-const growthPlanItems = [
+const defaultGrowthPlanItems = [
     "Limit yourself to 5 trades per day.",
     "Only trade your best A+ setup for the next 2 weeks.",
     "Complete a daily journal review for at least 10 days.",
@@ -652,6 +652,9 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                     return acc;
                 }, []);
                 
+                const growthPlan = localStorage.getItem('ec_growth_plan_today');
+                const growthPlanItems = growthPlan ? JSON.parse(growthPlan) : (hasHistory ? defaultGrowthPlanItems : newUserGrowthPlanItems);
+
                 setData({
                     persona: {
                         primaryPersonaName: personaData.primaryPersonaName || 'Trader',
@@ -677,7 +680,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                         streak,
                     },
                     positions: brokerConnected && hasHistory ? openPositions : [],
-                    growthPlanToday: hasHistory ? growthPlanItems : newUserGrowthPlanItems,
+                    growthPlanToday: growthPlanItems,
                 });
             }
         }, [currentScenario]);
