@@ -3,7 +3,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { BrainCircuit, PlusCircle, CheckCircle, Search, Filter as FilterIcon, Clock, ListOrdered, FileText, Gauge, Calendar, ShieldCheck, Zap, MoreHorizontal, ArrowLeft, Edit, Archive, Star, BookOpen, BarChartHorizontal, Trash2, ChevronsUpDown, Info, Check, Save, Copy, CircleDashed, ArrowRight } from "lucide-react";
+import { BrainCircuit, PlusCircle, CheckCircle, Search, Filter as FilterIcon, Clock, ListOrdered, FileText, Gauge, Calendar, ShieldCheck, Zap, MoreHorizontal, ArrowLeft, Edit, Archive, Star, BookOpen, BarChartHorizontal, Trash2, ChevronsUpDown, Info, Check, Save, Copy, CircleDashed, ArrowRight, X } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -415,7 +415,7 @@ function StrategyDetailView({
                                             </div>
                                             <p className="text-xs text-muted-foreground mt-1">Created: {new Date(v.createdAt).toLocaleDateString()}</p>
                                              {v.changeNotes && <p className="text-xs text-muted-foreground mt-2 italic">"{v.changeNotes}"</p>}
-                                             {!v.isActiveVersion && selectedVersionId !== v.versionId && (
+                                             {!v.isActiveVersion && (
                                                 <Button variant="link" size="sm" className="p-0 h-auto text-xs mt-2" onClick={(e) => { e.stopPropagation(); onMakeActive(v.versionId); }}>
                                                     Make active
                                                 </Button>
@@ -626,25 +626,25 @@ const strategyTemplates: (Omit<StrategyCreationValues, 'name' | 'changeNotes'> &
 const RulebookPreview = ({ form }: { form: any }) => {
     const values = useWatch({ control: form.control }) as StrategyCreationValues;
 
-    const allRules = [
-        ...(values.entryConditions || []),
-        ...(values.stopLossRules || []),
-        ...(values.takeProfitRules || []),
-        ...(values.riskManagementRules || []),
-        ...(values.contextRules || []),
-    ];
-    
-    const strengthScore = Math.min(100, (allRules.length / 10) * 100);
-    let strengthLabel: 'Weak' | 'Medium' | 'Strong' = 'Weak';
-    let strengthColor = 'bg-red-500';
+    const checks = {
+      entry: (values.entryConditions || []).length > 0,
+      sl: (values.stopLossRules || []).length > 0,
+      riskPerTrade: (values.riskManagementRules || []).some(r => r.toLowerCase().includes('risk')),
+      maxTrades: (values.riskManagementRules || []).some(r => r.toLowerCase().includes('max daily trades')),
+    };
 
-    if (strengthScore > 66) {
-        strengthLabel = 'Strong';
-        strengthColor = 'bg-green-500';
-    } else if (strengthScore > 33) {
-        strengthLabel = 'Medium';
-        strengthColor = 'bg-amber-500';
-    }
+    const isReady = checks.entry && checks.sl && checks.riskPerTrade && checks.maxTrades;
+    
+    const readinessLabel = isReady ? 'Ready' : 'Incomplete';
+    const readinessColor = isReady ? 'text-green-400' : 'text-amber-400';
+    const ReadinessIcon = isReady ? CheckCircle : AlertTriangle;
+
+    const checklist = [
+      { label: "Entry Rule Defined", checked: checks.entry },
+      { label: "Stop Loss Rule Defined", checked: checks.sl },
+      { label: "Risk Per Trade Defined", checked: checks.riskPerTrade },
+      { label: "Max Daily Trades Defined", checked: checks.maxTrades },
+    ];
 
     return (
         <Card className="sticky top-24">
@@ -663,29 +663,22 @@ const RulebookPreview = ({ form }: { form: any }) => {
                 <Separator />
 
                 <div>
-                    <Label className="text-xs text-muted-foreground">Discipline Strength</Label>
-                    <Progress value={strengthScore} indicatorClassName={strengthColor} className="h-2" />
-                    <p className="text-xs font-semibold mt-1" style={{ color: strengthColor.replace('bg-', 'text-') }}>
-                        {strengthLabel} ({allRules.length} rules defined)
-                    </p>
-                </div>
-
-                <Separator />
-                
-                <div className="space-y-3 text-xs max-h-60 overflow-y-auto pr-2">
-                    {allRules.length > 0 ? (
-                        allRules.map((rule, index) => (
-                            <div key={index} className="flex items-start gap-2">
-                                <CheckCircle className="h-3 w-3 text-primary mt-0.5 flex-shrink-0" />
-                                <span className="text-muted-foreground">{rule}</span>
+                    <Label className="text-xs text-muted-foreground">Enforcement Readiness</Label>
+                    <div className="flex items-center gap-2 mt-1">
+                        <ReadinessIcon className={cn("h-5 w-5", readinessColor)} />
+                        <p className={cn("font-semibold", readinessColor)}>{readinessLabel}</p>
+                    </div>
+                    <div className="space-y-2 text-xs mt-3">
+                        {checklist.map(item => (
+                            <div key={item.label} className="flex items-center gap-2">
+                                {item.checked ? <Check className="h-4 w-4 text-green-500" /> : <X className="h-4 w-4 text-muted-foreground" />}
+                                <span className={cn("text-muted-foreground", item.checked && "line-through")}>{item.label}</span>
                             </div>
-                        ))
-                    ) : (
-                        <div className="flex items-center gap-2 text-muted-foreground italic">
-                            <CircleDashed className="h-3 w-3" />
-                            <span>Your rules will appear here as you add them.</span>
-                        </div>
-                    )}
+                        ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground/80 mt-3">
+                      A "Ready" strategy can be fully enforced by Arjun in the Trade Planning module.
+                    </p>
                 </div>
             </CardContent>
         </Card>
@@ -1541,3 +1534,4 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
         </div>
     );
 }
+
