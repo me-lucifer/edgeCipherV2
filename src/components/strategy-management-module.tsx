@@ -3,9 +3,9 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { BrainCircuit, PlusCircle, CheckCircle, Search, Filter as FilterIcon, Clock, ListOrdered, FileText, Gauge, Calendar, ShieldCheck, Zap, MoreHorizontal, ArrowLeft, Edit, Archive, Star, BookOpen, BarChartHorizontal, Trash2, ChevronsUpDown, Info, Check, Save, Copy } from "lucide-react";
+import { BrainCircuit, PlusCircle, CheckCircle, Search, Filter as FilterIcon, Clock, ListOrdered, FileText, Gauge, Calendar, ShieldCheck, Zap, MoreHorizontal, ArrowLeft, Edit, Archive, Star, BookOpen, BarChartHorizontal, Trash2, ChevronsUpDown, Info, Check, Save, Copy, CircleDashed } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -22,6 +22,7 @@ import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "./ui/t
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "./ui/alert-dialog";
 import { Textarea } from "./ui/textarea";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "./ui/form";
+import { Progress } from "./ui/progress";
 
 
 interface StrategyManagementModuleProps {
@@ -547,6 +548,73 @@ const strategyTemplates: (Omit<StrategyCreationValues, 'name'> & {id: string, na
     }
 ];
 
+const RulebookPreview = ({ form }: { form: any }) => {
+    const values = useWatch({ control: form.control }) as StrategyCreationValues;
+
+    const allRules = [
+        ...(values.entryConditions || []),
+        ...(values.exitConditions || []),
+        ...(values.riskManagementRules || []),
+        ...(values.contextRules || []),
+    ];
+    
+    const strengthScore = Math.min(100, (allRules.length / 10) * 100);
+    let strengthLabel: 'Weak' | 'Medium' | 'Strong' = 'Weak';
+    let strengthColor = 'bg-red-500';
+
+    if (strengthScore > 66) {
+        strengthLabel = 'Strong';
+        strengthColor = 'bg-green-500';
+    } else if (strengthScore > 33) {
+        strengthLabel = 'Medium';
+        strengthColor = 'bg-amber-500';
+    }
+
+    return (
+        <Card className="sticky top-24">
+            <CardHeader>
+                <CardTitle className="text-base">Rulebook Preview</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div>
+                    <h4 className="font-semibold text-foreground">{values.name || "Untitled Strategy"}</h4>
+                    <div className="flex flex-wrap items-center gap-2 mt-2">
+                        {values.type && <Badge variant="outline">{values.type}</Badge>}
+                        {values.timeframes?.map(tf => <Badge key={tf} variant="secondary">{tf}</Badge>)}
+                    </div>
+                </div>
+
+                <Separator />
+
+                <div>
+                    <Label className="text-xs text-muted-foreground">Discipline Strength</Label>
+                    <Progress value={strengthScore} indicatorClassName={strengthColor} className="h-2" />
+                    <p className="text-xs font-semibold mt-1" style={{ color: strengthColor.replace('bg-', 'text-') }}>
+                        {strengthLabel} ({allRules.length} rules defined)
+                    </p>
+                </div>
+
+                <Separator />
+                
+                <div className="space-y-3 text-xs max-h-60 overflow-y-auto pr-2">
+                    {allRules.length > 0 ? (
+                        allRules.map((rule, index) => (
+                            <div key={index} className="flex items-start gap-2">
+                                <CheckCircle className="h-3 w-3 text-primary mt-0.5 flex-shrink-0" />
+                                <span className="text-muted-foreground">{rule}</span>
+                            </div>
+                        ))
+                    ) : (
+                        <div className="flex items-center gap-2 text-muted-foreground italic">
+                            <CircleDashed className="h-3 w-3" />
+                            <span>Your rules will appear here as you add them.</span>
+                        </div>
+                    )}
+                </div>
+            </CardContent>
+        </Card>
+    );
+};
 
 function StrategyCreatorView({ onBack, onSave }: { onBack: () => void; onSave: (data: StrategyCreationValues) => void; }) {
     const [currentStep, setCurrentStep] = useState(0);
@@ -660,114 +728,122 @@ function StrategyCreatorView({ onBack, onSave }: { onBack: () => void; onSave: (
                 <p className="text-muted-foreground">Build a rulebook Arjun can enforce.</p>
             </div>
             
-            {wizardStarted ? (
-                <>
-                    <div className="p-4 bg-muted/30 rounded-lg">
-                        <Stepper currentStep={currentStep} steps={creationSteps} />
-                    </div>
-                    <Card className="bg-muted/30">
-                        <CardContent className="p-6">
-                            <Form {...form}>
-                                <form className="space-y-6">
-                                    {currentStep === 0 && (
-                                        <div className="space-y-4">
-                                            <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Strategy Name</FormLabel><FormControl><Input placeholder="e.g., London Open Reversal" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                                            <FormField control={form.control} name="description" render={({ field }) => (<FormItem><FormLabel>Description / When to use (Optional)</FormLabel><FormControl><Textarea placeholder="e.g., 'A mean-reversion strategy played during the first 2 hours of the London session...'" {...field} /></FormControl><FormMessage /></FormItem>)} />
+            <div className="grid lg:grid-cols-3 gap-8 items-start">
+                <div className="lg:col-span-2 space-y-6">
+                    {wizardStarted ? (
+                        <>
+                            <div className="p-4 bg-muted/30 rounded-lg">
+                                <Stepper currentStep={currentStep} steps={creationSteps} />
+                            </div>
+                            <Card className="bg-muted/30">
+                                <CardContent className="p-6">
+                                    <Form {...form}>
+                                        <form className="space-y-6">
+                                            {currentStep === 0 && (
+                                                <div className="space-y-4">
+                                                    <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Strategy Name</FormLabel><FormControl><Input placeholder="e.g., London Open Reversal" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                                    <FormField control={form.control} name="description" render={({ field }) => (<FormItem><FormLabel>Description / When to use (Optional)</FormLabel><FormControl><Textarea placeholder="e.g., 'A mean-reversion strategy played during the first 2 hours of the London session...'" {...field} /></FormControl><FormMessage /></FormItem>)} />
 
-                                            <div className="grid md:grid-cols-2 gap-4">
-                                                <FormField control={form.control} name="type" render={({ field }) => (<FormItem><FormLabel>Type</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger></FormControl><SelectContent>{strategyTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>)} />
-                                                <FormField control={form.control} name="difficulty" render={({ field }) => (<FormItem><FormLabel>Difficulty (Optional)</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select difficulty" /></SelectTrigger></FormControl><SelectContent>{difficultyOptions.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>)} />
-                                            </div>
-                                            <FormField
-                                                control={form.control}
-                                                name="timeframes"
-                                                render={({ field }) => (
-                                                    <FormItem>
-                                                        <FormLabel>Timeframe Focus</FormLabel>
-                                                        <FormControl>
-                                                            <div className="flex flex-wrap gap-2 pt-2">
-                                                                {timeframeOptions.map(tf => {
-                                                                    const isSelected = field.value.includes(tf);
-                                                                    return (
-                                                                        <Button
-                                                                            key={tf}
-                                                                            type="button"
-                                                                            variant={isSelected ? "secondary" : "outline"}
-                                                                            onClick={() => {
-                                                                                const newValue = isSelected
-                                                                                    ? field.value.filter(v => v !== tf)
-                                                                                    : [...field.value, tf];
-                                                                                field.onChange(newValue);
-                                                                            }}
-                                                                        >
-                                                                            {tf}
-                                                                        </Button>
-                                                                    );
-                                                                })}
-                                                            </div>
-                                                        </FormControl>
-                                                        <FormDescription>Timeframe focus helps Arjun detect where you tend to break discipline.</FormDescription>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
-                                        </div>
-                                    )}
-                                     {currentStep === 1 && <FormField control={form.control} name="entryConditions" render={({ field }) => (<FormItem><FormLabel>Entry Rules</FormLabel><FormControl><RuleEditor {...field} placeholder="e.g., Price breaks 4H consolidation..." /></FormControl><FormMessage /></FormItem>)} />}
-                                     {currentStep === 2 && <FormField control={form.control} name="exitConditions" render={({ field }) => (<FormItem><FormLabel>Exit Rules (SL/TP logic)</FormLabel><FormControl><RuleEditor {...field} placeholder="e.g., Target is next major liquidity..." /></FormControl><FormMessage /></FormItem>)} />}
-                                     {currentStep === 3 && <FormField control={form.control} name="riskManagementRules" render={({ field }) => (<FormItem><FormLabel>Risk Management Rules</FormLabel><FormControl><RuleEditor {...field} placeholder="e.g., Max risk 1% of account..." /></FormControl><FormMessage /></FormItem>)} />}
-                                     {currentStep === 4 && <FormField control={form.control} name="contextRules" render={({ field }) => (<FormItem><FormLabel>Context Rules (when to trade/not trade)</FormLabel><FormControl><RuleEditor {...field} placeholder="e.g., Only trade during NY session..." /></FormControl><FormMessage /></FormItem>)} />}
-                                     {currentStep === 5 && (
-                                        <div className="space-y-4">
-                                            <h3 className="font-semibold">Review & Save</h3>
-                                            <RulesCard title="Basic Info" rules={[`Name: ${form.getValues().name}`, `Type: ${form.getValues().type}`, `Timeframes: ${form.getValues().timeframes.join(', ')}`]} />
-                                            <RulesCard title="Entry Rules" rules={form.getValues().entryConditions} />
-                                            <RulesCard title="Exit Rules" rules={form.getValues().exitConditions} />
-                                            <RulesCard title="Risk Rules" rules={form.getValues().riskManagementRules} />
-                                            <RulesCard title="Context Rules" rules={form.getValues().contextRules} />
-                                        </div>
-                                     )}
-                                </form>
-                            </Form>
-                        </CardContent>
-                    </Card>
-                </>
-            ) : (
-                <Card className="bg-muted/30">
-                    <CardHeader>
-                        <CardTitle>Start with a Template</CardTitle>
-                        <CardDescription>
-                             <TooltipProvider>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <span className="flex items-center gap-1.5 cursor-help">
-                                            Recommended for most users. You can edit everything.
-                                            <Info className="h-3 w-3 text-muted-foreground/80" />
-                                        </span>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        <p>Templates are editable. Saving creates your v1 strategy.</p>
-                                    </TooltipContent>
-                                </Tooltip>
-                            </TooltipProvider>
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {strategyTemplates.map(template => (
-                             <Card key={template.id} onClick={() => handleTemplateSelect(template.id)} className="cursor-pointer hover:border-primary transition-colors bg-muted">
-                                <CardHeader>
-                                    <CardTitle className="text-base">{template.name}</CardTitle>
-                                    <CardDescription>{template.description}</CardDescription>
-                                </CardHeader>
-                             </Card>
-                        ))}
-                    </CardContent>
-                    <CardFooter className="flex-col items-start gap-4">
-                        <Separator />
-                        <Button variant="link" className="p-0 h-auto" onClick={() => setWizardStarted(true)}>Or start from scratch</Button>
-                    </CardFooter>
-                </Card>
-            )}
+                                                    <div className="grid md:grid-cols-2 gap-4">
+                                                        <FormField control={form.control} name="type" render={({ field }) => (<FormItem><FormLabel>Type</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger></FormControl><SelectContent>{strategyTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>)} />
+                                                        <FormField control={form.control} name="difficulty" render={({ field }) => (<FormItem><FormLabel>Difficulty (Optional)</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select difficulty" /></SelectTrigger></FormControl><SelectContent>{difficultyOptions.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>)} />
+                                                    </div>
+                                                    <FormField
+                                                        control={form.control}
+                                                        name="timeframes"
+                                                        render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormLabel>Timeframe Focus</FormLabel>
+                                                                <FormControl>
+                                                                    <div className="flex flex-wrap gap-2 pt-2">
+                                                                        {timeframeOptions.map(tf => {
+                                                                            const isSelected = field.value.includes(tf);
+                                                                            return (
+                                                                                <Button
+                                                                                    key={tf}
+                                                                                    type="button"
+                                                                                    variant={isSelected ? "secondary" : "outline"}
+                                                                                    onClick={() => {
+                                                                                        const newValue = isSelected
+                                                                                            ? field.value.filter(v => v !== tf)
+                                                                                            : [...field.value, tf];
+                                                                                        field.onChange(newValue);
+                                                                                    }}
+                                                                                >
+                                                                                    {tf}
+                                                                                </Button>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                </FormControl>
+                                                                <FormDescription>Timeframe focus helps Arjun detect where you tend to break discipline.</FormDescription>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                </div>
+                                            )}
+                                            {currentStep === 1 && <FormField control={form.control} name="entryConditions" render={({ field }) => (<FormItem><FormLabel>Entry Rules</FormLabel><FormControl><RuleEditor {...field} placeholder="e.g., Price breaks 4H consolidation..." /></FormControl><FormMessage /></FormItem>)} />}
+                                            {currentStep === 2 && <FormField control={form.control} name="exitConditions" render={({ field }) => (<FormItem><FormLabel>Exit Rules (SL/TP logic)</FormLabel><FormControl><RuleEditor {...field} placeholder="e.g., Target is next major liquidity..." /></FormControl><FormMessage /></FormItem>)} />}
+                                            {currentStep === 3 && <FormField control={form.control} name="riskManagementRules" render={({ field }) => (<FormItem><FormLabel>Risk Management Rules</FormLabel><FormControl><RuleEditor {...field} placeholder="e.g., Max risk 1% of account..." /></FormControl><FormMessage /></FormItem>)} />}
+                                            {currentStep === 4 && <FormField control={form.control} name="contextRules" render={({ field }) => (<FormItem><FormLabel>Context Rules (when to trade/not trade)</FormLabel><FormControl><RuleEditor {...field} placeholder="e.g., Only trade during NY session..." /></FormControl><FormMessage /></FormItem>)} />}
+                                            {currentStep === 5 && (
+                                                <div className="space-y-4">
+                                                    <h3 className="font-semibold">Review & Save</h3>
+                                                    <RulesCard title="Basic Info" rules={[`Name: ${form.getValues().name}`, `Type: ${form.getValues().type}`, `Timeframes: ${form.getValues().timeframes.join(', ')}`]} />
+                                                    <RulesCard title="Entry Rules" rules={form.getValues().entryConditions} />
+                                                    <RulesCard title="Exit Rules" rules={form.getValues().exitConditions} />
+                                                    <RulesCard title="Risk Rules" rules={form.getValues().riskManagementRules} />
+                                                    <RulesCard title="Context Rules" rules={form.getValues().contextRules} />
+                                                </div>
+                                            )}
+                                        </form>
+                                    </Form>
+                                </CardContent>
+                            </Card>
+                        </>
+                    ) : (
+                        <Card className="bg-muted/30">
+                            <CardHeader>
+                                <CardTitle>Start with a Template</CardTitle>
+                                <CardDescription>
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <span className="flex items-center gap-1.5 cursor-help">
+                                                    Recommended for most users. You can edit everything.
+                                                    <Info className="h-3 w-3 text-muted-foreground/80" />
+                                                </span>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Templates are editable. Saving creates your v1 strategy.</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                {strategyTemplates.map(template => (
+                                    <Card key={template.id} onClick={() => handleTemplateSelect(template.id)} className="cursor-pointer hover:border-primary transition-colors bg-muted">
+                                        <CardHeader>
+                                            <CardTitle className="text-base">{template.name}</CardTitle>
+                                            <CardDescription>{template.description}</CardDescription>
+                                        </CardHeader>
+                                    </Card>
+                                ))}
+                            </CardContent>
+                            <CardFooter className="flex-col items-start gap-4">
+                                <Separator />
+                                <Button variant="link" className="p-0 h-auto" onClick={() => setWizardStarted(true)}>Or start from scratch</Button>
+                            </CardFooter>
+                        </Card>
+                    )}
+                </div>
+
+                <div className="lg:col-span-1">
+                    <RulebookPreview form={form} />
+                </div>
+            </div>
             
             <div className="flex justify-between items-center">
                 <Button type="button" variant="ghost" onClick={handleBack}>{wizardStarted ? "Back" : "Cancel"}</Button>
