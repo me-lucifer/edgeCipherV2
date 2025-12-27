@@ -1,5 +1,4 @@
 
-
       "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
@@ -717,7 +716,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
 
         const mockEquityData = entries.reduce((acc: any[], entry, i) => {
             const prevEquity = acc.length > 0 ? acc[acc.length - 1].equity : 10000;
-            const pnl = entry.review?.pnl || (random() - 0.48) * 500;
+            const pnl = entry.review?.pnl || 0;
             const equity = prevEquity + pnl;
             const hasMarker = entry.review?.mistakesTags && entry.review.mistakesTags !== "None (disciplined)";
             
@@ -964,9 +963,16 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
             const takeProfit = direction === 'Long' ? entryPrice + rewardPerUnit : entryPrice - rewardPerUnit;
 
             const winChance = isRevengeTrade ? 0.2 : vixZone === 'Elevated' ? 0.35 : 0.5;
-            const isWin = random() < winChance;
+            let isWin = random() < winChance;
+            
+            if (mistakes.includes("Moved SL")) isWin = false; // Moved SL often results in a loss
+            if (mistakes.includes("Revenge")) isWin = random() < 0.15; // Revenge trading rarely works
+            
             const pnlMultiplier = isWin ? baseRR : -1;
-            const randomFactor = 1 + (random() - 0.5) * 0.2;
+            
+            let randomFactor = 1 + (random() - 0.5) * 0.2;
+            if (mistakes.includes("Moved SL")) randomFactor = 1.5 + random() * 0.5; // Bigger loss if SL is moved
+
             const pnl = Math.abs(entryPrice - stopLoss) * pnlMultiplier * randomFactor * 5; // *5 for contract size mock
 
             if (isWin) {
@@ -2018,7 +2024,4 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
     );
 }
 
-
-
-
-
+    
