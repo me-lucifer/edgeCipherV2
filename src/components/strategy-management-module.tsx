@@ -1,8 +1,9 @@
 
+
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { BrainCircuit, PlusCircle, CheckCircle, Search, Filter as FilterIcon, Clock, ListOrdered, FileText, Gauge, Calendar, ShieldCheck, Zap } from "lucide-react";
+import { BrainCircuit, PlusCircle, CheckCircle, Search, Filter as FilterIcon, Clock, ListOrdered, FileText, Gauge, Calendar, ShieldCheck, Zap, MoreHorizontal, ArrowLeft, Edit, Archive, Star } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardDescription, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
@@ -11,6 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
 
 interface StrategyManagementModuleProps {
     onSetModule: (module: any, context?: any) => void;
@@ -92,7 +95,11 @@ const seedStrategies: StrategyGroup[] = [
                 versionNumber: 1,
                 isActiveVersion: false,
                 createdAt: new Date(Date.now() - 86400000 * 4).toISOString(),
-                fields: { entryConditions: [], exitConditions: [], riskManagementRules: [] },
+                fields: { 
+                    entryConditions: ["Older entry condition"], 
+                    exitConditions: ["Older exit condition"], 
+                    riskManagementRules: ["Max risk 2% of account"] 
+                },
                 usageCount: 27,
                 lastUsedAt: new Date(Date.now() - 86400000 * 5).toISOString(),
             }
@@ -111,7 +118,11 @@ const seedStrategies: StrategyGroup[] = [
                 versionNumber: 1,
                 isActiveVersion: true,
                 createdAt: new Date(Date.now() - 86400000 * 30).toISOString(),
-                fields: { entryConditions: [], exitConditions: [], riskManagementRules: ["Max risk 0.5% of account", "Max daily loss 2%"] },
+                fields: { 
+                    entryConditions: ["Scalp entry"], 
+                    exitConditions: ["Scalp exit"], 
+                    riskManagementRules: ["Max risk 0.5% of account", "Max daily loss 2%"] 
+                },
                 usageCount: 102,
                 lastUsedAt: new Date(Date.now() - 86400000 * 20).toISOString(),
             }
@@ -138,7 +149,7 @@ const RuleItem = ({ icon: Icon, label, value }: { icon: React.ElementType, label
     );
 };
 
-function StrategyCard({ strategy }: { strategy: StrategyGroup }) {
+function StrategyCard({ strategy, onOpen }: { strategy: StrategyGroup, onOpen: (strategy: StrategyGroup) => void }) {
     const activeVersion = strategy.versions.find(v => v.isActiveVersion);
     const totalUsage = strategy.versions.reduce((sum, v) => sum + v.usageCount, 0);
 
@@ -198,7 +209,7 @@ function StrategyCard({ strategy }: { strategy: StrategyGroup }) {
                     <div className="flex justify-between"><span>Total trades:</span> <span>{totalUsage}</span></div>
                 </div>
                 <div className="w-full grid grid-cols-3 gap-2">
-                    <Button size="sm" className="col-span-3">Open</Button>
+                    <Button size="sm" className="col-span-3" onClick={() => onOpen(strategy)}>Open</Button>
                     <Button size="sm" variant="ghost" className="text-muted-foreground" disabled>Duplicate</Button>
                     <Button size="sm" variant="ghost" className="text-muted-foreground" disabled>
                         {strategy.status === 'active' ? "Archive" : "Unarchive"}
@@ -209,14 +220,149 @@ function StrategyCard({ strategy }: { strategy: StrategyGroup }) {
     );
 }
 
+const RulesCard = ({ title, rules }: { title: string; rules: string[] }) => (
+    <Card className="bg-muted/50 border-border/50">
+        <CardHeader>
+            <CardTitle className="text-base">{title}</CardTitle>
+        </CardHeader>
+        <CardContent>
+            {rules.length > 0 ? (
+                <ul className="space-y-2 text-sm text-muted-foreground list-disc list-inside">
+                    {rules.map((rule, i) => <li key={i}>{rule}</li>)}
+                </ul>
+            ) : (
+                <p className="text-sm text-muted-foreground italic">No rules defined for this section in this version.</p>
+            )}
+        </CardContent>
+    </Card>
+);
+
+function StrategyDetailView({ 
+    strategy, 
+    onBack,
+    onArchive,
+    onDelete,
+    onMakeActive,
+}: { 
+    strategy: StrategyGroup; 
+    onBack: () => void;
+    onArchive: () => void;
+    onDelete: () => void;
+    onMakeActive: (versionId: string) => void;
+}) {
+    const [selectedVersion, setSelectedVersion] = useState<StrategyVersion | undefined>(strategy.versions.find(v => v.isActiveVersion));
+
+    if (!selectedVersion) return null; // Should not happen if data is correct
+
+    return (
+        <div>
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+                <Button variant="ghost" onClick={onBack} className="-ml-4">
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back to Playbook
+                </Button>
+                <div className="flex items-center gap-2">
+                    <Button variant="outline" disabled>
+                        <Edit className="mr-2 h-4 w-4" />
+                        Edit (creates new version)
+                    </Button>
+                     <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                                <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={onArchive}>
+                                <Archive className="mr-2 h-4 w-4" />
+                                {strategy.status === 'active' ? 'Archive' : 'Restore'}
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
+            </div>
+
+             <div className="grid lg:grid-cols-3 gap-8 items-start">
+                {/* Left Column */}
+                <div className="lg:col-span-1 space-y-6 sticky top-24">
+                    <Card className="bg-muted/30 border-border/50">
+                        <CardHeader>
+                            <CardTitle>{strategy.name}</CardTitle>
+                            <CardDescription>
+                                <Badge variant="outline">{strategy.type}</Badge>
+                                <Badge variant="outline" className="ml-2">{strategy.timeframe}</Badge>
+                            </CardDescription>
+                        </CardHeader>
+                         <CardContent>
+                             <div className="space-y-4">
+                                <div>
+                                    <Label htmlFor="version-selector">Viewing Version</Label>
+                                    <Select 
+                                        value={selectedVersion.versionId} 
+                                        onValueChange={(vId) => setSelectedVersion(strategy.versions.find(v => v.versionId === vId))}
+                                    >
+                                        <SelectTrigger id="version-selector">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {strategy.versions.map(v => (
+                                                <SelectItem key={v.versionId} value={v.versionId}>
+                                                    Version {v.versionNumber} {v.isActiveVersion && '(Active)'}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                {!selectedVersion.isActiveVersion && (
+                                    <Button className="w-full" variant="outline" onClick={() => onMakeActive(selectedVersion.versionId)}>
+                                        <Star className="mr-2 h-4 w-4" />
+                                        Make this version active
+                                    </Button>
+                                )}
+                            </div>
+                         </CardContent>
+                    </Card>
+                     <Card className="bg-muted/30 border-border/50">
+                        <CardHeader>
+                            <CardTitle className="text-base">Version Info</CardTitle>
+                        </CardHeader>
+                        <CardContent className="text-sm text-muted-foreground space-y-2">
+                             <div className="flex justify-between"><span>Created:</span> <span>{new Date(selectedVersion.createdAt).toLocaleDateString()}</span></div>
+                             <div className="flex justify-between"><span>Trades with this version:</span> <span>{selectedVersion.usageCount}</span></div>
+                             <div className="flex justify-between"><span>Last used:</span> <span>{selectedVersion.lastUsedAt ? new Date(selectedVersion.lastUsedAt).toLocaleDateString() : 'Never'}</span></div>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                {/* Right Column */}
+                <div className="lg:col-span-2 space-y-6">
+                    <RulesCard title="Entry Conditions" rules={selectedVersion.fields.entryConditions} />
+                    <RulesCard title="Exit Conditions" rules={selectedVersion.fields.exitConditions} />
+                    <RulesCard title="Risk Management Rules" rules={selectedVersion.fields.riskManagementRules} />
+                </div>
+             </div>
+        </div>
+    );
+}
+
 export function StrategyManagementModule({ onSetModule }: StrategyManagementModuleProps) {
     const [strategies, setStrategies] = useState<StrategyGroup[]>([]);
+    const [viewingStrategy, setViewingStrategy] = useState<StrategyGroup | null>(null);
+    const { toast } = useToast();
+
     const [filters, setFilters] = useState<StrategyFilters>({
         search: '',
         type: 'All',
         timeframe: 'All',
         sort: 'recentlyUsed',
     });
+
+    const updateStrategies = (updatedStrategies: StrategyGroup[]) => {
+        setStrategies(updatedStrategies);
+        if(typeof window !== "undefined") {
+            localStorage.setItem("ec_strategies", JSON.stringify(updatedStrategies));
+        }
+    };
 
     const loadStrategies = (forceSeed = false) => {
         if (typeof window !== "undefined") {
@@ -263,6 +409,37 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
     const handleFilterChange = (key: keyof StrategyFilters, value: string) => {
         setFilters(prev => ({ ...prev, [key]: value }));
     };
+    
+    const handleArchive = () => {
+        if (!viewingStrategy) return;
+        const newStatus = viewingStrategy.status === 'active' ? 'archived' : 'active';
+        const updatedStrategies = strategies.map(s => 
+            s.strategyId === viewingStrategy.strategyId ? { ...s, status: newStatus } : s
+        );
+        updateStrategies(updatedStrategies);
+        setViewingStrategy(prev => prev ? { ...prev, status: newStatus } : null);
+        toast({ title: `Strategy ${newStatus === 'archived' ? 'Archived' : 'Restored'}` });
+    };
+
+    const handleMakeActive = (versionId: string) => {
+        if (!viewingStrategy) return;
+        const updatedStrategies = strategies.map(s => {
+            if (s.strategyId === viewingStrategy.strategyId) {
+                const newVersions = s.versions.map(v => ({
+                    ...v,
+                    isActiveVersion: v.versionId === versionId
+                }));
+                return { ...s, versions: newVersions };
+            }
+            return s;
+        });
+        updateStrategies(updatedStrategies);
+        const updatedStrategy = updatedStrategies.find(s => s.strategyId === viewingStrategy.strategyId);
+        if(updatedStrategy) {
+            setViewingStrategy(updatedStrategy);
+        }
+        toast({ title: "Active version updated" });
+    };
 
     const filteredStrategies = useMemo(() => {
         return strategies.filter(s => {
@@ -296,6 +473,16 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
     
     const strategyTypes = ['All', ...new Set(strategies.map(s => s.type))];
     const timeframes = ['All', ...new Set(strategies.map(s => s.timeframe))];
+
+    if (viewingStrategy) {
+        return <StrategyDetailView 
+            strategy={viewingStrategy} 
+            onBack={() => setViewingStrategy(null)}
+            onArchive={handleArchive}
+            onDelete={() => { /* no-op for now */ }}
+            onMakeActive={handleMakeActive}
+        />;
+    }
 
     return (
         <div className="space-y-8">
@@ -384,7 +571,7 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
                                 {activeStrategies.length > 0 ? (
                                     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                                         {activeStrategies.map(strategy => (
-                                            <StrategyCard key={strategy.strategyId} strategy={strategy} />
+                                            <StrategyCard key={strategy.strategyId} strategy={strategy} onOpen={setViewingStrategy} />
                                         ))}
                                     </div>
                                 ) : (
@@ -395,7 +582,7 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
                                 {archivedStrategies.length > 0 ? (
                                     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                                         {archivedStrategies.map(strategy => (
-                                            <StrategyCard key={strategy.strategyId} strategy={strategy} />
+                                            <StrategyCard key={strategy.strategyId} strategy={strategy} onOpen={setViewingStrategy} />
                                         ))}
                                     </div>
                                 ) : (
