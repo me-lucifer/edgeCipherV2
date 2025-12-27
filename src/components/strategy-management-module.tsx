@@ -55,7 +55,7 @@ type StrategyGroup = {
     type: 'Reversal' | 'Trend-Following' | 'Scalping' | 'Breakout' | 'Pullback' | 'SMC' | 'Custom';
     timeframes: string[];
     createdAt: string;
-    status: 'active' | 'archived';
+    status: 'active' | 'archived' | 'draft';
     versions: StrategyVersion[];
 };
 
@@ -163,7 +163,7 @@ const RuleItem = ({ icon: Icon, label, value }: { icon: React.ElementType, label
     );
 };
 
-function StrategyCard({ strategy, onOpen }: { strategy: StrategyGroup, onOpen: (strategy: StrategyGroup) => void }) {
+function StrategyCard({ strategy, onOpen, onEdit }: { strategy: StrategyGroup, onOpen: (strategy: StrategyGroup) => void, onEdit: (strategy: StrategyGroup) => void }) {
     const activeVersion = strategy.versions.find(v => v.isActiveVersion);
     const totalUsage = strategy.versions.reduce((sum, v) => sum + v.usageCount, 0);
 
@@ -190,10 +190,11 @@ function StrategyCard({ strategy, onOpen }: { strategy: StrategyGroup, onOpen: (
             <CardHeader>
                 <div className="flex justify-between items-start">
                     <CardTitle className="text-base">{strategy.name}</CardTitle>
-                    <Badge variant={strategy.status === 'active' ? 'secondary' : 'outline'} className={cn(
-                        strategy.status === 'active' && 'bg-green-500/10 text-green-400 border-green-500/20'
+                    <Badge variant={strategy.status === 'active' ? 'secondary' : strategy.status === 'draft' ? 'outline' : 'destructive'} className={cn(
+                        strategy.status === 'active' && 'bg-green-500/10 text-green-400 border-green-500/20',
+                        strategy.status === 'draft' && 'border-amber-500/30 text-amber-400'
                     )}>
-                        {strategy.status === 'active' ? 'Active' : 'Archived'}
+                        {strategy.status.charAt(0).toUpperCase() + strategy.status.slice(1)}
                     </Badge>
                 </div>
                 <CardDescription>
@@ -227,7 +228,9 @@ function StrategyCard({ strategy, onOpen }: { strategy: StrategyGroup, onOpen: (
                     <div className="flex justify-between"><span>Total trades:</span> <span>{totalUsage}</span></div>
                 </div>
                 <div className="w-full flex gap-2">
-                    <Button size="sm" className="flex-1" onClick={() => onOpen(strategy)}>Open</Button>
+                    <Button size="sm" className="flex-1" onClick={() => strategy.status === 'draft' ? onEdit(strategy) : onOpen(strategy)}>
+                        {strategy.status === 'draft' ? "Finish Setup" : "Open"}
+                    </Button>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button size="sm" variant="outline" className="px-2">
@@ -671,11 +674,11 @@ const RulebookPreview = ({ form }: { form: any }) => {
     );
 };
 
-function StrategyCreatorView({ onBack, onSave }: { onBack: () => void; onSave: (data: StrategyCreationValues) => void; }) {
+function StrategyCreatorView({ onBack, onSave, onSaveDraft, initialData }: { onBack: () => void; onSave: (data: StrategyCreationValues) => void; onSaveDraft: (data: StrategyCreationValues) => void; initialData?: StrategyCreationValues | null; }) {
     const [currentStep, setCurrentStep] = useState(0);
     const { toast } = useToast();
     const [showCancelDialog, setShowCancelDialog] = useState(false);
-    const [wizardStarted, setWizardStarted] = useState(false);
+    const [wizardStarted, setWizardStarted] = useState(!!initialData);
 
     const creationSteps = [
         { name: "Basic Info", fields: ["name", "type", "timeframes"] },
@@ -693,7 +696,7 @@ function StrategyCreatorView({ onBack, onSave }: { onBack: () => void; onSave: (
 
     const form = useForm<StrategyCreationValues>({
         resolver: zodResolver(strategyCreationSchema),
-        defaultValues: {
+        defaultValues: initialData || {
             name: '',
             type: '',
             timeframes: [],
@@ -732,11 +735,6 @@ function StrategyCreatorView({ onBack, onSave }: { onBack: () => void; onSave: (
         }
     };
     
-    const handleSaveDraft = () => {
-        localStorage.setItem('ec_strategy_draft', JSON.stringify(form.getValues()));
-        toast({ title: 'Draft saved!' });
-    };
-    
     const handleTemplateSelect = (templateId: string) => {
         const template = strategyTemplates.find(t => t.id === templateId);
         if(template) {
@@ -756,14 +754,6 @@ function StrategyCreatorView({ onBack, onSave }: { onBack: () => void; onSave: (
         }
     };
 
-    useEffect(() => {
-        const draft = localStorage.getItem('ec_strategy_draft');
-        if (draft) {
-            form.reset(JSON.parse(draft));
-            setWizardStarted(true);
-        }
-    }, [form]);
-
     return (
         <div className="space-y-8">
             <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
@@ -782,7 +772,7 @@ function StrategyCreatorView({ onBack, onSave }: { onBack: () => void; onSave: (
             </AlertDialog>
 
             <div>
-                <h1 className="text-2xl font-bold tracking-tight text-foreground">Create Strategy</h1>
+                <h1 className="text-2xl font-bold tracking-tight text-foreground">{initialData ? 'Edit Strategy' : 'Create Strategy'}</h1>
                 <p className="text-muted-foreground">Build a rulebook Arjun can enforce.</p>
             </div>
             
@@ -916,7 +906,7 @@ function StrategyCreatorView({ onBack, onSave }: { onBack: () => void; onSave: (
                 <Button type="button" variant="ghost" onClick={handleBack}>{wizardStarted ? "Back" : "Cancel"}</Button>
                 {wizardStarted && (
                      <div className="flex gap-2">
-                        <Button type="button" variant="outline" onClick={handleSaveDraft}><Save className="mr-2 h-4 w-4"/>Save as Draft</Button>
+                        <Button type="button" variant="outline" onClick={() => onSaveDraft(form.getValues())}><Save className="mr-2 h-4 w-4"/>Save as Draft</Button>
                         <Button type="button" onClick={handleNext}>{currentStep === creationSteps.length - 1 ? "Save Strategy" : "Next"}</Button>
                     </div>
                 )}
@@ -929,6 +919,7 @@ function StrategyCreatorView({ onBack, onSave }: { onBack: () => void; onSave: (
 export function StrategyManagementModule({ onSetModule }: StrategyManagementModuleProps) {
     const [strategies, setStrategies] = useState<StrategyGroup[]>([]);
     const [viewingStrategy, setViewingStrategy] = useState<StrategyGroup | null>(null);
+    const [editingStrategy, setEditingStrategy] = useState<StrategyGroup | null>(null);
     const [viewMode, setViewMode] = useState<'list' | 'create' | 'edit'>('list');
     const { toast } = useToast();
 
@@ -1025,14 +1016,14 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
         toast({ title: "Active version updated" });
     };
 
-    const handleSaveNewStrategy = (data: StrategyCreationValues) => {
+    const handleSaveNewStrategy = (data: StrategyCreationValues, status: 'active' | 'draft') => {
         const newStrategy: StrategyGroup = {
             strategyId: `strat_${Date.now()}`,
             name: data.name,
             type: data.type as any,
             timeframes: data.timeframes,
             createdAt: new Date().toISOString(),
-            status: 'active',
+            status,
             versions: [
                 {
                     versionId: `sv_${Date.now()}_1`,
@@ -1055,13 +1046,15 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
         };
         const updatedStrategies = [...strategies, newStrategy];
         updateStrategies(updatedStrategies);
-        toast({ title: "Strategy saved", description: "Trade Planning can now enforce this rulebook." });
         
-        // Redirect to detail view of new strategy
-        setViewingStrategy(newStrategy);
+        if (status === 'active') {
+            toast({ title: "Strategy saved", description: "Trade Planning can now enforce this rulebook." });
+            setViewingStrategy(newStrategy);
+        } else {
+            toast({ title: "Draft saved" });
+        }
+        
         setViewMode('list');
-        
-        localStorage.removeItem('ec_strategy_draft');
     };
 
     const filteredStrategies = useMemo(() => {
@@ -1092,14 +1085,17 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
         });
     }, [strategies, filters]);
     
-    const activeStrategies = filteredStrategies.filter(s => s.status === 'active');
+    const activeStrategies = filteredStrategies.filter(s => s.status === 'active' || s.status === 'draft');
     const archivedStrategies = filteredStrategies.filter(s => s.status === 'archived');
     
     const strategyTypes = ['All', 'Breakout', 'Pullback', 'Reversal', 'Scalping', 'SMC', 'Custom'];
     const timeframes = ['All', '1m', '5m', '15m', '1H', '4H', '1D'];
 
-    if (viewMode === 'create') {
-        return <StrategyCreatorView onBack={() => setViewMode('list')} onSave={handleSaveNewStrategy} />;
+    if (viewMode === 'create' || viewMode === 'edit') {
+        const initialData = viewMode === 'edit' && editingStrategy 
+            ? { ...editingStrategy.versions.find(v => v.isActiveVersion)?.fields, name: editingStrategy.name, type: editingStrategy.type, timeframes: editingStrategy.timeframes } as StrategyCreationValues
+            : null;
+        return <StrategyCreatorView onBack={() => { setViewMode('list'); setEditingStrategy(null); }} onSave={(data) => handleSaveNewStrategy(data, 'active')} onSaveDraft={(data) => handleSaveNewStrategy(data, 'draft')} initialData={initialData} />;
     }
 
     if (viewingStrategy) {
@@ -1193,14 +1189,19 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
 
                         <Tabs defaultValue="active" className="w-full">
                             <TabsList className="grid w-full grid-cols-2 max-w-md">
-                                <TabsTrigger value="active">Active Strategies ({activeStrategies.length})</TabsTrigger>
+                                <TabsTrigger value="active">Active & Drafts ({activeStrategies.length})</TabsTrigger>
                                 <TabsTrigger value="archived">Archived ({archivedStrategies.length})</TabsTrigger>
                             </TabsList>
                             <TabsContent value="active" className="mt-6">
                                 {activeStrategies.length > 0 ? (
                                     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                                         {activeStrategies.map(strategy => (
-                                            <StrategyCard key={strategy.strategyId} strategy={strategy} onOpen={setViewingStrategy} />
+                                            <StrategyCard 
+                                                key={strategy.strategyId} 
+                                                strategy={strategy} 
+                                                onOpen={setViewingStrategy} 
+                                                onEdit={(s) => { setEditingStrategy(s); setViewMode('edit'); }} 
+                                            />
                                         ))}
                                     </div>
                                 ) : (
@@ -1211,7 +1212,12 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
                                 {archivedStrategies.length > 0 ? (
                                     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                                         {archivedStrategies.map(strategy => (
-                                            <StrategyCard key={strategy.strategyId} strategy={strategy} onOpen={setViewingStrategy} />
+                                            <StrategyCard 
+                                                key={strategy.strategyId} 
+                                                strategy={strategy} 
+                                                onOpen={setViewingStrategy} 
+                                                onEdit={(s) => { setEditingStrategy(s); setViewMode('edit'); }} 
+                                            />
                                         ))}
                                     </div>
                                 ) : (
@@ -1225,6 +1231,3 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
         </div>
     );
 }
-
-
-

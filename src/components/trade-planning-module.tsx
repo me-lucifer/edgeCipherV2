@@ -94,7 +94,7 @@ type SavedDraft = {
 type Strategy = {
     id: string;
     name: string;
-    status: "Active" | "Paused";
+    status: "active" | "archived" | "draft";
     timeframe: string;
     trades: number;
     winRate: number;
@@ -108,7 +108,7 @@ const mockStrategies: Strategy[] = [
     {
         id: '1',
         name: "London Reversal",
-        status: "Active",
+        status: "active",
         timeframe: "M15",
         trades: 112,
         winRate: 62,
@@ -120,7 +120,7 @@ const mockStrategies: Strategy[] = [
     {
         id: '2',
         name: "BTC Trend Breakout",
-        status: "Active",
+        status: "active",
         timeframe: "H1",
         trades: 78,
         winRate: 48,
@@ -732,8 +732,21 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
     });
     
     const [isStrategyDrawerOpen, setIsStrategyDrawerOpen] = useState(false);
-    
-    const viewedStrategy = mockStrategies.find(s => s.id === strategyId) || null;
+    const [availableStrategies, setAvailableStrategies] = useState<Strategy[]>([]);
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const stored = localStorage.getItem("ec_strategies");
+            if (stored) {
+                const allStrategies: Strategy[] = JSON.parse(stored);
+                setAvailableStrategies(allStrategies.filter(s => s.status === 'active'));
+            } else {
+                setAvailableStrategies(mockStrategies.filter(s => s.status === 'active'));
+            }
+        }
+    }, []);
+
+    const viewedStrategy = availableStrategies.find(s => s.id === strategyId) || null;
 
     const handleTemplateChange = (templateId: string) => {
         setSelectedTemplate(templateId);
@@ -880,7 +893,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
                             <h3 className="text-sm font-semibold text-muted-foreground">Strategy & Reasoning</h3>
                             <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] items-end gap-2">
                                 <FormField control={form.control} name="strategyId" render={({ field }) => (
-                                    <FormItem><FormLabel>Strategy*</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select from your playbook"/></SelectTrigger></FormControl><SelectContent>{mockStrategies.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
+                                    <FormItem><FormLabel>Strategy*</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select from your playbook"/></SelectTrigger></FormControl><SelectContent>{availableStrategies.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
                                 )}/>
                                 <Button type="button" variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => setIsStrategyDrawerOpen(true)} disabled={!strategyId}>
                                     View strategy details <ArrowRight className="ml-1 h-3 w-3" />
