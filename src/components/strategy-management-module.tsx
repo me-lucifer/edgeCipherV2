@@ -40,7 +40,8 @@ type StrategyVersion = {
         description?: string;
         difficulty?: 'Beginner' | 'Intermediate' | 'Advanced';
         entryConditions: string[];
-        exitConditions: string[];
+        stopLossRules: string[];
+        takeProfitRules: string[];
         riskManagementRules: string[];
         contextRules: string[];
     };
@@ -77,7 +78,8 @@ const seedStrategies: StrategyGroup[] = [
                     description: "A classic breakout strategy for trending markets.",
                     difficulty: "Intermediate",
                     entryConditions: ["Price breaks out of a 4-hour consolidation range", "Breakout candle has above-average volume", "Enter on a retest of the broken level"],
-                    exitConditions: ["Target is the next major liquidity level", "Stop-loss is below the mid-point of the consolidation range"],
+                    stopLossRules: ["Stop-loss is below the mid-point of the consolidation range"],
+                    takeProfitRules: ["Target is the next major liquidity level"],
                     riskManagementRules: ["Max risk 1% of account", "Max daily loss 3%", "Max daily trades 4", "Leverage cap 20x"],
                     contextRules: ["Only trade during NY session", "Avoid trading during major news events (e.g., FOMC)"]
                 },
@@ -103,7 +105,8 @@ const seedStrategies: StrategyGroup[] = [
                     description: "Entering a strong existing trend on a dip.",
                     difficulty: "Intermediate",
                     entryConditions: ["Market is in a clear uptrend/downtrend on 4H", "Price pulls back to the 1H 21 EMA", "Enter on a bullish/bearish candle that respects the EMA"],
-                    exitConditions: ["Target is the previous swing high/low", "Stop-loss is behind the most recent swing structure"],
+                    stopLossRules: ["Stop-loss is behind the most recent swing structure"],
+                    takeProfitRules: ["Target is the previous swing high/low"],
                     riskManagementRules: ["Max risk 1.5% of account", "Max daily loss 4%", "Max daily trades 3"],
                     contextRules: ["Only valid when 1H and 4H timeframes are aligned", "Avoid if VIX is in 'Extreme' zone"]
                 },
@@ -129,7 +132,8 @@ const seedStrategies: StrategyGroup[] = [
                     description: "Trading mean reversion in a range-bound market.",
                     difficulty: "Advanced",
                     entryConditions: ["Price is in a clearly defined range on 1H", "Price sweeps the high/low of the range on 5m", "Enter when 5m candle closes back inside the range"],
-                    exitConditions: ["Target is the mid-point of the range (0.5 level)", "Stop-loss is above/below the wick of the sweep candle"],
+                    stopLossRules: ["Stop-loss is above/below the wick of the sweep candle"],
+                    takeProfitRules: ["Target is the mid-point of the range (0.5 level)"],
                     riskManagementRules: ["Max risk 0.75% of account", "Max daily loss 2.5%", "Leverage cap 50x"],
                     contextRules: ["Only valid when VIX is 'Normal' or 'Calm'", "Do not trade this during trend-following days"]
                 },
@@ -417,7 +421,8 @@ function StrategyDetailView({
                     <div className="lg:col-span-2 space-y-6">
                         <RulesCard title="Description / When to Use" rules={selectedVersion.fields.description ? [selectedVersion.fields.description] : []} />
                         <RulesCard title="Entry Rules" rules={selectedVersion.fields.entryConditions} />
-                        <RulesCard title="Exit Rules (SL/TP)" rules={selectedVersion.fields.exitConditions} />
+                        <RulesCard title="Stop Loss Rules" rules={selectedVersion.fields.stopLossRules} />
+                        <RulesCard title="Take Profit Rules" rules={selectedVersion.fields.takeProfitRules} />
                         <RulesCard title="Risk Management Rules" rules={selectedVersion.fields.riskManagementRules} />
                         <RulesCard title="Context Rules" rules={selectedVersion.fields.contextRules} />
                     </div>
@@ -434,7 +439,8 @@ const strategyCreationSchema = z.object({
     description: z.string().optional(),
     difficulty: z.string().optional(),
     entryConditions: z.array(z.string()).min(1, "At least one entry rule is required."),
-    exitConditions: z.array(z.string()),
+    stopLossRules: z.array(z.string()).min(1, "At least one stop loss rule is required."),
+    takeProfitRules: z.array(z.string()),
     riskManagementRules: z.array(z.string()),
     contextRules: z.array(z.string()),
 });
@@ -549,7 +555,8 @@ const strategyTemplates: (Omit<StrategyCreationValues, 'name'> & {id: string, na
         type: 'Breakout',
         timeframes: ['15m'],
         entryConditions: ["Price breaks out of a 4-hour consolidation range", "Breakout candle has above-average volume"],
-        exitConditions: ["Target is the next major liquidity level", "Stop-loss is below the mid-point of the consolidation range"],
+        stopLossRules: ["Stop-loss is below the mid-point of the consolidation range"],
+        takeProfitRules: ["Target is the next major liquidity level"],
         riskManagementRules: ["Max risk 1% of account", "Leverage cap 20x"],
         contextRules: ["Only trade during NY session"]
     },
@@ -560,7 +567,8 @@ const strategyTemplates: (Omit<StrategyCreationValues, 'name'> & {id: string, na
         type: 'Pullback',
         timeframes: ['1H'],
         entryConditions: ["Market is in a clear uptrend on 4H", "Price pulls back to the 1H 21 EMA"],
-        exitConditions: ["Target is the previous swing high/low", "Stop-loss is behind the most recent swing structure"],
+        stopLossRules: ["Stop-loss is behind the most recent swing structure"],
+        takeProfitRules: ["Target is the previous swing high/low"],
         riskManagementRules: ["Max risk 1.5% of account"],
         contextRules: ["Avoid if VIX is in 'Extreme' zone"]
     },
@@ -571,7 +579,8 @@ const strategyTemplates: (Omit<StrategyCreationValues, 'name'> & {id: string, na
         type: 'Reversal',
         timeframes: ['5m'],
         entryConditions: ["Price is in a clearly defined range on 1H", "Price sweeps the high/low of the range on 5m"],
-        exitConditions: ["Target is the mid-point of the range", "Stop-loss is above/below the wick of the sweep candle"],
+        stopLossRules: ["Stop-loss is above/below the wick of the sweep candle"],
+        takeProfitRules: ["Target is the mid-point of the range"],
         riskManagementRules: ["Max risk 0.75% of account", "Max daily loss 2.5%"],
         contextRules: ["Only valid when VIX is 'Normal' or 'Calm'"]
     },
@@ -582,7 +591,8 @@ const strategyTemplates: (Omit<StrategyCreationValues, 'name'> & {id: string, na
         type: 'Custom',
         timeframes: ['15m'],
         entryConditions: ["Price is above the 200 EMA", "RSI is not overbought/oversold"],
-        exitConditions: ["Take profit at 1.5R", "Stop-loss is 1.5x ATR below entry"],
+        stopLossRules: ["Stop-loss is 1.5x ATR below entry"],
+        takeProfitRules: ["Take profit at 1.5R"],
         riskManagementRules: ["Max risk 1% of account"],
         contextRules: ["Only trade BTC or ETH", "Do not trade on weekends"]
     }
@@ -593,7 +603,8 @@ const RulebookPreview = ({ form }: { form: any }) => {
 
     const allRules = [
         ...(values.entryConditions || []),
-        ...(values.exitConditions || []),
+        ...(values.stopLossRules || []),
+        ...(values.takeProfitRules || []),
         ...(values.riskManagementRules || []),
         ...(values.contextRules || []),
     ];
@@ -665,7 +676,8 @@ function StrategyCreatorView({ onBack, onSave }: { onBack: () => void; onSave: (
     const creationSteps = [
         { name: "Basic Info", fields: ["name", "type", "timeframes", "description", "difficulty"] },
         { name: "Entry Rules", fields: ["entryConditions"] },
-        { name: "Exit Rules", fields: ["exitConditions"] },
+        { name: "Stop Loss Rules", fields: ["stopLossRules"] },
+        { name: "Take Profit Rules", fields: ["takeProfitRules"] },
         { name: "Risk Rules", fields: ["riskManagementRules"] },
         { name: "Context Rules", fields: ["contextRules"] },
         { name: "Review & Save" },
@@ -684,7 +696,8 @@ function StrategyCreatorView({ onBack, onSave }: { onBack: () => void; onSave: (
             description: '',
             difficulty: '',
             entryConditions: [],
-            exitConditions: [],
+            stopLossRules: [],
+            takeProfitRules: [],
             riskManagementRules: [],
             contextRules: [],
         },
@@ -728,9 +741,10 @@ function StrategyCreatorView({ onBack, onSave }: { onBack: () => void; onSave: (
                 type: template.type,
                 timeframes: template.timeframes,
                 description: template.description,
-                difficulty: template.difficulty,
+                difficulty: '',
                 entryConditions: template.entryConditions,
-                exitConditions: template.exitConditions,
+                stopLossRules: template.stopLossRules,
+                takeProfitRules: template.takeProfitRules,
                 riskManagementRules: template.riskManagementRules,
                 contextRules: template.contextRules,
             });
@@ -824,15 +838,24 @@ function StrategyCreatorView({ onBack, onSave }: { onBack: () => void; onSave: (
                                                 </div>
                                             )}
                                             {currentStep === 1 && <FormField control={form.control} name="entryConditions" render={({ field }) => (<FormItem><FormLabel>Entry Rules</FormLabel><FormControl><RuleEditor {...field} placeholder="e.g., Price breaks 4H consolidation..." /></FormControl><FormMessage /></FormItem>)} />}
-                                            {currentStep === 2 && <FormField control={form.control} name="exitConditions" render={({ field }) => (<FormItem><FormLabel>Exit Rules (SL/TP logic)</FormLabel><FormControl><RuleEditor {...field} placeholder="e.g., Target is next major liquidity..." /></FormControl><FormMessage /></FormItem>)} />}
-                                            {currentStep === 3 && <FormField control={form.control} name="riskManagementRules" render={({ field }) => (<FormItem><FormLabel>Risk Management Rules</FormLabel><FormControl><RuleEditor {...field} placeholder="e.g., Max risk 1% of account..." /></FormControl><FormMessage /></FormItem>)} />}
-                                            {currentStep === 4 && <FormField control={form.control} name="contextRules" render={({ field }) => (<FormItem><FormLabel>Context Rules (when to trade/not trade)</FormLabel><FormControl><RuleEditor {...field} placeholder="e.g., Only trade during NY session..." /></FormControl><FormMessage /></FormItem>)} />}
-                                            {currentStep === 5 && (
+                                            {currentStep === 2 && (
+                                                <div className="space-y-4">
+                                                    <FormField control={form.control} name="stopLossRules" render={({ field }) => (<FormItem><FormLabel>Stop Loss Rules</FormLabel><FormControl><RuleEditor {...field} placeholder="e.g., Below previous swing low OR fixed 0.8% from entry" /></FormControl><FormMessage /></FormItem>)} />
+                                                    <p className="text-xs text-muted-foreground p-3 rounded-md bg-amber-950/20 border border-amber-500/20">
+                                                        <span className="font-semibold text-amber-300">Why this matters:</span> Your Stop Loss is your psychological anchor. It's your promise to yourself about how much you're willing to risk. No SL = no EdgeCipher trade.
+                                                    </p>
+                                                </div>
+                                            )}
+                                            {currentStep === 3 && <FormField control={form.control} name="takeProfitRules" render={({ field }) => (<FormItem><FormLabel>Take Profit Rules (Optional)</FormLabel><FormControl><RuleEditor {...field} placeholder="e.g., Target next major liquidity level..." /></FormControl><FormMessage /></FormItem>)} />}
+                                            {currentStep === 4 && <FormField control={form.control} name="riskManagementRules" render={({ field }) => (<FormItem><FormLabel>Risk Management Rules</FormLabel><FormControl><RuleEditor {...field} placeholder="e.g., Max risk 1% of account..." /></FormControl><FormMessage /></FormItem>)} />}
+                                            {currentStep === 5 && <FormField control={form.control} name="contextRules" render={({ field }) => (<FormItem><FormLabel>Context Rules (when to trade/not trade)</FormLabel><FormControl><RuleEditor {...field} placeholder="e.g., Only trade during NY session..." /></FormControl><FormMessage /></FormItem>)} />}
+                                            {currentStep === 6 && (
                                                 <div className="space-y-4">
                                                     <h3 className="font-semibold">Review & Save</h3>
                                                     <RulesCard title="Basic Info" rules={[`Name: ${form.getValues().name}`, `Type: ${form.getValues().type}`, `Timeframes: ${form.getValues().timeframes.join(', ')}`]} />
                                                     <RulesCard title="Entry Rules" rules={form.getValues().entryConditions} />
-                                                    <RulesCard title="Exit Rules" rules={form.getValues().exitConditions} />
+                                                    <RulesCard title="Stop Loss Rules" rules={form.getValues().stopLossRules} />
+                                                    <RulesCard title="Take Profit Rules" rules={form.getValues().takeProfitRules} />
                                                     <RulesCard title="Risk Rules" rules={form.getValues().riskManagementRules} />
                                                     <RulesCard title="Context Rules" rules={form.getValues().contextRules} />
                                                 </div>
@@ -1016,7 +1039,8 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
                         description: data.description,
                         difficulty: data.difficulty as any,
                         entryConditions: data.entryConditions,
-                        exitConditions: data.exitConditions,
+                        stopLossRules: data.stopLossRules,
+                        takeProfitRules: data.takeProfitRules,
                         riskManagementRules: data.riskManagementRules,
                         contextRules: data.contextRules,
                     },
