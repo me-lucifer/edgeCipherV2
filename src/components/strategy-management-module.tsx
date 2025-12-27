@@ -3,8 +3,11 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { BrainCircuit, PlusCircle, CheckCircle, Search, Filter as FilterIcon, Clock, ListOrdered, FileText, Gauge, Calendar, ShieldCheck, Zap, MoreHorizontal, ArrowLeft, Edit, Archive, Star, BookOpen, BarChartHorizontal, Trash2 } from "lucide-react";
+import { BrainCircuit, PlusCircle, CheckCircle, Search, Filter as FilterIcon, Clock, ListOrdered, FileText, Gauge, Calendar, ShieldCheck, Zap, MoreHorizontal, ArrowLeft, Edit, Archive, Star, BookOpen, BarChartHorizontal, Trash2, ChevronsUpDown, Info, Check, Save } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardDescription, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -16,6 +19,9 @@ import { useToast } from "@/hooks/use-toast";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "./ui/dropdown-menu";
 import { Label } from "./ui/label";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "./ui/tooltip";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "./ui/alert-dialog";
+import { Textarea } from "./ui/textarea";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "./ui/form";
 
 
 interface StrategyManagementModuleProps {
@@ -396,7 +402,7 @@ function StrategyDetailView({
                     {/* Right Column */}
                     <div className="lg:col-span-2 space-y-6">
                         <RulesCard title="Entry Rules" rules={selectedVersion.fields.entryConditions} />
-                        <RulesCard title="Exit Rules" rules={selectedVersion.fields.exitConditions} />
+                        <RulesCard title="Stop Loss Rules" rules={selectedVersion.fields.exitConditions} />
                         <RulesCard title="Risk Management Rules" rules={selectedVersion.fields.riskManagementRules} />
                         <RulesCard title="Context Rules" rules={selectedVersion.fields.contextRules} />
                     </div>
@@ -406,9 +412,218 @@ function StrategyDetailView({
     );
 }
 
+const strategyCreationSchema = z.object({
+    name: z.string().min(3, "Name must be at least 3 characters."),
+    type: z.string().min(1, "Please select a type."),
+    timeframe: z.string().min(1, "Please select a timeframe."),
+    entryConditions: z.array(z.string()).min(1, "At least one entry rule is required."),
+    exitConditions: z.array(z.string()).min(1, "At least one exit rule is required."),
+    riskManagementRules: z.array(z.string()),
+    contextRules: z.array(z.string()),
+});
+
+type StrategyCreationValues = z.infer<typeof strategyCreationSchema>;
+
+const Stepper = ({ currentStep, steps }: { currentStep: number; steps: { name: string }[] }) => (
+    <nav aria-label="Progress">
+      <ol role="list" className="space-y-4 md:flex md:space-x-8 md:space-y-0">
+        {steps.map((step, stepIdx) => (
+          <li key={step.name} className="md:flex-1">
+            {stepIdx < currentStep ? (
+              <div className="group flex w-full flex-col border-l-4 border-primary py-2 pl-4 transition-colors md:border-l-0 md:border-t-4 md:pb-0 md:pl-0 md:pt-4">
+                <span className="text-sm font-medium text-primary transition-colors ">{step.name}</span>
+              </div>
+            ) : stepIdx === currentStep ? (
+              <div
+                className="flex w-full flex-col border-l-4 border-primary py-2 pl-4 md:border-l-0 md:border-t-4 md:pb-0 md:pl-0 md:pt-4"
+                aria-current="step"
+              >
+                <span className="text-sm font-medium text-primary">{step.name}</span>
+              </div>
+            ) : (
+              <div className="group flex w-full flex-col border-l-4 border-border py-2 pl-4 transition-colors md:border-l-0 md:border-t-4 md:pb-0 md:pl-0 md:pt-4">
+                <span className="text-sm font-medium text-muted-foreground transition-colors">{step.name}</span>
+              </div>
+            )}
+          </li>
+        ))}
+      </ol>
+    </nav>
+);
+  
+const RuleEditor = ({ value, onChange, placeholder }: { value: string[]; onChange: (value: string[]) => void; placeholder: string; }) => {
+    const [text, setText] = useState('');
+  
+    const handleAddRule = () => {
+      if (text.trim()) {
+        onChange([...value, text.trim()]);
+        setText('');
+      }
+    };
+  
+    const handleRemoveRule = (index: number) => {
+      onChange(value.filter((_, i) => i !== index));
+    };
+  
+    return (
+      <div className="space-y-2">
+        <ul className="space-y-2">
+          {value.map((rule, index) => (
+            <li key={index} className="flex items-center justify-between group">
+              <span className="text-sm text-muted-foreground">{index + 1}. {rule}</span>
+              <Button type="button" variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => handleRemoveRule(index)}>
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </li>
+          ))}
+        </ul>
+        <div className="flex gap-2">
+          <Input value={text} onChange={(e) => setText(e.target.value)} placeholder={placeholder} onKeyDown={(e) => { if(e.key === 'Enter') { e.preventDefault(); handleAddRule(); }}} />
+          <Button type="button" variant="outline" onClick={handleAddRule} disabled={!text.trim()}>Add Rule</Button>
+        </div>
+      </div>
+    );
+};
+
+function StrategyCreatorView({ onBack, onSave }: { onBack: () => void; onSave: (data: StrategyCreationValues) => void; }) {
+    const [currentStep, setCurrentStep] = useState(0);
+    const { toast } = useToast();
+    const [showCancelDialog, setShowCancelDialog] = useState(false);
+
+    const steps = [
+        { name: "Basic Info", fields: ["name", "type", "timeframe"] },
+        { name: "Entry Rules", fields: ["entryConditions"] },
+        { name: "Exit Rules", fields: ["exitConditions"] },
+        { name: "Risk Rules", fields: ["riskManagementRules"] },
+        { name: "Context Rules", fields: ["contextRules"] },
+        { name: "Review & Save" },
+    ];
+    
+    const strategyTypes = ['Breakout', 'Pullback', 'Reversal', 'Scalping', 'SMC', 'Custom'];
+    const timeframes = ['5m', '15m', '1H', '4H'];
+
+    const form = useForm<StrategyCreationValues>({
+        resolver: zodResolver(strategyCreationSchema),
+        defaultValues: {
+            name: '',
+            type: '',
+            timeframe: '',
+            entryConditions: [],
+            exitConditions: [],
+            riskManagementRules: [],
+            contextRules: [],
+        },
+    });
+
+    const handleNext = async () => {
+        const fieldsToValidate = steps[currentStep].fields;
+        const isValid = fieldsToValidate ? await form.trigger(fieldsToValidate as any) : true;
+
+        if (isValid && currentStep < steps.length - 1) {
+            setCurrentStep(currentStep + 1);
+        } else if (isValid && currentStep === steps.length - 1) {
+            form.handleSubmit(onSave)();
+        }
+    };
+
+    const handleBack = () => {
+        if (currentStep > 0) {
+            setCurrentStep(currentStep - 1);
+        } else {
+            if (form.formState.isDirty) {
+                setShowCancelDialog(true);
+            } else {
+                onBack();
+            }
+        }
+    };
+    
+    const handleSaveDraft = () => {
+        localStorage.setItem('ec_strategy_draft', JSON.stringify(form.getValues()));
+        toast({ title: 'Draft saved!' });
+    };
+
+    useEffect(() => {
+        const draft = localStorage.getItem('ec_strategy_draft');
+        if (draft) {
+            form.reset(JSON.parse(draft));
+        }
+    }, [form]);
+
+    return (
+        <div className="space-y-8">
+            <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Discard changes?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            You have unsaved changes. Are you sure you want to discard this new strategy?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Keep Editing</AlertDialogCancel>
+                        <AlertDialogAction variant="destructive" onClick={onBack}>Discard</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <div>
+                <h1 className="text-2xl font-bold tracking-tight text-foreground">Create Strategy</h1>
+                <p className="text-muted-foreground">Build a rulebook Arjun can enforce.</p>
+            </div>
+            
+            <div className="p-4 bg-muted/30 rounded-lg">
+                <Stepper currentStep={currentStep} steps={steps} />
+            </div>
+
+            <Card className="bg-muted/30">
+                <CardContent className="p-6">
+                    <Form {...form}>
+                        <form className="space-y-6">
+                            {currentStep === 0 && (
+                                <div className="space-y-4">
+                                    <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Strategy Name</FormLabel><FormControl><Input placeholder="e.g., London Open Reversal" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                    <div className="grid md:grid-cols-2 gap-4">
+                                        <FormField control={form.control} name="type" render={({ field }) => (<FormItem><FormLabel>Type</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger></FormControl><SelectContent>{strategyTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>)} />
+                                        <FormField control={form.control} name="timeframe" render={({ field }) => (<FormItem><FormLabel>Primary Timeframe</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select timeframe" /></SelectTrigger></FormControl><SelectContent>{timeframes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>)} />
+                                    </div>
+                                </div>
+                            )}
+                             {currentStep === 1 && <FormField control={form.control} name="entryConditions" render={({ field }) => (<FormItem><FormLabel>Entry Rules</FormLabel><FormControl><RuleEditor {...field} placeholder="e.g., Price breaks 4H consolidation..." /></FormControl><FormMessage /></FormItem>)} />}
+                             {currentStep === 2 && <FormField control={form.control} name="exitConditions" render={({ field }) => (<FormItem><FormLabel>Exit Rules (TP and SL logic)</FormLabel><FormControl><RuleEditor {...field} placeholder="e.g., Target is next major liquidity..." /></FormControl><FormMessage /></FormItem>)} />}
+                             {currentStep === 3 && <FormField control={form.control} name="riskManagementRules" render={({ field }) => (<FormItem><FormLabel>Risk Management Rules</FormLabel><FormControl><RuleEditor {...field} placeholder="e.g., Max risk 1% of account..." /></FormControl><FormMessage /></FormItem>)} />}
+                             {currentStep === 4 && <FormField control={form.control} name="contextRules" render={({ field }) => (<FormItem><FormLabel>Context Rules (when to trade/not trade)</FormLabel><FormControl><RuleEditor {...field} placeholder="e.g., Only trade during NY session..." /></FormControl><FormMessage /></FormItem>)} />}
+                             {currentStep === 5 && (
+                                <div className="space-y-4">
+                                    <h3 className="font-semibold">Review & Save</h3>
+                                    <RulesCard title="Basic Info" rules={[`Name: ${form.getValues().name}`, `Type: ${form.getValues().type}`, `Timeframe: ${form.getValues().timeframe}`]} />
+                                    <RulesCard title="Entry Rules" rules={form.getValues().entryConditions} />
+                                    <RulesCard title="Exit Rules" rules={form.getValues().exitConditions} />
+                                    <RulesCard title="Risk Rules" rules={form.getValues().riskManagementRules} />
+                                    <RulesCard title="Context Rules" rules={form.getValues().contextRules} />
+                                </div>
+                             )}
+                        </form>
+                    </Form>
+                </CardContent>
+            </Card>
+            
+            <div className="flex justify-between items-center">
+                <Button type="button" variant="ghost" onClick={handleBack}>{currentStep === 0 ? "Cancel" : "Back"}</Button>
+                <div className="flex gap-2">
+                    <Button type="button" variant="outline" onClick={handleSaveDraft}><Save className="mr-2 h-4 w-4"/>Save as Draft</Button>
+                    <Button type="button" onClick={handleNext}>{currentStep === steps.length - 1 ? "Save Strategy" : "Next"}</Button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+
 export function StrategyManagementModule({ onSetModule }: StrategyManagementModuleProps) {
     const [strategies, setStrategies] = useState<StrategyGroup[]>([]);
     const [viewingStrategy, setViewingStrategy] = useState<StrategyGroup | null>(null);
+    const [viewMode, setViewMode] = useState<'list' | 'create' | 'edit'>('list');
     const { toast } = useToast();
 
     const [filters, setFilters] = useState<StrategyFilters>({
@@ -503,6 +718,38 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
         toast({ title: "Active version updated" });
     };
 
+    const handleSaveNewStrategy = (data: StrategyCreationValues) => {
+        const newStrategy: StrategyGroup = {
+            strategyId: `strat_${Date.now()}`,
+            name: data.name,
+            type: data.type as any,
+            timeframe: data.timeframe as any,
+            createdAt: new Date().toISOString(),
+            status: 'active',
+            versions: [
+                {
+                    versionId: `sv_${Date.now()}_1`,
+                    versionNumber: 1,
+                    isActiveVersion: true,
+                    createdAt: new Date().toISOString(),
+                    fields: {
+                        entryConditions: data.entryConditions,
+                        exitConditions: data.exitConditions,
+                        riskManagementRules: data.riskManagementRules,
+                        contextRules: data.contextRules,
+                    },
+                    usageCount: 0,
+                    lastUsedAt: null,
+                }
+            ]
+        };
+        const updatedStrategies = [...strategies, newStrategy];
+        updateStrategies(updatedStrategies);
+        toast({ title: "Strategy created!", description: `${data.name} has been added to your playbook.` });
+        setViewMode('list');
+        localStorage.removeItem('ec_strategy_draft');
+    };
+
     const filteredStrategies = useMemo(() => {
         return strategies.filter(s => {
             const searchMatch = s.name.toLowerCase().includes(filters.search.toLowerCase()) || s.type.toLowerCase().includes(filters.search.toLowerCase());
@@ -535,6 +782,10 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
     
     const strategyTypes = ['All', 'Breakout', 'Pullback', 'Reversal', 'Scalping', 'SMC', 'Custom'];
     const timeframes = ['All', '5m', '15m', '1H', '4H'];
+
+    if (viewMode === 'create') {
+        return <StrategyCreatorView onBack={() => setViewMode('list')} onSave={handleSaveNewStrategy} />;
+    }
 
     if (viewingStrategy) {
         return <StrategyDetailView 
@@ -572,7 +823,7 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
                         <CardDescription>Create your first rulebook so Arjun can enforce discipline in Trade Planning.</CardDescription>
                     </CardHeader>
                     <CardContent className="flex justify-center gap-4">
-                        <Button disabled><PlusCircle className="mr-2 h-4 w-4" /> Create Strategy</Button>
+                        <Button onClick={() => setViewMode('create')}><PlusCircle className="mr-2 h-4 w-4" /> Create Strategy</Button>
                         <Button variant="outline" onClick={() => loadStrategies(true)}>
                             <Zap className="mr-2 h-4 w-4" />
                             Generate demo strategies
@@ -584,7 +835,7 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
                     <CardHeader>
                         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                             <CardTitle>Your Playbook</CardTitle>
-                            <Button className="w-full md:w-auto" disabled>
+                            <Button className="w-full md:w-auto" onClick={() => setViewMode('create')}>
                                 <PlusCircle className="mr-2 h-4 w-4" />
                                 Add Strategy
                             </Button>
