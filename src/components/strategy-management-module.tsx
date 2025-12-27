@@ -21,7 +21,7 @@ import { Label } from "./ui/label";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "./ui/tooltip";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "./ui/alert-dialog";
 import { Textarea } from "./ui/textarea";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "./ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "./ui/form";
 
 
 interface StrategyManagementModuleProps {
@@ -35,6 +35,8 @@ type StrategyVersion = {
     isActiveVersion: boolean;
     createdAt: string;
     fields: {
+        description?: string;
+        difficulty?: 'Beginner' | 'Intermediate' | 'Advanced';
         entryConditions: string[];
         exitConditions: string[];
         riskManagementRules: string[];
@@ -48,7 +50,7 @@ type StrategyGroup = {
     strategyId: string;
     name: string;
     type: 'Reversal' | 'Trend-Following' | 'Scalping' | 'Breakout' | 'Pullback' | 'SMC' | 'Custom';
-    timeframe: '5m' | '15m' | '1H' | '4H';
+    timeframes: string[];
     createdAt: string;
     status: 'active' | 'archived';
     versions: StrategyVersion[];
@@ -60,7 +62,7 @@ const seedStrategies: StrategyGroup[] = [
         strategyId: 'strat_1',
         name: "Breakout Trend",
         type: 'Breakout',
-        timeframe: '15m',
+        timeframes: ['15m', '1H'],
         createdAt: new Date(Date.now() - 86400000 * 10).toISOString(),
         status: 'active',
         versions: [
@@ -70,6 +72,8 @@ const seedStrategies: StrategyGroup[] = [
                 isActiveVersion: true,
                 createdAt: new Date(Date.now() - 86400000 * 10).toISOString(),
                 fields: {
+                    description: "A classic breakout strategy for trending markets.",
+                    difficulty: "Intermediate",
                     entryConditions: ["Price breaks out of a 4-hour consolidation range", "Breakout candle has above-average volume", "Enter on a retest of the broken level"],
                     exitConditions: ["Target is the next major liquidity level", "Stop-loss is below the mid-point of the consolidation range"],
                     riskManagementRules: ["Max risk 1% of account", "Max daily loss 3%", "Max daily trades 4", "Leverage cap 20x"],
@@ -84,7 +88,7 @@ const seedStrategies: StrategyGroup[] = [
         strategyId: 'strat_2',
         name: "Pullback Continuation",
         type: 'Pullback',
-        timeframe: '1H',
+        timeframes: ['1H', '4H'],
         createdAt: new Date(Date.now() - 86400000 * 25).toISOString(),
         status: 'active',
         versions: [
@@ -94,6 +98,8 @@ const seedStrategies: StrategyGroup[] = [
                 isActiveVersion: true,
                 createdAt: new Date(Date.now() - 86400000 * 25).toISOString(),
                 fields: {
+                    description: "Entering a strong existing trend on a dip.",
+                    difficulty: "Intermediate",
                     entryConditions: ["Market is in a clear uptrend/downtrend on 4H", "Price pulls back to the 1H 21 EMA", "Enter on a bullish/bearish candle that respects the EMA"],
                     exitConditions: ["Target is the previous swing high/low", "Stop-loss is behind the most recent swing structure"],
                     riskManagementRules: ["Max risk 1.5% of account", "Max daily loss 4%", "Max daily trades 3"],
@@ -108,7 +114,7 @@ const seedStrategies: StrategyGroup[] = [
         strategyId: 'strat_3',
         name: "Range Fade",
         type: 'Reversal',
-        timeframe: '5m',
+        timeframes: ['5m', '15m'],
         createdAt: new Date(Date.now() - 86400000 * 40).toISOString(),
         status: 'active',
         versions: [
@@ -118,6 +124,8 @@ const seedStrategies: StrategyGroup[] = [
                 isActiveVersion: true,
                 createdAt: new Date(Date.now() - 86400000 * 40).toISOString(),
                 fields: {
+                    description: "Trading mean reversion in a range-bound market.",
+                    difficulty: "Advanced",
                     entryConditions: ["Price is in a clearly defined range on 1H", "Price sweeps the high/low of the range on 5m", "Enter when 5m candle closes back inside the range"],
                     exitConditions: ["Target is the mid-point of the range (0.5 level)", "Stop-loss is above/below the wick of the sweep candle"],
                     riskManagementRules: ["Max risk 0.75% of account", "Max daily loss 2.5%", "Leverage cap 50x"],
@@ -184,7 +192,9 @@ function StrategyCard({ strategy, onOpen }: { strategy: StrategyGroup, onOpen: (
                 </div>
                 <CardDescription>
                     <Badge variant="outline">{strategy.type}</Badge>
-                    <Badge variant="outline" className="ml-2">{strategy.timeframe}</Badge>
+                    <div className="flex flex-wrap gap-1 mt-2">
+                        {strategy.timeframes.map(tf => <Badge key={tf} variant="outline" className="text-xs">{tf}</Badge>)}
+                    </div>
                 </CardDescription>
             </CardHeader>
             <CardContent className="flex-1 space-y-4">
@@ -357,7 +367,9 @@ function StrategyDetailView({
                                 <CardTitle>{strategy.name}</CardTitle>
                                 <CardDescription>
                                     <Badge variant="outline">{strategy.type}</Badge>
-                                    <Badge variant="outline" className="ml-2">{strategy.timeframe}</Badge>
+                                    <div className="flex flex-wrap gap-1 mt-2">
+                                        {strategy.timeframes.map(tf => <Badge key={tf} variant="outline" className="text-xs">{tf}</Badge>)}
+                                    </div>
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
@@ -401,8 +413,9 @@ function StrategyDetailView({
 
                     {/* Right Column */}
                     <div className="lg:col-span-2 space-y-6">
+                        <RulesCard title="Description / When to Use" rules={selectedVersion.fields.description ? [selectedVersion.fields.description] : []} />
                         <RulesCard title="Entry Rules" rules={selectedVersion.fields.entryConditions} />
-                        <RulesCard title="Stop Loss Rules" rules={selectedVersion.fields.exitConditions} />
+                        <RulesCard title="Exit Rules (SL/TP)" rules={selectedVersion.fields.exitConditions} />
                         <RulesCard title="Risk Management Rules" rules={selectedVersion.fields.riskManagementRules} />
                         <RulesCard title="Context Rules" rules={selectedVersion.fields.contextRules} />
                     </div>
@@ -415,7 +428,9 @@ function StrategyDetailView({
 const strategyCreationSchema = z.object({
     name: z.string().min(3, "Name must be at least 3 characters."),
     type: z.string().min(1, "Please select a type."),
-    timeframe: z.string().min(1, "Please select a timeframe."),
+    timeframes: z.array(z.string()).min(1, "Select at least one timeframe."),
+    description: z.string().optional(),
+    difficulty: z.string().optional(),
     entryConditions: z.array(z.string()).min(1, "At least one entry rule is required."),
     exitConditions: z.array(z.string()).min(1, "At least one exit rule is required."),
     riskManagementRules: z.array(z.string()),
@@ -491,7 +506,7 @@ const strategyTemplates: (Omit<StrategyCreationValues, 'name'> & {id: string, na
         name: "Breakout Trend",
         description: "For clear trends after consolidation.",
         type: 'Breakout',
-        timeframe: '15m',
+        timeframes: ['15m'],
         entryConditions: ["Price breaks out of a 4-hour consolidation range", "Breakout candle has above-average volume"],
         exitConditions: ["Target is the next major liquidity level", "Stop-loss is below the mid-point of the consolidation range"],
         riskManagementRules: ["Max risk 1% of account", "Leverage cap 20x"],
@@ -502,7 +517,7 @@ const strategyTemplates: (Omit<StrategyCreationValues, 'name'> & {id: string, na
         name: "Pullback Continuation",
         description: "For entering an existing strong trend.",
         type: 'Pullback',
-        timeframe: '1H',
+        timeframes: ['1H'],
         entryConditions: ["Market is in a clear uptrend on 4H", "Price pulls back to the 1H 21 EMA"],
         exitConditions: ["Target is the previous swing high/low", "Stop-loss is behind the most recent swing structure"],
         riskManagementRules: ["Max risk 1.5% of account"],
@@ -513,7 +528,7 @@ const strategyTemplates: (Omit<StrategyCreationValues, 'name'> & {id: string, na
         name: "Range Fade",
         description: "For non-trending, range-bound markets.",
         type: 'Reversal',
-        timeframe: '5m',
+        timeframes: ['5m'],
         entryConditions: ["Price is in a clearly defined range on 1H", "Price sweeps the high/low of the range on 5m"],
         exitConditions: ["Target is the mid-point of the range", "Stop-loss is above/below the wick of the sweep candle"],
         riskManagementRules: ["Max risk 0.75% of account", "Max daily loss 2.5%"],
@@ -524,7 +539,7 @@ const strategyTemplates: (Omit<StrategyCreationValues, 'name'> & {id: string, na
         name: "Simple Beginner Strategy",
         description: "A basic, easy-to-follow plan.",
         type: 'Custom',
-        timeframe: '15m',
+        timeframes: ['15m'],
         entryConditions: ["Price is above the 200 EMA", "RSI is not overbought/oversold"],
         exitConditions: ["Take profit at 1.5R", "Stop-loss is 1.5x ATR below entry"],
         riskManagementRules: ["Max risk 1% of account"],
@@ -540,7 +555,7 @@ function StrategyCreatorView({ onBack, onSave }: { onBack: () => void; onSave: (
     const [wizardStarted, setWizardStarted] = useState(false);
 
     const creationSteps = [
-        { name: "Basic Info", fields: ["name", "type", "timeframe"] },
+        { name: "Basic Info", fields: ["name", "type", "timeframes", "description", "difficulty"] },
         { name: "Entry Rules", fields: ["entryConditions"] },
         { name: "Exit Rules", fields: ["exitConditions"] },
         { name: "Risk Rules", fields: ["riskManagementRules"] },
@@ -549,14 +564,17 @@ function StrategyCreatorView({ onBack, onSave }: { onBack: () => void; onSave: (
     ];
     
     const strategyTypes = ['Breakout', 'Pullback', 'Reversal', 'Scalping', 'SMC', 'Custom'];
-    const timeframes = ['5m', '15m', '1H', '4H'];
+    const timeframeOptions = ['1m', '5m', '15m', '1H', '4H', '1D'];
+    const difficultyOptions = ['Beginner', 'Intermediate', 'Advanced'];
 
     const form = useForm<StrategyCreationValues>({
         resolver: zodResolver(strategyCreationSchema),
         defaultValues: {
             name: '',
             type: '',
-            timeframe: '',
+            timeframes: [],
+            description: '',
+            difficulty: '',
             entryConditions: [],
             exitConditions: [],
             riskManagementRules: [],
@@ -600,7 +618,9 @@ function StrategyCreatorView({ onBack, onSave }: { onBack: () => void; onSave: (
             form.reset({
                 name: template.name,
                 type: template.type,
-                timeframe: template.timeframe,
+                timeframes: template.timeframes,
+                description: template.description,
+                difficulty: template.difficulty,
                 entryConditions: template.entryConditions,
                 exitConditions: template.exitConditions,
                 riskManagementRules: template.riskManagementRules,
@@ -652,20 +672,55 @@ function StrategyCreatorView({ onBack, onSave }: { onBack: () => void; onSave: (
                                     {currentStep === 0 && (
                                         <div className="space-y-4">
                                             <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Strategy Name</FormLabel><FormControl><Input placeholder="e.g., London Open Reversal" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                                            <FormField control={form.control} name="description" render={({ field }) => (<FormItem><FormLabel>Description / When to use (Optional)</FormLabel><FormControl><Textarea placeholder="e.g., 'A mean-reversion strategy played during the first 2 hours of the London session...'" {...field} /></FormControl><FormMessage /></FormItem>)} />
+
                                             <div className="grid md:grid-cols-2 gap-4">
                                                 <FormField control={form.control} name="type" render={({ field }) => (<FormItem><FormLabel>Type</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger></FormControl><SelectContent>{strategyTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>)} />
-                                                <FormField control={form.control} name="timeframe" render={({ field }) => (<FormItem><FormLabel>Primary Timeframe</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select timeframe" /></SelectTrigger></FormControl><SelectContent>{timeframes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>)} />
+                                                <FormField control={form.control} name="difficulty" render={({ field }) => (<FormItem><FormLabel>Difficulty (Optional)</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select difficulty" /></SelectTrigger></FormControl><SelectContent>{difficultyOptions.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>)} />
                                             </div>
+                                            <FormField
+                                                control={form.control}
+                                                name="timeframes"
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>Timeframe Focus</FormLabel>
+                                                        <FormControl>
+                                                            <div className="flex flex-wrap gap-2 pt-2">
+                                                                {timeframeOptions.map(tf => {
+                                                                    const isSelected = field.value.includes(tf);
+                                                                    return (
+                                                                        <Button
+                                                                            key={tf}
+                                                                            type="button"
+                                                                            variant={isSelected ? "secondary" : "outline"}
+                                                                            onClick={() => {
+                                                                                const newValue = isSelected
+                                                                                    ? field.value.filter(v => v !== tf)
+                                                                                    : [...field.value, tf];
+                                                                                field.onChange(newValue);
+                                                                            }}
+                                                                        >
+                                                                            {tf}
+                                                                        </Button>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        </FormControl>
+                                                        <FormDescription>Timeframe focus helps Arjun detect where you tend to break discipline.</FormDescription>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
                                         </div>
                                     )}
                                      {currentStep === 1 && <FormField control={form.control} name="entryConditions" render={({ field }) => (<FormItem><FormLabel>Entry Rules</FormLabel><FormControl><RuleEditor {...field} placeholder="e.g., Price breaks 4H consolidation..." /></FormControl><FormMessage /></FormItem>)} />}
-                                     {currentStep === 2 && <FormField control={form.control} name="exitConditions" render={({ field }) => (<FormItem><FormLabel>Exit Rules (TP and SL logic)</FormLabel><FormControl><RuleEditor {...field} placeholder="e.g., Target is next major liquidity..." /></FormControl><FormMessage /></FormItem>)} />}
+                                     {currentStep === 2 && <FormField control={form.control} name="exitConditions" render={({ field }) => (<FormItem><FormLabel>Exit Rules (SL/TP logic)</FormLabel><FormControl><RuleEditor {...field} placeholder="e.g., Target is next major liquidity..." /></FormControl><FormMessage /></FormItem>)} />}
                                      {currentStep === 3 && <FormField control={form.control} name="riskManagementRules" render={({ field }) => (<FormItem><FormLabel>Risk Management Rules</FormLabel><FormControl><RuleEditor {...field} placeholder="e.g., Max risk 1% of account..." /></FormControl><FormMessage /></FormItem>)} />}
                                      {currentStep === 4 && <FormField control={form.control} name="contextRules" render={({ field }) => (<FormItem><FormLabel>Context Rules (when to trade/not trade)</FormLabel><FormControl><RuleEditor {...field} placeholder="e.g., Only trade during NY session..." /></FormControl><FormMessage /></FormItem>)} />}
                                      {currentStep === 5 && (
                                         <div className="space-y-4">
                                             <h3 className="font-semibold">Review & Save</h3>
-                                            <RulesCard title="Basic Info" rules={[`Name: ${form.getValues().name}`, `Type: ${form.getValues().type}`, `Timeframe: ${form.getValues().timeframe}`]} />
+                                            <RulesCard title="Basic Info" rules={[`Name: ${form.getValues().name}`, `Type: ${form.getValues().type}`, `Timeframes: ${form.getValues().timeframes.join(', ')}`]} />
                                             <RulesCard title="Entry Rules" rules={form.getValues().entryConditions} />
                                             <RulesCard title="Exit Rules" rules={form.getValues().exitConditions} />
                                             <RulesCard title="Risk Rules" rules={form.getValues().riskManagementRules} />
@@ -779,6 +834,7 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
                 console.error("Failed to parse strategy UI state from localStorage", e);
             }
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     useEffect(() => {
@@ -831,7 +887,7 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
             strategyId: `strat_${Date.now()}`,
             name: data.name,
             type: data.type as any,
-            timeframe: data.timeframe as any,
+            timeframes: data.timeframes,
             createdAt: new Date().toISOString(),
             status: 'active',
             versions: [
@@ -841,6 +897,8 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
                     isActiveVersion: true,
                     createdAt: new Date().toISOString(),
                     fields: {
+                        description: data.description,
+                        difficulty: data.difficulty as any,
                         entryConditions: data.entryConditions,
                         exitConditions: data.exitConditions,
                         riskManagementRules: data.riskManagementRules,
@@ -862,7 +920,7 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
         return strategies.filter(s => {
             const searchMatch = s.name.toLowerCase().includes(filters.search.toLowerCase()) || s.type.toLowerCase().includes(filters.search.toLowerCase());
             const typeMatch = filters.type === 'All' || s.type === filters.type;
-            const timeframeMatch = filters.timeframe === 'All' || s.timeframe === filters.timeframe;
+            const timeframeMatch = filters.timeframe === 'All' || s.timeframes.includes(filters.timeframe);
             return searchMatch && typeMatch && timeframeMatch;
         }).sort((a, b) => {
             const aLastUsed = a.versions.find(v => v.isActiveVersion)?.lastUsedAt;
@@ -889,7 +947,7 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
     const archivedStrategies = filteredStrategies.filter(s => s.status === 'archived');
     
     const strategyTypes = ['All', 'Breakout', 'Pullback', 'Reversal', 'Scalping', 'SMC', 'Custom'];
-    const timeframes = ['All', '5m', '15m', '1H', '4H'];
+    const timeframes = ['All', '1m', '5m', '15m', '1H', '4H', '1D'];
 
     if (viewMode === 'create') {
         return <StrategyCreatorView onBack={() => setViewMode('list')} onSave={handleSaveNewStrategy} />;
