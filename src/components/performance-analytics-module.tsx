@@ -869,17 +869,36 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
 
     useEffect(() => {
         if (typeof window !== "undefined") {
-            const savedTab = localStorage.getItem("ec_analytics_active_tab");
-            if (savedTab) {
-                setActiveTab(savedTab);
+            try {
+                const savedState = localStorage.getItem("ec_analytics_ui_state");
+                if (savedState) {
+                    const { activeTab, compareMode, timeRange, showBehaviorHotspots, hotspotMetric } = JSON.parse(savedState);
+                    setActiveTab(activeTab || 'overview');
+                    setCompareMode(compareMode || false);
+                    setTimeRange(timeRange || '30d');
+                    setShowBehaviorHotspots(showBehaviorHotspots || false);
+                    setHotspotMetric(hotspotMetric || 'Revenge');
+                }
+            } catch (error) {
+                console.error("Failed to parse analytics UI state from localStorage", error);
             }
              setIsRecoveryMode(localStorage.getItem('ec_recovery_mode') === 'true');
         }
     }, []);
 
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            try {
+                const stateToSave = JSON.stringify({ activeTab, compareMode, timeRange, showBehaviorHotspots, hotspotMetric });
+                localStorage.setItem("ec_analytics_ui_state", stateToSave);
+            } catch (error) {
+                console.error("Failed to save analytics UI state to localStorage", error);
+            }
+        }
+    }, [activeTab, compareMode, timeRange, showBehaviorHotspots, hotspotMetric]);
+
     const handleTabChange = (tab: string) => {
         setActiveTab(tab);
-        localStorage.setItem("ec_analytics_active_tab", tab);
     }
 
     const handleEventClick = (journalId: string | null) => {
@@ -1910,6 +1929,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
         </>
     );
 }
+
 
 
 
