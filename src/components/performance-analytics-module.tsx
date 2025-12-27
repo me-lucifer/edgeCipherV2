@@ -45,7 +45,7 @@ function seededRandom(seed: number) {
 
 
 const SectionCard: React.FC<{id?: string, title: React.ReactNode, description: string, icon: React.ElementType, children: React.ReactNode, headerContent?: React.ReactNode, onExport?: () => void, className?: string}> = ({ id, title, description, icon: Icon, children, headerContent, onExport, className }) => (
-    <Card id={id} className={cn("bg-muted/30 border-border/50 scroll-mt-40 motion-reduce:animate-none animate-in fade-in-50 duration-500", className)}>
+    <Card id={id} className={cn("bg-muted/30 border-border/50 scroll-mt-40 motion-reduce:animate-none", className)}>
         <CardHeader>
             <div className="flex items-start justify-between gap-4">
                 <div>
@@ -302,32 +302,32 @@ const PinnedInsightsCard = ({ analyticsData, onSetModule, onApplyGuardrails }: {
     }
 
     return (
-        <Card id="analytics-discuss-arjun" className="bg-muted/30 border-primary/20">
-            <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2"><Bot className="h-5 w-5 text-primary" /> Your 3 Key Takeaways</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <ul className="space-y-3 list-decimal list-inside text-sm text-muted-foreground">
-                    {insights.map((insight, i) => (
-                        <li key={i}>
-                            <span className="text-foreground">{insight.text}</span>
-                            <Button variant="link" size="sm" className="p-0 h-auto ml-1 text-primary/80 hover:text-primary" onClick={insight.action}>
-                                {insight.cta}
-                            </Button>
-                        </li>
-                    ))}
-                </ul>
-                <Separator />
-                <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" size="sm" onClick={handleDiscussAll}>
-                        <Bot className="mr-2 h-4 w-4" /> Discuss with Arjun
-                    </Button>
-                     <Button variant="outline" size="sm" onClick={onApplyGuardrails}>
-                        <ShieldCheck className="mr-2 h-4 w-4" /> Enable Recommended Guardrails
-                    </Button>
-                </div>
-            </CardContent>
-        </Card>
+        <SectionCard
+            id="analytics-discuss-arjun"
+            title="Your 3 Key Takeaways"
+            description="Arjun's analysis of your most important patterns."
+            icon={Bot}
+        >
+            <ul className="space-y-3 list-decimal list-inside text-sm text-muted-foreground">
+                {insights.map((insight, i) => (
+                    <li key={i}>
+                        <span className="text-foreground">{insight.text}</span>
+                        <Button variant="link" size="sm" className="p-0 h-auto ml-1 text-primary/80 hover:text-primary" onClick={insight.action}>
+                            {insight.cta}
+                        </Button>
+                    </li>
+                ))}
+            </ul>
+            <Separator className="my-4" />
+            <div className="flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" onClick={handleDiscussAll}>
+                    <Bot className="mr-2 h-4 w-4" /> Discuss All with Arjun
+                </Button>
+                 <Button variant="outline" size="sm" onClick={onApplyGuardrails}>
+                    <ShieldCheck className="mr-2 h-4 w-4" /> Enable Recommended Guardrails
+                </Button>
+            </div>
+        </SectionCard>
     );
 };
 
@@ -762,6 +762,67 @@ const SortableHeader = ({
   );
 };
 
+type DataQuality = "Simulated" | "Partial" | "Good";
+
+function DataQualityIndicator({ onOpen }: { onOpen: () => void }) {
+    const [quality, setQuality] = useState<DataQuality>("Simulated");
+    
+    useEffect(() => {
+        const storedEntries = localStorage.getItem("ec_journal_entries");
+        if (storedEntries) {
+            const parsed = JSON.parse(storedEntries);
+            if (parsed.length > 0 && parsed[0].id.startsWith("demo-")) {
+                setQuality("Simulated");
+            } else if (parsed.length > 0) {
+                const taggedCount = parsed.filter((e: any) => e.review && e.review.emotionsTags && e.review.mistakesTags).length;
+                if ((taggedCount / parsed.length) > 0.7) {
+                    setQuality("Good");
+                } else {
+                    setQuality("Partial");
+                }
+            }
+        }
+    }, []);
+
+    const config = {
+        "Simulated": { label: "Data Quality: Simulated", className: "bg-amber-500/20 text-amber-300 border-amber-500/30" },
+        "Partial": { label: "Data Quality: Partial", className: "bg-orange-600/20 text-orange-400 border-orange-600/30" },
+        "Good": { label: "Data Quality: Good", className: "bg-green-500/20 text-green-300 border-green-500/30" },
+    }[quality];
+
+    return (
+        <TooltipProvider>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <Badge onClick={onOpen} className={cn("cursor-pointer", config.className)}>{config.label}</Badge>
+                </TooltipTrigger>
+                <TooltipContent>
+                    <p>Click to see data source details</p>
+                </TooltipContent>
+            </Tooltip>
+        </TooltipProvider>
+    );
+}
+
+const DataStatusRow = ({ label, status, description }: { label: string, status: "Live" | "Simulated" | "Mock" | "Not connected", description: string }) => {
+    const config = {
+        "Live": { icon: CheckCircle, className: "text-green-400" },
+        "Simulated": { icon: Zap, className: "text-amber-400" },
+        "Mock": { icon: Circle, className: "text-blue-400" },
+        "Not connected": { icon: XCircle, className: "text-red-400" }
+    };
+    const { icon: Icon, className } = config[status];
+    return (
+        <div className="flex items-start gap-4 p-4 rounded-lg bg-muted border">
+            <Icon className={cn("h-5 w-5 mt-1 flex-shrink-0", className)} />
+            <div>
+                <p className="font-semibold text-foreground">{label}: <span className={className}>{status}</span></p>
+                <p className="text-xs text-muted-foreground">{description}</p>
+            </div>
+        </div>
+    );
+};
+
 
 export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalyticsModuleProps) {
     const [timeRange, setTimeRange] = useState("30d");
@@ -786,6 +847,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
     const [isTourOpen, setIsTourOpen] = useState(false);
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'ascending' | 'descending' }>({ key: 'pnl', direction: 'descending' });
 
+    const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
 
     const computeAnalytics = useMemo(() => (entries: JournalEntry[], compareMode: boolean) => {
@@ -1172,27 +1234,26 @@ ${JSON.stringify(data, null, 2)}
                         <DrawerDescription>This prototype uses a mix of real and simulated data.</DrawerDescription>
                     </DrawerHeader>
                     <div className="p-4 space-y-4">
-                        <Alert variant="default" className="bg-green-950/50 border-green-500/20 text-green-300">
-                             <CheckCircle className="h-4 w-4 text-green-400" />
-                            <AlertTitle>What's Real (in this demo)</AlertTitle>
-                            <AlertDescription>
-                                The emotions, mistakes, and strategies you tag in your journal directly power the "By Behaviour" and "By Strategy" analytics. The more you journal, the more accurate these become.
-                            </AlertDescription>
-                        </Alert>
-                         <Alert variant="default" className="bg-amber-950/50 border-amber-500/20 text-amber-300">
-                             <Zap className="h-4 w-4 text-amber-400" />
-                            <AlertTitle>What's Simulated</AlertTitle>
-                            <AlertDescription>
-                                PnL, equity curves, and trade execution data are generated by a script to tell a realistic story. In the live product, this will come from your connected broker.
-                            </AlertDescription>
-                        </Alert>
-                         <Alert variant="default" className="bg-blue-950/50 border-blue-500/20 text-blue-300">
-                             <Database className="h-4 w-4 text-blue-400" />
-                            <AlertTitle>Phase 1 (Live Build)</AlertTitle>
-                            <AlertDescription>
-                                In the live version, all PnL and trade data will be pulled from the Delta Exchange API, providing a complete and accurate picture of your performance.
-                            </AlertDescription>
-                        </Alert>
+                        <DataStatusRow 
+                            label="Journal Tags"
+                            status="Live"
+                            description="Emotions, mistakes, and strategies you tag in your journal directly power the behavioral analytics."
+                        />
+                         <DataStatusRow 
+                            label="Trade PnL & Executions"
+                            status="Simulated"
+                            description="PnL, equity curves, and trade execution data are generated by a script to tell a realistic story."
+                        />
+                         <DataStatusRow 
+                            label="Broker Data (Account Balance)"
+                            status="Not connected"
+                            description="In the live product, this will come from your connected broker API for a complete financial picture."
+                        />
+                        <DataStatusRow 
+                            label="Market Data (VIX)"
+                            status="Simulated"
+                            description="Volatility data is currently simulated based on the chosen demo scenario."
+                        />
                     </div>
                 </DrawerContent>
             </Drawer>
@@ -1203,6 +1264,7 @@ ${JSON.stringify(data, null, 2)}
                     <p className="text-muted-foreground">Go beyond P&L to understand your true edge.</p>
                 </div>
                 <div className="flex items-center gap-2 self-start">
+                    <DataQualityIndicator onOpen={() => setIsDataSourcesOpen(true)} />
                     <Button variant="outline" size="sm" onClick={() => setIsTourOpen(true)}>
                         <View className="mr-2 h-4 w-4" /> 2-Min Tour
                     </Button>
@@ -1338,7 +1400,7 @@ ${JSON.stringify(data, null, 2)}
                                                 isFront={true}
                                                 tabIndex={0}
                                                 aria-label={`Behavioral Event: ${event.label} on trade with PnL ${event.impact.toFixed(2)}. Press Enter to view details.`}
-                                                className="focus:outline-none focus:ring-2 focus:ring-ring rounded-full cursor-pointer"
+                                                className="focus:outline-none focus:ring-2 focus:ring-ring rounded-full cursor-pointer motion-reduce:animate-none"
                                                 onClick={() => handleEventClick(event.journalId)}
                                                 onKeyDown={(e) => e.key === 'Enter' && handleEventClick(event.journalId)}
                                             />
