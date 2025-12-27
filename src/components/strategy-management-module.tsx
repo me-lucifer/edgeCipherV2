@@ -677,7 +677,7 @@ function StrategyCreatorView({ onBack, onSave }: { onBack: () => void; onSave: (
         { name: "Basic Info", fields: ["name", "type", "timeframes"] },
         { name: "Entry Rules", fields: ["entryConditions"] },
         { name: "Stop Loss Rules", fields: ["stopLossRules"] },
-        { name: "Take Profit Rules", fields: ["takeProfitRules"] },
+        { name: "Take Profit Rules" },
         { name: "Risk Rules", fields: ["riskManagementRules"] },
         { name: "Context Rules", fields: ["contextRules"] },
         { name: "Review & Save" },
@@ -846,7 +846,7 @@ function StrategyCreatorView({ onBack, onSave }: { onBack: () => void; onSave: (
                                                     </p>
                                                 </div>
                                             )}
-                                            {currentStep === 3 && <FormField control={form.control} name="takeProfitRules" render={({ field }) => (<FormItem><FormLabel>Take Profit Rules (Optional)</FormLabel><FormControl><RuleEditor {...field} placeholder="e.g., Target next major liquidity level..." /></FormControl><FormMessage /></FormItem>)} />}
+                                            {currentStep === 3 && <FormField control={form.control} name="takeProfitRules" render={({ field }) => (<FormItem><FormLabel>Take Profit Rules (Optional)</FormLabel><FormDescription className="mb-2">It's highly recommended to define at least one exit condition for taking profit.</FormDescription><FormControl><RuleEditor {...field} placeholder="e.g., Target next major liquidity level or 2R" /></FormControl><FormMessage /></FormItem>)} />}
                                             {currentStep === 4 && <FormField control={form.control} name="riskManagementRules" render={({ field }) => (<FormItem><FormLabel>Risk Management Rules</FormLabel><FormControl><RuleEditor {...field} placeholder="e.g., Max risk 1% of account..." /></FormControl><FormMessage /></FormItem>)} />}
                                             {currentStep === 5 && <FormField control={form.control} name="contextRules" render={({ field }) => (<FormItem><FormLabel>Context Rules (when to trade/not trade)</FormLabel><FormControl><RuleEditor {...field} placeholder="e.g., Only trade during NY session..." /></FormControl><FormMessage /></FormItem>)} />}
                                             {currentStep === 6 && (
