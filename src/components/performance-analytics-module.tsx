@@ -761,6 +761,14 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
         adherenceRate: totalTrades > 0 ? (followedPlan / totalTrades) * 100 : 0
       };
 
+      const disciplineBreakdown = [
+        { violation: "SL moved", frequency: slMovedCount, avgR: -1.8, trades: [] },
+        { violation: "Risk oversized", frequency: 5, avgR: -2.2, trades: [] },
+        { violation: "R:R below minimum", frequency: 12, avgR: -0.4, trades: [] },
+        { violation: "Traded in high VIX", frequency: 8, avgR: -1.1, trades: [] },
+        { violation: "Skipped journal", frequency: 2, avgR: 0, trades: [] },
+      ]
+
       return {
           totalTrades, winRate, lossRate, avgRR, totalPnL,
           bestCondition: "Normal VIX / NY Session", quality,
@@ -770,7 +778,8 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
           mockEquityData, topEvents, mockStrategyData, timingHeatmapData, volatilityData,
           emotionResultMatrixData,
           radarChartData,
-          planAdherence
+          planAdherence,
+          disciplineBreakdown,
       };
     }
 
@@ -963,738 +972,774 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
 
     return (
         <>
-            <Drawer open={!!selectedEvent} onOpenChange={(open) => !open && setSelectedEvent(null)}>
-                <div className="space-y-8">
-                    <div className="flex items-start justify-between">
-                        <div>
-                            <h1 className="text-2xl font-bold tracking-tight text-foreground">Performance Analytics</h1>
-                            <p className="text-muted-foreground">The backbone of self-awareness — performance, discipline, and psychology in one place.</p>
-                        </div>
-                        <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => setIsDataSourcesOpen(true)}>
-                                        <Database className="mr-2 h-4 w-4" />
-                                        Data Sources
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    <p>See where this data comes from.</p>
-                                </TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
+        <Drawer open={!!selectedEvent} onOpenChange={(open) => !open && setSelectedEvent(null)}>
+            <div className="space-y-8">
+                <div className="flex items-start justify-between">
+                    <div>
+                        <h1 className="text-2xl font-bold tracking-tight text-foreground">Performance Analytics</h1>
+                        <p className="text-muted-foreground">The backbone of self-awareness — performance, discipline, and psychology in one place.</p>
                     </div>
-                    
-                    <Card className="bg-muted/30 border-border/50 sticky top-[88px] z-20 backdrop-blur-sm">
-                        <CardContent className="p-2 flex flex-wrap items-center gap-x-4 gap-y-3">
-                            <div className="flex items-center gap-1 rounded-full bg-muted p-1 border">
-                                {(['7d', '30d', '90d', 'All'] as const).map(range => (
-                                    <Button key={range} size="sm" variant={timeRange === range ? 'secondary' : 'ghost'} onClick={() => setTimeRange(range)} className="rounded-full h-7 px-3 text-xs">
-                                        {range.toUpperCase()}
-                                    </Button>
-                                ))}
-                            </div>
-                            <Select><SelectTrigger className="w-full sm:w-[180px] h-9 text-xs"><SelectValue placeholder="All strategies" /></SelectTrigger><SelectContent><SelectItem value="all">All strategies</SelectItem></SelectContent></Select>
-                            <Select><SelectTrigger className="w-full sm:w-[180px] h-9 text-xs"><SelectValue placeholder="All VIX zones" /></SelectTrigger><SelectContent><SelectItem value="all">All VIX zones</SelectItem></SelectContent></Select>
-                            <Select><SelectTrigger className="w-full sm:w-[180px] h-9 text-xs"><SelectValue placeholder="All sessions" /></SelectTrigger><SelectContent><SelectItem value="all">All sessions</SelectItem></SelectContent></Select>
-                            <div className="flex items-center space-x-2"><Switch id="include-pending" /><Label htmlFor="include-pending" className="text-xs">Include pending</Label></div>
-                            <Separator orientation="vertical" className="h-6 hidden lg:block" />
-                            <div className="flex items-center space-x-2">
-                                <Switch id="compare-mode" checked={compareMode} onCheckedChange={setCompareMode} />
-                                <Label htmlFor="compare-mode" className="text-xs">Compare period</Label>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-                        <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
-                            <TabsTrigger value="overview"><BarChartIcon className="mr-2 h-4 w-4" />Overview</TabsTrigger>
-                            <TabsTrigger value="behaviour"><Activity className="mr-2 h-4 w-4" />Behaviour</TabsTrigger>
-                            <TabsTrigger value="strategies"><BookOpen className="mr-2 h-4 w-4" />Strategies</TabsTrigger>
-                            <TabsTrigger value="reports"><Award className="mr-2 h-4 w-4" />Reports</TabsTrigger>
-                        </TabsList>
-                        <TabsContent value="overview" className="mt-6">
-                            <div className="grid lg:grid-cols-3 gap-8">
-                                <div className="lg:col-span-2 space-y-8">
-                                    <SectionCard 
-                                        id="summary"
-                                        title={
-                                            <div className="flex items-center gap-4">
-                                                <span>High-Level Summary</span>
-                                                <Badge className={qualityConfig.color}>
-                                                    <QualityIcon className="mr-2 h-4 w-4" />
-                                                    {qualityConfig.label}
-                                                </Badge>
-                                            </div>
-                                        }
-                                        description="Your core metrics at a glance for the selected period." 
-                                        icon={DollarSign}
-                                    >
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                                            <MetricCard title="Total Trades" value={String(currentData.totalTrades)} hint="+5% vs last period" delta={compareMode && previousData ? currentData.totalTrades - previousData.totalTrades : undefined} onClick={() => onSetModule('tradeJournal', { filters: { timeRange: timeRange } })}/>
-                                            <MetricCard title="Win Rate" value={`${currentData.winRate.toFixed(1)}%`} hint="-2% vs last period" delta={compareMode && previousData ? currentData.winRate - previousData.winRate : undefined} deltaUnit="%" />
-                                            <MetricCard title="Loss Rate" value={`${currentData.lossRate.toFixed(1)}%`} hint="+2% vs last period" delta={compareMode && previousData ? currentData.lossRate - previousData.lossRate : undefined} deltaUnit="%" />
-                                            <MetricCard title="Average R:R" value={String(currentData.avgRR.toFixed(2))} hint="Target: >1.5" delta={compareMode && previousData ? currentData.avgRR - previousData.avgRR : undefined} />
-                                            <MetricCard title="Total PnL" value={`$${currentData.totalPnL.toFixed(2)}`} hint="+12% vs last period" delta={compareMode && previousData ? currentData.totalPnL - previousData.totalPnL : undefined} />
-                                            <MetricCard title="Best Condition" value={currentData.bestCondition} hint="NY session / Normal VIX" />
-                                        </div>
-                                    </SectionCard>
-
-                                    <SectionCard
-                                        id="equity"
-                                        title="Equity Curve"
-                                        description="Your account balance over time, with markers for key psychological events."
-                                        icon={TrendingUp}
-                                        onExport={() => handleExport('Equity Curve', analyticsData?.current)}
-                                        headerContent={
-                                            <div className="flex items-center gap-2">
-                                                <Label htmlFor="show-behavior-layer" className="text-sm">Show behaviour layer</Label>
-                                                <Switch
-                                                    id="show-behavior-layer"
-                                                    checked={showBehaviorLayer}
-                                                    onCheckedChange={setShowBehaviorLayer}
-                                                />
-                                            </div>
-                                        }
-                                    >
-                                        <div className="h-[350px]">
-                                        {currentData.mockEquityData.length > 0 ? (
-                                            <ChartContainer config={equityChartConfig} className="h-full w-full">
-                                                <LineChart data={currentData.mockEquityData} margin={{ top: 5, right: 20, left: -20, bottom: 0 }}>
-                                                    <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50" />
-                                                    <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={10} tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} />
-                                                    <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `$${value / 1000}k`} />
-                                                    <ChartTooltip cursor={{ strokeDasharray: '3 3' }} content={<ChartTooltipContent />} />
-                                                    <Line type="monotone" dataKey="equity" stroke="hsl(var(--color-equity))" strokeWidth={2} isAnimationActive={false} dot={
-                                                        (props: any) => {
-                                                            const { cx, cy, payload } = props;
-                                                            if (showBehaviorLayer && payload.marker) {
-                                                                const { key, ...rest } = props;
-                                                                return (
-                                                                    <TooltipProvider key={key}>
-                                                                        <Tooltip>
-                                                                            <TooltipTrigger asChild>
-                                                                                <Dot {...rest} cx={cx} cy={cy} r={5} fill={payload.marker.color} stroke="hsl(var(--background))" strokeWidth={2} onClick={() => handleEventClick(payload.journalId)} className="cursor-pointer" />
-                                                                            </TooltipTrigger>
-                                                                            <TooltipContent>
-                                                                                <p>{payload.marker.type}</p>
-                                                                            </TooltipContent>
-                                                                        </Tooltip>
-                                                                    </TooltipProvider>
-                                                                )
-                                                            }
-                                                            const { key, ...rest } = props;
-                                                            return <Dot key={`dot-empty-${key}-${props.index}`} {...rest} r={0} />;
-                                                        }
-                                                    } />
-                                                </LineChart>
-                                            </ChartContainer>
-                                        ) : (
-                                                <EmptyState icon={TrendingUp} title="No Equity Data" description="Your equity curve will appear here once you have trades." />
-                                        )}
-                                        </div>
-                                    </SectionCard>
-
-                                    <SectionCard
-                                    id="timeline"
-                                    title="Behaviour Events Timeline"
-                                    description="A narrative view of your recent trading decisions, linked to your journal."
-                                    icon={BookOpen}
-                                    >
-                                        {currentData.topEvents.length > 0 ? (
-                                        <div className="space-y-4">
-                                            {currentData.topEvents.slice(0, 5).map((event: any, i: number) => {
-                                                const EventIcon = eventTypeIcon[event.label] || eventTypeIcon.default;
-                                                return (
-                                                    <div key={i} className="flex items-center justify-between p-3 rounded-md bg-muted/50 border border-border/50 transition-colors hover:bg-muted">
-                                                        <div className="flex items-center gap-3">
-                                                            <EventIcon className="h-5 w-5 text-muted-foreground" />
-                                                            <div>
-                                                                <p className="font-semibold text-foreground text-sm">{event.label} <span className="text-muted-foreground font-normal">on {event.instrument}</span></p>
-                                                                <p className={cn("text-xs font-mono", event.impact >= 0 ? "text-green-400" : "text-red-400")}>
-                                                                    Result: {event.impact > 0 ? '+' : ''}${event.impact.toFixed(2)}
-                                                                </p>
-                                                            </div>
-                                                        </div>
-                                                        <Button variant="ghost" size="sm" onClick={() => setSelectedEvent(event)}>
-                                                            View Journal <ArrowRight className="ml-2 h-4 w-4" />
-                                                        </Button>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                        ) : (
-                                            <EmptyState icon={BookOpen} title="No Behavioral Events" description="Mistakes and significant emotional trades will be flagged here." />
-                                        )}
-                                    </SectionCard>
-
-                                </div>
-                                <div className="lg:col-span-1 space-y-8">
-                                    <ArjunInsightsSidebar analyticsData={analyticsData} onSetModule={onSetModule} />
-                                </div>
-                            </div>
-                        </TabsContent>
-                        <TabsContent value="behaviour" className="mt-6 space-y-8">
-                            <SectionCard 
-                                id="discipline" 
-                                title="Behaviour Analytics" 
-                                description="Where you lose your edge isn’t price — it’s behaviour." 
-                                icon={Activity}
-                                onExport={() => handleExport('Behaviour Analytics', analyticsData?.current?.scores)}
-                            >
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                                    <ScoreGauge score={currentData.scores.disciplineScore} label="Discipline" interpretation={currentData.scores.disciplineScore > 75 ? "Strong" : currentData.scores.disciplineScore > 50 ? "Mixed" : "Leaky"} delta={compareMode && previousData ? currentData.scores.disciplineScore - previousData.scores.disciplineScore : undefined} />
-                                    <ScoreGauge score={100 - currentData.scores.emotionalScore} label="Emotional Control" interpretation={currentData.scores.emotionalScore < 30 ? "Calm" : currentData.scores.emotionalScore < 60 ? "Reactive" : "Volatile"} delta={compareMode && previousData ? (100 - currentData.scores.emotionalScore) - (100 - previousData.scores.emotionalScore) : undefined} />
-                                    <ScoreGauge score={currentData.scores.consistencyScore} label="Consistency" interpretation={currentData.scores.consistencyScore > 75 ? "Stable" : currentData.scores.consistencyScore > 50 ? "Inconsistent" : "Chaotic"} delta={compareMode && previousData ? currentData.scores.consistencyScore - previousData.scores.consistencyScore : undefined} />
-                                </div>
-                            </SectionCard>
-                            
-                            <SectionCard
-                                id="plan-adherence"
-                                title="Planned vs. Actual Discipline"
-                                description="This is where professionalism lives: planning is meaningless without adherence."
-                                icon={Target}
-                            >
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-                                    <div className="space-y-4">
-                                        <MetricCard title="Plan Adherence" value={`${adherenceData.adherenceRate.toFixed(0)}%`} hint="Trades that followed the plan exactly." />
-                                        <MetricCard title="Override Count" value={adherenceData.majorViolations} hint="Times you justified breaking a rule." />
-                                    </div>
-                                    <div className="space-y-4">
-                                        <h4 className="text-sm font-semibold text-foreground">Trade Breakdown</h4>
-                                        <div className="w-full h-8 flex rounded-full overflow-hidden border">
-                                            <TooltipProvider>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild><div className="bg-green-500 h-full" style={{ width: `${followedPct}%` }} /></TooltipTrigger>
-                                                    <TooltipContent>{`Followed Plan: ${adherenceData.followedPlan} trades (${followedPct.toFixed(0)}%)`}</TooltipContent>
-                                                </Tooltip>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild><div className="bg-amber-500 h-full" style={{ width: `${minorPct}%` }} /></TooltipTrigger>
-                                                    <TooltipContent>{`Minor Deviations: ${adherenceData.minorDeviations} trades (${minorPct.toFixed(0)}%)`}</TooltipContent>
-                                                </Tooltip>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild><div className="bg-red-500 h-full" style={{ width: `${majorPct}%` }} /></TooltipTrigger>
-                                                    <TooltipContent>{`Major Violations: ${adherenceData.majorViolations} trades (${majorPct.toFixed(0)}%)`}</TooltipContent>
-                                                </Tooltip>
-                                            </TooltipProvider>
-                                        </div>
-                                        <div className="flex justify-between items-center text-xs">
-                                            <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-green-500" /> Followed Plan</div>
-                                            <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-500" /> Minor Deviations</div>
-                                            <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-red-500" /> Major Violations</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </SectionCard>
-                            
-                            <SectionCard id="risk-discipline" title="Risk & Discipline Analytics" description="How well you are following your own rules." icon={Target}>
-                                <div className="grid md:grid-cols-3 gap-6">
-                                    <Card className="bg-muted/50 border-border/50">
-                                        <CardHeader>
-                                            <CardTitle className="text-base">Stop Loss Behavior</CardTitle>
-                                        </CardHeader>
-                                        <CardContent className="space-y-4">
-                                            <div>
-                                                <div className="flex justify-between text-sm"><span className="text-muted-foreground">Respected</span><span>{currentData.discipline.slRespectedPct.toFixed(0)}%</span></div>
-                                                <Progress value={currentData.discipline.slRespectedPct} indicatorClassName="bg-green-500" className="h-2 mt-1" />
-                                            </div>
-                                            <div>
-                                                <div className="flex justify-between text-sm"><span className="text-muted-foreground">Moved</span><span>{currentData.discipline.slMovedPct.toFixed(0)}%</span></div>
-                                                <Progress value={currentData.discipline.slMovedPct} indicatorClassName="bg-amber-500" className="h-2 mt-1" />
-                                            </div>
-                                            <div>
-                                                <div className="flex justify-between text-sm"><span className="text-muted-foreground">Removed</span><span>{currentData.discipline.slRemovedPct}%</span></div>
-                                                <Progress value={currentData.discipline.slRemovedPct} indicatorClassName="bg-red-500" className="h-2 mt-1" />
-                                            </div>
-                                            <Alert variant="default" className="mt-4 bg-amber-500/10 border-amber-500/20 text-amber-300">
-                                                <AlertTriangle className="h-4 w-4 text-amber-400" />
-                                                <AlertDescription className="text-xs">
-                                                    Your biggest drawdowns correlate with moving stop losses.
-                                                </AlertDescription>
-                                            </Alert>
-                                        </CardContent>
-                                    </Card>
-                                    <Card className="bg-muted/50 border-border/50">
-                                        <CardHeader>
-                                            <CardTitle className="text-base">Take Profit Behavior</CardTitle>
-                                        </CardHeader>
-                                        <CardContent className="space-y-4">
-                                            <div className="p-4 bg-background/50 rounded-lg">
-                                                <p className="text-sm text-muted-foreground">Exited early %</p>
-                                                <p className="text-2xl font-bold font-mono">{currentData.discipline.tpExitedEarlyPct}%</p>
-                                            </div>
-                                            <p className="text-xs text-muted-foreground">Consider defining partial TP rules to let winners run (coming in Phase 2).</p>
-                                        </CardContent>
-                                    </Card>
-                                    <Card className="bg-muted/50 border-border/50">
-                                        <CardHeader>
-                                            <CardTitle className="text-base">Risk Compliance</CardTitle>
-                                        </CardHeader>
-                                        <CardContent className="space-y-4">
-                                            <div className="p-4 bg-background/50 rounded-lg">
-                                                <p className="text-sm text-muted-foreground">Avg. risk per trade</p>
-                                                <p className="text-2xl font-bold font-mono">{currentData.discipline.avgRiskPct.toFixed(2)}%</p>
-                                            </div>
-                                            <div className="p-4 bg-background/50 rounded-lg">
-                                                <p className="text-sm text-muted-foreground">% of trades over limit</p>
-                                                <p className="text-2xl font-bold font-mono">{currentData.discipline.riskOverLimitPct}%</p>
-                                            </div>
-                                            {currentData.discipline.riskOverLimitPct > 10 && (
-                                                <Badge variant="destructive" className="gap-1.5"><XCircle className="h-3 w-3" /> Risk Leakage Detected</Badge>
-                                            )}
-                                        </CardContent>
-                                    </Card>
-                                </div>
-                                <Separator className="my-6" />
-                                <Dialog>
-                                    <DialogTrigger asChild>
-                                        <Button variant="outline"><Bot className="mr-2 h-4 w-4"/>Apply Discipline Guardrails (Prototype)</Button>
-                                    </DialogTrigger>
-                                    <GuardrailDialog />
-                                </Dialog>
-                            </SectionCard>
-                            <SectionCard 
-                                id="psychology" 
-                                title="Psychological Patterns" 
-                                description="The emotions and biases that drive your decisions." 
-                                icon={Brain}
-                                onExport={() => handleExport('Psychological Patterns', analyticsData?.current?.radarChartData)}
-                            >
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-                                    <div className="h-80 w-full">
-                                        <RadarChart data={currentData.radarChartData} onSetModule={onSetModule} />
-                                    </div>
-                                    <div className="space-y-4">
-                                        <Card className="bg-muted/50">
-                                            <CardHeader>
-                                                <CardTitle className="text-base flex items-center gap-2">
-                                                    <Bot className="h-5 w-5 text-primary" /> Pattern Notes
-                                                </CardTitle>
-                                            </CardHeader>
-                                            <CardContent>
-                                                <ul className="space-y-2 text-sm text-muted-foreground list-disc list-inside">
-                                                    <li>Your <strong className="text-foreground">Revenge</strong> and <strong className="text-foreground">FOMO</strong> scores are high, indicating emotional decision-making.</li>
-                                                    <li>Your <strong className="text-foreground">SL Discipline</strong> is low, suggesting you're not respecting your own exit plans.</li>
-                                                </ul>
-                                            </CardContent>
-                                        </Card>
-                                        <Card className="bg-muted/50 flex flex-col items-center justify-center text-center p-6">
-                                            <h3 className="font-semibold text-foreground">Turn these insights into action.</h3>
-                                            <p className="text-sm text-muted-foreground mt-1 mb-4">Discuss your profile with Arjun to build a personalized growth plan.</p>
-                                            <Button onClick={discussPsychology}>
-                                                Discuss Patterns with Arjun <ArrowRight className="ml-2 h-4 w-4" />
-                                            </Button>
-                                        </Card>
-                                    </div>
-                                </div>
-                            </SectionCard>
-                            <SectionCard id="loss-drivers" title="Top Loss Drivers" description="The specific behaviours that are costing you the most money, ranked by total impact." icon={Zap}>
-                                {currentData.topLossDrivers.length > 0 ? (
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>Behaviour</TableHead>
-                                                <TableHead>Occurrences</TableHead>
-                                                <TableHead>Avg. R Impact</TableHead>
-                                                <TableHead>Total R Impact</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {currentData.topLossDrivers.map((driver: any) => (
-                                                <TableRow key={driver.behavior} className="cursor-pointer hover:bg-muted" onClick={() => setSelectedBehavior(driver)}>
-                                                    <TableCell><Badge variant="destructive">{driver.behavior}</Badge></TableCell>
-                                                    <TableCell>{driver.occurrences}</TableCell>
-                                                    <TableCell className="font-mono text-red-400">{driver.avgR.toFixed(2)}R</TableCell>
-                                                    <TableCell className="font-mono text-red-400">{driver.totalR.toFixed(2)}R</TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                ) : (
-                                    <EmptyState icon={Zap} title="No Loss Drivers Identified" description="This section will highlight which mistakes cost you the most." />
-                                )}
-                            </SectionCard>
-                            <SectionCard id="emotion-matrix" title="Emotion × Result Matrix" description="Where do your emotions lead you? See which feelings correlate with wins and losses." icon={Brain}>
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-center text-xs border-separate border-spacing-1">
-                                        <thead>
-                                            <tr>
-                                                <th className="p-2 text-left">Emotion</th>
-                                                {currentData.emotionResultMatrixData.results.map((result: string) => (
-                                                    <th key={result} className="p-2 font-normal text-muted-foreground">{result}</th>
-                                                ))}
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {currentData.emotionResultMatrixData.emotions.map((emotion: string, rowIndex: number) => (
-                                                <tr key={emotion}>
-                                                    <td className="font-semibold text-foreground text-left p-2">{emotion}</td>
-                                                    {currentData.emotionResultMatrixData.data[rowIndex].map((count: number, colIndex: number) => {
-                                                        const opacity = count > 0 ? Math.min(1, (count / currentData.emotionResultMatrixData.maxCount) * 0.9 + 0.1) : 0;
-                                                        const result = currentData.emotionResultMatrixData.results[colIndex];
-                                                        const isLoss = result.includes("Loss");
-                                                        const isWin = result.includes("Win");
-                                                        
-                                                        let bgColor = `rgba(100, 116, 139, ${opacity * 0.5})`; // Muted for zero
-                                                        if (count > 0) {
-                                                            if (isLoss) bgColor = `rgba(239, 68, 68, ${opacity})`; // Red
-                                                            if (isWin) bgColor = `rgba(34, 197, 94, ${opacity})`; // Green
-                                                        }
-
-                                                        return (
-                                                            <td
-                                                                key={colIndex}
-                                                                style={{ backgroundColor: bgColor }}
-                                                                className="p-3 rounded-md font-mono text-white cursor-pointer transition-all hover:ring-2 hover:ring-primary"
-                                                                onClick={() => handleCellClick(emotion, result)}
-                                                            >
-                                                                {count}
-                                                            </td>
-                                                        );
-                                                    })}
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <div className="flex justify-end items-center gap-4 text-xs text-muted-foreground mt-4">
-                                    <span>Fewer trades</span>
-                                    <div className="flex gap-1">
-                                        <div className="w-4 h-4 rounded bg-primary/20" />
-                                        <div className="w-4 h-4 rounded bg-primary/40" />
-                                        <div className="w-4 h-4 rounded bg-primary/60" />
-                                        <div className="w-4 h-4 rounded bg-primary/80" />
-                                        <div className="w-4 h-4 rounded bg-primary" />
-                                    </div>
-                                    <span>More trades</span>
-                                </div>
-                            </SectionCard>
-                            <TradesInFocusPanel 
-                                behavior={selectedBehavior}
-                                onClear={() => setSelectedBehavior(null)}
-                                onOpenJournal={(journalId) => onSetModule('tradeJournal', { draftId: journalId })}
-                            />
-                        </TabsContent>
-                        <TabsContent value="strategies" className="mt-6 space-y-8">
-                            <SectionCard id="strategy" title="Strategy Analytics" description="Which of your strategies are performing best, and where they leak money." icon={BookOpen}>
-                            {currentData.mockStrategyData.length > 0 ? (
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>Strategy</TableHead>
-                                                <TableHead>Trades</TableHead>
-                                                <TableHead>Win %</TableHead>
-                                                <TableHead>Total PnL ($)</TableHead>
-                                                <TableHead>Top Mistake</TableHead>
-                                                <TableHead className="text-right">Actions</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {currentData.mockStrategyData.map((strategy: any) => (
-                                                <TableRow key={strategy.name} className="transition-colors hover:bg-muted/50 cursor-pointer" onClick={() => setSelectedStrategy(strategy)}>
-                                                    <TableCell className="font-medium">{strategy.name}</TableCell>
-                                                    <TableCell>{strategy.trades}</TableCell>
-                                                    <TableCell>{strategy.winRate}%</TableCell>
-                                                    <TableCell className={cn(strategy.pnl >= 0 ? "text-green-400" : "text-red-400")}>
-                                                        {strategy.pnl >= 0 ? '+' : ''}${strategy.pnl.toLocaleString()}
-                                                    </TableCell>
-                                                    <TableCell><Badge variant="destructive">{strategy.topMistake}</Badge></TableCell>
-                                                    <TableCell className="text-right">
-                                                        <Button variant="ghost" size="sm" onClick={(e) => {e.stopPropagation(); onSetModule('tradeJournal', { filters: { strategy: strategy.name }})}}>
-                                                            <View className="mr-2 h-3 w-3" />
-                                                            View trades
-                                                        </Button>
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                            ) : (
-                                    <EmptyState icon={BookOpen} title="No Strategies Found" description="Define strategies in Strategy Management and tag your trades." />
-                            )}
-                            </SectionCard>
-                            <SectionCard id="timing" title="Timing Analytics" description="When you trade best (and worst)." icon={Calendar} headerContent={
-                                    <div className="flex items-center gap-1 rounded-full bg-muted p-1">
-                                        <Button size="sm" variant="secondary" className="rounded-full h-7 px-3 text-xs">PnL ($)</Button>
-                                        <Button size="sm" variant="ghost" className="rounded-full h-7 px-3 text-xs">Win %</Button>
-                                        <Button size="sm" variant="ghost" className="rounded-full h-7 px-3 text-xs">Trades</Button>
-                                    </div>
-                                }>
-                                <div className="grid md:grid-cols-3 gap-6 animate-in fade-in-50 duration-500">
-                                    <div className="md:col-span-2">
-                                        <div className="overflow-x-auto">
-                                            <table className="w-full text-center text-xs border-separate border-spacing-1">
-                                                <thead>
-                                                    <tr>
-                                                        <th className="p-2">Session</th>
-                                                        {currentData.timingHeatmapData.timeBlocks.map((block: string) => (
-                                                            <th key={block} className="p-2 font-normal text-muted-foreground">{block}</th>
-                                                        ))}
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {currentData.timingHeatmapData.sessions.map((session: any) => (
-                                                        <tr key={session.name}>
-                                                            <td className="font-semibold text-foreground text-left p-2">{session.name}</td>
-                                                            {currentData.timingHeatmapData.timeBlocks.map((block: string) => {
-                                                                const cellData = session.blocks.find((b: any) => b.time === block);
-                                                                if (!cellData) {
-                                                                    return <td key={block} className="p-2 bg-muted/30 rounded-md" />;
-                                                                }
-                                                                const maxTrades = 30; // Mock max for opacity scaling
-                                                                const opacity = Math.min(1, (cellData.trades / maxTrades) * 0.9 + 0.1);
-                                                                const bgColor = cellData.pnl > 0 ? `rgba(34, 197, 94, ${opacity})` : `rgba(239, 68, 68, ${opacity})`;
-                                                                
-                                                                return (
-                                                                    <td key={block} style={{ backgroundColor: bgColor }} className="p-2 rounded-md">
-                                                                        <TooltipProvider><Tooltip>
-                                                                            <TooltipTrigger asChild>
-                                                                                <div className="font-mono text-white cursor-pointer" onClick={() => onSetModule('tradeJournal', {})}>
-                                                                                    <p>{cellData.pnl > 0 ? '+' : ''}{cellData.pnl.toFixed(0)}</p>
-                                                                                    <p className="text-white/60 text-[10px]">n={cellData.trades}</p>
-                                                                                </div>
-                                                                            </TooltipTrigger>
-                                                                            <TooltipContent>
-                                                                                <p>Session: {session.name} ({block})</p>
-                                                                                <p>Trades: {cellData.trades}</p>
-                                                                                <p>Total PnL: ${cellData.pnl.toFixed(2)}</p>
-                                                                            </TooltipContent>
-                                                                        </Tooltip></TooltipProvider>
-                                                                    </td>
-                                                                );
-                                                            })}
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                    <div className="md:col-span-1">
-                                        <Card className="bg-muted/50 h-full">
-                                            <CardHeader>
-                                                <CardTitle className="text-base flex items-center gap-2">
-                                                    <Bot className="h-5 w-5 text-primary" /> Arjun's Insight
-                                                </CardTitle>
-                                            </CardHeader>
-                                            <CardContent>
-                                                <p className="text-sm text-muted-foreground">
-                                                    You lose most of your PnL during the <strong className="text-foreground">London session open (08-12 block)</strong>. It seems you're getting caught in fakeouts.
-                                                </p>
-                                                <p className="text-sm text-muted-foreground mt-2">
-                                                    <strong className="text-primary">Actionable advice:</strong> Consider avoiding the first hour of the London session, or reduce your size by 50% during that period for the next week.
-                                                </p>
-                                            </CardContent>
-                                        </Card>
-                                    </div>
-                                </div>
-                            </SectionCard>
-                            
-                            <SectionCard id="volatility" title="Volatility Analytics" description="How you perform in different market conditions." icon={Zap}
-                                headerContent={
-                                    <div className="flex items-center gap-2">
-                                        <p className="text-xs text-muted-foreground">View by:</p>
-                                        <div className="flex items-center gap-1 rounded-full bg-muted p-1">
-                                            {(['winRate', 'avgPnL', 'mistakes'] as const).map(v => (
-                                                <Button
-                                                    key={v}
-                                                    size="sm"
-                                                    variant={volatilityView === v ? 'secondary' : 'ghost'}
-                                                    onClick={() => setVolatilityView(v)}
-                                                    className="rounded-full h-7 px-3 text-xs capitalize"
-                                                >
-                                                    {v === 'avgPnL' ? 'Avg PnL' : v === 'winRate' ? 'Win Rate' : 'Mistakes'}
-                                                </Button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                }
-                            >
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-in fade-in-50 duration-500">
-                                    {currentData.volatilityData.map((d: any) => {
-                                        const mistakeDensity = d.trades > 0 ? (d.mistakesCount / d.trades) * 100 : 0;
-                                        const isWinRateActive = volatilityView === 'winRate';
-                                        const isAvgPnlActive = volatilityView === 'avgPnL';
-                                        const isMistakesActive = volatilityView === 'mistakes';
-
-                                        return (
-                                            <Card key={d.vixZone} className="bg-muted/50 transition-all hover:bg-muted">
-                                                <CardHeader className="pb-4">
-                                                    <CardTitle className="text-base">{d.vixZone}</CardTitle>
-                                                    <CardDescription className="text-xs">{d.trades} trades</CardDescription>
-                                                </CardHeader>
-                                                <CardContent className="space-y-4">
-                                                    <div className={cn("p-2 rounded-md transition-colors", isWinRateActive ? "bg-primary/10" : "bg-muted")}>
-                                                        <p className="text-xs text-muted-foreground">Win Rate</p>
-                                                        <p className={cn("text-lg font-bold font-mono", isWinRateActive && "text-primary")}>{d.winRate}%</p>
-                                                    </div>
-                                                    <div className={cn("p-2 rounded-md transition-colors", isAvgPnlActive ? "bg-primary/10" : "bg-muted")}>
-                                                        <p className="text-xs text-muted-foreground">Avg. PnL</p>
-                                                        <p className={cn("text-lg font-bold font-mono", d.avgPnL >= 0 ? (isAvgPnlActive ? 'text-primary' : 'text-green-400') : (isAvgPnlActive ? 'text-destructive' : 'text-red-400'))}>${d.avgPnL.toFixed(2)}</p>
-                                                    </div>
-                                                    <div className={cn("p-2 rounded-md transition-colors", isMistakesActive ? "bg-primary/10" : "bg-muted")}>
-                                                        <p className="text-xs text-muted-foreground">Mistakes</p>
-                                                        <p className={cn("text-lg font-bold font-mono", isMistakesActive && "text-primary")}>{d.mistakesCount}</p>
-                                                    </div>
-                                                    <div>
-                                                        <Label className="text-xs text-muted-foreground">Mistake Density</Label>
-                                                        <Progress value={mistakeDensity} indicatorClassName="bg-amber-500" className="h-2 mt-1" />
-                                                    </div>
-                                                </CardContent>
-                                            </Card>
-                                        );
-                                    })}
-                                </div>
-                            </SectionCard>
-                        </TabsContent>
-                        <TabsContent value="reports" className="mt-6 space-y-8">
-                            <SectionCard 
-                                id="reports" 
-                                title="Weekly & Monthly Reports" 
-                                description="Your performance summarized into actionable report cards." 
-                                icon={Award}
-                            >
-                                <div className="grid md:grid-cols-2 gap-8">
-                                    <Dialog>
-                                        <Card className="bg-muted/50 transition-all hover:bg-muted">
-                                            <CardHeader>
-                                                <CardTitle className="text-lg">Weekly Report</CardTitle>
-                                                <CardDescription>Your performance summary for last week.</CardDescription>
-                                            </CardHeader>
-                                            <CardContent className="space-y-3">
-                                                <p className="text-sm"><strong className="text-green-400">This Week's Edge:</strong> Reduced revenge trading.</p>
-                                                <p className="text-sm"><strong className="text-red-400">This Week's Leak:</strong> Still exiting winners early.</p>
-                                                <p className="text-sm"><strong className="text-primary">Behavioural Goal:</strong> Try a partial TP to let trades run.</p>
-                                            </CardContent>
-                                            <CardContent>
-                                                <DialogTrigger asChild>
-                                                    <Button variant="outline" className="w-full">View Full Report</Button>
-                                                </DialogTrigger>
-                                            </CardContent>
-                                        </Card>
-                                        <ReportDialog reportType="Weekly" />
-                                    </Dialog>
-
-                                    <Dialog>
-                                        <Card className="bg-muted/50 transition-all hover:bg-muted">
-                                            <CardHeader>
-                                                <CardTitle className="text-lg">Monthly Report</CardTitle>
-                                                <CardDescription>Your performance summary for last month.</CardDescription>
-                                            </CardHeader>
-                                            <CardContent className="space-y-3">
-                                                <p className="text-sm"><strong className="text-green-400">This Month's Edge:</strong> Sticking to A+ setups.</p>
-                                                <p className="text-sm"><strong className="text-red-400">This Month's Leak:</strong> Performance in high VIX.</p>
-                                                <p className="text-sm"><strong className="text-primary">Behavioural Goal:</strong> Reduce size when VIX is 'Elevated'.</p>
-                                            </CardContent>
-                                            <CardContent>
-                                                <DialogTrigger asChild>
-                                                    <Button variant="outline" className="w-full">View Full Report</Button>
-                                                </DialogTrigger>
-                                            </CardContent>
-                                        </Card>
-                                        <ReportDialog reportType="Monthly" />
-                                    </Dialog>
-                                </div>
-                            </SectionCard>
-                        </TabsContent>
-                    </Tabs>
-
-                    <Drawer open={!!selectedStrategy} onOpenChange={(open) => !open && setSelectedStrategy(null)}>
-                        <DrawerContent>
-                            {selectedStrategy && (
-                                <div className="mx-auto w-full max-w-2xl p-4 md:p-6">
-                                    <DrawerHeader>
-                                        <DrawerTitle className="text-2xl">{selectedStrategy.name} Drilldown</DrawerTitle>
-                                        <DrawerDescription>Deep dive into your most profitable strategy.</DrawerDescription>
-                                    </DrawerHeader>
-                                    <div className="px-4 py-6 space-y-6">
-                                        <div className="grid grid-cols-3 gap-4 text-center">
-                                            <MetricCard title="Win Rate" value={`${selectedStrategy.winRate}%`} hint="" />
-                                            <MetricCard title="Avg. R:R" value={String(selectedStrategy.avgR)} hint="" />
-                                            <MetricCard title="Total PnL" value={`$${selectedStrategy.pnl}`} hint="" />
-                                        </div>
-                                        <div className="space-y-4">
-                                            <div>
-                                                <h4 className="font-semibold text-foreground">Common Emotions</h4>
-                                                <div className="flex gap-2 mt-2">
-                                                    <Badge variant="outline">Focused</Badge>
-                                                    <Badge variant="outline">Calm</Badge>
-                                                    <Badge variant="outline" className="border-amber-500/50 text-amber-400">Overconfidence</Badge>
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <h4 className="font-semibold text-foreground">Common Mistakes</h4>
-                                                <div className="flex gap-2 mt-2">
-                                                    <Badge variant="destructive">Exited early</Badge>
-                                                    <Badge variant="destructive">Forced Entry</Badge>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <Button className="w-full" onClick={() => askArjunAboutStrategy(selectedStrategy.name)}>
-                                            Ask Arjun to improve this strategy
-                                        </Button>
-                                    </div>
-                                </div>
-                            )}
-                        </DrawerContent>
-                    </Drawer>
-                </div>
-            </Drawer>
-            <Drawer open={!!selectedEvent} onOpenChange={(open) => !open && setSelectedEvent(null)}>
-                <DrawerContent>
-                    {selectedEvent && (
-                        <div className="mx-auto w-full max-w-2xl p-4 md:p-6">
-                            <DrawerHeader>
-                                <DrawerTitle className="text-2xl">Event Details</DrawerTitle>
-                                <DrawerDescription>
-                                    Details for the trade event on {new Date(selectedEvent.timestamps.executedAt).toLocaleDateString()}.
-                                </DrawerDescription>
-                            </DrawerHeader>
-                            <div className="px-4 py-6 space-y-4">
-                                <Card className="bg-muted/50">
-                                    <CardContent className="p-4">
-                                        <SummaryRow label="Instrument" value={`${selectedEvent.technical.instrument} ${selectedEvent.technical.direction}`} />
-                                        <SummaryRow label="Result (PnL)" value={`$${selectedEvent.review?.pnl.toFixed(2)}`} className={cn(selectedEvent.review && selectedEvent.review.pnl >= 0 ? 'text-green-400' : 'text-red-400')} />
-                                        <SummaryRow label="Mistakes" value={selectedEvent.review?.mistakesTags || "None"} />
-                                        <SummaryRow label="Emotions" value={selectedEvent.review?.emotionsTags || "None"} />
-                                    </CardContent>
-                                </Card>
-                                <Button className="w-full" onClick={() => { setSelectedEvent(null); onSetModule('tradeJournal', { draftId: selectedEvent.id }); }}>
-                                    Open Full Journal Entry
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => setIsDataSourcesOpen(true)}>
+                                    <Database className="mr-2 h-4 w-4" />
+                                    Data Sources
                                 </Button>
-                            </div>
-                        </div>
-                    )}
-                </DrawerContent>
-            </Drawer>
-            <Drawer open={isDataSourcesOpen} onOpenChange={setIsDataSourcesOpen}>
-                <DrawerContent>
-                    <DrawerHeader>
-                        <DrawerTitle>Data Sources</DrawerTitle>
-                        <DrawerDescription>This analytics view is a synthesis of multiple data points.</DrawerDescription>
-                    </DrawerHeader>
-                    <div className="p-4">
-                        <div className="space-y-4">
-                            {dataSources.map(source => (
-                                <Card key={source.name} className="bg-muted/50">
-                                    <CardContent className="p-4 flex items-center justify-between">
-                                        <div>
-                                            <h4 className="font-semibold text-foreground">{source.name}</h4>
-                                            <p className="text-xs text-muted-foreground">{source.description}</p>
-                                        </div>
-                                        <Badge variant={source.status === 'Live' ? 'default' : 'outline'}>{source.status}</Badge>
-                                    </CardContent>
-                                </Card>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>See where this data comes from.</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                </div>
+                
+                <Card className="bg-muted/30 border-border/50 sticky top-[88px] z-20 backdrop-blur-sm">
+                    <CardContent className="p-2 flex flex-wrap items-center gap-x-4 gap-y-3">
+                        <div className="flex items-center gap-1 rounded-full bg-muted p-1 border">
+                            {(['7d', '30d', '90d', 'All'] as const).map(range => (
+                                <Button key={range} size="sm" variant={timeRange === range ? 'secondary' : 'ghost'} onClick={() => setTimeRange(range)} className="rounded-full h-7 px-3 text-xs">
+                                    {range.toUpperCase()}
+                                </Button>
                             ))}
                         </div>
+                        <Select><SelectTrigger className="w-full sm:w-[180px] h-9 text-xs"><SelectValue placeholder="All strategies" /></SelectTrigger><SelectContent><SelectItem value="all">All strategies</SelectItem></SelectContent></Select>
+                        <Select><SelectTrigger className="w-full sm:w-[180px] h-9 text-xs"><SelectValue placeholder="All VIX zones" /></SelectTrigger><SelectContent><SelectItem value="all">All VIX zones</SelectItem></SelectContent></Select>
+                        <Select><SelectTrigger className="w-full sm:w-[180px] h-9 text-xs"><SelectValue placeholder="All sessions" /></SelectTrigger><SelectContent><SelectItem value="all">All sessions</SelectItem></SelectContent></Select>
+                        <div className="flex items-center space-x-2"><Switch id="include-pending" /><Label htmlFor="include-pending" className="text-xs">Include pending</Label></div>
+                        <Separator orientation="vertical" className="h-6 hidden lg:block" />
+                        <div className="flex items-center space-x-2">
+                            <Switch id="compare-mode" checked={compareMode} onCheckedChange={setCompareMode} />
+                            <Label htmlFor="compare-mode" className="text-xs">Compare period</Label>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+                    <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
+                        <TabsTrigger value="overview"><BarChartIcon className="mr-2 h-4 w-4" />Overview</TabsTrigger>
+                        <TabsTrigger value="behaviour"><Activity className="mr-2 h-4 w-4" />Behaviour</TabsTrigger>
+                        <TabsTrigger value="strategies"><BookOpen className="mr-2 h-4 w-4" />Strategies</TabsTrigger>
+                        <TabsTrigger value="reports"><Award className="mr-2 h-4 w-4" />Reports</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="overview" className="mt-6">
+                        <div className="grid lg:grid-cols-3 gap-8">
+                            <div className="lg:col-span-2 space-y-8">
+                                <SectionCard 
+                                    id="summary"
+                                    title={
+                                        <div className="flex items-center gap-4">
+                                            <span>High-Level Summary</span>
+                                            <Badge className={qualityConfig.color}>
+                                                <QualityIcon className="mr-2 h-4 w-4" />
+                                                {qualityConfig.label}
+                                            </Badge>
+                                        </div>
+                                    }
+                                    description="Your core metrics at a glance for the selected period." 
+                                    icon={DollarSign}
+                                >
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                        <MetricCard title="Total Trades" value={String(currentData.totalTrades)} hint="+5% vs last period" delta={compareMode && previousData ? currentData.totalTrades - previousData.totalTrades : undefined} onClick={() => onSetModule('tradeJournal', { filters: { timeRange: timeRange } })}/>
+                                        <MetricCard title="Win Rate" value={`${currentData.winRate.toFixed(1)}%`} hint="-2% vs last period" delta={compareMode && previousData ? currentData.winRate - previousData.winRate : undefined} deltaUnit="%" />
+                                        <MetricCard title="Loss Rate" value={`${currentData.lossRate.toFixed(1)}%`} hint="+2% vs last period" delta={compareMode && previousData ? currentData.lossRate - previousData.lossRate : undefined} deltaUnit="%" />
+                                        <MetricCard title="Average R:R" value={String(currentData.avgRR.toFixed(2))} hint="Target: >1.5" delta={compareMode && previousData ? currentData.avgRR - previousData.avgRR : undefined} />
+                                        <MetricCard title="Total PnL" value={`$${currentData.totalPnL.toFixed(2)}`} hint="+12% vs last period" delta={compareMode && previousData ? currentData.totalPnL - previousData.totalPnL : undefined} />
+                                        <MetricCard title="Best Condition" value={currentData.bestCondition} hint="NY session / Normal VIX" />
+                                    </div>
+                                </SectionCard>
+
+                                <SectionCard
+                                    id="equity"
+                                    title="Equity Curve"
+                                    description="Your account balance over time, with markers for key psychological events."
+                                    icon={TrendingUp}
+                                    onExport={() => handleExport('Equity Curve', analyticsData?.current)}
+                                    headerContent={
+                                        <div className="flex items-center gap-2">
+                                            <Label htmlFor="show-behavior-layer" className="text-sm">Show behaviour layer</Label>
+                                            <Switch
+                                                id="show-behavior-layer"
+                                                checked={showBehaviorLayer}
+                                                onCheckedChange={setShowBehaviorLayer}
+                                            />
+                                        </div>
+                                    }
+                                >
+                                    <div className="h-[350px]">
+                                    {currentData.mockEquityData.length > 0 ? (
+                                        <ChartContainer config={equityChartConfig} className="h-full w-full">
+                                            <LineChart data={currentData.mockEquityData} margin={{ top: 5, right: 20, left: -20, bottom: 0 }}>
+                                                <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50" />
+                                                <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={10} tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} />
+                                                <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `$${value / 1000}k`} />
+                                                <ChartTooltip cursor={{ strokeDasharray: '3 3' }} content={<ChartTooltipContent />} />
+                                                <Line type="monotone" dataKey="equity" stroke="hsl(var(--color-equity))" strokeWidth={2} isAnimationActive={false} dot={
+                                                    (props: any) => {
+                                                        const { cx, cy, payload } = props;
+                                                        if (showBehaviorLayer && payload.marker) {
+                                                            const { key, ...rest } = props;
+                                                            return (
+                                                                <TooltipProvider key={key}>
+                                                                    <Tooltip>
+                                                                        <TooltipTrigger asChild>
+                                                                            <Dot {...rest} cx={cx} cy={cy} r={5} fill={payload.marker.color} stroke="hsl(var(--background))" strokeWidth={2} onClick={() => handleEventClick(payload.journalId)} className="cursor-pointer" />
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent>
+                                                                            <p>{payload.marker.type}</p>
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                </TooltipProvider>
+                                                            )
+                                                        }
+                                                        const { key, ...rest } = props;
+                                                        return <Dot key={`dot-empty-${key}-${props.index}`} {...rest} r={0} />;
+                                                    }
+                                                } />
+                                            </LineChart>
+                                        </ChartContainer>
+                                    ) : (
+                                            <EmptyState icon={TrendingUp} title="No Equity Data" description="Your equity curve will appear here once you have trades." />
+                                    )}
+                                    </div>
+                                </SectionCard>
+
+                                <SectionCard
+                                id="timeline"
+                                title="Behaviour Events Timeline"
+                                description="A narrative view of your recent trading decisions, linked to your journal."
+                                icon={BookOpen}
+                                >
+                                    {currentData.topEvents.length > 0 ? (
+                                    <div className="space-y-4">
+                                        {currentData.topEvents.slice(0, 5).map((event: any, i: number) => {
+                                            const EventIcon = eventTypeIcon[event.label] || eventTypeIcon.default;
+                                            return (
+                                                <div key={i} className="flex items-center justify-between p-3 rounded-md bg-muted/50 border border-border/50 transition-colors hover:bg-muted">
+                                                    <div className="flex items-center gap-3">
+                                                        <EventIcon className="h-5 w-5 text-muted-foreground" />
+                                                        <div>
+                                                            <p className="font-semibold text-foreground text-sm">{event.label} <span className="text-muted-foreground font-normal">on {event.instrument}</span></p>
+                                                            <p className={cn("text-xs font-mono", event.impact >= 0 ? "text-green-400" : "text-red-400")}>
+                                                                Result: {event.impact > 0 ? '+' : ''}${event.impact.toFixed(2)}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <Button variant="ghost" size="sm" onClick={() => setSelectedEvent(event)}>
+                                                        View Journal <ArrowRight className="ml-2 h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                    ) : (
+                                        <EmptyState icon={BookOpen} title="No Behavioral Events" description="Mistakes and significant emotional trades will be flagged here." />
+                                    )}
+                                </SectionCard>
+
+                            </div>
+                            <div className="lg:col-span-1 space-y-8">
+                                <ArjunInsightsSidebar analyticsData={analyticsData} onSetModule={onSetModule} />
+                            </div>
+                        </div>
+                    </TabsContent>
+                    <TabsContent value="behaviour" className="mt-6 space-y-8">
+                        <SectionCard 
+                            id="discipline" 
+                            title="Behaviour Analytics" 
+                            description="Where you lose your edge isn’t price — it’s behaviour." 
+                            icon={Activity}
+                            onExport={() => handleExport('Behaviour Analytics', analyticsData?.current?.scores)}
+                        >
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                                <ScoreGauge score={currentData.scores.disciplineScore} label="Discipline" interpretation={currentData.scores.disciplineScore > 75 ? "Strong" : currentData.scores.disciplineScore > 50 ? "Mixed" : "Leaky"} delta={compareMode && previousData ? currentData.scores.disciplineScore - previousData.scores.disciplineScore : undefined} />
+                                <ScoreGauge score={100 - currentData.scores.emotionalScore} label="Emotional Control" interpretation={currentData.scores.emotionalScore < 30 ? "Calm" : currentData.scores.emotionalScore < 60 ? "Reactive" : "Volatile"} delta={compareMode && previousData ? (100 - currentData.scores.emotionalScore) - (100 - previousData.scores.emotionalScore) : undefined} />
+                                <ScoreGauge score={currentData.scores.consistencyScore} label="Consistency" interpretation={currentData.scores.consistencyScore > 75 ? "Stable" : currentData.scores.consistencyScore > 50 ? "Inconsistent" : "Chaotic"} delta={compareMode && previousData ? currentData.scores.consistencyScore - previousData.scores.consistencyScore : undefined} />
+                            </div>
+                        </SectionCard>
+                        
+                        <SectionCard
+                            id="plan-adherence"
+                            title="Planned vs. Actual Discipline"
+                            description="This is where professionalism lives: planning is meaningless without adherence."
+                            icon={Target}
+                        >
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                                <div className="space-y-4">
+                                    <MetricCard title="Plan Adherence" value={`${adherenceData.adherenceRate.toFixed(0)}%`} hint="Trades that followed the plan exactly." />
+                                    <MetricCard title="Override Count" value={adherenceData.majorViolations} hint="Times you justified breaking a rule." />
+                                </div>
+                                <div className="space-y-4">
+                                    <h4 className="text-sm font-semibold text-foreground">Trade Breakdown</h4>
+                                    <div className="w-full h-8 flex rounded-full overflow-hidden border">
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild><div className="bg-green-500 h-full" style={{ width: `${followedPct}%` }} /></TooltipTrigger>
+                                                <TooltipContent>{`Followed Plan: ${adherenceData.followedPlan} trades (${followedPct.toFixed(0)}%)`}</TooltipContent>
+                                            </Tooltip>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild><div className="bg-amber-500 h-full" style={{ width: `${minorPct}%` }} /></TooltipTrigger>
+                                                <TooltipContent>{`Minor Deviations: ${adherenceData.minorDeviations} trades (${minorPct.toFixed(0)}%)`}</TooltipContent>
+                                            </Tooltip>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild><div className="bg-red-500 h-full" style={{ width: `${majorPct}%` }} /></TooltipTrigger>
+                                                <TooltipContent>{`Major Violations: ${adherenceData.majorViolations} trades (${majorPct.toFixed(0)}%)`}</TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    </div>
+                                    <div className="flex justify-between items-center text-xs">
+                                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-green-500" /> Followed Plan</div>
+                                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-500" /> Minor Deviations</div>
+                                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-red-500" /> Major Violations</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </SectionCard>
+                        
+                        <SectionCard
+                            id="discipline-breakdown"
+                            title="Discipline Breakdown"
+                            description="Your most common rule violations and their financial impact."
+                            icon={Zap}
+                        >
+                            {currentData.disciplineBreakdown.length > 0 ? (
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Violation</TableHead>
+                                            <TableHead>Frequency</TableHead>
+                                            <TableHead>Avg. R Impact</TableHead>
+                                            <TableHead className="text-right">Action</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {currentData.disciplineBreakdown.map((item: any) => (
+                                            <TableRow key={item.violation}>
+                                                <TableCell className="font-medium text-foreground">{item.violation}</TableCell>
+                                                <TableCell>{item.frequency} times</TableCell>
+                                                <TableCell className={cn("font-mono", item.avgR < 0 ? "text-red-400" : "text-green-400")}>{item.avgR.toFixed(1)}R</TableCell>
+                                                <TableCell className="text-right">
+                                                    <Button variant="ghost" size="sm" onClick={() => setSelectedBehavior({ behavior: item.violation, trades: item.trades })}>
+                                                        View Examples
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            ) : (
+                                <EmptyState icon={Zap} title="No Violations Logged" description="This table will populate as you tag mistakes in your journal." />
+                            )}
+                        </SectionCard>
+
+                        <SectionCard id="risk-discipline" title="Risk & Discipline Analytics" description="How well you are following your own rules." icon={Target}>
+                            <div className="grid md:grid-cols-3 gap-6">
+                                <Card className="bg-muted/50 border-border/50">
+                                    <CardHeader>
+                                        <CardTitle className="text-base">Stop Loss Behavior</CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
+                                        <div>
+                                            <div className="flex justify-between text-sm"><span className="text-muted-foreground">Respected</span><span>{currentData.discipline.slRespectedPct.toFixed(0)}%</span></div>
+                                            <Progress value={currentData.discipline.slRespectedPct} indicatorClassName="bg-green-500" className="h-2 mt-1" />
+                                        </div>
+                                        <div>
+                                            <div className="flex justify-between text-sm"><span className="text-muted-foreground">Moved</span><span>{currentData.discipline.slMovedPct.toFixed(0)}%</span></div>
+                                            <Progress value={currentData.discipline.slMovedPct} indicatorClassName="bg-amber-500" className="h-2 mt-1" />
+                                        </div>
+                                        <div>
+                                            <div className="flex justify-between text-sm"><span className="text-muted-foreground">Removed</span><span>{currentData.discipline.slRemovedPct}%</span></div>
+                                            <Progress value={currentData.discipline.slRemovedPct} indicatorClassName="bg-red-500" className="h-2 mt-1" />
+                                        </div>
+                                        <Alert variant="default" className="mt-4 bg-amber-500/10 border-amber-500/20 text-amber-300">
+                                            <AlertTriangle className="h-4 w-4 text-amber-400" />
+                                            <AlertDescription className="text-xs">
+                                                Your biggest drawdowns correlate with moving stop losses.
+                                            </AlertDescription>
+                                        </Alert>
+                                    </CardContent>
+                                </Card>
+                                <Card className="bg-muted/50 border-border/50">
+                                    <CardHeader>
+                                        <CardTitle className="text-base">Take Profit Behavior</CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
+                                        <div className="p-4 bg-background/50 rounded-lg">
+                                            <p className="text-sm text-muted-foreground">Exited early %</p>
+                                            <p className="text-2xl font-bold font-mono">{currentData.discipline.tpExitedEarlyPct}%</p>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground">Consider defining partial TP rules to let winners run (coming in Phase 2).</p>
+                                    </CardContent>
+                                </Card>
+                                <Card className="bg-muted/50 border-border/50">
+                                    <CardHeader>
+                                        <CardTitle className="text-base">Risk Compliance</CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
+                                        <div className="p-4 bg-background/50 rounded-lg">
+                                            <p className="text-sm text-muted-foreground">Avg. risk per trade</p>
+                                            <p className="text-2xl font-bold font-mono">{currentData.discipline.avgRiskPct.toFixed(2)}%</p>
+                                        </div>
+                                        <div className="p-4 bg-background/50 rounded-lg">
+                                            <p className="text-sm text-muted-foreground">% of trades over limit</p>
+                                            <p className="text-2xl font-bold font-mono">{currentData.discipline.riskOverLimitPct}%</p>
+                                        </div>
+                                        {currentData.discipline.riskOverLimitPct > 10 && (
+                                            <Badge variant="destructive" className="gap-1.5"><XCircle className="h-3 w-3" /> Risk Leakage Detected</Badge>
+                                        )}
+                                    </CardContent>
+                                </Card>
+                            </div>
+                            <Separator className="my-6" />
+                            <Dialog>
+                                <DialogTrigger asChild>
+                                    <Button variant="outline"><Bot className="mr-2 h-4 w-4"/>Apply Discipline Guardrails (Prototype)</Button>
+                                </DialogTrigger>
+                                <GuardrailDialog />
+                            </Dialog>
+                        </SectionCard>
+                        <SectionCard 
+                            id="psychology" 
+                            title="Psychological Patterns" 
+                            description="The emotions and biases that drive your decisions." 
+                            icon={Brain}
+                            onExport={() => handleExport('Psychological Patterns', analyticsData?.current?.radarChartData)}
+                        >
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                                <div className="h-80 w-full">
+                                    <RadarChart data={currentData.radarChartData} onSetModule={onSetModule} />
+                                </div>
+                                <div className="space-y-4">
+                                    <Card className="bg-muted/50">
+                                        <CardHeader>
+                                            <CardTitle className="text-base flex items-center gap-2">
+                                                <Bot className="h-5 w-5 text-primary" /> Pattern Notes
+                                            </CardTitle>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <ul className="space-y-2 text-sm text-muted-foreground list-disc list-inside">
+                                                <li>Your <strong className="text-foreground">Revenge</strong> and <strong className="text-foreground">FOMO</strong> scores are high, indicating emotional decision-making.</li>
+                                                <li>Your <strong className="text-foreground">SL Discipline</strong> is low, suggesting you're not respecting your own exit plans.</li>
+                                            </ul>
+                                        </CardContent>
+                                    </Card>
+                                    <Card className="bg-muted/50 flex flex-col items-center justify-center text-center p-6">
+                                        <h3 className="font-semibold text-foreground">Turn these insights into action.</h3>
+                                        <p className="text-sm text-muted-foreground mt-1 mb-4">Discuss your profile with Arjun to build a personalized growth plan.</p>
+                                        <Button onClick={discussPsychology}>
+                                            Discuss Patterns with Arjun <ArrowRight className="ml-2 h-4 w-4" />
+                                        </Button>
+                                    </Card>
+                                </div>
+                            </div>
+                        </SectionCard>
+                        <SectionCard id="loss-drivers" title="Top Loss Drivers" description="The specific behaviours that are costing you the most money, ranked by total impact." icon={Zap}>
+                            {currentData.topLossDrivers.length > 0 ? (
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Behaviour</TableHead>
+                                            <TableHead>Occurrences</TableHead>
+                                            <TableHead>Avg. R Impact</TableHead>
+                                            <TableHead>Total R Impact</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {currentData.topLossDrivers.map((driver: any) => (
+                                            <TableRow key={driver.behavior} className="cursor-pointer hover:bg-muted" onClick={() => setSelectedBehavior(driver)}>
+                                                <TableCell><Badge variant="destructive">{driver.behavior}</Badge></TableCell>
+                                                <TableCell>{driver.occurrences}</TableCell>
+                                                <TableCell className="font-mono text-red-400">{driver.avgR.toFixed(2)}R</TableCell>
+                                                <TableCell className="font-mono text-red-400">{driver.totalR.toFixed(2)}R</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            ) : (
+                                <EmptyState icon={Zap} title="No Loss Drivers Identified" description="This section will highlight which mistakes cost you the most." />
+                            )}
+                        </SectionCard>
+                        <SectionCard id="emotion-matrix" title="Emotion × Result Matrix" description="Where do your emotions lead you? See which feelings correlate with wins and losses." icon={Brain}>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-center text-xs border-separate border-spacing-1">
+                                    <thead>
+                                        <tr>
+                                            <th className="p-2 text-left">Emotion</th>
+                                            {currentData.emotionResultMatrixData.results.map((result: string) => (
+                                                <th key={result} className="p-2 font-normal text-muted-foreground">{result}</th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {currentData.emotionResultMatrixData.emotions.map((emotion: string, rowIndex: number) => (
+                                            <tr key={emotion}>
+                                                <td className="font-semibold text-foreground text-left p-2">{emotion}</td>
+                                                {currentData.emotionResultMatrixData.data[rowIndex].map((count: number, colIndex: number) => {
+                                                    const opacity = count > 0 ? Math.min(1, (count / currentData.emotionResultMatrixData.maxCount) * 0.9 + 0.1) : 0;
+                                                    const result = currentData.emotionResultMatrixData.results[colIndex];
+                                                    const isLoss = result.includes("Loss");
+                                                    const isWin = result.includes("Win");
+                                                    
+                                                    let bgColor = `rgba(100, 116, 139, ${opacity * 0.5})`; // Muted for zero
+                                                    if (count > 0) {
+                                                        if (isLoss) bgColor = `rgba(239, 68, 68, ${opacity})`; // Red
+                                                        if (isWin) bgColor = `rgba(34, 197, 94, ${opacity})`; // Green
+                                                    }
+
+                                                    return (
+                                                        <td
+                                                            key={colIndex}
+                                                            style={{ backgroundColor: bgColor }}
+                                                            className="p-3 rounded-md font-mono text-white cursor-pointer transition-all hover:ring-2 hover:ring-primary"
+                                                            onClick={() => handleCellClick(emotion, result)}
+                                                        >
+                                                            {count}
+                                                        </td>
+                                                    );
+                                                })}
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div className="flex justify-end items-center gap-4 text-xs text-muted-foreground mt-4">
+                                <span>Fewer trades</span>
+                                <div className="flex gap-1">
+                                    <div className="w-4 h-4 rounded bg-primary/20" />
+                                    <div className="w-4 h-4 rounded bg-primary/40" />
+                                    <div className="w-4 h-4 rounded bg-primary/60" />
+                                    <div className="w-4 h-4 rounded bg-primary/80" />
+                                    <div className="w-4 h-4 rounded bg-primary" />
+                                </div>
+                                <span>More trades</span>
+                            </div>
+                        </SectionCard>
+                        <TradesInFocusPanel 
+                            behavior={selectedBehavior}
+                            onClear={() => setSelectedBehavior(null)}
+                            onOpenJournal={(journalId) => onSetModule('tradeJournal', { draftId: journalId })}
+                        />
+                    </TabsContent>
+                    <TabsContent value="strategies" className="mt-6 space-y-8">
+                        <SectionCard id="strategy" title="Strategy Analytics" description="Which of your strategies are performing best, and where they leak money." icon={BookOpen}>
+                        {currentData.mockStrategyData.length > 0 ? (
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Strategy</TableHead>
+                                            <TableHead>Trades</TableHead>
+                                            <TableHead>Win %</TableHead>
+                                            <TableHead>Total PnL ($)</TableHead>
+                                            <TableHead>Top Mistake</TableHead>
+                                            <TableHead className="text-right">Actions</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {currentData.mockStrategyData.map((strategy: any) => (
+                                            <TableRow key={strategy.name} className="transition-colors hover:bg-muted/50 cursor-pointer" onClick={() => setSelectedStrategy(strategy)}>
+                                                <TableCell className="font-medium">{strategy.name}</TableCell>
+                                                <TableCell>{strategy.trades}</TableCell>
+                                                <TableCell>{strategy.winRate}%</TableCell>
+                                                <TableCell className={cn(strategy.pnl >= 0 ? "text-green-400" : "text-red-400")}>
+                                                    {strategy.pnl >= 0 ? '+' : ''}${strategy.pnl.toLocaleString()}
+                                                </TableCell>
+                                                <TableCell><Badge variant="destructive">{strategy.topMistake}</Badge></TableCell>
+                                                <TableCell className="text-right">
+                                                    <Button variant="ghost" size="sm" onClick={(e) => {e.stopPropagation(); onSetModule('tradeJournal', { filters: { strategy: strategy.name }})}}>
+                                                        <View className="mr-2 h-3 w-3" />
+                                                        View trades
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                        ) : (
+                                <EmptyState icon={BookOpen} title="No Strategies Found" description="Define strategies in Strategy Management and tag your trades." />
+                        )}
+                        </SectionCard>
+                        <SectionCard id="timing" title="Timing Analytics" description="When you trade best (and worst)." icon={Calendar} headerContent={
+                                <div className="flex items-center gap-1 rounded-full bg-muted p-1">
+                                    <Button size="sm" variant="secondary" className="rounded-full h-7 px-3 text-xs">PnL ($)</Button>
+                                    <Button size="sm" variant="ghost" className="rounded-full h-7 px-3 text-xs">Win %</Button>
+                                    <Button size="sm" variant="ghost" className="rounded-full h-7 px-3 text-xs">Trades</Button>
+                                </div>
+                            }>
+                            <div className="grid md:grid-cols-3 gap-6 animate-in fade-in-50 duration-500">
+                                <div className="md:col-span-2">
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-center text-xs border-separate border-spacing-1">
+                                            <thead>
+                                                <tr>
+                                                    <th className="p-2">Session</th>
+                                                    {currentData.timingHeatmapData.timeBlocks.map((block: string) => (
+                                                        <th key={block} className="p-2 font-normal text-muted-foreground">{block}</th>
+                                                    ))}
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {currentData.timingHeatmapData.sessions.map((session: any) => (
+                                                    <tr key={session.name}>
+                                                        <td className="font-semibold text-foreground text-left p-2">{session.name}</td>
+                                                        {currentData.timingHeatmapData.timeBlocks.map((block: string) => {
+                                                            const cellData = session.blocks.find((b: any) => b.time === block);
+                                                            if (!cellData) {
+                                                                return <td key={block} className="p-2 bg-muted/30 rounded-md" />;
+                                                            }
+                                                            const maxTrades = 30; // Mock max for opacity scaling
+                                                            const opacity = Math.min(1, (cellData.trades / maxTrades) * 0.9 + 0.1);
+                                                            const bgColor = cellData.pnl > 0 ? `rgba(34, 197, 94, ${opacity})` : `rgba(239, 68, 68, ${opacity})`;
+                                                            
+                                                            return (
+                                                                <td key={block} style={{ backgroundColor: bgColor }} className="p-2 rounded-md">
+                                                                    <TooltipProvider><Tooltip>
+                                                                        <TooltipTrigger asChild>
+                                                                            <div className="font-mono text-white cursor-pointer" onClick={() => onSetModule('tradeJournal', {})}>
+                                                                                <p>{cellData.pnl > 0 ? '+' : ''}{cellData.pnl.toFixed(0)}</p>
+                                                                                <p className="text-white/60 text-[10px]">n={cellData.trades}</p>
+                                                                            </div>
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent>
+                                                                            <p>Session: {session.name} ({block})</p>
+                                                                            <p>Trades: {cellData.trades}</p>
+                                                                            <p>Total PnL: ${cellData.pnl.toFixed(2)}</p>
+                                                                        </TooltipContent>
+                                                                    </Tooltip></TooltipProvider>
+                                                                </td>
+                                                            );
+                                                        })}
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <div className="md:col-span-1">
+                                    <Card className="bg-muted/50 h-full">
+                                        <CardHeader>
+                                            <CardTitle className="text-base flex items-center gap-2">
+                                                <Bot className="h-5 w-5 text-primary" /> Arjun's Insight
+                                            </CardTitle>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <p className="text-sm text-muted-foreground">
+                                                You lose most of your PnL during the <strong className="text-foreground">London session open (08-12 block)</strong>. It seems you're getting caught in fakeouts.
+                                            </p>
+                                            <p className="text-sm text-muted-foreground mt-2">
+                                                <strong className="text-primary">Actionable advice:</strong> Consider avoiding the first hour of the London session, or reduce your size by 50% during that period for the next week.
+                                            </p>
+                                        </CardContent>
+                                    </Card>
+                                </div>
+                            </div>
+                        </SectionCard>
+                        
+                        <SectionCard id="volatility" title="Volatility Analytics" description="How you perform in different market conditions." icon={Zap}
+                            headerContent={
+                                <div className="flex items-center gap-2">
+                                    <p className="text-xs text-muted-foreground">View by:</p>
+                                    <div className="flex items-center gap-1 rounded-full bg-muted p-1">
+                                        {(['winRate', 'avgPnL', 'mistakes'] as const).map(v => (
+                                            <Button
+                                                key={v}
+                                                size="sm"
+                                                variant={volatilityView === v ? 'secondary' : 'ghost'}
+                                                onClick={() => setVolatilityView(v)}
+                                                className="rounded-full h-7 px-3 text-xs capitalize"
+                                            >
+                                                {v === 'avgPnL' ? 'Avg PnL' : v === 'winRate' ? 'Win Rate' : 'Mistakes'}
+                                            </Button>
+                                        ))}
+                                    </div>
+                                </div>
+                            }
+                        >
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-in fade-in-50 duration-500">
+                                {currentData.volatilityData.map((d: any) => {
+                                    const mistakeDensity = d.trades > 0 ? (d.mistakesCount / d.trades) * 100 : 0;
+                                    const isWinRateActive = volatilityView === 'winRate';
+                                    const isAvgPnlActive = volatilityView === 'avgPnL';
+                                    const isMistakesActive = volatilityView === 'mistakes';
+
+                                    return (
+                                        <Card key={d.vixZone} className="bg-muted/50 transition-all hover:bg-muted">
+                                            <CardHeader className="pb-4">
+                                                <CardTitle className="text-base">{d.vixZone}</CardTitle>
+                                                <CardDescription className="text-xs">{d.trades} trades</CardDescription>
+                                            </CardHeader>
+                                            <CardContent className="space-y-4">
+                                                <div className={cn("p-2 rounded-md transition-colors", isWinRateActive ? "bg-primary/10" : "bg-muted")}>
+                                                    <p className="text-xs text-muted-foreground">Win Rate</p>
+                                                    <p className={cn("text-lg font-bold font-mono", isWinRateActive && "text-primary")}>{d.winRate}%</p>
+                                                </div>
+                                                <div className={cn("p-2 rounded-md transition-colors", isAvgPnlActive ? "bg-primary/10" : "bg-muted")}>
+                                                    <p className="text-xs text-muted-foreground">Avg. PnL</p>
+                                                    <p className={cn("text-lg font-bold font-mono", d.avgPnL >= 0 ? (isAvgPnlActive ? 'text-primary' : 'text-green-400') : (isAvgPnlActive ? 'text-destructive' : 'text-red-400'))}>${d.avgPnL.toFixed(2)}</p>
+                                                </div>
+                                                <div className={cn("p-2 rounded-md transition-colors", isMistakesActive ? "bg-primary/10" : "bg-muted")}>
+                                                    <p className="text-xs text-muted-foreground">Mistakes</p>
+                                                    <p className={cn("text-lg font-bold font-mono", isMistakesActive && "text-primary")}>{d.mistakesCount}</p>
+                                                </div>
+                                                <div>
+                                                    <Label className="text-xs text-muted-foreground">Mistake Density</Label>
+                                                    <Progress value={mistakeDensity} indicatorClassName="bg-amber-500" className="h-2 mt-1" />
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    );
+                                })}
+                            </div>
+                        </SectionCard>
+                    </TabsContent>
+                    <TabsContent value="reports" className="mt-6 space-y-8">
+                        <SectionCard 
+                            id="reports" 
+                            title="Weekly & Monthly Reports" 
+                            description="Your performance summarized into actionable report cards." 
+                            icon={Award}
+                        >
+                            <div className="grid md:grid-cols-2 gap-8">
+                                <Dialog>
+                                    <Card className="bg-muted/50 transition-all hover:bg-muted">
+                                        <CardHeader>
+                                            <CardTitle className="text-lg">Weekly Report</CardTitle>
+                                            <CardDescription>Your performance summary for last week.</CardDescription>
+                                        </CardHeader>
+                                        <CardContent className="space-y-3">
+                                            <p className="text-sm"><strong className="text-green-400">This Week's Edge:</strong> Reduced revenge trading.</p>
+                                            <p className="text-sm"><strong className="text-red-400">This Week's Leak:</strong> Still exiting winners early.</p>
+                                            <p className="text-sm"><strong className="text-primary">Behavioural Goal:</strong> Try a partial TP to let trades run.</p>
+                                        </CardContent>
+                                        <CardContent>
+                                            <DialogTrigger asChild>
+                                                <Button variant="outline" className="w-full">View Full Report</Button>
+                                            </DialogTrigger>
+                                        </CardContent>
+                                    </Card>
+                                    <ReportDialog reportType="Weekly" />
+                                </Dialog>
+
+                                <Dialog>
+                                    <Card className="bg-muted/50 transition-all hover:bg-muted">
+                                        <CardHeader>
+                                            <CardTitle className="text-lg">Monthly Report</CardTitle>
+                                            <CardDescription>Your performance summary for last month.</CardDescription>
+                                        </CardHeader>
+                                        <CardContent className="space-y-3">
+                                            <p className="text-sm"><strong className="text-green-400">This Month's Edge:</strong> Sticking to A+ setups.</p>
+                                            <p className="text-sm"><strong className="text-red-400">This Month's Leak:</strong> Performance in high VIX.</p>
+                                            <p className="text-sm"><strong className="text-primary">Behavioural Goal:</strong> Reduce size when VIX is 'Elevated'.</p>
+                                        </CardContent>
+                                        <CardContent>
+                                            <DialogTrigger asChild>
+                                                <Button variant="outline" className="w-full">View Full Report</Button>
+                                            </DialogTrigger>
+                                        </CardContent>
+                                    </Card>
+                                    <ReportDialog reportType="Monthly" />
+                                </Dialog>
+                            </div>
+                        </SectionCard>
+                    </TabsContent>
+                </Tabs>
+
+                <Drawer open={!!selectedStrategy} onOpenChange={(open) => !open && setSelectedStrategy(null)}>
+                    <DrawerContent>
+                        {selectedStrategy && (
+                            <div className="mx-auto w-full max-w-2xl p-4 md:p-6">
+                                <DrawerHeader>
+                                    <DrawerTitle className="text-2xl">{selectedStrategy.name} Drilldown</DrawerTitle>
+                                    <DrawerDescription>Deep dive into your most profitable strategy.</DrawerDescription>
+                                </DrawerHeader>
+                                <div className="px-4 py-6 space-y-6">
+                                    <div className="grid grid-cols-3 gap-4 text-center">
+                                        <MetricCard title="Win Rate" value={`${selectedStrategy.winRate}%`} hint="" />
+                                        <MetricCard title="Avg. R:R" value={String(selectedStrategy.avgR)} hint="" />
+                                        <MetricCard title="Total PnL" value={`$${selectedStrategy.pnl}`} hint="" />
+                                    </div>
+                                    <div className="space-y-4">
+                                        <div>
+                                            <h4 className="font-semibold text-foreground">Common Emotions</h4>
+                                            <div className="flex gap-2 mt-2">
+                                                <Badge variant="outline">Focused</Badge>
+                                                <Badge variant="outline">Calm</Badge>
+                                                <Badge variant="outline" className="border-amber-500/50 text-amber-400">Overconfidence</Badge>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <h4 className="font-semibold text-foreground">Common Mistakes</h4>
+                                            <div className="flex gap-2 mt-2">
+                                                <Badge variant="destructive">Exited early</Badge>
+                                                <Badge variant="destructive">Forced Entry</Badge>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <Button className="w-full" onClick={() => askArjunAboutStrategy(selectedStrategy.name)}>
+                                        Ask Arjun to improve this strategy
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+                    </DrawerContent>
+                </Drawer>
+            </div>
+        </Drawer>
+        <Drawer open={!!selectedEvent} onOpenChange={(open) => !open && setSelectedEvent(null)}>
+            <DrawerContent>
+                {selectedEvent && (
+                    <div className="mx-auto w-full max-w-2xl p-4 md:p-6">
+                        <DrawerHeader>
+                            <DrawerTitle className="text-2xl">Event Details</DrawerTitle>
+                            <DrawerDescription>
+                                Details for the trade event on {new Date(selectedEvent.timestamps.executedAt).toLocaleDateString()}.
+                            </DrawerDescription>
+                        </DrawerHeader>
+                        <div className="px-4 py-6 space-y-4">
+                            <Card className="bg-muted/50">
+                                <CardContent className="p-4">
+                                    <SummaryRow label="Instrument" value={`${selectedEvent.technical.instrument} ${selectedEvent.technical.direction}`} />
+                                    <SummaryRow label="Result (PnL)" value={`$${selectedEvent.review?.pnl.toFixed(2)}`} className={cn(selectedEvent.review && selectedEvent.review.pnl >= 0 ? 'text-green-400' : 'text-red-400')} />
+                                    <SummaryRow label="Mistakes" value={selectedEvent.review?.mistakesTags || "None"} />
+                                    <SummaryRow label="Emotions" value={selectedEvent.review?.emotionsTags || "None"} />
+                                </CardContent>
+                            </Card>
+                            <Button className="w-full" onClick={() => { setSelectedEvent(null); onSetModule('tradeJournal', { draftId: selectedEvent.id }); }}>
+                                Open Full Journal Entry
+                            </Button>
+                        </div>
                     </div>
-                </DrawerContent>
-            </Drawer>
-            <ExportDialog 
-                isOpen={!!exportData}
-                onOpenChange={(open) => !open && setExportData(null)}
-                title={exportData?.title || ''}
-                summaryText={exportData?.summary || ''}
-            />
-        </>
+                )}
+            </DrawerContent>
+        </Drawer>
+        <Drawer open={isDataSourcesOpen} onOpenChange={setIsDataSourcesOpen}>
+            <DrawerContent>
+                <DrawerHeader>
+                    <DrawerTitle>Data Sources</DrawerTitle>
+                    <DrawerDescription>This analytics view is a synthesis of multiple data points.</DrawerDescription>
+                </DrawerHeader>
+                <div className="p-4">
+                    <div className="space-y-4">
+                        {dataSources.map(source => (
+                            <Card key={source.name} className="bg-muted/50">
+                                <CardContent className="p-4 flex items-center justify-between">
+                                    <div>
+                                        <h4 className="font-semibold text-foreground">{source.name}</h4>
+                                        <p className="text-xs text-muted-foreground">{source.description}</p>
+                                    </div>
+                                    <Badge variant={source.status === 'Live' ? 'default' : 'outline'}>{source.status}</Badge>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
+                </div>
+            </DrawerContent>
+        </Drawer>
+        <ExportDialog 
+            isOpen={!!exportData}
+            onOpenChange={(open) => !open && setExportData(null)}
+            title={exportData?.title || ''}
+            summaryText={exportData?.summary || ''}
+        />
+    </>
     );
 }
