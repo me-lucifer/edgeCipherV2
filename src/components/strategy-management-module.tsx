@@ -2,7 +2,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { BrainCircuit, PlusCircle, CheckCircle, Search, Filter as FilterIcon, Clock, ListOrdered, FileText, Gauge, Calendar, ShieldCheck } from "lucide-react";
+import { BrainCircuit, PlusCircle, CheckCircle, Search, Filter as FilterIcon, Clock, ListOrdered, FileText, Gauge, Calendar, ShieldCheck, Zap } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardDescription, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
@@ -218,24 +218,34 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
         sort: 'recentlyUsed',
     });
 
-    useEffect(() => {
+    const loadStrategies = (forceSeed = false) => {
         if (typeof window !== "undefined") {
             try {
                 const savedStrategies = localStorage.getItem("ec_strategies");
-                if (!savedStrategies) {
+                if (!savedStrategies || forceSeed) {
                     localStorage.setItem("ec_strategies", JSON.stringify(seedStrategies));
                     setStrategies(seedStrategies);
                 } else {
                     setStrategies(JSON.parse(savedStrategies));
                 }
+            } catch (e) {
+                console.error("Failed to parse strategies from localStorage", e);
+                setStrategies(seedStrategies);
+            }
+        }
+    };
 
+    useEffect(() => {
+        loadStrategies();
+
+        if (typeof window !== "undefined") {
+            try {
                 const savedUiState = localStorage.getItem("ec_strategy_ui_state");
                 if (savedUiState) {
                     setFilters(JSON.parse(savedUiState));
                 }
             } catch (e) {
-                console.error("Failed to parse strategies from localStorage", e);
-                setStrategies(seedStrategies);
+                console.error("Failed to parse strategy UI state from localStorage", e);
             }
         }
     }, []);
@@ -305,81 +315,97 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
                 </CardContent>
             </Card>
 
-             <Card className="bg-muted/30 border-border/50">
-                <CardHeader>
-                    <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                        <CardTitle>Your Playbook</CardTitle>
-                        <Button className="w-full md:w-auto" disabled>
-                            <PlusCircle className="mr-2 h-4 w-4" />
-                            Add Strategy
+            {strategies.length === 0 ? (
+                <Card className="bg-muted/30 text-center py-12">
+                    <CardHeader>
+                        <CardTitle>No strategies yet</CardTitle>
+                        <CardDescription>Create your first rulebook so Arjun can enforce discipline in Trade Planning.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex justify-center gap-4">
+                        <Button disabled><PlusCircle className="mr-2 h-4 w-4" /> Create Strategy</Button>
+                        <Button variant="outline" onClick={() => loadStrategies(true)}>
+                            <Zap className="mr-2 h-4 w-4" />
+                            Generate demo strategies
                         </Button>
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    <div className="flex flex-col md:flex-row gap-4 mb-6">
-                        <div className="relative flex-grow">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                placeholder="Search by name or type..."
-                                className="pl-9"
-                                value={filters.search}
-                                onChange={(e) => handleFilterChange('search', e.target.value)}
-                            />
+                    </CardContent>
+                </Card>
+            ) : (
+                <Card className="bg-muted/30 border-border/50">
+                    <CardHeader>
+                        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                            <CardTitle>Your Playbook</CardTitle>
+                            <Button className="w-full md:w-auto" disabled>
+                                <PlusCircle className="mr-2 h-4 w-4" />
+                                Add Strategy
+                            </Button>
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                             <Select value={filters.type} onValueChange={(v) => handleFilterChange('type', v)}>
-                                <SelectTrigger><SelectValue placeholder="Filter by type..." /></SelectTrigger>
-                                <SelectContent>
-                                    {strategyTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                            <Select value={filters.timeframe} onValueChange={(v) => handleFilterChange('timeframe', v)}>
-                                <SelectTrigger><SelectValue placeholder="Filter by timeframe..." /></SelectTrigger>
-                                <SelectContent>
-                                    {timeframes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                             <Select value={filters.sort} onValueChange={(v) => handleFilterChange('sort', v as SortOption)}>
-                                <SelectTrigger><SelectValue placeholder="Sort by..." /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="recentlyUsed">Recently Used</SelectItem>
-                                    <SelectItem value="mostUsed">Most Used</SelectItem>
-                                    <SelectItem value="recentlyCreated">Recently Created</SelectItem>
-                                </SelectContent>
-                            </Select>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex flex-col md:flex-row gap-4 mb-6">
+                            <div className="relative flex-grow">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    placeholder="Search by name or type..."
+                                    className="pl-9"
+                                    value={filters.search}
+                                    onChange={(e) => handleFilterChange('search', e.target.value)}
+                                />
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                <Select value={filters.type} onValueChange={(v) => handleFilterChange('type', v)}>
+                                    <SelectTrigger><SelectValue placeholder="Filter by type..." /></SelectTrigger>
+                                    <SelectContent>
+                                        {strategyTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                                <Select value={filters.timeframe} onValueChange={(v) => handleFilterChange('timeframe', v)}>
+                                    <SelectTrigger><SelectValue placeholder="Filter by timeframe..." /></SelectTrigger>
+                                    <SelectContent>
+                                        {timeframes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                                <Select value={filters.sort} onValueChange={(v) => handleFilterChange('sort', v as SortOption)}>
+                                    <SelectTrigger><SelectValue placeholder="Sort by..." /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="recentlyUsed">Recently Used</SelectItem>
+                                        <SelectItem value="mostUsed">Most Used</SelectItem>
+                                        <SelectItem value="recentlyCreated">Recently Created</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
-                    </div>
 
-                    <Tabs defaultValue="active" className="w-full">
-                        <TabsList className="grid w-full grid-cols-2 max-w-md">
-                            <TabsTrigger value="active">Active Strategies ({activeStrategies.length})</TabsTrigger>
-                            <TabsTrigger value="archived">Archived ({archivedStrategies.length})</TabsTrigger>
-                        </TabsList>
-                        <TabsContent value="active" className="mt-6">
-                            {activeStrategies.length > 0 ? (
-                                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    {activeStrategies.map(strategy => (
-                                        <StrategyCard key={strategy.strategyId} strategy={strategy} />
-                                    ))}
-                                </div>
-                            ) : (
-                                <p className="text-muted-foreground text-sm text-center py-8">No active strategies match your filters.</p>
-                            )}
-                        </TabsContent>
-                        <TabsContent value="archived" className="mt-6">
-                             {archivedStrategies.length > 0 ? (
-                                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    {archivedStrategies.map(strategy => (
-                                        <StrategyCard key={strategy.strategyId} strategy={strategy} />
-                                    ))}
-                                </div>
-                            ) : (
-                                <p className="text-muted-foreground text-sm text-center py-8">No archived strategies.</p>
-                            )}
-                        </TabsContent>
-                    </Tabs>
-                </CardContent>
-             </Card>
+                        <Tabs defaultValue="active" className="w-full">
+                            <TabsList className="grid w-full grid-cols-2 max-w-md">
+                                <TabsTrigger value="active">Active Strategies ({activeStrategies.length})</TabsTrigger>
+                                <TabsTrigger value="archived">Archived ({archivedStrategies.length})</TabsTrigger>
+                            </TabsList>
+                            <TabsContent value="active" className="mt-6">
+                                {activeStrategies.length > 0 ? (
+                                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        {activeStrategies.map(strategy => (
+                                            <StrategyCard key={strategy.strategyId} strategy={strategy} />
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-muted-foreground text-sm text-center py-8">No active strategies match your filters.</p>
+                                )}
+                            </TabsContent>
+                            <TabsContent value="archived" className="mt-6">
+                                {archivedStrategies.length > 0 ? (
+                                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        {archivedStrategies.map(strategy => (
+                                            <StrategyCard key={strategy.strategyId} strategy={strategy} />
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-muted-foreground text-sm text-center py-8">No archived strategies.</p>
+                                )}
+                            </TabsContent>
+                        </Tabs>
+                    </CardContent>
+                </Card>
+            )}
         </div>
     );
 }
