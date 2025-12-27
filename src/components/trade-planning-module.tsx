@@ -30,6 +30,7 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } f
 import { Skeleton } from "./ui/skeleton";
 import { formatDistanceToNow } from "date-fns";
 import type { JournalEntry } from "./trade-journal-module";
+import type { StrategyGroup as Strategy } from './strategy-management-module';
 
 
 interface TradePlanningModuleProps {
@@ -90,47 +91,6 @@ type SavedDraft = {
     timestamp: string;
 };
 
-// Duplicating from strategy-management-module for prototype purposes
-type Strategy = {
-    id: string;
-    name: string;
-    status: "active" | "archived" | "draft";
-    timeframe: string;
-    trades: number;
-    winRate: number;
-    description: string;
-    entryCriteria: string[];
-    exitCriteria: string[];
-    riskRules: string[];
-};
-
-const mockStrategies: Strategy[] = [
-    {
-        id: '1',
-        name: "London Reversal",
-        status: "active",
-        timeframe: "M15",
-        trades: 112,
-        winRate: 62,
-        description: "A mean-reversion strategy played during the first 2 hours of the London session, targeting overnight sweeps.",
-        entryCriteria: ["Price sweeps Asia high/low.", "Divergence on 5-min RSI.", "Entry on first 15-min candle to close back inside the range."],
-        exitCriteria: ["Target is the opposing side of the daily range.", "Stop-loss is 2x ATR above/below the wick."],
-        riskRules: ["Max risk 1% of account.", "Not valid during major news events."],
-    },
-    {
-        id: '2',
-        name: "BTC Trend Breakout",
-        status: "active",
-        timeframe: "H1",
-        trades: 78,
-        winRate: 48,
-        description: "A trend-following strategy on the 1-hour chart for BTC, looking for breakouts from consolidations.",
-        entryCriteria: ["4+ hours of consolidation.", "Breakout candle closes with high volume.", "Enter on retest of the breakout level."],
-        exitCriteria: ["Target is 2R.", "Stop-loss is below the consolidation range."],
-        riskRules: ["Max size 0.5 BTC.", "Only trade during NY session."],
-    },
-];
-
 const planTemplates: ({ id: string, name: string, values: Partial<PlanFormValues> })[] = [
     { id: 'blank', name: "Blank plan", values: {} },
     {
@@ -141,7 +101,7 @@ const planTemplates: ({ id: string, name: string, values: Partial<PlanFormValues
             direction: "Long",
             leverage: 20,
             riskPercent: 1,
-            strategyId: "2",
+            strategyId: "strat_1",
             notes: "Looking for continuation after a period of consolidation. Entry on retest of breakout level.",
         }
     },
@@ -153,7 +113,7 @@ const planTemplates: ({ id: string, name: string, values: Partial<PlanFormValues
             direction: "Short",
             leverage: 50,
             riskPercent: 0.5,
-            strategyId: "1",
+            strategyId: "strat_3",
             notes: "Fading the extreme of the range during low volatility. Expecting a quick move back to the median.",
         }
     },
@@ -735,18 +695,16 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
     const [availableStrategies, setAvailableStrategies] = useState<Strategy[]>([]);
 
     useEffect(() => {
-        if (typeof window !== 'undefined') {
+        if (typeof window !== "undefined") {
             const stored = localStorage.getItem("ec_strategies");
             if (stored) {
                 const allStrategies: Strategy[] = JSON.parse(stored);
                 setAvailableStrategies(allStrategies.filter(s => s.status === 'active'));
-            } else {
-                setAvailableStrategies(mockStrategies.filter(s => s.status === 'active'));
             }
         }
     }, []);
 
-    const viewedStrategy = availableStrategies.find(s => s.id === strategyId) || null;
+    const viewedStrategy = availableStrategies.find(s => s.strategyId === strategyId) || null;
 
     const handleTemplateChange = (templateId: string) => {
         setSelectedTemplate(templateId);
@@ -893,7 +851,16 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
                             <h3 className="text-sm font-semibold text-muted-foreground">Strategy & Reasoning</h3>
                             <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] items-end gap-2">
                                 <FormField control={form.control} name="strategyId" render={({ field }) => (
-                                    <FormItem><FormLabel>Strategy*</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select from your playbook"/></SelectTrigger></FormControl><SelectContent>{availableStrategies.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
+                                    <FormItem><FormLabel>Strategy*</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value}>
+                                        <FormControl>
+                                            <SelectTrigger><SelectValue placeholder="Select from your playbook"/></SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            {availableStrategies.map(s => <SelectItem key={s.strategyId} value={s.strategyId}>{s.name}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage /></FormItem>
                                 )}/>
                                 <Button type="button" variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => setIsStrategyDrawerOpen(true)} disabled={!strategyId}>
                                     View strategy details <ArrowRight className="ml-1 h-3 w-3" />
@@ -926,26 +893,28 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
                         <div className="mx-auto w-full max-w-2xl p-4 md:p-6" role="dialog" aria-modal="true" aria-labelledby="strategy-drawer-title">
                             <DrawerHeader>
                                 <DrawerTitle className="text-2xl" id="strategy-drawer-title">{viewedStrategy.name}</DrawerTitle>
-
-                                <DrawerDescription>{viewedStrategy.description}</DrawerDescription>
+                                {viewedStrategy.versions.find(v => v.isActiveVersion)?.fields.description &&
+                                  <DrawerDescription>{viewedStrategy.versions.find(v => v.isActiveVersion)?.fields.description}</DrawerDescription>
+                                }
                             </DrawerHeader>
                             <div className="px-4 py-6 space-y-6">
                                 <div className="space-y-3">
                                     <h4 className="font-semibold text-foreground">Entry Criteria</h4>
                                     <ul className="space-y-2 text-sm text-muted-foreground list-disc list-inside">
-                                        {viewedStrategy.entryCriteria.map((item, i) => <li key={i}>{item}</li>)}
+                                        {viewedStrategy.versions.find(v => v.isActiveVersion)?.fields.entryConditions.map((item, i) => <li key={i}>{item}</li>)}
                                     </ul>
                                 </div>
                                 <div className="space-y-3">
                                     <h4 className="font-semibold text-foreground">Exit Criteria</h4>
                                     <ul className="space-y-2 text-sm text-muted-foreground list-disc list-inside">
-                                        {viewedStrategy.exitCriteria.map((item, i) => <li key={i}>{item}</li>)}
+                                         {viewedStrategy.versions.find(v => v.isActiveVersion)?.fields.stopLossRules.map((item, i) => <li key={i}>{item}</li>)}
+                                         {viewedStrategy.versions.find(v => v.isActiveVersion)?.fields.takeProfitRules.map((item, i) => <li key={i}>{item}</li>)}
                                     </ul>
                                 </div>
                                  <div className="space-y-3">
                                     <h4 className="font-semibold text-foreground">Risk Rules</h4>
                                     <ul className="space-y-2 text-sm text-muted-foreground list-disc list-inside">
-                                        {viewedStrategy.riskRules.map((item, i) => <li key={i}>{item}</li>)}
+                                        {viewedStrategy.versions.find(v => v.isActiveVersion)?.fields.riskManagementRules.map((item, i) => <li key={i}>{item}</li>)}
                                     </ul>
                                 </div>
                                 <Separator />
@@ -1081,7 +1050,9 @@ function ExecutionOptions({ form, onSetModule, executionHeadingRef }: { form: an
                 const rewardPerUnit = (values.takeProfit && values.entryPrice) ? Math.abs(values.takeProfit - values.entryPrice) : 0;
                 return (riskPerUnit > 0 && rewardPerUnit > 0) ? rewardPerUnit / riskPerUnit : 0;
             })();
-            const strategyName = mockStrategies.find(s => s.id === values.strategyId)?.name || "Unknown";
+            
+            const strategies: Strategy[] = JSON.parse(localStorage.getItem("ec_strategies") || "[]");
+            const strategyName = strategies.find(s => s.strategyId === values.strategyId)?.name || "Unknown";
 
             const journalDraft: JournalEntry = {
                 id: draftId,
@@ -1248,13 +1219,6 @@ function ExecuteStep({ form, onSetModule, onSetStep, planStatus, executionHeadin
         </div>
     );
 }
-
-const SummaryRow = ({ label, value, className }: { label: string, value: React.ReactNode, className?: string }) => (
-    <div className="flex justify-between items-center text-sm">
-        <p className="text-muted-foreground">{label}</p>
-        <p className={cn("font-semibold font-mono text-foreground", className)}>{value}</p>
-    </div>
-);
 
 const RuleCheckRow = ({ check }: { check: RuleCheck }) => {
     const Icon = {
@@ -1610,7 +1574,7 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
             takeProfit: 69500,
             riskPercent: 1,
             accountCapital: 10000,
-            strategyId: "2",
+            strategyId: "strat_1",
             leverage: 10
         };
 
@@ -1623,7 +1587,7 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
             takeProfit: 1.22,
             riskPercent: 5,
             accountCapital: 10000,
-            strategyId: "1",
+            strategyId: "strat_3",
             leverage: 50,
         };
 
@@ -1869,4 +1833,13 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
             </Form>
         </div>
     );
+}
+
+function SummaryRow({ label, value, className }: { label: string, value: string | React.ReactNode, className?: string }) {
+    return (
+        <div className="flex justify-between items-center text-sm">
+            <p className="text-muted-foreground">{label}</p>
+            <p className={cn("font-semibold font-mono text-foreground", className)}>{value}</p>
+        </div>
+    )
 }
