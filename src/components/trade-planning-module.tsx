@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -799,7 +800,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
                                 </Alert>
                             )}
                             <Separator className="mt-4" />
-                            <WhatIfRiskSlider control={form.control} form={form} />
+                            
                         </div>
 
                         <Separator />
@@ -1333,6 +1334,18 @@ function ScenarioWalkthrough({ isOpen, onOpenChange, onDemoSelect }: { isOpen: b
     )
 }
 
+function RecoveryModeWarning() {
+    return (
+        <Alert variant="default" className="bg-red-950/50 border-red-500/20 text-red-300">
+            <AlertTriangle className="h-4 w-4 text-red-400" />
+            <AlertTitle className="text-red-400">Recovery Mode is Active</AlertTitle>
+            <AlertDescription>
+                Arjun recommends a max risk of 0.5% and a max of 2 trades per day to get back on track.
+            </AlertDescription>
+        </Alert>
+    )
+}
+
 export function TradePlanningModule({ onSetModule, planContext }: TradePlanningModuleProps) {
     const { toast } = useToast();
     const [isPlanningLoading, setIsPlanningLoading] = useState(true);
@@ -1347,6 +1360,7 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
     const [draftToResume, setDraftToResume] = useState<SavedDraft | null>(null);
     const [isWalkthroughOpen, setIsWalkthroughOpen] = useState(false);
     const [initialContext, setInitialContext] = useState(planContext);
+    const [isRecoveryMode, setIsRecoveryMode] = useState(false);
 
     const reviewHeadingRef = useRef<HTMLDivElement>(null);
     const executionHeadingRef = useRef<HTMLDivElement>(null);
@@ -1382,6 +1396,7 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
         if (typeof window !== "undefined") {
             const scenario = localStorage.getItem('ec_demo_scenario') as DemoScenario | null;
             setIsNewUser(scenario === 'no_positions');
+            setIsRecoveryMode(localStorage.getItem('ec_recovery_mode') === 'true');
             
             const draftString = localStorage.getItem("ec_trade_plan_draft");
             if (draftString) {
@@ -1699,7 +1714,7 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
                 </Alert>
             )}
 
-             {isNewUser ? (
+             {isRecoveryMode ? <RecoveryModeWarning /> : isNewUser ? (
                 <Alert variant="default" className="bg-blue-950/50 border-blue-500/30 text-blue-300">
                     <Info className="h-4 w-4 text-blue-400" />
                     <AlertTitle className="text-blue-400">You're in Practice Mode</AlertTitle>

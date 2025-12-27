@@ -1,4 +1,5 @@
 
+
       "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
@@ -589,6 +590,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
     const [showBehaviorHotspots, setShowBehaviorHotspots] = useState(false);
     const [hotspotMetric, setHotspotMetric] = useState<"Revenge" | "FOMO" | "Moved SL" | "Overtraded">("Revenge");
     const { toast } = useToast();
+    const [isRecoveryMode, setIsRecoveryMode] = useState(false);
 
     const computeSinglePeriodAnalytics = (entries: JournalEntry[], random: () => number) => {
       if (entries.length === 0) return null;
@@ -828,6 +830,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
             if (savedTab) {
                 setActiveTab(savedTab);
             }
+             setIsRecoveryMode(localStorage.getItem('ec_recovery_mode') === 'true');
         }
     }, []);
 
@@ -1019,7 +1022,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                             <DrawerHeader>
                                 <DrawerTitle className="text-2xl">Event Details</DrawerTitle>
                                 <DrawerDescription>
-                                    Details for the trade event on {new Date(selectedEvent.timestamps.executedAt).toLocaleDateString()}.
+                                    Details for the trade event on {new Date(selectedEvent.timestamps.executedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}.
                                 </DrawerDescription>
                             </DrawerHeader>
                             <div className="px-4 py-6 space-y-4">
@@ -1045,19 +1048,22 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                         <h1 className="text-2xl font-bold tracking-tight text-foreground">Performance Analytics</h1>
                         <p className="text-muted-foreground">The backbone of self-awareness — performance, discipline, and psychology in one place.</p>
                     </div>
-                    <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => setIsDataSourcesOpen(true)}>
-                                    <Database className="mr-2 h-4 w-4" />
-                                    Data Sources
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p>See where this data comes from.</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
+                     <div className="flex items-center gap-2">
+                        {isRecoveryMode && <Badge className="bg-red-500/20 text-red-300 border-red-500/30">Recovery Mode ON</Badge>}
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => setIsDataSourcesOpen(true)}>
+                                        <Database className="mr-2 h-4 w-4" />
+                                        Data Sources
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>See where this data comes from.</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    </div>
                 </div>
                 
                 <Card className="bg-muted/30 border-border/50 sticky top-[88px] z-20 backdrop-blur-sm">
@@ -1842,3 +1848,4 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
         </>
     );
 }
+

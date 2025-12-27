@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
-import { Bot, FileText, Gauge, BarChart as BarChartIcon, ArrowRight, TrendingUp, TrendingDown, BookOpen, Link, ArrowRightCircle, Lightbulb, Info, Newspaper, HelpCircle, CheckCircle, Sparkles, LineChart as LineChartIcon } from "lucide-react";
+import { Bot, FileText, Gauge, BarChart as BarChartIcon, ArrowRight, TrendingUp, TrendingDown, BookOpen, Link, ArrowRightCircle, Lightbulb, Info, Newspaper, HelpCircle, CheckCircle, Sparkles, LineChart as LineChartIcon, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "./ui/dialog";
@@ -18,6 +18,7 @@ import { ScrollArea } from "./ui/scroll-area";
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "./ui/chart";
 import { ModuleContext } from "./authenticated-app-shell";
+import { Alert, AlertTitle, AlertDescription } from "./ui/alert";
 
 interface Persona {
     primaryPersonaName?: string;
@@ -509,6 +510,25 @@ function DashboardSkeleton() {
     );
 }
 
+function RecoveryModeBanner({ onEnable }: { onEnable: () => void }) {
+    return (
+        <Alert variant="default" className="bg-red-950/50 border-red-500/20 text-red-300">
+            <AlertTriangle className="h-4 w-4 text-red-400" />
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                    <AlertTitle className="text-red-400">Drawdown Detected (Prototype)</AlertTitle>
+                    <AlertDescription>
+                        Arjun recommends Recovery Mode: smaller size, fewer trades, stricter filtering.
+                    </AlertDescription>
+                </div>
+                <Button variant="outline" size="sm" onClick={onEnable} className="bg-red-500/20 border-red-500/40 text-red-200 hover:bg-red-500/30 hover:text-red-100 mt-2 sm:mt-0">
+                    Enable Recovery Mode
+                </Button>
+            </div>
+        </Alert>
+    );
+}
+
 interface DashboardModuleProps {
     onSetModule: (module: any, context?: ModuleContext) => void;
     isLoading: boolean;
@@ -519,6 +539,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
     const [scenario, setScenario] = useState<DemoScenario>('normal');
     const [isWhyModalOpen, setWhyModalOpen] = useState(false);
     const [animateKey, setAnimateKey] = useState(0);
+    const [isRecoveryMode, setIsRecoveryMode] = useState(false);
     
     useEffect(() => {
         if (typeof window !== "undefined") {
@@ -526,6 +547,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
             if (savedScenario) {
                 setScenario(savedScenario);
             }
+            setIsRecoveryMode(localStorage.getItem('ec_recovery_mode') === 'true');
             
             const handleStorageChange = (e: StorageEvent) => {
                 if (e.key === 'ec_demo_scenario') {
@@ -534,12 +556,23 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                     addLog(`Demo scenario switched to: ${newScenario}`);
                     setAnimateKey(k => k + 1);
                 }
+                if (e.key === 'ec_recovery_mode') {
+                    setIsRecoveryMode(e.newValue === 'true');
+                }
             };
     
             window.addEventListener('storage', handleStorageChange);
             return () => window.removeEventListener('storage', handleStorageChange);
         }
     }, [addLog]);
+
+    const handleEnableRecoveryMode = () => {
+        if (typeof window !== "undefined") {
+            localStorage.setItem('ec_recovery_mode', 'true');
+            setIsRecoveryMode(true);
+            addLog("Recovery Mode enabled.");
+        }
+    };
 
     const useDashboardMockData = (currentScenario: DemoScenario) => {
         const [data, setData] = useState<any>(null);
@@ -637,6 +670,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                     performance: {
                         dailyPnl7d,
                         dailyPnl30d,
+                        total7d,
                         performanceState,
                         hasHistory,
                         equityCurve,
@@ -667,6 +701,8 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
         disciplineScore: personaData.disciplineScore,
         performanceState: performance.performanceState
     });
+    
+    const isInDrawdown = performance.performanceState === 'drawdown' || (performance.total7d < 0);
 
     const equityChartConfig = {
       equity: {
@@ -739,6 +775,8 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+
+        {isInDrawdown && !isRecoveryMode && <RecoveryModeBanner onEnable={handleEnableRecoveryMode} />}
 
         <TradeDecisionStrip 
             vixZone={market.vixZone} 
