@@ -910,30 +910,118 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
     };
     
     const generateDemoData = () => {
-        const mockJournalEntries: JournalEntry[] = [
-            {
-              id: 'demo-1',
-              status: 'completed',
-              timestamps: { plannedAt: new Date(Date.now() - 86400000 * 2).toISOString(), executedAt: new Date(Date.now() - 86400000 * 2).toISOString(), closedAt: new Date(Date.now() - 86400000 * 2).toISOString() },
-              technical: { instrument: 'BTC-PERP', direction: 'Long', entryPrice: 68500, stopLoss: 68000, takeProfit: 69500, leverage: 20, positionSize: 0.5, riskPercent: 1, rrRatio: 2, strategy: "BTC Trend Breakout" },
-              planning: { planNotes: "Clean breakout above resistance. Good follow-through.", mindset: "Confident, Calm" },
-              review: { pnl: 234.75, exitPrice: 68969.5, emotionalNotes: "Felt good, stuck to the plan.", emotionsTags: "Confident,Focused", mistakesTags: "None (disciplined)", learningNotes: "Trust the plan when the setup is clean.", newsContextTags: "Post-CPI" },
-              meta: { journalingCompletedAt: new Date(Date.now() - 86400000 * 2).toISOString(), ruleAdherenceSummary: { followedEntryRules: true, movedSL: false, exitedEarly: false, rrBelowMin: false } }
-            },
-            {
-              id: 'demo-2',
-              status: 'completed',
-              timestamps: { plannedAt: new Date(Date.now() - 86400000).toISOString(), executedAt: new Date(Date.now() - 86400000).toISOString(), closedAt: new Date(Date.now() - 86400000).toISOString() },
-              technical: { instrument: 'ETH-PERP', direction: 'Short', entryPrice: 3605, stopLoss: 3625, leverage: 50, positionSize: 12, riskPercent: 2, rrRatio: 1, strategy: "London Reversal" },
-              planning: { planNotes: "Fading what looks like a sweep of the high.", mindset: "Anxious" },
-              review: { pnl: -240, exitPrice: 3625, emotionalNotes: "Market kept pushing, I felt like I was fighting a trend. Should have waited for more confirmation.", emotionsTags: "Anxious,Revenge", mistakesTags: "Forced Entry,Moved SL", learningNotes: "Don't fight a strong trend, even if it looks like a sweep.", newsContextTags: "News-driven day" },
-              meta: { journalingCompletedAt: new Date(Date.now() - 86400000).toISOString(), ruleAdherenceSummary: { followedEntryRules: false, movedSL: true, exitedEarly: false, rrBelowMin: true } }
-            },
-        ];
-        localStorage.setItem("ec_journal_entries", JSON.stringify(mockJournalEntries));
+        let seed = 42;
+        if (typeof window !== 'undefined') {
+            const storedSeed = localStorage.getItem("ec_analytics_seed");
+            if (storedSeed) {
+                seed = parseInt(storedSeed, 10);
+            } else {
+                seed = Math.floor(Math.random() * 10000);
+                localStorage.setItem("ec_analytics_seed", String(seed));
+            }
+        }
+        const random = seededRandom(seed);
+
+        const strategies = ["Breakout Trend", "Mean Reversion", "Scalp Momentum", "Range Fade"];
+        const instruments = ["BTC-PERP", "ETH-PERP", "SOL-PERP", "AVAX-PERP"];
+        const directions: ("Long" | "Short")[] = ["Long", "Short"];
+        const sessions = ["Asia", "London", "New York"];
+        const emotionTags = ["FOMO", "Fear", "Anxious", "Revenge", "Calm", "Focused", "Confident", "Bored"];
+        const mistakeTags = ["Moved SL", "Exited early", "Exited late", "Oversized risk", "Forced Entry", "None (disciplined)"];
+
+        const numTrades = 60;
+        const numDays = 30;
+        let lastResult: 'win' | 'loss' = 'win';
+        let consecutiveLosses = 0;
+
+        const entries: JournalEntry[] = [];
+        for (let i = 0; i < numTrades; i++) {
+            const date = new Date();
+            date.setDate(date.getDate() - Math.floor(random() * numDays));
+            const strategy = strategies[Math.floor(random() * strategies.length)];
+            const direction = directions[Math.floor(random() * directions.length)];
+            
+            const isRevengeTrade = consecutiveLosses >= 2 && random() < 0.6;
+            const vixRoll = random();
+            const vixZone = vixRoll < 0.6 ? 'Normal' : vixRoll < 0.9 ? 'Elevated' : 'Extreme';
+
+            let emotions = ["Focused"];
+            if (isRevengeTrade) emotions.push("Revenge");
+            if (random() < 0.2) emotions.push(emotionTags[Math.floor(random() * emotionTags.length)]);
+
+            let mistakes = [];
+            if (vixZone === 'Elevated' && random() < 0.4) mistakes.push("Moved SL");
+            if (isRevengeTrade) mistakes.push("Forced Entry");
+            if (random() < 0.1) mistakes.push(mistakeTags[Math.floor(random() * mistakeTags.length)]);
+            if (mistakes.length === 0 && random() < 0.7) mistakes.push("None (disciplined)");
+            else if (mistakes.length === 0) mistakes.push("Exited early");
+
+            const entryPrice = 50000 + random() * 20000;
+            const stopLoss = direction === 'Long' ? entryPrice * (1 - (0.005 + random() * 0.01)) : entryPrice * (1 + (0.005 + random() * 0.01));
+            
+            const baseRR = 0.5 + random() * 2;
+            const rewardPerUnit = Math.abs(entryPrice - stopLoss) * baseRR;
+            const takeProfit = direction === 'Long' ? entryPrice + rewardPerUnit : entryPrice - rewardPerUnit;
+
+            const winChance = isRevengeTrade ? 0.2 : vixZone === 'Elevated' ? 0.35 : 0.5;
+            const isWin = random() < winChance;
+            const pnlMultiplier = isWin ? baseRR : -1;
+            const randomFactor = 1 + (random() - 0.5) * 0.2;
+            const pnl = Math.abs(entryPrice - stopLoss) * pnlMultiplier * randomFactor * 5; // *5 for contract size mock
+
+            if (isWin) {
+                consecutiveLosses = 0;
+                lastResult = 'win';
+            } else {
+                consecutiveLosses++;
+                lastResult = 'loss';
+            }
+
+            const journalingSkipped = lastResult === 'loss' && random() < 0.4;
+            
+            const entry: JournalEntry = {
+                id: `demo-${i}`,
+                status: journalingSkipped ? 'pending' : 'completed',
+                timestamps: {
+                    plannedAt: date.toISOString(),
+                    executedAt: date.toISOString(),
+                    closedAt: new Date(date.getTime() + 60000 * (15 + random() * 120)).toISOString()
+                },
+                technical: {
+                    instrument: instruments[Math.floor(random() * instruments.length)],
+                    direction,
+                    strategy,
+                    entryPrice,
+                    stopLoss,
+                    takeProfit,
+                    leverage: 20,
+                    positionSize: 0.1 + random(),
+                    riskPercent: 0.5 + random() * 1.5,
+                    rrRatio: baseRR
+                },
+                planning: {
+                    planNotes: "Generated demo trade.",
+                    mindset: isRevengeTrade ? "Anxious, need to make it back" : "Calm and focused"
+                },
+                review: {
+                    pnl,
+                    exitPrice: isWin ? takeProfit : stopLoss,
+                    emotionsTags: emotions.join(','),
+                    mistakesTags: mistakes.join(','),
+                    learningNotes: "This is a generated learning note for a demo trade.",
+                    newsContextTags: "No special context",
+                },
+                meta: {
+                    journalingCompletedAt: journalingSkipped ? undefined : new Date(date.getTime() + 60000 * (150 + random() * 60)).toISOString()
+                }
+            };
+            entries.push(entry);
+        }
+
+        localStorage.setItem("ec_journal_entries", JSON.stringify(entries));
         toast({
-            title: "Demo Data Generated",
-            description: "Mock journal entries have been created. The analytics are now visible.",
+            title: "Demo Dataset Generated",
+            description: "A realistic story of a trader has been created. The analytics are now visible.",
         });
         loadData();
     };
@@ -1929,6 +2017,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
         </>
     );
 }
+
 
 
 
