@@ -29,7 +29,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collap
 
 
 interface StrategyManagementModuleProps {
-    onSetModule: (module: any, context?: any) => void;
+    onSetModule: (module: any, context?: { strategyId?: string; versionId?: string }) => void;
 }
 
 // =================================================================
@@ -285,9 +285,6 @@ function StrategyCard({ strategy, onOpen, onEdit, onDuplicate }: { strategy: Str
                                 <Copy className="mr-2 h-4 w-4" />
                                 Duplicate
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
-                                {strategy.status === 'active' ? "Archive" : "Unarchive"}
-                            </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </div>
@@ -349,6 +346,7 @@ function StrategyDetailView({
     onEdit,
     onSetModule,
     onOpenCompare,
+    initialVersionId
 }: { 
     strategy: StrategyGroup; 
     onBack: () => void;
@@ -358,8 +356,9 @@ function StrategyDetailView({
     onEdit: (strategy: StrategyGroup) => void;
     onSetModule: (module: any, context?: any) => void;
     onOpenCompare: () => void;
+    initialVersionId?: string;
 }) {
-    const [selectedVersionId, setSelectedVersionId] = useState<string>(strategy.versions.find(v => v.isActiveVersion)?.versionId || strategy.versions[0].versionId);
+    const [selectedVersionId, setSelectedVersionId] = useState<string>(initialVersionId || strategy.versions.find(v => v.isActiveVersion)?.versionId || strategy.versions[0].versionId);
 
     const selectedVersion = strategy.versions.find(v => v.versionId === selectedVersionId);
     
@@ -1177,7 +1176,7 @@ function StrategyVersionCompare({ versionA, versionB }: { versionA: StrategyVers
     );
 }
 
-export function StrategyManagementModule({ onSetModule }: StrategyManagementModuleProps) {
+export function StrategyManagementModule({ onSetModule, context }: StrategyManagementModuleProps & { context?: { strategyId?: string; versionId?: string }}) {
     const [strategies, setStrategies] = useState<StrategyGroup[]>([]);
     const [viewingStrategy, setViewingStrategy] = useState<StrategyGroup | null>(null);
     const [editingStrategy, setEditingStrategy] = useState<StrategyGroup | null>(null);
@@ -1225,29 +1224,39 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
 
     useEffect(() => {
         loadStrategies();
-
-        if (typeof window !== "undefined") {
-            try {
-                const savedUiState = localStorage.getItem("ec_strategy_ui_state");
-                if (savedUiState) {
-                    setFilters(JSON.parse(savedUiState));
-                }
-            } catch (e) {
-                console.error("Failed to parse strategy UI state from localStorage", e);
-            }
-        }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     useEffect(() => {
         if (typeof window !== "undefined") {
             try {
+                if (context?.strategyId) {
+                    const savedStrategies: StrategyGroup[] = JSON.parse(localStorage.getItem("ec_strategies") || '[]');
+                    const strategyToView = savedStrategies.find(s => s.strategyId === context.strategyId);
+                    if (strategyToView) {
+                        setViewingStrategy(strategyToView);
+                    }
+                } else {
+                    const savedUiState = localStorage.getItem("ec_strategy_ui_state");
+                    if (savedUiState) {
+                        setFilters(JSON.parse(savedUiState));
+                    }
+                }
+            } catch (e) {
+                console.error("Failed to parse strategy state from localStorage", e);
+            }
+        }
+    }, [context]);
+
+    useEffect(() => {
+        if (typeof window !== "undefined" && !context?.strategyId) {
+            try {
                 localStorage.setItem("ec_strategy_ui_state", JSON.stringify(filters));
             } catch (e) {
                 console.error("Failed to save strategy UI state to localStorage", e);
             }
         }
-    }, [filters]);
+    }, [filters, context]);
 
     const handleFilterChange = (key: keyof StrategyFilters, value: string) => {
         setFilters(prev => ({ ...prev, [key]: value }));
@@ -1543,6 +1552,7 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
                 onEdit={handleEdit}
                 onSetModule={onSetModule}
                 onOpenCompare={handleOpenCompare}
+                initialVersionId={context?.versionId}
             />
             <Dialog open={isCompareOpen} onOpenChange={setIsCompareOpen}>
                 <DialogContentNonAlertDialog className="max-w-4xl">

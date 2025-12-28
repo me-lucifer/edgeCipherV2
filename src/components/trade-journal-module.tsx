@@ -95,6 +95,7 @@ const journalEntrySchema = z.object({
     newsContextTags: z.string().optional(),
   }).optional(),
   meta: z.object({
+    strategyVersion: z.string().optional(),
     ruleAdherenceSummary: z.object({
       followedEntryRules: z.boolean().default(true),
       movedSL: z.boolean().default(false),
@@ -126,7 +127,7 @@ const mockJournalEntries: JournalEntry[] = [
       technical: { instrument: 'BTC-PERP', direction: 'Long', entryPrice: 68500, stopLoss: 68000, takeProfit: 69500, leverage: 20, positionSize: 0.5, riskPercent: 1, rrRatio: 2, strategy: "BTC Trend Breakout" },
       planning: { planNotes: "Clean breakout above resistance. Good follow-through.", mindset: "Confident, Calm" },
       review: { pnl: 234.75, exitPrice: 68969.5, emotionalNotes: "Felt good, stuck to the plan.", emotionsTags: "Confident,Focused", mistakesTags: "None (disciplined)", learningNotes: "Trust the plan when the setup is clean.", newsContextTags: "Post-CPI" },
-      meta: { journalingCompletedAt: new Date(Date.now() - 86400000 * 2).toISOString(), ruleAdherenceSummary: { followedEntryRules: true, movedSL: false, exitedEarly: false, rrBelowMin: false } }
+      meta: { strategyVersion: "v1", journalingCompletedAt: new Date(Date.now() - 86400000 * 2).toISOString(), ruleAdherenceSummary: { followedEntryRules: true, movedSL: false, exitedEarly: false, rrBelowMin: false } }
     },
     {
       id: 'completed-2',
@@ -136,7 +137,7 @@ const mockJournalEntries: JournalEntry[] = [
       technical: { instrument: 'ETH-PERP', direction: 'Short', entryPrice: 3605, stopLoss: 3625, leverage: 50, positionSize: 12, riskPercent: 2, rrRatio: 1, strategy: "London Reversal" },
       planning: { planNotes: "Fading what looks like a sweep of the high.", mindset: "Anxious" },
       review: { pnl: -240, exitPrice: 3625, emotionalNotes: "Market kept pushing, I felt like I was fighting a trend. Should have waited for more confirmation.", emotionsTags: "Anxious,Revenge", mistakesTags: "Forced Entry,Moved SL", learningNotes: "Don't fight a strong trend, even if it looks like a sweep.", newsContextTags: "News-driven day" },
-      meta: { journalingCompletedAt: new Date(Date.now() - 86400000).toISOString(), ruleAdherenceSummary: { followedEntryRules: false, movedSL: true, exitedEarly: false, rrBelowMin: true } }
+      meta: { strategyVersion: "v1", journalingCompletedAt: new Date(Date.now() - 86400000).toISOString(), ruleAdherenceSummary: { followedEntryRules: false, movedSL: true, exitedEarly: false, rrBelowMin: true } }
     },
 ];
 
@@ -536,7 +537,7 @@ const RuleAdherenceCheck = ({ label, passed }: { label: string; passed: boolean;
     );
 };
 
-function RuleAdherenceSummary({ entry }: { entry: JournalEntry }) {
+function RuleAdherenceSummary({ entry, onSetModule }: { entry: JournalEntry; onSetModule: TradeJournalModuleProps['onSetModule'] }) {
     if (!entry.meta.ruleAdherenceSummary) {
         return (
             <div>
@@ -551,10 +552,24 @@ function RuleAdherenceSummary({ entry }: { entry: JournalEntry }) {
         { label: "Stop Loss Respected", passed: !summary.movedSL },
         { label: "R:R Met Minimum", passed: !summary.rrBelowMin },
     ];
+    
+    const handleViewRulebook = () => {
+        onSetModule('strategyManagement', { 
+            // This is a mock context. In a real app, you'd have the strategyId
+            // and versionId stored on the journal entry.
+            strategyId: 'strat_1', // MOCK
+            versionId: 'sv_1_1', // MOCK
+        });
+    }
 
     return (
         <div>
-            <h4 className="text-sm font-semibold text-foreground mb-3">Rule Adherence Summary</h4>
+            <div className="flex items-center justify-between">
+                <h4 className="text-sm font-semibold text-foreground mb-3">Rule Adherence Summary</h4>
+                <Button variant="link" size="sm" className="text-xs h-auto p-0" onClick={handleViewRulebook}>
+                    View rulebook ({entry.meta.strategyVersion || 'v1'})
+                </Button>
+            </div>
             <div className="space-y-3">
                 {checks.map((check, i) => <RuleAdherenceCheck key={i} {...check} />)}
             </div>
@@ -917,7 +932,7 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filte
                                             <div className="flex justify-between"><span className="text-muted-foreground">Pair/Direction:</span> <span className={cn("font-mono", editingEntry.technical.direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{editingEntry.technical.instrument} {editingEntry.technical.direction}</span></div>
                                             <div className="flex justify-between"><span className="text-muted-foreground">Entry / SL / TP:</span> <span className="font-mono">{editingEntry.technical.entryPrice} / {editingEntry.technical.stopLoss} / {editingEntry.technical.takeProfit || 'N/A'}</span></div>
                                             <div className="flex justify-between"><span className="text-muted-foreground">Risk % / R:R:</span> <span className="font-mono">{editingEntry.technical.riskPercent}% / {editingEntry.technical.rrRatio?.toFixed(2) || 'N/A'}</span></div>
-                                            <div className="flex justify-between"><span className="text-muted-foreground">Strategy:</span> <span className="font-mono">{editingEntry.technical.strategy}</span></div>
+                                            <div className="flex justify-between"><span className="text-muted-foreground">Strategy:</span> <span className="font-mono">{editingEntry.technical.strategy} ({editingEntry.meta.strategyVersion || 'v1'})</span></div>
                                         </div>
                                     </div>
                                     <Separator />
@@ -939,7 +954,7 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filte
                             {editingEntry.meta.ruleAdherenceSummary && (
                                 <>
                                     <Separator />
-                                    <RuleAdherenceSummary entry={editingEntry} />
+                                    <RuleAdherenceSummary entry={editingEntry} onSetModule={onSetModule} />
                                 </>
                             )}
                         </CardContent>
@@ -1591,6 +1606,7 @@ function PendingReviewTab({ entries, onSetModule, updateEntry }: { entries: Jour
                                                     <div className="flex justify-between"><span className="text-muted-foreground">Pair/Direction:</span> <span className={cn("font-mono", entry.technical.direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{entry.technical.instrument} {entry.technical.direction}</span></div>
                                                     <div className="flex justify-between"><span className="text-muted-foreground">Entry / SL / TP:</span> <span className="font-mono">{entry.technical.entryPrice} / {entry.technical.stopLoss} / {entry.technical.takeProfit || 'N/A'}</span></div>
                                                     <div className="flex justify-between"><span className="text-muted-foreground">Risk % / R:R:</span> <span className="font-mono">{entry.technical.riskPercent}% / {entry.technical.rrRatio?.toFixed(2) || 'N/A'}</span></div>
+                                                    <div className="flex justify-between"><span className="text-muted-foreground">Strategy:</span> <span className="font-mono">{entry.technical.strategy} ({entry.meta.strategyVersion || 'v1'})</span></div>
                                                 </div>
                                             </div>
                                              <Separator />
@@ -1598,6 +1614,12 @@ function PendingReviewTab({ entries, onSetModule, updateEntry }: { entries: Jour
                                                 <h4 className="text-sm font-semibold text-foreground mb-2">Planning Notes</h4>
                                                 <p className="text-sm text-muted-foreground p-3 bg-muted rounded-lg border italic">"{entry.planning.planNotes || 'No plan notes were entered.'}"</p>
                                             </div>
+                                             {entry.meta.ruleAdherenceSummary && (
+                                                <>
+                                                    <Separator />
+                                                    <RuleAdherenceSummary entry={entry} onSetModule={onSetModule} />
+                                                </>
+                                            )}
                                         </CardContent>
                                     </Card>
                                     
