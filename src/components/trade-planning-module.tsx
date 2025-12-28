@@ -124,6 +124,7 @@ type ValidationContext = {
     todayTradeCountAll: number;
     lossStreak: number;
     vixZone: "Calm" | "Normal" | "Elevated" | "Extreme";
+    allEntryRulesChecked: boolean;
 };
 
 type ValidationCheck = {
@@ -143,7 +144,16 @@ type ValidationOutput = {
 // The Validation Engine
 const validatePlanAgainstStrategy = (plan: PlanInputs, strategy: RuleSet, context: ValidationContext): ValidationOutput => {
     const validations: ValidationCheck[] = [];
-    const { riskRules, tpRules, contextRules } = strategy;
+    const { riskRules, tpRules, contextRules, entryRules } = strategy;
+    
+    if (!riskRules || !tpRules || !contextRules || !entryRules) {
+        // Fallback if ruleSet is incomplete
+        return {
+            validations: [{ ruleId: 'incomplete', title: 'Strategy Incomplete', status: 'FAIL', message: 'The selected strategy is missing critical rule definitions.' }],
+            overallStatus: 'FAIL',
+            requiresJustification: true
+        };
+    }
 
     // A) Leverage cap
     validations.push({
@@ -212,8 +222,7 @@ const validatePlanAgainstStrategy = (plan: PlanInputs, strategy: RuleSet, contex
         if (contextRules.vixPolicy === 'avoidHigh' && (context.vixZone === 'Elevated' || context.vixZone === 'Extreme')) {
             vixStatus = 'WARN';
             message = `Current VIX is '${context.vixZone}', which this strategy suggests avoiding.`;
-        }
-        if (contextRules.vixPolicy === 'onlyLowNormal' && (context.vixZone === 'Elevated' || context.vixZone === 'Extreme')) {
+        } else if (contextRules.vixPolicy === 'onlyLowNormal' && (context.vixZone === 'Elevated' || context.vixZone === 'Extreme')) {
             vixStatus = 'FAIL';
             message = `Strategy requires 'Calm' or 'Normal' VIX, but it is currently '${context.vixZone}'.`;
         }
@@ -235,6 +244,18 @@ const validatePlanAgainstStrategy = (plan: PlanInputs, strategy: RuleSet, contex
             message: isAllowed
                 ? 'Trading within allowed session.'
                 : `Current session (${plan.session}) is outside of this strategy's allowed sessions.`
+        });
+    }
+    
+    // H) Entry rule self-check
+    if (entryRules.conditions && entryRules.conditions.length > 0) {
+        validations.push({
+            ruleId: 'entryConfirmation',
+            title: `Entry checklist`,
+            status: context.allEntryRulesChecked ? 'PASS' : 'WARN',
+            message: context.allEntryRulesChecked 
+                ? 'All entry conditions have been manually confirmed.'
+                : 'Entry confirmation checklist is incomplete.'
         });
     }
     
@@ -303,7 +324,7 @@ const PlanStatus = ({ status }: { status: PlanStatusType }) => {
         },
         PASS: {
             label: "Aligned with Strategy",
-            message: "Aligned with your strategy. Looks solid.",
+            message: "This plan is aligned with your strategy. Looks solid.",
             className: "bg-green-500/20 text-green-400 border-green-500/30",
             icon: CheckCircle
         },
@@ -465,6 +486,11 @@ const interventionMessages = {
         message: "Your risk on this trade is too high.",
         why: "A single loss will set you back more than your plan allows.",
         suggestion: "Lower your risk % to align with your strategy."
+    },
+    entryConfirmation: {
+        message: "Your entry confirmation checklist is incomplete.",
+        why: "Skipping this step leads to impulsive entries that don't fit your plan.",
+        suggestion: "Review each entry condition and confirm your setup is valid before proceeding."
     },
     default: {
         message: "This plan deviates from your strategy.",
@@ -763,7 +789,7 @@ function ArjunGuardrailAlerts({ form }: { form: any }) {
     );
 }
 
-function StrategyGuardrailChecklist({ strategyId, onSetModule }: { strategyId: string, onSetModule: (module: any, context?: any) => void; }) {
+function StrategyGuardrailChecklist({ strategyId, onSetModule, checkedRules, onCheckRule }: { strategyId: string; onSetModule: (module: any, context?: any) => void; checkedRules: Record<string, boolean>; onCheckRule: (rule: string, isChecked: boolean) => void; }) {
     const [strategy, setStrategy] = useState<Strategy | null>(null);
 
     useEffect(() => {
@@ -787,8 +813,24 @@ function StrategyGuardrailChecklist({ strategyId, onSetModule }: { strategyId: s
     }
 
     const activeVersion = strategy.versions.find(v => v.isActiveVersion);
-    const checklistItems = activeVersion?.ruleSet.entryRules.conditions.slice(0, 3) || [];
+    const checklistItems = activeVersion?.ruleSet.entryRules.conditions || [];
 
+    if (checklistItems.length === 0) {
+        return (
+            <Card className="bg-muted/50 border-primary/20">
+                <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                        <ShieldCheck className="h-4 w-4 text-primary" />
+                        Checklist for: {strategy.name}
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-xs text-muted-foreground italic">No specific entry conditions defined in this strategy's rulebook.</p>
+                </CardContent>
+            </Card>
+        );
+    }
+    
     return (
         <Card className="bg-muted/50 border-primary/20">
             <CardHeader className="pb-4">
@@ -801,11 +843,14 @@ function StrategyGuardrailChecklist({ strategyId, onSetModule }: { strategyId: s
                 <p className="text-xs text-muted-foreground">Does this trade meet your core entry conditions?</p>
                 {checklistItems.map((rule, i) => (
                     <div key={i} className="flex items-center space-x-2">
-                        <Checkbox id={`guardrail-check-${i}`} />
+                        <Checkbox 
+                            id={`guardrail-check-${i}`}
+                            checked={checkedRules[rule]}
+                            onCheckedChange={(checked) => onCheckRule(rule, !!checked)}
+                         />
                         <Label htmlFor={`guardrail-check-${i}`} className="text-sm font-normal text-muted-foreground">{rule}</Label>
                     </div>
                 ))}
-                {checklistItems.length === 0 && <p className="text-xs text-muted-foreground italic">No entry conditions defined in this strategy.</p>}
                  <Button variant="link" size="sm" className="text-xs h-auto p-0" onClick={() => onSetModule('strategyManagement')}>
                     Edit in Strategy Management
                 </Button>
@@ -814,7 +859,7 @@ function StrategyGuardrailChecklist({ strategyId, onSetModule }: { strategyId: s
     );
 }
 
-function PlanSummary({ control, setPlanStatus, onSetModule }: { control: any, setPlanStatus: (status: PlanStatusType) => void, onSetModule: (module: any) => void }) {
+function PlanSummary({ control, setPlanStatus, onSetModule, entryChecklist }: { control: any, setPlanStatus: (status: PlanStatusType) => void, onSetModule: (module: any) => void, entryChecklist: Record<string, boolean> }) {
     const values = useWatch({ control }) as PlanFormValues;
     const { direction, entryPrice, stopLoss, takeProfit, riskPercent, accountCapital, justification, strategyId } = values;
 
@@ -843,6 +888,8 @@ function PlanSummary({ control, setPlanStatus, onSetModule }: { control: any, se
         const vixZone = scenario === 'high_vol' ? 'Elevated' : 'Normal';
         const lossStreak = scenario === 'drawdown' ? 3 : 0;
         
+        const allEntryRulesChecked = (activeRuleset.entryRules.conditions || []).every(rule => entryChecklist[rule]);
+
         const planInputs: PlanInputs = {
             leverage: values.leverage,
             riskPct: values.riskPercent,
@@ -852,15 +899,16 @@ function PlanSummary({ control, setPlanStatus, onSetModule }: { control: any, se
         const validationContext: ValidationContext = {
             todayTradeCountAll: 2, // Mock
             lossStreak,
-            vixZone
+            vixZone,
+            allEntryRulesChecked,
         };
         return validatePlanAgainstStrategy(planInputs, activeRuleset, validationContext);
-    }, [values, activeRuleset, rrr]);
+    }, [values, activeRuleset, rrr, entryChecklist]);
 
 
     let status: PlanStatusType = 'incomplete';
     
-    if (validationResult && entryPrice > 0 && stopLoss > 0 && riskPercent > 0) {
+    if (validationResult && entryPrice > 0 && stopLoss > 0 && riskPercent > 0 && strategyId) {
         if (validationResult.overallStatus === 'FAIL') {
             status = 'FAIL';
             if (justification && justification.length > 0) {
@@ -934,7 +982,7 @@ function PlanSummary({ control, setPlanStatus, onSetModule }: { control: any, se
     );
 }
 
-function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser, currentStep, draftToResume, onResume, onDiscard }: { form: any, onSetModule: any, setPlanStatus: any, onApplyTemplate: (templateId: string) => void, isNewUser: boolean, currentStep: TradePlanStep, draftToResume: SavedDraft | null, onResume: () => void, onDiscard: () => void }) {
+function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser, currentStep, draftToResume, onResume, onDiscard, entryChecklist, setEntryChecklist }: { form: any, onSetModule: any, setPlanStatus: any, onApplyTemplate: (templateId: string) => void, isNewUser: boolean, currentStep: TradePlanStep, draftToResume: SavedDraft | null, onResume: () => void, onDiscard: () => void, entryChecklist: Record<string, boolean>, setEntryChecklist: (checklist: Record<string, boolean>) => void }) {
     const entryType = useWatch({ control: form.control, name: 'entryType' });
     const strategyId = useWatch({ control: form.control, name: 'strategyId' });
     
@@ -965,6 +1013,13 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
     const handleTemplateChange = (templateId: string) => {
         setSelectedTemplate(templateId);
         onApplyTemplate(templateId);
+    };
+
+    const handleCheckRule = (rule: string, isChecked: boolean) => {
+        setEntryChecklist({
+            ...entryChecklist,
+            [rule]: isChecked,
+        });
     };
 
     return (
@@ -1123,7 +1178,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
                                 </Button>
                             </div>
 
-                            {strategyId && <StrategyGuardrailChecklist strategyId={strategyId} onSetModule={onSetModule} />}
+                            <StrategyGuardrailChecklist strategyId={strategyId} onSetModule={onSetModule} checkedRules={entryChecklist} onCheckRule={handleCheckRule} />
 
                             <FormField control={form.control} name="notes" render={({ field }) => (
                                 <FormItem>
@@ -1140,7 +1195,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
 
             <div className="lg:col-span-1 space-y-6 sticky top-24">
                 <SessionChecklist currentStep={currentStep} />
-                <PlanSummary control={form.control} setPlanStatus={setPlanStatus} onSetModule={onSetModule} />
+                <PlanSummary control={form.control} setPlanStatus={setPlanStatus} onSetModule={onSetModule} entryChecklist={entryChecklist} />
             </div>
             
             <Drawer open={isStrategyDrawerOpen} onOpenChange={setIsStrategyDrawerOpen}>
@@ -1526,7 +1581,8 @@ function PlanSnapshot({ form, onSetStep }: { form: any; onSetStep: (step: TradeP
         const validationContext: ValidationContext = {
             todayTradeCountAll: 2, // Mock
             lossStreak,
-            vixZone
+            vixZone,
+            allEntryRulesChecked: true, // Assume checked for snapshot
         };
         return validatePlanAgainstStrategy(planInputs, activeRuleset, validationContext);
     }, [values, activeRuleset, rrr]);
@@ -1687,6 +1743,7 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
     const [isWalkthroughOpen, setIsWalkthroughOpen] = useState(false);
     const [initialContext, setInitialContext] = useState(planContext);
     const [isRecoveryMode, setIsRecoveryMode] = useState(false);
+    const [entryChecklist, setEntryChecklist] = useState<Record<string, boolean>>({});
 
     const reviewHeadingRef = useRef<HTMLDivElement>(null);
     const executionHeadingRef = useRef<HTMLDivElement>(null);
@@ -2038,7 +2095,7 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
                         </Button>
                     </div>
                 </Alert>
-            )}
+             )}
 
              {isRecoveryMode ? <RecoveryModeWarning /> : isNewUser ? (
                 <Alert variant="default" className="bg-blue-950/50 border-blue-500/30 text-blue-300">
@@ -2075,7 +2132,7 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onValidSubmit, onInvalidSubmit)} className="space-y-8">
 
-                    {currentStep === "plan" && <PlanStep form={form} onSetModule={onSetModule} setPlanStatus={setPlanStatus} onApplyTemplate={handleApplyTemplate} isNewUser={isNewUser} currentStep={currentStep} draftToResume={draftToResume} onResume={handleResumeDraft} onDiscard={handleDiscardDraft} />}
+                    {currentStep === "plan" && <PlanStep form={form} onSetModule={onSetModule} setPlanStatus={setPlanStatus} onApplyTemplate={handleApplyTemplate} isNewUser={isNewUser} currentStep={currentStep} draftToResume={draftToResume} onResume={handleResumeDraft} onDiscard={handleDiscardDraft} entryChecklist={entryChecklist} setEntryChecklist={setEntryChecklist} />}
                     {currentStep === "review" && <ReviewStep form={form} onSetModule={onSetModule} onSetStep={setCurrentStep} arjunFeedbackAccepted={arjunFeedbackAccepted} setArjunFeedbackAccepted={setArjunFeedbackAccepted} planStatus={planStatus} reviewHeadingRef={reviewHeadingRef} />}
                     {currentStep === "execute" && <ExecuteStep form={form} onSetModule={onSetModule} onSetStep={setCurrentStep} planStatus={planStatus} executionHeadingRef={executionHeadingRef} />}
 
