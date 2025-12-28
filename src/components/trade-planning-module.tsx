@@ -1,7 +1,8 @@
 
+
       "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -958,14 +959,18 @@ function PlanSummary({ control, setPlanStatus, onSetModule, entryChecklist }: { 
                             name="justification"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel className={cn(justification && justification.length > 0 ? "text-amber-400" : "text-destructive")}>Justification Required</FormLabel>
+                                    <FormLabel className={cn("flex items-center gap-2", justification && justification.length > 0 ? "text-amber-400" : "text-destructive")}>
+                                        <AlertTriangle className="h-4 w-4" />
+                                        Justification Required
+                                    </FormLabel>
                                     <FormControl>
                                         <Textarea
                                             placeholder="Why are you breaking your own rules for this trade? This will be logged in your journal."
-                                            className="border-destructive/50"
+                                            className="border-destructive/50 focus-visible:ring-destructive"
                                             {...field}
                                         />
                                     </FormControl>
+                                    <FormDescription className="text-xs">You must explain why you are overriding a critical rule before proceeding.</FormDescription>
                                     <FormMessage />
                                 </FormItem>
                             )}
