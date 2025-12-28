@@ -1850,6 +1850,16 @@ export function TradeJournalModule({ onSetModule, draftId, filters: initialFilte
             localStorage.setItem('ec_journal_tour_seen', 'true');
         }
 
+        const isDemoFlow = localStorage.getItem('ec_discipline_demo_flow') === 'journal';
+        if (isDemoFlow) {
+            const drafts = JSON.parse(localStorage.getItem('ec_journal_drafts') || '[]');
+            if (drafts.length > 0) {
+                const event = new CustomEvent('set-journal-editing', { detail: drafts[0] });
+                window.dispatchEvent(event);
+            }
+            localStorage.removeItem('ec_discipline_demo_flow');
+        }
+
         return () => clearTimeout(timer);
     }, []);
 

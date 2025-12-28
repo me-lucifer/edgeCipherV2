@@ -12,7 +12,7 @@ import {
   DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "./ui/button"
-import { Paintbrush, Check, SlidersHorizontal, Sun, Moon, Waves, User, TrendingUp, BarChartHorizontal, Activity } from "lucide-react"
+import { Paintbrush, Check, SlidersHorizontal, Sun, Moon, Waves, User, TrendingUp, BarChartHorizontal, Activity, Zap } from "lucide-react"
 import { useTheme, type Theme } from "./theme-provider"
 import { cn } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip"
@@ -73,9 +73,28 @@ export function DemoControls() {
         setMarketMode(mode);
     };
 
+    const handleRunDisciplineDemo = () => {
+        localStorage.setItem('ec_discipline_demo_flow', 'start');
+        // Trigger a custom event that the AuthenticatedAppShell can listen for
+        window.dispatchEvent(new CustomEvent('start-discipline-demo'));
+    }
+
 
     return (
         <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
+            <TooltipProvider>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button onClick={handleRunDisciplineDemo} aria-label="Run Discipline Loop Demo">
+                           <Zap className="h-[1.2rem] w-[1.2rem] mr-2" />
+                           Run Discipline Demo
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="left">
+                        <p>Walk through the core Plan -> Validate -> Execute -> Journal loop.</p>
+                    </TooltipContent>
+                </Tooltip>
+            </TooltipProvider>
             <DropdownMenu>
                 <TooltipProvider>
                     <Tooltip>

@@ -1,3 +1,4 @@
+
 /*
   ================================================================================
   DEVELOPER NOTE: PHASE 1 CHART MODULE IMPLEMENTATION
@@ -340,6 +341,21 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [products, planContext]);
+    
+    useEffect(() => {
+        const isDemoFlow = localStorage.getItem('ec_discipline_demo_flow') === 'start_chart';
+        if (isDemoFlow) {
+            toast({
+                title: "Discipline Demo: Step 1",
+                description: "You've analyzed the chart. Now, send it to planning to build your trade.",
+            });
+            setTimeout(() => {
+                handleSendToPlanning();
+                localStorage.setItem('ec_discipline_demo_flow', 'planning');
+            }, 2000);
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [planContext]);
 
     useEffect(() => {
         if (typeof window !== "undefined" && selectedProduct) {

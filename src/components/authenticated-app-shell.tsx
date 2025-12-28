@@ -440,7 +440,12 @@ export function AuthenticatedAppShell() {
         }
     };
 
+    const handleStartDisciplineDemo = () => {
+        handleSetModule('chart', { planContext: { instrument: 'BTC-PERP', origin: 'Discipline Demo' } });
+    };
+
     window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('start-discipline-demo', handleStartDisciplineDemo);
 
     return () => {
         clearTimeout(timer);
@@ -448,7 +453,9 @@ export function AuthenticatedAppShell() {
             clearTimeout(sequenceTimeoutRef.current);
         }
         window.removeEventListener('keydown', handleKeyDown);
+        window.removeEventListener('start-discipline-demo', handleStartDisciplineDemo);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const navigateTo = (id: Module, context?: ModuleContext) => {
