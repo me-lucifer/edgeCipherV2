@@ -3,7 +3,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { BrainCircuit, PlusCircle, CheckCircle, Search, Filter as FilterIcon, Clock, ListOrdered, FileText, Gauge, Calendar, ShieldCheck, Zap, MoreHorizontal, ArrowLeft, Edit, Archive, Star, BookOpen, BarChartHorizontal, Trash2, ChevronsUpDown, Info, Check, Save, Copy, CircleDashed, ArrowRight, X, AlertTriangle, ChevronUp } from "lucide-react";
+import { BrainCircuit, PlusCircle, CheckCircle, Search, Filter as FilterIcon, Clock, ListOrdered, FileText, Gauge, Calendar, ShieldCheck, Zap, MoreHorizontal, ArrowLeft, Edit, Archive, Star, BookOpen, BarChartHorizontal, Trash2, ChevronsUpDown, Info, Check, Save, Copy, CircleDashed, ArrowRight, X, AlertTriangle, ChevronUp, Scale } from "lucide-react";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -348,6 +348,7 @@ function StrategyDetailView({
     onMakeActive,
     onEdit,
     onSetModule,
+    onOpenCompare,
 }: { 
     strategy: StrategyGroup; 
     onBack: () => void;
@@ -356,6 +357,7 @@ function StrategyDetailView({
     onMakeActive: (versionId: string) => void;
     onEdit: (strategy: StrategyGroup) => void;
     onSetModule: (module: any, context?: any) => void;
+    onOpenCompare: () => void;
 }) {
     const [selectedVersionId, setSelectedVersionId] = useState<string>(strategy.versions.find(v => v.isActiveVersion)?.versionId || strategy.versions[0].versionId);
 
@@ -375,6 +377,10 @@ function StrategyDetailView({
                     Back to Playbook
                 </Button>
                 <div className="flex items-center gap-2">
+                    <Button variant="outline" onClick={onOpenCompare}>
+                        <Scale className="mr-2 h-4 w-4" />
+                        Compare versions
+                    </Button>
                     <Button variant="outline" onClick={() => onEdit(strategy)}>
                         <Edit className="mr-2 h-4 w-4" />
                         Edit (creates new version)
@@ -1095,6 +1101,81 @@ function StrategyCreatorView({
     );
 }
 
+function diffArrays(arrA: string[], arrB: string[]) {
+    const setA = new Set(arrA);
+    const setB = new Set(arrB);
+    const added = [...setB].filter(item => !setA.has(item));
+    const removed = [...setA].filter(item => !setB.has(item));
+    return { added, removed };
+}
+
+function StrategyVersionCompare({ versionA, versionB }: { versionA: StrategyVersion, versionB: StrategyVersion }) {
+    if (!versionA || !versionB) return null;
+
+    const DiffList = ({ title, items, color }: { title: string, items: string[], color: "green" | "red" }) => {
+        if (items.length === 0) return null;
+        return (
+            <div>
+                <h5 className="font-semibold text-xs uppercase text-muted-foreground">{title}</h5>
+                <ul className="mt-1 space-y-1 list-disc list-inside">
+                    {items.map((item, i) => (
+                        <li key={i} className={cn("text-sm", color === "green" ? "text-green-400" : "text-red-400")}>{item}</li>
+                    ))}
+                </ul>
+            </div>
+        );
+    };
+    
+    const ValueDiff = ({ label, valA, valB, unit = '' }: { label: string, valA?: string | number | boolean | string[], valB?: string | number | boolean | string[] }) => {
+        const strA = Array.isArray(valA) ? valA.join(', ') : String(valA);
+        const strB = Array.isArray(valB) ? valB.join(', ') : String(valB);
+
+        if (strA === strB) {
+            return <div className="text-sm"><span className="text-muted-foreground">{label}:</span> <span className="text-foreground font-mono">{strB}{unit}</span></div>
+        }
+        return (
+            <div className="text-sm bg-amber-500/10 p-2 rounded-md">
+                <span className="text-muted-foreground">{label}:</span>{' '}
+                <span className="text-foreground font-mono line-through text-red-400/70">{strA}{unit}</span>{' '}
+                <ArrowRight className="inline h-3 w-3" />{' '}
+                <span className="text-foreground font-mono font-semibold text-amber-300">{strB}{unit}</span>
+            </div>
+        )
+    };
+
+    const entryDiff = diffArrays(versionA.ruleSet.entryRules.conditions, versionB.ruleSet.entryRules.conditions);
+    const slDiff = diffArrays(versionA.ruleSet.slRules.rules, versionB.ruleSet.slRules.rules);
+    const tpDiff = diffArrays(versionA.ruleSet.tpRules.otherRules, versionB.ruleSet.tpRules.otherRules);
+
+    return (
+        <div className="space-y-6">
+            <div className="space-y-2">
+                <h4 className="font-semibold text-foreground">Entry Rules</h4>
+                <DiffList title="Added Conditions" items={entryDiff.added} color="green" />
+                <DiffList title="Removed Conditions" items={entryDiff.removed} color="red" />
+                {entryDiff.added.length === 0 && entryDiff.removed.length === 0 && <p className="text-xs text-muted-foreground">No changes to entry conditions.</p>}
+            </div>
+            <div className="space-y-2">
+                <h4 className="font-semibold text-foreground">Stop Loss Rules</h4>
+                <DiffList title="Added Rules" items={slDiff.added} color="green" />
+                <DiffList title="Removed Rules" items={slDiff.removed} color="red" />
+                {slDiff.added.length === 0 && slDiff.removed.length === 0 && <p className="text-xs text-muted-foreground">No changes to SL rules.</p>}
+            </div>
+            <div className="space-y-2">
+                <h4 className="font-semibold text-foreground">Risk &amp; Context Rules</h4>
+                <div className="space-y-2">
+                    <ValueDiff label="Risk/trade" valA={versionA.ruleSet.riskRules.riskPerTradePct} valB={versionB.ruleSet.riskRules.riskPerTradePct} unit="%" />
+                    <ValueDiff label="Max daily loss" valA={versionA.ruleSet.riskRules.maxDailyLossPct} valB={versionB.ruleSet.riskRules.maxDailyLossPct} unit="%" />
+                    <ValueDiff label="Max daily trades" valA={versionA.ruleSet.riskRules.maxDailyTrades} valB={versionB.ruleSet.riskRules.maxDailyTrades} />
+                    <ValueDiff label="Leverage cap" valA={versionA.ruleSet.riskRules.leverageCap} valB={versionB.ruleSet.riskRules.leverageCap} unit="x" />
+                    <ValueDiff label="Min R:R" valA={versionA.ruleSet.tpRules.minRR} valB={versionB.ruleSet.tpRules.minRR} />
+                    <ValueDiff label="VIX Policy" valA={versionA.ruleSet.contextRules.vixPolicy} valB={versionB.ruleSet.contextRules.vixPolicy} />
+                    <ValueDiff label="Allowed Sessions" valA={versionA.ruleSet.contextRules.allowedSessions} valB={versionB.ruleSet.contextRules.allowedSessions} />
+                </div>
+            </div>
+        </div>
+    );
+}
 
 export function StrategyManagementModule({ onSetModule }: StrategyManagementModuleProps) {
     const [strategies, setStrategies] = useState<StrategyGroup[]>([]);
@@ -1107,6 +1188,8 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
     const [newStrategyName, setNewStrategyName] = useState('');
     const [dialogAction, setDialogAction] = useState<'archive' | 'delete' | null>(null);
     const [versionToMakeActive, setVersionToMakeActive] = useState<string | null>(null);
+    const [isCompareOpen, setIsCompareOpen] = useState(false);
+    const [versionsToCompare, setVersionsToCompare] = useState<{ vA: string, vB: string }>({ vA: '', vB: '' });
 
     const [filters, setFilters] = useState<StrategyFilters>({
         search: '',
@@ -1397,6 +1480,18 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
         }
     }, [viewMode, editingStrategy]);
 
+    const handleOpenCompare = () => {
+        if (!viewingStrategy) return;
+        const activeVersion = viewingStrategy.versions.find(v => v.isActiveVersion);
+        const lastVersion = viewingStrategy.versions.find(v => v.versionNumber === (activeVersion?.versionNumber || 0) - 1);
+        
+        setVersionsToCompare({
+            vA: lastVersion?.versionId || viewingStrategy.versions[0]?.versionId || '',
+            vB: activeVersion?.versionId || '',
+        });
+        setIsCompareOpen(true);
+    };
+
     if (viewMode === 'create' || viewMode === 'edit') {
         let initialData: StrategyCreationValues | null = null;
         if(viewMode === 'edit' && editingStrategy) {
@@ -1438,15 +1533,50 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
 
 
     if (viewingStrategy) {
-        return <StrategyDetailView 
-            strategy={viewingStrategy} 
-            onBack={() => setViewingStrategy(null)}
-            onArchive={() => setDialogAction('archive')}
-            onDelete={() => setDialogAction('delete')}
-            onMakeActive={(versionId: string) => setVersionToMakeActive(versionId)}
-            onEdit={handleEdit}
-            onSetModule={onSetModule}
-        />;
+        return <>
+            <StrategyDetailView 
+                strategy={viewingStrategy} 
+                onBack={() => setViewingStrategy(null)}
+                onArchive={() => setDialogAction('archive')}
+                onDelete={() => setDialogAction('delete')}
+                onMakeActive={(versionId: string) => setVersionToMakeActive(versionId)}
+                onEdit={handleEdit}
+                onSetModule={onSetModule}
+                onOpenCompare={handleOpenCompare}
+            />
+            <Dialog open={isCompareOpen} onOpenChange={setIsCompareOpen}>
+                <DialogContentNonAlertDialog className="max-w-4xl">
+                    <DialogHeaderNonAlertDialog>
+                        <DialogTitleNonAlertDialog>Compare Strategy Versions</DialogTitleNonAlertDialog>
+                        <DialogDescription>See what changed between two versions of your rulebook.</DialogDescription>
+                    </DialogHeaderNonAlertDialog>
+                    <div className="py-4 space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <Select value={versionsToCompare.vA} onValueChange={v => setVersionsToCompare(prev => ({ ...prev, vA: v }))}>
+                                <SelectTrigger><SelectValue placeholder="Select version A" /></SelectTrigger>
+                                <SelectContent>
+                                    {viewingStrategy.versions.map(v => <SelectItem key={v.versionId} value={v.versionId}>Version {v.versionNumber}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                            <Select value={versionsToCompare.vB} onValueChange={v => setVersionsToCompare(prev => ({ ...prev, vB: v }))}>
+                                <SelectTrigger><SelectValue placeholder="Select version B" /></SelectTrigger>
+                                <SelectContent>
+                                    {viewingStrategy.versions.map(v => <SelectItem key={v.versionId} value={v.versionId}>Version {v.versionNumber}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        {versionsToCompare.vA && versionsToCompare.vB ? (
+                            <StrategyVersionCompare 
+                                versionA={viewingStrategy.versions.find(v => v.versionId === versionsToCompare.vA)!}
+                                versionB={viewingStrategy.versions.find(v => v.versionId === versionsToCompare.vB)!}
+                            />
+                        ) : (
+                            <p className="text-sm text-center text-muted-foreground py-8">Select two versions to see the comparison.</p>
+                        )}
+                    </div>
+                </DialogContentNonAlertDialog>
+            </Dialog>
+        </>
     }
 
     return (
