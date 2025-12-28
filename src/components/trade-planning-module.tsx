@@ -179,7 +179,7 @@ const validatePlanAgainstStrategy = (plan: PlanInputs, strategy: RuleSet, contex
         title: `Max daily trades <= ${riskRules.maxDailyTrades}`,
         status: context.todayTradeCountAll >= riskRules.maxDailyTrades ? "FAIL" : "PASS",
         message: context.todayTradeCountAll >= riskRules.maxDailyTrades
-            ? `You've already made ${context.todayTradeCountAll} trades today. Your limit is ${riskRules.maxDailyTrades}.`
+            ? `You've already made ${context.todayTradeCountAll} trades today. Your limit for this strategy is ${riskRules.maxDailyTrades}.`
             : "Within daily trade limit."
     });
 
@@ -189,7 +189,7 @@ const validatePlanAgainstStrategy = (plan: PlanInputs, strategy: RuleSet, contex
             ruleId: 'cooldown',
             title: `Cooldown after ${2} losses`,
             status: "FAIL",
-            message: `You are on a ${context.lossStreak}-trade losing streak. This rule requires a cooldown.`
+            message: `You are on a ${context.lossStreak}-trade losing streak. This strategy requires a cooldown.`
         });
     }
 
@@ -206,7 +206,7 @@ const validatePlanAgainstStrategy = (plan: PlanInputs, strategy: RuleSet, contex
     }
 
     // F) VIX policy
-    if (contextRules.vixPolicy !== 'allowAll') {
+    if (contextRules.vixPolicy) {
         let vixStatus: ValidationStatus = 'PASS';
         let message = "Volatility is within strategy parameters.";
         if (contextRules.vixPolicy === 'avoidHigh' && (context.vixZone === 'Elevated' || context.vixZone === 'Extreme')) {
@@ -281,30 +281,35 @@ const planTemplates: ({ id: string, name: string, values: Partial<PlanFormValues
 
 type PlanStatusType = "incomplete" | "FAIL" | "WARN" | "PASS" | "overridden";
 
-const PlanStatus = ({ status, message }: { status: PlanStatusType, message: string }) => {
+const PlanStatus = ({ status }: { status: PlanStatusType }) => {
     const statusConfig = {
         incomplete: {
             label: "Incomplete",
+            message: "Fill in Entry, SL, Strategy and Risk % to see your plan summary.",
             className: "bg-muted text-muted-foreground border-border",
             icon: Circle
         },
         FAIL: {
             label: "Major Violation",
+            message: "Major violation. Arjun recommends NOT taking this trade.",
             className: "bg-red-500/20 text-red-400 border-red-500/30",
             icon: XCircle,
         },
         WARN: {
             label: "Needs Attention",
+            message: "Slight deviation from your rules. Consider adjusting.",
             className: "bg-amber-500/20 text-amber-400 border-amber-500/30",
             icon: AlertTriangle
         },
         PASS: {
             label: "Aligned with Strategy",
+            message: "Aligned with your strategy. Looks solid.",
             className: "bg-green-500/20 text-green-400 border-green-500/30",
             icon: CheckCircle
         },
         overridden: {
             label: "Rules Overridden",
+            message: "Critical rule overridden. You are consciously breaking your plan.",
             className: "bg-orange-600/20 text-orange-400 border-orange-600/30",
             icon: AlertTriangle,
         }
@@ -319,7 +324,7 @@ const PlanStatus = ({ status, message }: { status: PlanStatusType, message: stri
                 <Icon className={cn("h-4 w-4", config.className.split(' ').filter(c => c.startsWith('text-'))[0])} />
                 <Badge variant="secondary" className={cn("text-xs", config.className)}>{config.label}</Badge>
             </div>
-            <p className="text-xs text-muted-foreground mt-2">{message}</p>
+            <p className="text-xs text-muted-foreground mt-2">{config.message}</p>
         </div>
     )
 }
@@ -427,13 +432,73 @@ const RuleCheckRow = ({ check }: { check: ValidationCheck }) => {
 function RuleChecks({ checks }: { checks: ValidationCheck[] }) {
     return (
         <div>
-            <h3 className="text-sm font-semibold text-foreground mb-3">Strategy Rule Checks</h3>
+            <h3 className="text-sm font-semibold text-foreground mb-3">Strategy Validation (Rulebook Firewall)</h3>
             <div className="p-4 rounded-lg bg-muted/50 border border-border/50 space-y-4">
                 {checks.map((check, i) => <RuleCheckRow key={i} check={check} />)}
             </div>
         </div>
     )
 }
+
+const interventionMessages = {
+    maxDailyTrades: {
+        message: "You've hit your daily trade limit.",
+        why: "This is where overtrading starts and discipline fails.",
+        suggestion: "Review today's trades instead of taking another."
+    },
+    minRR: {
+        message: "Your potential reward doesn't justify the risk.",
+        why: "Taking trades with low R:R is a slow bleed over time, even with a high win rate.",
+        suggestion: "Adjust your TP or wait for a better entry to improve your R:R."
+    },
+    cooldown: {
+        message: "You're on a losing streak and your rules require a cooldown.",
+        why: "This prevents revenge trading and emotional decisions.",
+        suggestion: "Step back. Review your losing trades in the journal."
+    },
+    vixPolicy: {
+        message: "This strategy is not optimal for current market volatility.",
+        why: "Your rules say to avoid these conditions.",
+        suggestion: "Reduce size, find a different strategy, or wait for calmer markets."
+    },
+    riskPerTrade: {
+        message: "Your risk on this trade is too high.",
+        why: "A single loss will set you back more than your plan allows.",
+        suggestion: "Lower your risk % to align with your strategy."
+    },
+    default: {
+        message: "This plan deviates from your strategy.",
+        why: "Following your rules consistently is key to long-term success.",
+        suggestion: "Adjust the plan to meet all your rulebook criteria."
+    }
+};
+
+function ArjunInterventionAlert({ validationResult }: { validationResult: ValidationOutput | null }) {
+    if (!validationResult || validationResult.overallStatus === 'PASS') {
+        return null;
+    }
+
+    const firstFail = validationResult.validations.find(v => v.status === 'FAIL');
+    const firstWarn = validationResult.validations.find(v => v.status === 'WARN');
+    
+    const criticalValidation = firstFail || firstWarn;
+    if (!criticalValidation) return null;
+
+    const messages = interventionMessages[criticalValidation.ruleId as keyof typeof interventionMessages] || interventionMessages.default;
+
+    return (
+        <Alert variant="default" className="bg-amber-950/30 border-amber-500/20 text-amber-300 mb-6">
+            <Bot className="h-4 w-4 text-amber-400" />
+            <AlertTitle className="text-amber-400">Arjun's Intervention</AlertTitle>
+            <AlertDescription className="space-y-2">
+                <p className="font-semibold text-amber-300">"{messages.message}"</p>
+                <p className="text-xs"><strong className="text-amber-400/80">Why:</strong> {messages.why}</p>
+                <p className="text-xs"><strong className="text-amber-400/80">Suggestion:</strong> {messages.suggestion}</p>
+            </AlertDescription>
+        </Alert>
+    );
+}
+
 
 function DisciplineAlerts({ onSetModule }: { onSetModule: TradePlanningModuleProps['onSetModule'] }) {
   const [alerts, setAlerts] = useState<string[]>([]);
@@ -794,22 +859,17 @@ function PlanSummary({ control, setPlanStatus, onSetModule }: { control: any, se
 
 
     let status: PlanStatusType = 'incomplete';
-    let message = "Fill in Entry, SL, Strategy and Risk % to see your plan summary.";
-
+    
     if (validationResult && entryPrice > 0 && stopLoss > 0 && riskPercent > 0) {
         if (validationResult.overallStatus === 'FAIL') {
             status = 'FAIL';
-            message = "Major violation. Arjun recommends NOT taking this trade.";
             if (justification && justification.length > 0) {
                 status = 'overridden';
-                message = "Critical rule overridden. You are consciously breaking your plan.";
             }
         } else if (validationResult.overallStatus === 'WARN') {
             status = 'WARN';
-            message = "Slight deviation from your rules. Consider adjusting.";
         } else {
             status = 'PASS';
-            message = "Aligned with your strategy. Looks solid.";
         }
     }
     
@@ -823,7 +883,8 @@ function PlanSummary({ control, setPlanStatus, onSetModule }: { control: any, se
                 <CardTitle className="text-base">Plan Summary</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-                <PlanStatus status={status} message={message} />
+                <PlanStatus status={status} />
+                {validationResult && <ArjunInterventionAlert validationResult={validationResult} />}
                 <Separator />
                 <div className="space-y-2">
                     <SummaryRow label="R:R Ratio" value={rrr > 0 ? `${rrr.toFixed(2)} : 1` : '-'} className={rrr > 0 ? (rrr < (activeRuleset?.tpRules.minRR || 1.5) ? 'text-amber-400' : 'text-green-400') : ''} />
@@ -2060,5 +2121,3 @@ function SummaryRow({ label, value, className }: { label: string, value: string 
         </div>
     )
 }
-
-    
