@@ -379,7 +379,7 @@ const RulesCard = ({ title, children }: { title: string; children: React.ReactNo
 
 const WhereThisMatters = ({ onSetModule }: { onSetModule: (module: any, context?: any) => void; }) => {
     const items = [
-        { icon: ShieldCheck, text: "Used by Trade Planning for PASS/WARN/FAIL checks." },
+        { icon: ShieldCheck, text: "Used by Trade Planning for the Rulebook Firewall." },
         { icon: BookOpen, text: "Shown in Journal for rule adherence analysis." },
         { icon: BarChartHorizontal, text: "Grouped in Performance Analytics by strategy." },
     ];
@@ -1246,6 +1246,7 @@ function StrategyCreatorView({
                                                         <FormField control={form.control} name="ruleSet.tpRules.preferredRR" render={({ field }) => (<FormItem><FormLabel>Preferred R:R</FormLabel><FormControl><Input type="number" placeholder="2.5" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} /></FormControl><FormMessage /></FormItem>)} />
                                                     </div>
                                                     <RuleEditorFormItem name="ruleSet.tpRules.otherRules" label="Other TP Rules" tooltipText="Define any other rules for taking profit, such as partial profit-taking or trailing stops." placeholder="e.g., Take 50% profit at 1R, move SL to entry" />
+                                                    <Textarea readOnly disabled value="Advanced logic like Trailing Stops, etc. are planned for Phase 2." className="text-muted-foreground italic mt-4" />
                                                 </div>
                                             )}
                                             {currentStep === 4 && (
@@ -1270,7 +1271,7 @@ function StrategyCreatorView({
                                                 <div className="space-y-6">
                                                     <FormField control={form.control} name="ruleSet.contextRules.allowedSessions" render={() => ( <FormItem> <FormLabel>Allowed Trading Sessions</FormLabel> <div className="flex flex-wrap gap-2 pt-2"> {['Asia', 'London', 'New York'].map((item) => ( <FormField key={item} control={form.control} name="ruleSet.contextRules.allowedSessions" render={({ field }) => ( <FormItem key={item} className="flex flex-row items-center space-x-3 space-y-0"> <FormControl> <Checkbox checked={field.value?.includes(item)} onCheckedChange={(checked) => { return checked ? field.onChange([...(field.value || []), item]) : field.onChange((field.value || []).filter((value) => value !== item)) }} /> </FormControl> <FormLabel className="font-normal">{item}</FormLabel> </FormItem> )} /> ))} </div> </FormItem> )}/>
                                                     <FormField control={form.control} name="ruleSet.contextRules.vixPolicy" render={({ field }) => ( <FormItem> <FormLabel>Volatility Policy</FormLabel> <Select onValueChange={field.onChange} value={field.value}> <FormControl><SelectTrigger><SelectValue placeholder="Select VIX policy" /></SelectTrigger></FormControl> <SelectContent> <SelectItem value="allowAll">Allow all conditions</SelectItem> <SelectItem value="avoidHigh">Avoid Elevated/Extreme VIX</SelectItem> <SelectItem value="onlyLowNormal">Only trade in Calm/Normal VIX</SelectItem> </SelectContent> </Select> <FormMessage /> </FormItem> )}/>
-                                                    <FormField control={form.control} name="ruleSet.contextRules.avoidNews" render={({ field }) => (<FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 bg-muted/50"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Avoid major news events</FormLabel><FormDescription>Requires manual awareness in prototype.</FormDescription></div></FormItem>)} />
+                                                    <FormField control={form.control} name="ruleSet.contextRules.avoidNews" render={({ field }) => (<FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 bg-muted/50"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>Avoid major news events</FormLabel><FormDescription>Requires manual awareness in Phase 1.</FormDescription></div></FormItem>)} />
                                                     <RuleEditorFormItem name="ruleSet.contextRules.otherRules" label="Other Context Rules" tooltipText="Any other environmental conditions that must be met." placeholder="e.g., BTC.D must be trending up" />
                                                 </div>
                                             )}

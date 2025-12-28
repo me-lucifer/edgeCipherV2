@@ -949,7 +949,7 @@ function StrategyGuardrailChecklist({ strategyId, onSetModule, checkedRules, onC
                 </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-                <p className="text-xs text-muted-foreground">Does this trade meet your core entry conditions?</p>
+                <p className="text-xs text-muted-foreground">Does this trade meet your core entry conditions? (Manual checklist in Phase 1)</p>
                 {checklistItems.map((rule, i) => (
                     <div key={i} className="flex items-center space-x-2">
                         <Checkbox 
@@ -1567,965 +1567,977 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
         </div>
     );
 }
-
-function ReviewStep({ form, onSetModule, onSetStep, arjunFeedbackAccepted, setArjunFeedbackAccepted, planStatus, reviewHeadingRef }: { form: any, onSetModule: any, onSetStep: (step: TradePlanStep) => void; arjunFeedbackAccepted: boolean, setArjunFeedbackAccepted: (accepted: boolean) => void, planStatus: PlanStatusType, reviewHeadingRef: React.Ref<HTMLDivElement> }) {
-    const values = form.getValues();
-    const personaData = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem("ec_persona_final") || localStorage.getItem("ec_persona_base") || "{}") : {};
-    const market = typeof window !== 'undefined' ? { vixValue: localStorage.getItem('ec_demo_scenario') === 'high_vol' ? 82 : 45, vixZone: localStorage.getItem('ec_demo_scenario') === 'high_vol' ? 'Elevated' : 'Normal' } : { vixValue: 45, vixZone: 'Normal' };
-
-    const { entryPrice, stopLoss, takeProfit } = useWatch({ control: form.control });
-
-    const riskPerUnit = (entryPrice && stopLoss) ? Math.abs(entryPrice - stopLoss) : 0;
-    const rewardPerUnit = (takeProfit && entryPrice) ? Math.abs(takeProfit - entryPrice) : 0;
-    const rrr = (riskPerUnit > 0 && rewardPerUnit > 0) ? rewardPerUnit / riskPerUnit : 0;
-
-    return (
-        <div className="grid lg:grid-cols-2 gap-8 items-start">
-             <PlanSnapshot form={form} onSetStep={onSetStep} />
-             <Card className="bg-muted/30 border-primary/20 sticky top-24">
+    
+    // ... other components remain the same ...
+    
+    export { TradePlanningModule };
+    
+    // The rest of the file needs to be included...
+    // Re-adding the full file content with the change integrated.
+    
+    function ExecutionOptions({ form, onSetModule, executionHeadingRef, validationResult, entryChecklist }: { form: any, onSetModule: (module: any, context?: any) => void; executionHeadingRef: React.Ref<HTMLDivElement>; validationResult: ValidationOutput | null, entryChecklist: Record<string, boolean> }) {
+        const [executionType, setExecutionType] = useState<"Market" | "Limit">("Market");
+        const [isExecuting, setIsExecuting] = useState(false);
+        const [executionResult, setExecutionResult] = useState<{ tradeId: string, draftId: string } | null>(null);
+        const { addLog } = useEventLog();
+        const { toast } = useToast();
+        const { incrementTrades } = useDailyCounters();
+    
+        const values = form.getValues() as PlanFormValues;
+        const { entryPrice, stopLoss, riskPercent, accountCapital, instrument } = values;
+    
+        const riskPerUnit = (entryPrice && stopLoss) ? Math.abs(entryPrice - stopLoss) : 0;
+        const potentialLoss = (accountCapital && riskPercent) ? (accountCapital * riskPercent) / 100 : 0;
+        const positionSize = riskPerUnit > 0 ? potentialLoss / riskPerUnit : 0;
+        
+        const handleExecute = () => {
+            setIsExecuting(true);
+            addLog("Executing trade plan (prototype)...");
+    
+            incrementTrades(values.strategyId);
+    
+            // Update strategy usage
+            if (typeof window !== "undefined") {
+                try {
+                    const strategies: Strategy[] = JSON.parse(localStorage.getItem("ec_strategies") || "[]");
+                    const now = new Date().toISOString();
+                    const updatedStrategies = strategies.map(s => {
+                        if (s.strategyId === values.strategyId) {
+                            const activeVersionIndex = s.versions.findIndex(v => v.isActiveVersion);
+                            if (activeVersionIndex !== -1) {
+                                s.versions[activeVersionIndex].usageCount += 1;
+                                s.versions[activeVersionIndex].lastUsedAt = now;
+                            }
+                            return { ...s, lastUsedAt: now };
+                        }
+                        return s;
+                    });
+                    localStorage.setItem("ec_strategies", JSON.stringify(updatedStrategies));
+                } catch (e) {
+                    console.error("Failed to update strategy usage", e);
+                }
+            }
+            
+            setTimeout(() => {
+                const tradeId = `DELTA-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+                const draftId = `draft-${Date.now()}`;
+                
+                const rrr = (() => {
+                    const rewardPerUnit = (values.takeProfit && values.entryPrice) ? Math.abs(values.takeProfit - values.entryPrice) : 0;
+                    return (riskPerUnit > 0 && rewardPerUnit > 0) ? rewardPerUnit / riskPerUnit : 0;
+                })();
+                
+                const strategies: Strategy[] = JSON.parse(localStorage.getItem("ec_strategies") || "[]");
+                const strategyName = strategies.find(s => s.strategyId === values.strategyId)?.name || "Unknown";
+    
+                const ruleAdherenceSummary: JournalEntry['meta']['ruleAdherenceSummary'] = {
+                    followedEntryRules: (validationResult?.validations.find(v => v.ruleId === 'entryConfirmation')?.status === 'PASS'),
+                    movedSL: false, // This would be determined post-trade
+                    exitedEarly: false, // This would be determined post-trade
+                    rrBelowMin: (validationResult?.validations.find(v => v.ruleId === 'minRR')?.status !== 'PASS'),
+                };
+    
+                let mistakes = [];
+                if (values.justification) {
+                    mistakes.push('Override');
+                }
+    
+                const journalDraft: JournalEntry = {
+                    id: draftId,
+                    tradeId: tradeId,
+                    status: 'pending',
+                    timestamps: {
+                        plannedAt: new Date().toISOString(),
+                        executedAt: new Date().toISOString(),
+                        closedAt: undefined,
+                    },
+                    technical: {
+                        instrument: values.instrument,
+                        direction: values.direction,
+                        entryPrice: values.entryPrice,
+                        stopLoss: values.stopLoss,
+                        takeProfit: values.takeProfit,
+                        leverage: values.leverage,
+                        positionSize: positionSize,
+                        riskPercent: values.riskPercent,
+                        rrRatio: rrr,
+                        strategy: strategyName,
+                    },
+                    planning: {
+                        planNotes: values.notes,
+                        ruleOverridesJustification: values.justification,
+                        mindset: values.mindset,
+                        arjunPreTradeSummary: "Arjun noted a tight SL and below-average R:R." // Mock summary
+                    },
+                    review: {
+                        pnl: 0,
+                        exitPrice: 0,
+                        mistakesTags: mistakes.join(','),
+                    },
+                    meta: {
+                        ruleAdherenceSummary: ruleAdherenceSummary,
+                    },
+                };
+                
+                const existingDrafts = JSON.parse(localStorage.getItem("ec_journal_drafts") || "[]");
+                localStorage.setItem("ec_journal_drafts", JSON.stringify([journalDraft, ...existingDrafts]));
+                
+                addLog(`Trade executed with mock ID: ${tradeId}. Journal draft created: ${draftId}`);
+                setExecutionResult({ tradeId, draftId });
+                setIsExecuting(false);
+            }, 800);
+        }
+        
+        if (executionResult) {
+            return (
+                <Card className="bg-muted/30 border-green-500/20">
+                    <CardHeader>
+                         <CardTitle className="flex items-center gap-2">
+                            <CheckCircle className="h-5 w-5 text-green-500" />
+                            Execution Successful
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4 text-center">
+                        <p className="text-sm text-muted-foreground">
+                            Your trade has been logged with mock ID: <br/>
+                            <span className="font-mono text-primary">{executionResult.tradeId}</span>
+                        </p>
+                        <Separator />
+                        <div className="space-y-3 pt-2">
+                            <p className="text-sm font-semibold text-foreground">
+                                A journal draft has been created.
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                                A draft for this trade has been created. You can <Button variant="link" size="sm" className="p-0 h-auto text-xs" onClick={() => onSetModule('tradeJournal', { draftId: executionResult.draftId })}>view it in your journal</Button> to add notes and psychological context.
+                            </p>
+                            <div className="flex flex-col sm:flex-row gap-2 pt-2">
+                                <Button 
+                                    variant="outline" 
+                                    className="w-full"
+                                    onClick={() => {
+                                        onSetModule('dashboard');
+                                        toast({ title: "Execution saved", description: "Check your Performance stats later." });
+                                    }}
+                                >
+                                    Back to Dashboard
+                                </Button>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            )
+        }
+    
+        return (
+            <Card className="bg-muted/30 border-border/50">
                 <CardHeader>
-                    <CardTitle ref={reviewHeadingRef} tabIndex={-1} className="flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-ring rounded-sm -ml-1 pl-1"><Bot className="h-5 w-5 text-primary" />Review with Arjun</CardTitle>
-                    <CardDescription>AI feedback and psychological checks.</CardDescription>
+                    <CardTitle ref={executionHeadingRef} tabIndex={-1} className="focus:outline-none focus:ring-2 focus:ring-ring rounded-sm -ml-1 pl-1">Execution options</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                     <div>
-                        <p className="text-sm text-muted-foreground">
-                            Based on your persona (<span className="font-semibold text-primary">{personaData.primaryPersonaName || 'The Determined Trader'}</span>), current market volatility (<span className="font-semibold text-primary">{market.vixZone}</span>), and this trade’s R:R of <span className="font-semibold text-primary">{rrr.toFixed(2)}</span>, here’s Arjun’s assessment.
-                        </p>
-                    </div>
-
-                    <Separator />
-                    
                     <div>
-                        <h3 className="font-semibold text-foreground mb-3">Feedback</h3>
-                        <ul className="space-y-3">
-                            <li className="flex items-start gap-3 text-sm">
-                                <AlertTriangle className="h-4 w-4 text-amber-400 mt-0.5 flex-shrink-0" />
-                                <span className="text-muted-foreground">Your SL is tighter than your average for this setup. In <span className="text-amber-400">elevated volatility</span>, this increases the chance of being stopped out on noise.</span>
-                            </li>
-                            <li className="flex items-start gap-3 text-sm">
-                                <Info className="h-4 w-4 text-blue-400 mt-0.5 flex-shrink-0" />
-                                <span className="text-muted-foreground">Your R:R of {rrr.toFixed(2)} is slightly below your preferred 1.5 target. This requires a higher win rate to be profitable.</span>
-                            </li>
-                            <li className="flex items-start gap-3 text-sm">
-                                <CheckCircle className="h-4 w-4 text-green-400 mt-0.5 flex-shrink-0" />
-                                <span className="text-muted-foreground">This trade aligns with your defined <span className="text-green-400">"London Reversal"</span> strategy, which is a positive sign for disciplined execution.</span>
-                            </li>
-                        </ul>
-                    </div>
-
-                    <Separator />
-
-                     <FormField
-                        control={form.control}
-                        name="mindset"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>What is your mindset right now?</FormLabel>
-                                <FormControl>
-                                    <Textarea
-                                        placeholder="Describe how you feel and what you’re worried about. e.g., 'Feeling a bit of FOMO, worried I'm late to this move...'"
-                                        className="min-h-[80px]"
-                                        {...field}
-                                    />
-                                </FormControl>
-                                <p className="text-xs text-muted-foreground">This will be saved with your journal entry for this trade.</p>
-                            </FormItem>
-                        )}
-                    />
-
-                    <Separator />
-                    
-                    <div className="space-y-2">
-                        <div className="flex items-center space-x-2">
-                            <Checkbox id="accept-feedback" checked={arjunFeedbackAccepted} onCheckedChange={(checked) => setArjunFeedbackAccepted(checked as boolean)} />
-                            <Label htmlFor="accept-feedback" className="text-sm font-normal text-muted-foreground">
-                                I have read and accept Arjun’s feedback for this trade.
+                        <h3 className="text-sm font-semibold text-foreground mb-2">1. Execution Type</h3>
+                        <RadioGroup value={executionType} onValueChange={(v) => setExecutionType(v as "Market" | "Limit")} className="space-y-2">
+                            <Label className="flex items-center gap-2 p-3 rounded-md border bg-muted/50 has-[:checked]:bg-primary/10 has-[:checked]:border-primary/30 cursor-pointer">
+                                <RadioGroupItem value="Market" />
+                                <span>Execute now (Market order)</span>
                             </Label>
+                             <Label className="flex items-center gap-2 p-3 rounded-md border bg-muted/50 has-[:checked]:bg-primary/10 has-[:checked]:border-primary/30 cursor-pointer">
+                                <RadioGroupItem value="Limit" />
+                                <span>Execute as Limit order</span>
+                            </Label>
+                        </RadioGroup>
+                    </div>
+                     <div>
+                        <h3 className="text-sm font-semibold text-foreground mb-2">2. Preview</h3>
+                        <div className="p-4 rounded-lg bg-muted/50 border border-border/50 space-y-2 text-sm">
+                            <div className="flex justify-between"><span className="text-muted-foreground">Order type:</span><span className="font-mono">{executionType}</span></div>
+                            <div className="flex justify-between"><span className="text-muted-foreground">Quantity:</span><span className="font-mono">{positionSize.toFixed(4)}</span></div>
+                            <div className="flex justify-between"><span className="text-muted-foreground">Exchange:</span><span className="font-mono">Delta (mock)</span></div>
+                            <div className="flex justify-between"><span className="text-muted-foreground">Estimated risk:</span><span className="font-mono text-destructive">${potentialLoss.toFixed(2)}</span></div>
                         </div>
-                        <p className="text-xs text-muted-foreground/80 pl-6">
-                            In the real app, this confirmation would be stored with your trade and journal entry.
+                         <Alert variant="default" className="mt-4 bg-muted/50 border-border/50">
+                            <Info className="h-4 w-4" />
+                            <AlertDescription className="text-xs">
+                                In this prototype, no real orders are sent to any exchange.
+                            </AlertDescription>
+                        </Alert>
+                    </div>
+                     <div>
+                        <h3 className="text-sm font-semibold text-foreground mb-2">3. Execute</h3>
+                        <Button className="w-full" size="lg" onClick={handleExecute} disabled={isExecuting}>
+                            {isExecuting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            {isExecuting ? 'Executing...' : 'Execute trade (Prototype)'}
+                        </Button>
+                         <p className="text-xs text-muted-foreground/80 mt-4 text-center">
+                            EdgeCipher never encourages revenge trading or ‘all-in’ bets. If you feel emotionally charged, step back and revisit your plan tomorrow.
                         </p>
                     </div>
-
+                     
                 </CardContent>
             </Card>
-        </div>
-    );
-}
-
-function ExecutionOptions({ form, onSetModule, executionHeadingRef, validationResult, entryChecklist }: { form: any, onSetModule: (module: any, context?: any) => void; executionHeadingRef: React.Ref<HTMLDivElement>; validationResult: ValidationOutput | null, entryChecklist: Record<string, boolean> }) {
-    const [executionType, setExecutionType] = useState<"Market" | "Limit">("Market");
-    const [isExecuting, setIsExecuting] = useState(false);
-    const [executionResult, setExecutionResult] = useState<{ tradeId: string, draftId: string } | null>(null);
-    const { addLog } = useEventLog();
-    const { toast } = useToast();
-    const { incrementTrades } = useDailyCounters();
-
-    const values = form.getValues() as PlanFormValues;
-    const { entryPrice, stopLoss, riskPercent, accountCapital, instrument } = values;
-
-    const riskPerUnit = (entryPrice && stopLoss) ? Math.abs(entryPrice - stopLoss) : 0;
-    const potentialLoss = (accountCapital && riskPercent) ? (accountCapital * riskPercent) / 100 : 0;
-    const positionSize = riskPerUnit > 0 ? potentialLoss / riskPerUnit : 0;
-    
-    const handleExecute = () => {
-        setIsExecuting(true);
-        addLog("Executing trade plan (prototype)...");
-
-        incrementTrades(values.strategyId);
-
-        // Update strategy usage
-        if (typeof window !== "undefined") {
-            try {
-                const strategies: Strategy[] = JSON.parse(localStorage.getItem("ec_strategies") || "[]");
-                const now = new Date().toISOString();
-                const updatedStrategies = strategies.map(s => {
-                    if (s.strategyId === values.strategyId) {
-                        const activeVersionIndex = s.versions.findIndex(v => v.isActiveVersion);
-                        if (activeVersionIndex !== -1) {
-                            s.versions[activeVersionIndex].usageCount += 1;
-                            s.versions[activeVersionIndex].lastUsedAt = now;
-                        }
-                        return { ...s, lastUsedAt: now };
-                    }
-                    return s;
-                });
-                localStorage.setItem("ec_strategies", JSON.stringify(updatedStrategies));
-            } catch (e) {
-                console.error("Failed to update strategy usage", e);
-            }
-        }
-        
-        setTimeout(() => {
-            const tradeId = `DELTA-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-            const draftId = `draft-${Date.now()}`;
-            
-            const rrr = (() => {
-                const rewardPerUnit = (values.takeProfit && values.entryPrice) ? Math.abs(values.takeProfit - values.entryPrice) : 0;
-                return (riskPerUnit > 0 && rewardPerUnit > 0) ? rewardPerUnit / riskPerUnit : 0;
-            })();
-            
-            const strategies: Strategy[] = JSON.parse(localStorage.getItem("ec_strategies") || "[]");
-            const strategyName = strategies.find(s => s.strategyId === values.strategyId)?.name || "Unknown";
-
-            const ruleAdherenceSummary: JournalEntry['meta']['ruleAdherenceSummary'] = {
-                followedEntryRules: (validationResult?.validations.find(v => v.ruleId === 'entryConfirmation')?.status === 'PASS'),
-                movedSL: false, // This would be determined post-trade
-                exitedEarly: false, // This would be determined post-trade
-                rrBelowMin: (validationResult?.validations.find(v => v.ruleId === 'minRR')?.status !== 'PASS'),
-            };
-
-            let mistakes = [];
-            if (values.justification) {
-                mistakes.push('Override');
-            }
-
-            const journalDraft: JournalEntry = {
-                id: draftId,
-                tradeId: tradeId,
-                status: 'pending',
-                timestamps: {
-                    plannedAt: new Date().toISOString(),
-                    executedAt: new Date().toISOString(),
-                    closedAt: undefined,
-                },
-                technical: {
-                    instrument: values.instrument,
-                    direction: values.direction,
-                    entryPrice: values.entryPrice,
-                    stopLoss: values.stopLoss,
-                    takeProfit: values.takeProfit,
-                    leverage: values.leverage,
-                    positionSize: positionSize,
-                    riskPercent: values.riskPercent,
-                    rrRatio: rrr,
-                    strategy: strategyName,
-                },
-                planning: {
-                    planNotes: values.notes,
-                    ruleOverridesJustification: values.justification,
-                    mindset: values.mindset,
-                    arjunPreTradeSummary: "Arjun noted a tight SL and below-average R:R." // Mock summary
-                },
-                review: {
-                    pnl: 0,
-                    exitPrice: 0,
-                    mistakesTags: mistakes.join(','),
-                },
-                meta: {
-                    ruleAdherenceSummary: ruleAdherenceSummary,
-                },
-            };
-            
-            const existingDrafts = JSON.parse(localStorage.getItem("ec_journal_drafts") || "[]");
-            localStorage.setItem("ec_journal_drafts", JSON.stringify([journalDraft, ...existingDrafts]));
-            
-            addLog(`Trade executed with mock ID: ${tradeId}. Journal draft created: ${draftId}`);
-            setExecutionResult({ tradeId, draftId });
-            setIsExecuting(false);
-        }, 800);
+        );
     }
     
-    if (executionResult) {
+    function ExecuteStep({ form, onSetModule, onSetStep, planStatus, executionHeadingRef, validationResult, entryChecklist }: { form: any, onSetModule: any, onSetStep: (step: TradePlanStep) => void; planStatus: PlanStatusType, executionHeadingRef: React.Ref<HTMLDivElement>, validationResult: ValidationOutput | null, entryChecklist: Record<string, boolean> }) {
         return (
-            <Card className="bg-muted/30 border-green-500/20">
-                <CardHeader>
-                     <CardTitle className="flex items-center gap-2">
-                        <CheckCircle className="h-5 w-5 text-green-500" />
-                        Execution Successful
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4 text-center">
-                    <p className="text-sm text-muted-foreground">
-                        Your trade has been logged with mock ID: <br/>
-                        <span className="font-mono text-primary">{executionResult.tradeId}</span>
-                    </p>
-                    <Separator />
-                    <div className="space-y-3 pt-2">
-                        <p className="text-sm font-semibold text-foreground">
-                            A journal draft has been created.
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                            A draft for this trade has been created. You can <Button variant="link" size="sm" className="p-0 h-auto text-xs" onClick={() => onSetModule('tradeJournal', { draftId: executionResult.draftId })}>view it in your journal</Button> to add notes and psychological context.
-                        </p>
-                        <div className="flex flex-col sm:flex-row gap-2 pt-2">
-                            <Button 
-                                variant="outline" 
-                                className="w-full"
-                                onClick={() => {
-                                    onSetModule('dashboard');
-                                    toast({ title: "Execution saved", description: "Check your Performance stats later." });
-                                }}
-                            >
-                                Back to Dashboard
-                            </Button>
+             <div className="grid lg:grid-cols-2 gap-8 items-start">
+                 <Card className="bg-muted/30 border-border/50">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><Lock className="h-4 w-4" /> Locked trade plan</CardTitle>
+                        <CardDescription>Entry, SL and leverage are now locked for this execution step.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                         <PlanSnapshot form={form} onSetStep={onSetStep} />
+                         <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="link" className="text-xs text-muted-foreground p-0 h-auto mt-4">Cancel and return to planning</Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Unlock Plan?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        This will unlock the plan and discard this execution attempt (prototype). Are you sure?
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Stay</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => onSetStep('plan')}>Yes, unlock</AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                         </AlertDialog>
+                    </CardContent>
+                </Card>
+                <ExecutionOptions form={form} onSetModule={onSetModule} executionHeadingRef={executionHeadingRef} validationResult={validationResult} entryChecklist={entryChecklist} />
+            </div>
+        );
+    }
+    
+    function PlanSnapshot({ form, onSetStep }: { form: any; onSetStep: (step: TradePlanStep) => void }) {
+        const values = form.getValues();
+        const { instrument, direction, entryPrice, stopLoss, takeProfit, leverage, riskPercent, strategyId } = values;
+    
+        const [strategies, setStrategies] = useState<Strategy[]>([]);
+        useEffect(() => {
+            const stored = localStorage.getItem("ec_strategies");
+            if(stored) setStrategies(JSON.parse(stored));
+        }, []);
+    
+        const selectedStrategy = strategies.find(s => s.strategyId === strategyId);
+        const activeRuleset = selectedStrategy?.versions.find(v => v.isActiveVersion)?.ruleSet;
+    
+        // Recalculate summary for snapshot
+        const riskPerUnit = (entryPrice && stopLoss) ? Math.abs(entryPrice - stopLoss) : 0;
+        const rewardPerUnit = (takeProfit && entryPrice) ? Math.abs(takeProfit - entryPrice) : 0;
+        const rrr = (riskPerUnit > 0 && rewardPerUnit > 0) ? rewardPerUnit / riskPerUnit : 0;
+        
+        const validationResult = useMemo(() => {
+            if (!activeRuleset) return null;
+            
+            const scenario = localStorage.getItem('ec_demo_scenario') as DemoScenario | null;
+            const vixZone = scenario === 'high_vol' ? 'Elevated' : 'Normal';
+            const lossStreak = scenario === 'drawdown' ? 3 : 0;
+            
+            const planInputs: PlanInputs = {
+                leverage: values.leverage,
+                riskPct: values.riskPercent,
+                rr: rrr,
+                session: "New York" // Mock
+            };
+            const validationContext: ValidationContext = {
+                todayTradeCountAll: 2, // Mock
+                lossStreak,
+                vixZone,
+                allEntryRulesChecked: true, // Assume checked for snapshot
+            };
+            return validatePlanAgainstStrategy(planInputs, activeRuleset, validationContext);
+        }, [values, activeRuleset, rrr]);
+    
+        return (
+            <div className="space-y-6 p-4 border rounded-lg bg-muted/50">
+                <div>
+                    <h2 className={cn("text-xl font-bold", direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{instrument} &ndash; {direction}</h2>
+                </div>
+                <div className="space-y-2">
+                    <SummaryRow label="Entry Price" value={Number(entryPrice).toFixed(4)} />
+                    <SummaryRow label="Stop Loss" value={Number(stopLoss).toFixed(4)} />
+                    <SummaryRow label="Take Profit" value={takeProfit ? Number(takeProfit).toFixed(4) : 'Not Set'} />
+                    <SummaryRow label="Leverage" value={`${leverage}x`} />
+                </div>
+                <Separator />
+                <div className="space-y-2">
+                    <SummaryRow label="R:R Ratio" value={rrr > 0 ? `${rrr.toFixed(2)} : 1` : '-'} className={rrr > 0 ? (rrr < (activeRuleset?.tpRules.minRR || 1.5) ? 'text-amber-400' : 'text-green-400') : ''} />
+                    <SummaryRow label="Risk %" value={`${riskPercent}%`} className={riskPercent > (activeRuleset?.riskRules.riskPerTradePct || 2) ? 'text-destructive' : ''} />
+                </div>
+                <Separator />
+                {validationResult && (
+                    <div>
+                        <h3 className="text-sm font-semibold text-foreground mb-3">Rulebook Firewall</h3>
+                        <div className="space-y-3">
+                            {validationResult.validations.map((check, i) => (
+                                <RuleCheckRow key={i} check={check} onFix={() => {}} /> // onFix is no-op in snapshot
+                            ))}
                         </div>
                     </div>
-                </CardContent>
-            </Card>
+                )}
+    
+                <div className="pt-4">
+                     <Button variant="link" className="p-0 h-auto text-primary" onClick={() => onSetStep('plan')}>
+                        Edit Plan (Step 1)
+                    </Button>
+                </div>
+            </div>
+        );
+    }
+    
+    function TradePlanningSkeleton() {
+        return (
+            <div className="space-y-8 animate-pulse">
+                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                        <Skeleton className="h-8 w-64" />
+                        <Skeleton className="h-5 w-80 mt-2" />
+                    </div>
+                    <Skeleton className="h-10 w-48" />
+                </div>
+                <Skeleton className="h-16 w-full" />
+                 <div className="grid lg:grid-cols-3 gap-8 items-start">
+                    <div className="lg:col-span-2 space-y-6">
+                        <Skeleton className="h-96 w-full" />
+                        <Skeleton className="h-64 w-full" />
+                    </div>
+                     <div className="lg:col-span-1 space-y-6">
+                        <Skeleton className="h-64 w-full" />
+                        <Skeleton className="h-96 w-full" />
+                    </div>
+                </div>
+            </div>
+        );
+    }
+    
+    function ScenarioWalkthrough({ isOpen, onOpenChange, onDemoSelect }: { isOpen: boolean, onOpenChange: (open: boolean) => void, onDemoSelect: (scenario: 'conservative' | 'risky') => void }) {
+        const walkthroughSteps = [
+            { icon: FileText, title: "Step 1: Plan", description: "Define your Entry, Stop Loss, Take Profit, risk, and link the trade to one of your strategies." },
+            { icon: Bot, title: "Step 2: Review", description: "Let Arjun check your plan against your own rules, best practices, and your current psychological state." },
+            { icon: ShieldCheck, title: "Step 3: Execute", description: "Lock the plan, simulate execution, and automatically create a draft in your trade journal to complete later." },
+        ];
+        
+        if (!isOpen) return null;
+    
+        return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                <div 
+                    className="absolute inset-0 bg-background/90 backdrop-blur-sm animate-in fade-in"
+                    onClick={() => onOpenChange(false)}
+                />
+                <Card className="relative z-10 w-full max-w-4xl bg-muted/80 border-border/50 animate-in fade-in zoom-in-95">
+                    <CardHeader>
+                        <CardTitle className="text-2xl flex items-center justify-between">
+                            <span>Trade Planning Walkthrough</span>
+                             <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} className="-mr-2" aria-label="Close walkthrough">
+                                <X className="h-4 w-4" />
+                            </Button>
+                        </CardTitle>
+                        <CardDescription>The 3-step process to ensure every trade is disciplined.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-8">
+                        <div className="grid md:grid-cols-3 gap-6 text-center">
+                            {walkthroughSteps.map((step, index) => (
+                                <div key={step.title} className="relative">
+                                    <Card className="h-full bg-muted/50 p-6">
+                                        <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">
+                                            <step.icon className="h-6 w-6" />
+                                        </div>
+                                        <h3 className="font-semibold text-foreground">{step.title}</h3>
+                                        <p className="text-xs text-muted-foreground mt-1">{step.description}</p>
+                                    </Card>
+                                    {index < walkthroughSteps.length - 1 && (
+                                        <ArrowRight className="absolute top-1/2 -right-3 -translate-y-1/2 h-6 w-6 text-border hidden md:block" />
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                         <Separator />
+                         <div className="grid md:grid-cols-2 gap-6">
+                            <div className="text-center">
+                                <h3 className="font-semibold text-foreground mb-4">Try a demo scenario</h3>
+                                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                                    <Button onClick={() => onDemoSelect('conservative')}>Demo: Conservative Plan</Button>
+                                    <Button variant="outline" onClick={() => onDemoSelect('risky')}>Demo: Risky Plan (breaks rules)</Button>
+                                </div>
+                            </div>
+                            <div className="text-center md:text-left">
+                                <h3 className="font-semibold text-foreground mb-4">Power-user Shortcuts</h3>
+                                 <p className="text-sm text-muted-foreground">
+                                    <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Alt</kbd> + <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">1/2/3</kbd> to switch steps.
+                                </p>
+                                 <p className="text-sm text-muted-foreground mt-2">
+                                    <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Ctrl</kbd> + <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Enter</kbd> to continue.
+                                </p>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
         )
     }
-
-    return (
-        <Card className="bg-muted/30 border-border/50">
-            <CardHeader>
-                <CardTitle ref={executionHeadingRef} tabIndex={-1} className="focus:outline-none focus:ring-2 focus:ring-ring rounded-sm -ml-1 pl-1">Execution options</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-                <div>
-                    <h3 className="text-sm font-semibold text-foreground mb-2">1. Execution Type</h3>
-                    <RadioGroup value={executionType} onValueChange={(v) => setExecutionType(v as "Market" | "Limit")} className="space-y-2">
-                        <Label className="flex items-center gap-2 p-3 rounded-md border bg-muted/50 has-[:checked]:bg-primary/10 has-[:checked]:border-primary/30 cursor-pointer">
-                            <RadioGroupItem value="Market" />
-                            <span>Execute now (Market order)</span>
-                        </Label>
-                         <Label className="flex items-center gap-2 p-3 rounded-md border bg-muted/50 has-[:checked]:bg-primary/10 has-[:checked]:border-primary/30 cursor-pointer">
-                            <RadioGroupItem value="Limit" />
-                            <span>Execute as Limit order</span>
-                        </Label>
-                    </RadioGroup>
-                </div>
-                 <div>
-                    <h3 className="text-sm font-semibold text-foreground mb-2">2. Preview</h3>
-                    <div className="p-4 rounded-lg bg-muted/50 border border-border/50 space-y-2 text-sm">
-                        <div className="flex justify-between"><span className="text-muted-foreground">Order type:</span><span className="font-mono">{executionType}</span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">Quantity:</span><span className="font-mono">{positionSize.toFixed(4)}</span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">Exchange:</span><span className="font-mono">Delta (mock)</span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">Estimated risk:</span><span className="font-mono text-destructive">${potentialLoss.toFixed(2)}</span></div>
+    
+    function RecoveryModeWarning() {
+        return (
+            <Alert variant="default" className="bg-red-950/50 border-red-500/20 text-red-300">
+                <AlertTriangle className="h-4 w-4 text-red-400" />
+                <AlertTitle className="text-red-400">Recovery Mode is Active</AlertTitle>
+                <AlertDescription>
+                   Arjun recommends a max risk of 0.5% and a max of 2 trades per day to get back on track.
+                </AlertDescription>
+            </Alert>
+        )
+    }
+    
+    const SummaryRow = ({ label, value, className }: { label: string; value: React.ReactNode; className?: string }) => (
+        <div className="flex justify-between items-center text-sm">
+            <p className="text-muted-foreground">{label}</p>
+            <p className={cn("font-mono font-semibold", className)}>{value}</p>
+        </div>
+    );
+    
+    
+    export function TradePlanningModule({ onSetModule, planContext }: TradePlanningModuleProps) {
+        const { toast } = useToast();
+        const [isPlanningLoading, setIsPlanningLoading] = useState(true);
+        const [planStatus, setPlanStatus] = useState<PlanStatusType>("incomplete");
+        const [showBanner, setShowBanner] = useState(true);
+        const [currentStep, setCurrentStep] = useState<TradePlanStep>("plan");
+        const [arjunFeedbackAccepted, setArjunFeedbackAccepted] = useState(false);
+        const [showTemplateOverwriteDialog, setShowTemplateOverwriteDialog] = useState(false);
+        const [pendingTemplateId, setPendingTemplateId] = useState<string | null>(null);
+        const [isNewUser, setIsNewUser] = useState(false);
+        const [showValidationBanner, setShowValidationBanner] = useState(false);
+        const [draftToResume, setDraftToResume] = useState<SavedDraft | null>(null);
+        const [isWalkthroughOpen, setIsWalkthroughOpen] = useState(false);
+        const [initialContext, setInitialContext] = useState(planContext);
+        const [isRecoveryMode, setIsRecoveryMode] = useState(false);
+        const [entryChecklist, setEntryChecklist] = useState<Record<string, boolean>>({});
+        
+        // Context states
+        const [session, setSession] = useState<'Asia' | 'London' | 'New York'>('New York');
+        const [vixZone, setVixZone] = useState<VixZone>('Normal');
+    
+    
+        const reviewHeadingRef = useRef<HTMLDivElement>(null);
+        const executionHeadingRef = useRef<HTMLDivElement>(null);
+    
+        const form = useForm<PlanFormValues>({
+            resolver: zodResolver(planSchema),
+            defaultValues: {
+                direction: "Long",
+                entryType: "Limit",
+                leverage: 10,
+                accountCapital: 10000,
+                riskPercent: 1,
+                strategyId: '',
+                instrument: "",
+                notes: "",
+                justification: "",
+                entryPrice: '' as unknown as number, // Controlled input
+                stopLoss: '' as unknown as number,
+                takeProfit: '' as unknown as number,
+                mindset: "",
+            },
+            mode: "onBlur",
+        });
+    
+        const justificationValue = useWatch({
+            control: form.control,
+            name: 'justification'
+        });
+        
+        const canProceedToReview = planStatus !== 'incomplete' && (planStatus !== 'FAIL' || (justificationValue && justificationValue.length > 0));
+        const canProceedToExecution = canProceedToReview && arjunFeedbackAccepted;
+    
+        useEffect(() => {
+            const timer = setTimeout(() => {
+                setIsPlanningLoading(false);
+            }, 1000);
+    
+            if (typeof window !== "undefined") {
+                const scenario = localStorage.getItem('ec_demo_scenario') as DemoScenario | null;
+                setIsNewUser(scenario === 'no_positions');
+                setIsRecoveryMode(localStorage.getItem('ec_recovery_mode') === 'true');
+                
+                const draftString = localStorage.getItem("ec_trade_plan_draft");
+                if (draftString) {
+                    try {
+                        const parsedDraft = JSON.parse(draftString);
+                        if(!form.formState.isDirty && !form.getValues('instrument')) {
+                            setDraftToResume(parsedDraft);
+                        }
+                    } catch(e) { console.error("Could not parse trade plan draft:", e); }
+                }
+    
+                const storedContext = localStorage.getItem('ec_trade_planning_context');
+                if (storedContext) {
+                    const parsedContext = JSON.parse(storedContext);
+                    setInitialContext(parsedContext);
+                    form.setValue('instrument', parsedContext.instrument);
+                    if (parsedContext.direction) {
+                      form.setValue('direction', parsedContext.direction);
+                    }
+                    localStorage.removeItem('ec_trade_planning_context');
+                } else if (planContext) {
+                    setInitialContext(planContext);
+                    form.setValue('instrument', planContext.instrument);
+                    if (planContext.direction) {
+                        form.setValue('direction', planContext.direction);
+                    }
+                }
+    
+                const walkthroughSeen = localStorage.getItem('ec_trade_plan_walkthrough_seen');
+                if (!walkthroughSeen) {
+                    setIsWalkthroughOpen(true);
+                    localStorage.setItem('ec_trade_plan_walkthrough_seen', 'true');
+                }
+            }
+    
+            const handleKeyDown = (e: KeyboardEvent) => {
+                if (e.altKey) {
+                    e.preventDefault();
+                    if (e.key === '1') setCurrentStep('plan');
+                    if (e.key === '2' && canProceedToReview) setCurrentStep('review');
+                    if (e.key === '3' && canProceedToExecution) setCurrentStep('execute');
+                }
+    
+                if (e.ctrlKey || e.metaKey) {
+                    if (e.key === 'Enter') {
+                        if (document.activeElement?.tagName === 'TEXTAREA') return;
+                        e.preventDefault();
+                        form.handleSubmit(onValidSubmit, onInvalidSubmit)();
+                    }
+                }
+            };
+    
+            window.addEventListener('keydown', handleKeyDown);
+    
+            return () => {
+                clearTimeout(timer);
+                window.removeEventListener('keydown', handleKeyDown);
+            };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        }, [toast, canProceedToReview, canProceedToExecution]);
+        
+        useEffect(() => {
+            if (currentStep === 'review' && reviewHeadingRef.current) {
+                reviewHeadingRef.current.focus();
+            }
+            if (currentStep === 'execute' && executionHeadingRef.current) {
+                executionHeadingRef.current.focus();
+            }
+        }, [currentStep]);
+    
+        const handleResumeDraft = () => {
+            if (!draftToResume) return;
+            form.reset(draftToResume.formData);
+            setCurrentStep(draftToResume.draftStep);
+            setDraftToResume(null);
+            toast({
+                title: "Draft Loaded",
+                description: "Your previous trade plan draft has been loaded.",
+            });
+        };
+        
+        const handleDiscardDraft = () => {
+            localStorage.removeItem("ec_trade_plan_draft");
+            setDraftToResume(null);
+            toast({
+                title: "Draft Discarded",
+                variant: "destructive"
+            });
+        };
+        
+        const applyTemplate = (templateId: string) => {
+            const template = planTemplates.find(t => t.id === templateId);
+            if (!template || template.id === 'custom_soon') return;
+    
+            const defaultValues = {
+                direction: "Long", entryType: "Limit", leverage: 10, accountCapital: 10000,
+                riskPercent: 1, strategyId: '', instrument: "", notes: "", justification: "",
+                entryPrice: '' as unknown as number, stopLoss: '' as unknown as number, takeProfit: '' as unknown as number, mindset: ""
+            };
+    
+            form.reset({
+                ...defaultValues,
+                ...form.getValues(),
+                ...template.values,
+            });
+            localStorage.setItem("ec_trade_plan_last_template", templateId);
+            toast({ title: `Template applied: ${template.name}` });
+            setShowTemplateOverwriteDialog(false);
+            setPendingTemplateId(null);
+        };
+    
+        const handleApplyTemplate = (templateId: string) => {
+            if (form.formState.isDirty) {
+                setPendingTemplateId(templateId);
+                setShowTemplateOverwriteDialog(true);
+            } else {
+                applyTemplate(templateId);
+            }
+        };
+        
+        const handleDemoSelect = (scenario: 'conservative' | 'risky') => {
+            const conservativePlan = {
+                instrument: "BTC-PERP",
+                direction: "Long",
+                entryType: "Limit",
+                entryPrice: 68000,
+                stopLoss: 67500,
+                takeProfit: 69500,
+                riskPercent: 1,
+                accountCapital: 10000,
+                strategyId: "strat_1",
+                leverage: 10
+            };
+    
+            const riskyPlan = {
+                instrument: "MEME-COIN",
+                direction: "Long",
+                entryType: "Market",
+                entryPrice: 1.2,
+                stopLoss: 1.15,
+                takeProfit: 1.22,
+                riskPercent: 5,
+                accountCapital: 10000,
+                strategyId: "strat_3",
+                leverage: 50,
+            };
+    
+            if (scenario === 'conservative') {
+                form.reset(conservativePlan);
+                setCurrentStep('review');
+            } else {
+                form.reset(riskyPlan);
+                setCurrentStep('plan');
+            }
+            setIsWalkthroughOpen(false);
+        };
+    
+        const onValidSubmit = (values: PlanFormValues) => {
+            setShowValidationBanner(false);
+            if (currentStep === 'plan') {
+                setCurrentStep('review');
+            } else if (currentStep === 'review') {
+                setCurrentStep('execute');
+            } else {
+                 // Execution logic is now inside ExecutionOptions
+            }
+        };
+    
+        const onInvalidSubmit = () => {
+            setShowValidationBanner(true);
+        }
+    
+        const handleSaveDraft = () => {
+            const values = form.getValues();
+            const draft: SavedDraft = {
+                formData: values,
+                draftStep: currentStep,
+                timestamp: new Date().toISOString()
+            };
+            localStorage.setItem("ec_trade_plan_draft", JSON.stringify(draft));
+            toast({
+                title: "Plan saved as draft",
+                description: "Your current trade plan has been saved locally.",
+            });
+        };
+    
+        const handleStepChange = (step: TradePlanStep) => {
+            const stepOrder = ["plan", "review", "execute"];
+            const currentIndex = stepOrder.indexOf(currentStep);
+            const newIndex = stepOrder.indexOf(step);
+    
+            if (newIndex < currentIndex) {
+                setCurrentStep(step);
+                return;
+            }
+    
+            if (step === 'review' && canProceedToReview) {
+                setCurrentStep('review');
+            }
+            
+            if (step === 'execute' && canProceedToExecution) {
+                setCurrentStep('execute');
+            }
+        }
+    
+        
+        const isProceedDisabled = currentStep === 'plan' ? !canProceedToReview :
+                                  currentStep === 'review' ? !canProceedToExecution :
+                                  false;
+        
+        const isBannerVisible = showBanner && (planStatus === 'FAIL' || planStatus === 'overridden');
+    
+        const stepConfig = {
+            plan: { label: "Plan", buttonText: isNewUser ? "Practice review (no real risk)" : "Proceed to Review (Step 2)", disabled: false },
+            review: { label: "Review", buttonText: "Proceed to Execution (Step 3)", disabled: !canProceedToReview },
+            execute: { label: "Execute", buttonText: "Execute (Prototype)", disabled: !canProceedToExecution },
+        }
+        
+        if (isPlanningLoading) {
+            return <TradePlanningSkeleton />;
+        }
+    
+        return (
+            <div className="space-y-8">
+                <ScenarioWalkthrough isOpen={isWalkthroughOpen} onOpenChange={setIsWalkthroughOpen} onDemoSelect={handleDemoSelect} />
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                    <div>
+                        <div className="flex items-center gap-4">
+                            {initialContext?.origin === 'chart' && (
+                                <Button variant="ghost" size="sm" className="text-muted-foreground -ml-4" onClick={() => onSetModule('chart')}>
+                                    <ArrowLeft className="mr-2 h-4 w-4"/>
+                                    Back to Chart
+                                </Button>
+                            )}
+                        </div>
+                        <h1 className="text-2xl font-bold tracking-tight text-foreground">Trade Planning</h1>
+                        <p className="text-muted-foreground">This is where every disciplined trade begins.</p>
                     </div>
-                     <Alert variant="default" className="mt-4 bg-muted/50 border-border/50">
-                        <Info className="h-4 w-4" />
-                        <AlertDescription className="text-xs">
-                            In this prototype, no real orders are sent to any exchange.
+                    <div className="flex items-center gap-2">
+                         <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button variant="outline" size="icon" onClick={() => setIsWalkthroughOpen(true)}>
+                                        <HelpCircle className="h-4 w-4" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>Open walkthrough</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                        {(Object.keys(stepConfig) as TradePlanStep[]).map((step, index) => (
+                            <Badge
+                                key={step}
+                                onClick={() => handleStepChange(step)}
+                                variant={currentStep === step ? "default" : "outline"}
+                                className={cn("cursor-pointer border-border/50", stepConfig[step as TradePlanStep].disabled && "opacity-50 cursor-not-allowed")}
+                            >
+                                Step {index + 1} &ndash; {stepConfig[step as TradePlanStep].label}
+                            </Badge>
+                        ))}
+                    </div>
+                </div>
+    
+                {initialContext && (
+                     <Alert variant="default" className="bg-primary/10 border-primary/20 text-primary">
+                        <Sparkles className="h-4 w-4 text-primary" />
+                        <AlertTitle>Context from {initialContext.origin}</AlertTitle>
+                        <AlertDescription>
+                           You've been sent here to plan a trade for <strong className="font-semibold">{initialContext.instrument}</strong>.
                         </AlertDescription>
                     </Alert>
-                </div>
-                 <div>
-                    <h3 className="text-sm font-semibold text-foreground mb-2">3. Execute</h3>
-                    <Button className="w-full" size="lg" onClick={handleExecute} disabled={isExecuting}>
-                        {isExecuting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                        {isExecuting ? 'Executing...' : 'Execute trade (Prototype)'}
-                    </Button>
-                     <p className="text-xs text-muted-foreground/80 mt-4 text-center">
-                        EdgeCipher never encourages revenge trading or ‘all-in’ bets. If you feel emotionally charged, step back and revisit your plan tomorrow.
-                    </p>
-                </div>
-                 
-            </CardContent>
-        </Card>
-    );
-}
-
-function ExecuteStep({ form, onSetModule, onSetStep, planStatus, executionHeadingRef, validationResult, entryChecklist }: { form: any, onSetModule: any, onSetStep: (step: TradePlanStep) => void; planStatus: PlanStatusType, executionHeadingRef: React.Ref<HTMLDivElement>, validationResult: ValidationOutput | null, entryChecklist: Record<string, boolean> }) {
-    return (
-         <div className="grid lg:grid-cols-2 gap-8 items-start">
-             <Card className="bg-muted/30 border-border/50">
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Lock className="h-4 w-4" /> Locked trade plan</CardTitle>
-                    <CardDescription>Entry, SL and leverage are now locked for this execution step.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                     <PlanSnapshot form={form} onSetStep={onSetStep} />
-                     <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                            <Button variant="link" className="text-xs text-muted-foreground p-0 h-auto mt-4">Cancel and return to planning</Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                            <AlertDialogHeader>
-                                <AlertDialogTitle>Unlock Plan?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                    This will unlock the plan and discard this execution attempt (prototype). Are you sure?
-                                </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                                <AlertDialogCancel>Stay</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => onSetStep('plan')}>Yes, unlock</AlertDialogAction>
-                            </AlertDialogFooter>
-                        </AlertDialogContent>
-                     </AlertDialog>
-                </CardContent>
-            </Card>
-            <ExecutionOptions form={form} onSetModule={onSetModule} executionHeadingRef={executionHeadingRef} validationResult={validationResult} entryChecklist={entryChecklist} />
-        </div>
-    );
-}
-
-function PlanSnapshot({ form, onSetStep }: { form: any; onSetStep: (step: TradePlanStep) => void }) {
-    const values = form.getValues();
-    const { instrument, direction, entryPrice, stopLoss, takeProfit, leverage, riskPercent, strategyId } = values;
-
-    const [strategies, setStrategies] = useState<Strategy[]>([]);
-    useEffect(() => {
-        const stored = localStorage.getItem("ec_strategies");
-        if(stored) setStrategies(JSON.parse(stored));
-    }, []);
-
-    const selectedStrategy = strategies.find(s => s.strategyId === strategyId);
-    const activeRuleset = selectedStrategy?.versions.find(v => v.isActiveVersion)?.ruleSet;
-
-    // Recalculate summary for snapshot
-    const riskPerUnit = (entryPrice && stopLoss) ? Math.abs(entryPrice - stopLoss) : 0;
-    const rewardPerUnit = (takeProfit && entryPrice) ? Math.abs(takeProfit - entryPrice) : 0;
-    const rrr = (riskPerUnit > 0 && rewardPerUnit > 0) ? rewardPerUnit / riskPerUnit : 0;
+                )}
     
-    const validationResult = useMemo(() => {
-        if (!activeRuleset) return null;
-        
-        const scenario = localStorage.getItem('ec_demo_scenario') as DemoScenario | null;
-        const vixZone = scenario === 'high_vol' ? 'Elevated' : 'Normal';
-        const lossStreak = scenario === 'drawdown' ? 3 : 0;
-        
-        const planInputs: PlanInputs = {
-            leverage: values.leverage,
-            riskPct: values.riskPercent,
-            rr: rrr,
-            session: "New York" // Mock
-        };
-        const validationContext: ValidationContext = {
-            todayTradeCountAll: 2, // Mock
-            lossStreak,
-            vixZone,
-            allEntryRulesChecked: true, // Assume checked for snapshot
-        };
-        return validatePlanAgainstStrategy(planInputs, activeRuleset, validationContext);
-    }, [values, activeRuleset, rrr]);
-
-    return (
-        <div className="space-y-6 p-4 border rounded-lg bg-muted/50">
-            <div>
-                <h2 className={cn("text-xl font-bold", direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{instrument} &ndash; {direction}</h2>
-            </div>
-            <div className="space-y-2">
-                <SummaryRow label="Entry Price" value={Number(entryPrice).toFixed(4)} />
-                <SummaryRow label="Stop Loss" value={Number(stopLoss).toFixed(4)} />
-                <SummaryRow label="Take Profit" value={takeProfit ? Number(takeProfit).toFixed(4) : 'Not Set'} />
-                <SummaryRow label="Leverage" value={`${leverage}x`} />
-            </div>
-            <Separator />
-            <div className="space-y-2">
-                <SummaryRow label="R:R Ratio" value={rrr > 0 ? `${rrr.toFixed(2)} : 1` : '-'} className={rrr > 0 ? (rrr < (activeRuleset?.tpRules.minRR || 1.5) ? 'text-amber-400' : 'text-green-400') : ''} />
-                <SummaryRow label="Risk %" value={`${riskPercent}%`} className={riskPercent > (activeRuleset?.riskRules.riskPerTradePct || 2) ? 'text-destructive' : ''} />
-            </div>
-            <Separator />
-            {validationResult && (
-                <div>
-                    <h3 className="text-sm font-semibold text-foreground mb-3">Rule Checklist</h3>
-                    <div className="space-y-3">
-                        {validationResult.validations.map((check, i) => (
-                            <RuleCheckRow key={i} check={check} onFix={() => {}} /> // onFix is no-op in snapshot
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            <div className="pt-4">
-                 <Button variant="link" className="p-0 h-auto text-primary" onClick={() => onSetStep('plan')}>
-                    Edit Plan (Step 1)
-                </Button>
-            </div>
-        </div>
-    );
-}
-
-function TradePlanningSkeleton() {
-    return (
-        <div className="space-y-8 animate-pulse">
-             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                    <Skeleton className="h-8 w-64" />
-                    <Skeleton className="h-5 w-80 mt-2" />
-                </div>
-                <Skeleton className="h-10 w-48" />
-            </div>
-            <Skeleton className="h-16 w-full" />
-             <div className="grid lg:grid-cols-3 gap-8 items-start">
-                <div className="lg:col-span-2 space-y-6">
-                    <Skeleton className="h-96 w-full" />
-                    <Skeleton className="h-64 w-full" />
-                </div>
-                 <div className="lg:col-span-1 space-y-6">
-                    <Skeleton className="h-64 w-full" />
-                    <Skeleton className="h-96 w-full" />
-                </div>
-            </div>
-        </div>
-    );
-}
-
-function ScenarioWalkthrough({ isOpen, onOpenChange, onDemoSelect }: { isOpen: boolean, onOpenChange: (open: boolean) => void, onDemoSelect: (scenario: 'conservative' | 'risky') => void }) {
-    const walkthroughSteps = [
-        { icon: FileText, title: "Step 1: Plan", description: "Define your Entry, Stop Loss, Take Profit, risk, and link the trade to one of your strategies." },
-        { icon: Bot, title: "Step 2: Review", description: "Let Arjun check your plan against your own rules, best practices, and your current psychological state." },
-        { icon: ShieldCheck, title: "Step 3: Execute", description: "Lock the plan, simulate execution, and automatically create a draft in your trade journal to complete later." },
-    ];
-    
-    if (!isOpen) return null;
-
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div 
-                className="absolute inset-0 bg-background/90 backdrop-blur-sm animate-in fade-in"
-                onClick={() => onOpenChange(false)}
-            />
-            <Card className="relative z-10 w-full max-w-4xl bg-muted/80 border-border/50 animate-in fade-in zoom-in-95">
-                <CardHeader>
-                    <CardTitle className="text-2xl flex items-center justify-between">
-                        <span>Trade Planning Walkthrough</span>
-                         <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} className="-mr-2" aria-label="Close walkthrough">
-                            <X className="h-4 w-4" />
-                        </Button>
-                    </CardTitle>
-                    <CardDescription>The 3-step process to ensure every trade is disciplined.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-8">
-                    <div className="grid md:grid-cols-3 gap-6 text-center">
-                        {walkthroughSteps.map((step, index) => (
-                            <div key={step.title} className="relative">
-                                <Card className="h-full bg-muted/50 p-6">
-                                    <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">
-                                        <step.icon className="h-6 w-6" />
-                                    </div>
-                                    <h3 className="font-semibold text-foreground">{step.title}</h3>
-                                    <p className="text-xs text-muted-foreground mt-1">{step.description}</p>
-                                </Card>
-                                {index < walkthroughSteps.length - 1 && (
-                                    <ArrowRight className="absolute top-1/2 -right-3 -translate-y-1/2 h-6 w-6 text-border hidden md:block" />
-                                )}
+                {showValidationBanner && (
+                     <Alert variant="destructive">
+                        <AlertTriangle className="h-4 w-4" />
+                        <div className="flex items-center justify-between w-full">
+                            <div>
+                                <AlertTitle>Validation Errors</AlertTitle>
+                                <AlertDescription>
+                                    Fix the highlighted issues before moving to Review.
+                                </AlertDescription>
                             </div>
-                        ))}
-                    </div>
-                     <Separator />
-                     <div className="grid md:grid-cols-2 gap-6">
-                        <div className="text-center">
-                            <h3 className="font-semibold text-foreground mb-4">Try a demo scenario</h3>
-                            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                                <Button onClick={() => onDemoSelect('conservative')}>Demo: Conservative Plan</Button>
-                                <Button variant="outline" onClick={() => onDemoSelect('risky')}>Demo: Risky Plan (breaks rules)</Button>
-                            </div>
-                        </div>
-                        <div className="text-center md:text-left">
-                            <h3 className="font-semibold text-foreground mb-4">Power-user Shortcuts</h3>
-                             <p className="text-sm text-muted-foreground">
-                                <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Alt</kbd> + <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">1/2/3</kbd> to switch steps.
-                            </p>
-                             <p className="text-sm text-muted-foreground mt-2">
-                                <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Ctrl</kbd> + <kbd className="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Enter</kbd> to continue.
-                            </p>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-        </div>
-    )
-}
-
-function RecoveryModeWarning() {
-    return (
-        <Alert variant="default" className="bg-red-950/50 border-red-500/20 text-red-300">
-            <AlertTriangle className="h-4 w-4 text-red-400" />
-            <AlertTitle className="text-red-400">Recovery Mode is Active</AlertTitle>
-            <AlertDescription>
-               Arjun recommends a max risk of 0.5% and a max of 2 trades per day to get back on track.
-            </AlertDescription>
-        </Alert>
-    )
-}
-
-const SummaryRow = ({ label, value, className }: { label: string; value: React.ReactNode; className?: string }) => (
-    <div className="flex justify-between items-center text-sm">
-        <p className="text-muted-foreground">{label}</p>
-        <p className={cn("font-mono font-semibold", className)}>{value}</p>
-    </div>
-);
-
-
-export function TradePlanningModule({ onSetModule, planContext }: TradePlanningModuleProps) {
-    const { toast } = useToast();
-    const [isPlanningLoading, setIsPlanningLoading] = useState(true);
-    const [planStatus, setPlanStatus] = useState<PlanStatusType>("incomplete");
-    const [showBanner, setShowBanner] = useState(true);
-    const [currentStep, setCurrentStep] = useState<TradePlanStep>("plan");
-    const [arjunFeedbackAccepted, setArjunFeedbackAccepted] = useState(false);
-    const [showTemplateOverwriteDialog, setShowTemplateOverwriteDialog] = useState(false);
-    const [pendingTemplateId, setPendingTemplateId] = useState<string | null>(null);
-    const [isNewUser, setIsNewUser] = useState(false);
-    const [showValidationBanner, setShowValidationBanner] = useState(false);
-    const [draftToResume, setDraftToResume] = useState<SavedDraft | null>(null);
-    const [isWalkthroughOpen, setIsWalkthroughOpen] = useState(false);
-    const [initialContext, setInitialContext] = useState(planContext);
-    const [isRecoveryMode, setIsRecoveryMode] = useState(false);
-    const [entryChecklist, setEntryChecklist] = useState<Record<string, boolean>>({});
-    
-    // Context states
-    const [session, setSession] = useState<'Asia' | 'London' | 'New York'>('New York');
-    const [vixZone, setVixZone] = useState<VixZone>('Normal');
-
-
-    const reviewHeadingRef = useRef<HTMLDivElement>(null);
-    const executionHeadingRef = useRef<HTMLDivElement>(null);
-
-    const form = useForm<PlanFormValues>({
-        resolver: zodResolver(planSchema),
-        defaultValues: {
-            direction: "Long",
-            entryType: "Limit",
-            leverage: 10,
-            accountCapital: 10000,
-            riskPercent: 1,
-            strategyId: '',
-            instrument: "",
-            notes: "",
-            justification: "",
-            entryPrice: '' as unknown as number, // Controlled input
-            stopLoss: '' as unknown as number,
-            takeProfit: '' as unknown as number,
-            mindset: "",
-        },
-        mode: "onBlur",
-    });
-
-    const justificationValue = useWatch({
-        control: form.control,
-        name: 'justification'
-    });
-    
-    const canProceedToReview = planStatus !== 'incomplete' && (planStatus !== 'FAIL' || (justificationValue && justificationValue.length > 0));
-    const canProceedToExecution = canProceedToReview && arjunFeedbackAccepted;
-
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            setIsPlanningLoading(false);
-        }, 1000);
-
-        if (typeof window !== "undefined") {
-            const scenario = localStorage.getItem('ec_demo_scenario') as DemoScenario | null;
-            setIsNewUser(scenario === 'no_positions');
-            setIsRecoveryMode(localStorage.getItem('ec_recovery_mode') === 'true');
-            
-            const draftString = localStorage.getItem("ec_trade_plan_draft");
-            if (draftString) {
-                try {
-                    const parsedDraft = JSON.parse(draftString);
-                    if(!form.formState.isDirty && !form.getValues('instrument')) {
-                        setDraftToResume(parsedDraft);
-                    }
-                } catch(e) { console.error("Could not parse trade plan draft:", e); }
-            }
-
-            const storedContext = localStorage.getItem('ec_trade_planning_context');
-            if (storedContext) {
-                const parsedContext = JSON.parse(storedContext);
-                setInitialContext(parsedContext);
-                form.setValue('instrument', parsedContext.instrument);
-                if (parsedContext.direction) {
-                  form.setValue('direction', parsedContext.direction);
-                }
-                localStorage.removeItem('ec_trade_planning_context');
-            } else if (planContext) {
-                setInitialContext(planContext);
-                form.setValue('instrument', planContext.instrument);
-                if (planContext.direction) {
-                    form.setValue('direction', planContext.direction);
-                }
-            }
-
-            const walkthroughSeen = localStorage.getItem('ec_trade_plan_walkthrough_seen');
-            if (!walkthroughSeen) {
-                setIsWalkthroughOpen(true);
-                localStorage.setItem('ec_trade_plan_walkthrough_seen', 'true');
-            }
-        }
-
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.altKey) {
-                e.preventDefault();
-                if (e.key === '1') setCurrentStep('plan');
-                if (e.key === '2' && canProceedToReview) setCurrentStep('review');
-                if (e.key === '3' && canProceedToExecution) setCurrentStep('execute');
-            }
-
-            if (e.ctrlKey || e.metaKey) {
-                if (e.key === 'Enter') {
-                    if (document.activeElement?.tagName === 'TEXTAREA') return;
-                    e.preventDefault();
-                    form.handleSubmit(onValidSubmit, onInvalidSubmit)();
-                }
-            }
-        };
-
-        window.addEventListener('keydown', handleKeyDown);
-
-        return () => {
-            clearTimeout(timer);
-            window.removeEventListener('keydown', handleKeyDown);
-        };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [toast, canProceedToReview, canProceedToExecution]);
-    
-    useEffect(() => {
-        if (currentStep === 'review' && reviewHeadingRef.current) {
-            reviewHeadingRef.current.focus();
-        }
-        if (currentStep === 'execute' && executionHeadingRef.current) {
-            executionHeadingRef.current.focus();
-        }
-    }, [currentStep]);
-
-    const handleResumeDraft = () => {
-        if (!draftToResume) return;
-        form.reset(draftToResume.formData);
-        setCurrentStep(draftToResume.draftStep);
-        setDraftToResume(null);
-        toast({
-            title: "Draft Loaded",
-            description: "Your previous trade plan draft has been loaded.",
-        });
-    };
-    
-    const handleDiscardDraft = () => {
-        localStorage.removeItem("ec_trade_plan_draft");
-        setDraftToResume(null);
-        toast({
-            title: "Draft Discarded",
-            variant: "destructive"
-        });
-    };
-    
-    const applyTemplate = (templateId: string) => {
-        const template = planTemplates.find(t => t.id === templateId);
-        if (!template || template.id === 'custom_soon') return;
-
-        const defaultValues = {
-            direction: "Long", entryType: "Limit", leverage: 10, accountCapital: 10000,
-            riskPercent: 1, strategyId: '', instrument: "", notes: "", justification: "",
-            entryPrice: '' as unknown as number, stopLoss: '' as unknown as number, takeProfit: '' as unknown as number, mindset: ""
-        };
-
-        form.reset({
-            ...defaultValues,
-            ...form.getValues(),
-            ...template.values,
-        });
-        localStorage.setItem("ec_trade_plan_last_template", templateId);
-        toast({ title: `Template applied: ${template.name}` });
-        setShowTemplateOverwriteDialog(false);
-        setPendingTemplateId(null);
-    };
-
-    const handleApplyTemplate = (templateId: string) => {
-        if (form.formState.isDirty) {
-            setPendingTemplateId(templateId);
-            setShowTemplateOverwriteDialog(true);
-        } else {
-            applyTemplate(templateId);
-        }
-    };
-    
-    const handleDemoSelect = (scenario: 'conservative' | 'risky') => {
-        const conservativePlan = {
-            instrument: "BTC-PERP",
-            direction: "Long",
-            entryType: "Limit",
-            entryPrice: 68000,
-            stopLoss: 67500,
-            takeProfit: 69500,
-            riskPercent: 1,
-            accountCapital: 10000,
-            strategyId: "strat_1",
-            leverage: 10
-        };
-
-        const riskyPlan = {
-            instrument: "MEME-COIN",
-            direction: "Long",
-            entryType: "Market",
-            entryPrice: 1.2,
-            stopLoss: 1.15,
-            takeProfit: 1.22,
-            riskPercent: 5,
-            accountCapital: 10000,
-            strategyId: "strat_3",
-            leverage: 50,
-        };
-
-        if (scenario === 'conservative') {
-            form.reset(conservativePlan);
-            setCurrentStep('review');
-        } else {
-            form.reset(riskyPlan);
-            setCurrentStep('plan');
-        }
-        setIsWalkthroughOpen(false);
-    };
-
-    const onValidSubmit = (values: PlanFormValues) => {
-        setShowValidationBanner(false);
-        if (currentStep === 'plan') {
-            setCurrentStep('review');
-        } else if (currentStep === 'review') {
-            setCurrentStep('execute');
-        } else {
-             // Execution logic is now inside ExecutionOptions
-        }
-    };
-
-    const onInvalidSubmit = () => {
-        setShowValidationBanner(true);
-    }
-
-    const handleSaveDraft = () => {
-        const values = form.getValues();
-        const draft: SavedDraft = {
-            formData: values,
-            draftStep: currentStep,
-            timestamp: new Date().toISOString()
-        };
-        localStorage.setItem("ec_trade_plan_draft", JSON.stringify(draft));
-        toast({
-            title: "Plan saved as draft",
-            description: "Your current trade plan has been saved locally.",
-        });
-    };
-
-    const handleStepChange = (step: TradePlanStep) => {
-        const stepOrder = ["plan", "review", "execute"];
-        const currentIndex = stepOrder.indexOf(currentStep);
-        const newIndex = stepOrder.indexOf(step);
-
-        if (newIndex < currentIndex) {
-            setCurrentStep(step);
-            return;
-        }
-
-        if (step === 'review' && canProceedToReview) {
-            setCurrentStep('review');
-        }
-        
-        if (step === 'execute' && canProceedToExecution) {
-            setCurrentStep('execute');
-        }
-    }
-
-    
-    const isProceedDisabled = currentStep === 'plan' ? !canProceedToReview :
-                              currentStep === 'review' ? !canProceedToExecution :
-                              false;
-    
-    const isBannerVisible = showBanner && (planStatus === 'FAIL' || planStatus === 'overridden');
-
-    const stepConfig = {
-        plan: { label: "Plan", buttonText: isNewUser ? "Practice review (no real risk)" : "Proceed to Review (Step 2)", disabled: false },
-        review: { label: "Review", buttonText: "Proceed to Execution (Step 3)", disabled: !canProceedToReview },
-        execute: { label: "Execute", buttonText: "Execute (Prototype)", disabled: !canProceedToExecution },
-    }
-    
-    if (isPlanningLoading) {
-        return <TradePlanningSkeleton />;
-    }
-
-    return (
-        <div className="space-y-8">
-            <ScenarioWalkthrough isOpen={isWalkthroughOpen} onOpenChange={setIsWalkthroughOpen} onDemoSelect={handleDemoSelect} />
-            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                <div>
-                    <div className="flex items-center gap-4">
-                        {initialContext?.origin === 'chart' && (
-                            <Button variant="ghost" size="sm" className="text-muted-foreground -ml-4" onClick={() => onSetModule('chart')}>
-                                <ArrowLeft className="mr-2 h-4 w-4"/>
-                                Back to Chart
+                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setShowValidationBanner(false)}>
+                                <X className="h-4 w-4" />
                             </Button>
-                        )}
-                    </div>
-                    <h1 className="text-2xl font-bold tracking-tight text-foreground">Trade Planning</h1>
-                    <p className="text-muted-foreground">This is where every disciplined trade begins.</p>
-                </div>
-                <div className="flex items-center gap-2">
-                     <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button variant="outline" size="icon" onClick={() => setIsWalkthroughOpen(true)}>
-                                    <HelpCircle className="h-4 w-4" />
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p>Open walkthrough</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
-                    {(Object.keys(stepConfig) as TradePlanStep[]).map((step, index) => (
-                        <Badge
-                            key={step}
-                            onClick={() => handleStepChange(step)}
-                            variant={currentStep === step ? "default" : "outline"}
-                            className={cn("cursor-pointer border-border/50", stepConfig[step as TradePlanStep].disabled && "opacity-50 cursor-not-allowed")}
-                        >
-                            Step {index + 1} &ndash; {stepConfig[step as TradePlanStep].label}
-                        </Badge>
-                    ))}
-                </div>
-            </div>
-
-            {initialContext && (
-                 <Alert variant="default" className="bg-primary/10 border-primary/20 text-primary">
-                    <Sparkles className="h-4 w-4 text-primary" />
-                    <AlertTitle>Context from {initialContext.origin}</AlertTitle>
-                    <AlertDescription>
-                       You've been sent here to plan a trade for <strong className="font-semibold">{initialContext.instrument}</strong>.
-                    </AlertDescription>
-                </Alert>
-            )}
-
-            {showValidationBanner && (
-                 <Alert variant="destructive">
-                    <AlertTriangle className="h-4 w-4" />
-                    <div className="flex items-center justify-between w-full">
-                        <div>
-                            <AlertTitle>Validation Errors</AlertTitle>
-                            <AlertDescription>
-                                Fix the highlighted issues before moving to Review.
-                            </AlertDescription>
                         </div>
-                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setShowValidationBanner(false)}>
-                            <X className="h-4 w-4" />
-                        </Button>
-                    </div>
-                </Alert>
-             )}
-            
-            {isBannerVisible && (
-                 <Alert variant="destructive" className="bg-amber-950/60 border-amber-500/30 text-amber-300">
-                    <AlertTriangle className="h-4 w-4 text-amber-400" />
-                    <div className="flex items-center justify-between w-full">
-                        <div>
-                            <AlertTitle className="text-amber-400">
-                                {planStatus === 'overridden' ? "You are overriding your rules" : "Major Violation. Arjun recommends NOT taking this trade."}
-                            </AlertTitle>
-                            <AlertDescription>
-                               {planStatus === 'overridden' 
-                                 ? "This should be rare and done consciously. Your justification will be logged."
-                                 : "Fix the issues in the summary card, or add a justification to proceed."}
-                            </AlertDescription>
+                    </Alert>
+                 )}
+                
+                {isBannerVisible && (
+                     <Alert variant="destructive" className="bg-amber-950/60 border-amber-500/30 text-amber-300">
+                        <AlertTriangle className="h-4 w-4 text-amber-400" />
+                        <div className="flex items-center justify-between w-full">
+                            <div>
+                                <AlertTitle className="text-amber-400">
+                                    {planStatus === 'overridden' ? "You are overriding your rules" : "Major Violation. Arjun recommends NOT taking this trade."}
+                                </AlertTitle>
+                                <AlertDescription>
+                                   {planStatus === 'overridden' 
+                                     ? "This should be rare and done consciously. Your justification will be logged."
+                                     : "Fix the issues in the summary card, or add a justification to proceed."}
+                                </AlertDescription>
+                            </div>
+                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setShowBanner(false)}>
+                                <X className="h-4 w-4" />
+                            </Button>
                         </div>
-                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setShowBanner(false)}>
-                            <X className="h-4 w-4" />
-                        </Button>
-                    </div>
-                </Alert>
-             )}
-
-             {isRecoveryMode ? <RecoveryModeWarning /> : isNewUser ? (
-                <Alert variant="default" className="bg-blue-950/50 border-blue-500/30 text-blue-300">
-                    <Info className="h-4 w-4 text-blue-400" />
-                    <AlertTitle className="text-blue-400">You're in Practice Mode</AlertTitle>
-                    <AlertDescription>
-                       You have no trading history connected. Use this module to create practice plans before risking real capital.
-                    </AlertDescription>
-                </Alert>
-             ) : (
-                <Alert variant="default" className="bg-muted/30 border-border/50">
-                    <FileText className="h-4 w-4" />
-                    <AlertDescription>
-                        Every trade must start here. No plan = no trade. This checklist ensures you have a reason for every action.
-                    </AlertDescription>
-                </Alert>
-             )}
-            
-            <AlertDialog open={showTemplateOverwriteDialog} onOpenChange={setShowTemplateOverwriteDialog}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Apply Template?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            This will overwrite your current plan values with the selected template. Are you sure?
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel onClick={() => setPendingTemplateId(null)}>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => pendingTemplateId && applyTemplate(pendingTemplateId)}>Yes, apply</AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-            
-            <Form {...form}>
-                <form onSubmit={form.handleSubmit(onValidSubmit, onInvalidSubmit)} className="space-y-8">
-
-                    {currentStep === "plan" && <PlanStep form={form} onSetModule={onSetModule} setPlanStatus={setPlanStatus} onApplyTemplate={handleApplyTemplate} isNewUser={isNewUser} currentStep={currentStep} draftToResume={draftToResume} onResume={handleResumeDraft} onDiscard={handleDiscardDraft} entryChecklist={entryChecklist} setEntryChecklist={setEntryChecklist} session={session} setSession={setSession} vixZone={vixZone} setVixZone={setVixZone} />}
-                    {currentStep === "review" && <ReviewStep form={form} onSetModule={onSetModule} onSetStep={setCurrentStep} arjunFeedbackAccepted={arjunFeedbackAccepted} setArjunFeedbackAccepted={setArjunFeedbackAccepted} planStatus={planStatus} reviewHeadingRef={reviewHeadingRef} />}
-                    {currentStep === "execute" && <ExecuteStep form={form} onSetModule={onSetModule} onSetStep={setCurrentStep} planStatus={planStatus} executionHeadingRef={executionHeadingRef} validationResult={null} entryChecklist={entryChecklist} />}
-
-                     <div className="mt-8 p-4 bg-muted/20 border-t border-border/50 flex flex-col sm:flex-row items-center justify-between gap-4">
-                        <p className="text-sm text-muted-foreground">Step {Object.keys(stepConfig).indexOf(currentStep) + 1} of 3: {stepConfig[currentStep].label} your trade.</p>
-                        <div className="flex w-full sm:w-auto flex-col sm:flex-row items-center gap-4">
-                            <Button variant="outline" type="button" onClick={handleSaveDraft} className="w-full sm:w-auto">Save as draft (Prototype)</Button>
-                            
-                           {currentStep !== 'execute' && (
-                                <TooltipProvider>
-                                    <Tooltip open={isProceedDisabled && (planStatus === 'FAIL' || currentStep === 'review' && !arjunFeedbackAccepted) ? undefined : false}>
-                                        <TooltipTrigger asChild>
-                                            <div className="w-full sm:w-auto" tabIndex={0}>
-                                                <Button type="submit" disabled={isProceedDisabled} className="w-full">
-                                                    {stepConfig[currentStep].buttonText}
-                                                </Button>
-                                            </div>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p className="flex items-center gap-2">
-                                                <AlertTriangle className="h-4 w-4 text-amber-500" />
-                                                {currentStep === 'plan' 
-                                                    ? "Add a justification to override your rules."
-                                                    : "Acknowledge Arjun's feedback to proceed."
-                                                }
-                                            </p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                           )}
-                        </div>
-                    </div>
-                </form>
-            </Form>
-        </div>
-    );
-}
-
+                    </Alert>
+                 )}
     
+                 {isRecoveryMode ? <RecoveryModeWarning /> : isNewUser ? (
+                    <Alert variant="default" className="bg-blue-950/50 border-blue-500/30 text-blue-300">
+                        <Info className="h-4 w-4 text-blue-400" />
+                        <AlertTitle className="text-blue-400">You're in Practice Mode</AlertTitle>
+                        <AlertDescription>
+                           You have no trading history connected. Use this module to create practice plans before risking real capital.
+                        </AlertDescription>
+                    </Alert>
+                 ) : (
+                    <Alert variant="default" className="bg-muted/30 border-border/50">
+                        <FileText className="h-4 w-4" />
+                        <AlertDescription>
+                            Every trade must start here. No plan = no trade. This checklist ensures you have a reason for every action.
+                        </AlertDescription>
+                    </Alert>
+                 )}
+                
+                <AlertDialog open={showTemplateOverwriteDialog} onOpenChange={setShowTemplateOverwriteDialog}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Apply Template?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                This will overwrite your current plan values with the selected template. Are you sure?
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel onClick={() => setPendingTemplateId(null)}>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => pendingTemplateId && applyTemplate(pendingTemplateId)}>Yes, apply</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+                
+                <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onValidSubmit, onInvalidSubmit)} className="space-y-8">
+    
+                        {currentStep === "plan" && <PlanStep form={form} onSetModule={onSetModule} setPlanStatus={setPlanStatus} onApplyTemplate={handleApplyTemplate} isNewUser={isNewUser} currentStep={currentStep} draftToResume={draftToResume} onResume={handleResumeDraft} onDiscard={handleDiscardDraft} entryChecklist={entryChecklist} setEntryChecklist={setEntryChecklist} session={session} setSession={setSession} vixZone={vixZone} setVixZone={setVixZone} />}
+                        {currentStep === "review" && <ReviewStep form={form} onSetModule={onSetModule} onSetStep={setCurrentStep} arjunFeedbackAccepted={arjunFeedbackAccepted} setArjunFeedbackAccepted={setArjunFeedbackAccepted} planStatus={planStatus} reviewHeadingRef={reviewHeadingRef} />}
+                        {currentStep === "execute" && <ExecuteStep form={form} onSetModule={onSetModule} onSetStep={setCurrentStep} planStatus={planStatus} executionHeadingRef={executionHeadingRef} validationResult={null} entryChecklist={entryChecklist} />}
+    
+                         <div className="mt-8 p-4 bg-muted/20 border-t border-border/50 flex flex-col sm:flex-row items-center justify-between gap-4">
+                            <p className="text-sm text-muted-foreground">Step {Object.keys(stepConfig).indexOf(currentStep) + 1} of 3: {stepConfig[currentStep].label} your trade.</p>
+                            <div className="flex w-full sm:w-auto flex-col sm:flex-row items-center gap-4">
+                                <Button variant="outline" type="button" onClick={handleSaveDraft} className="w-full sm:w-auto">Save as draft (Prototype)</Button>
+                                
+                               {currentStep !== 'execute' && (
+                                    <TooltipProvider>
+                                        <Tooltip open={isProceedDisabled && (planStatus === 'FAIL' || currentStep === 'review' && !arjunFeedbackAccepted) ? undefined : false}>
+                                            <TooltipTrigger asChild>
+                                                <div className="w-full sm:w-auto" tabIndex={0}>
+                                                    <Button type="submit" disabled={isProceedDisabled} className="w-full">
+                                                        {stepConfig[currentStep].buttonText}
+                                                    </Button>
+                                                </div>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p className="flex items-center gap-2">
+                                                    <AlertTriangle className="h-4 w-4 text-amber-500" />
+                                                    {currentStep === 'plan' 
+                                                        ? "Add a justification to override your rules."
+                                                        : "Acknowledge Arjun's feedback to proceed."
+                                                    }
+                                                </p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                               )}
+                            </div>
+                        </div>
+                    </form>
+                </Form>
+            </div>
+        );
+    }
+    
+    function ReviewStep({ form, onSetModule, onSetStep, arjunFeedbackAccepted, setArjunFeedbackAccepted, planStatus, reviewHeadingRef }: { form: any, onSetModule: any, onSetStep: (step: TradePlanStep) => void; arjunFeedbackAccepted: boolean, setArjunFeedbackAccepted: (accepted: boolean) => void, planStatus: PlanStatusType, reviewHeadingRef: React.Ref<HTMLDivElement> }) {
+        const values = form.getValues();
+        const personaData = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem("ec_persona_final") || localStorage.getItem("ec_persona_base") || "{}") : {};
+        const market = typeof window !== 'undefined' ? { vixValue: localStorage.getItem('ec_demo_scenario') === 'high_vol' ? 82 : 45, vixZone: localStorage.getItem('ec_demo_scenario') === 'high_vol' ? 'Elevated' : 'Normal' } : { vixValue: 45, vixZone: 'Normal' };
+    
+        const { entryPrice, stopLoss, takeProfit } = useWatch({ control: form.control });
+    
+        const riskPerUnit = (entryPrice && stopLoss) ? Math.abs(entryPrice - stopLoss) : 0;
+        const rewardPerUnit = (takeProfit && entryPrice) ? Math.abs(takeProfit - entryPrice) : 0;
+        const rrr = (riskPerUnit > 0 && rewardPerUnit > 0) ? rewardPerUnit / riskPerUnit : 0;
+    
+        return (
+            <div className="grid lg:grid-cols-2 gap-8 items-start">
+                 <PlanSnapshot form={form} onSetStep={onSetStep} />
+                 <Card className="bg-muted/30 border-primary/20 sticky top-24">
+                    <CardHeader>
+                        <CardTitle ref={reviewHeadingRef} tabIndex={-1} className="flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-ring rounded-sm -ml-1 pl-1"><Bot className="h-5 w-5 text-primary" />Review with Arjun</CardTitle>
+                        <CardDescription>AI feedback and psychological checks.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                         <div>
+                            <p className="text-sm text-muted-foreground">
+                                Based on your persona (<span className="font-semibold text-primary">{personaData.primaryPersonaName || 'The Determined Trader'}</span>), current market volatility (<span className="font-semibold text-primary">{market.vixZone}</span>), and this trade’s R:R of <span className="font-semibold text-primary">{rrr.toFixed(2)}</span>, here’s Arjun’s assessment.
+                            </p>
+                        </div>
+    
+                        <Separator />
+                        
+                        <div>
+                            <h3 className="font-semibold text-foreground mb-3">Feedback</h3>
+                            <ul className="space-y-3">
+                                <li className="flex items-start gap-3 text-sm">
+                                    <AlertTriangle className="h-4 w-4 text-amber-400 mt-0.5 flex-shrink-0" />
+                                    <span className="text-muted-foreground">Your SL is tighter than your average for this setup. In <span className="text-amber-400">elevated volatility</span>, this increases the chance of being stopped out on noise.</span>
+                                </li>
+                                <li className="flex items-start gap-3 text-sm">
+                                    <Info className="h-4 w-4 text-blue-400 mt-0.5 flex-shrink-0" />
+                                    <span className="text-muted-foreground">Your R:R of {rrr.toFixed(2)} is slightly below your preferred 1.5 target. This requires a higher win rate to be profitable.</span>
+                                </li>
+                                <li className="flex items-start gap-3 text-sm">
+                                    <CheckCircle className="h-4 w-4 text-green-400 mt-0.5 flex-shrink-0" />
+                                    <span className="text-muted-foreground">This trade aligns with your defined <span className="text-green-400">"London Reversal"</span> strategy, which is a positive sign for disciplined execution.</span>
+                                </li>
+                            </ul>
+                        </div>
+    
+                        <Separator />
+    
+                         <FormField
+                            control={form.control}
+                            name="mindset"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>What is your mindset right now?</FormLabel>
+                                    <FormControl>
+                                        <Textarea
+                                            placeholder="Describe how you feel and what you’re worried about. e.g., 'Feeling a bit of FOMO, worried I'm late to this move...'"
+                                            className="min-h-[80px]"
+                                            {...field}
+                                        />
+                                    </FormControl>
+                                    <p className="text-xs text-muted-foreground">This will be saved with your journal entry for this trade.</p>
+                                </FormItem>
+                            )}
+                        />
+    
+                        <Separator />
+                        
+                        <div className="space-y-2">
+                            <div className="flex items-center space-x-2">
+                                <Checkbox id="accept-feedback" checked={arjunFeedbackAccepted} onCheckedChange={(checked) => setArjunFeedbackAccepted(checked as boolean)} />
+                                <Label htmlFor="accept-feedback" className="text-sm font-normal text-muted-foreground">
+                                    I have read and accept Arjun’s feedback for this trade.
+                                </Label>
+                            </div>
+                            <p className="text-xs text-muted-foreground/80 pl-6">
+                                In the real app, this confirmation would be stored with your trade and journal entry.
+                            </p>
+                        </div>
+    
+                    </CardContent>
+                </Card>
+            </div>
+        );
+    }
+    
+    
+    
+    
+    
+    
+
