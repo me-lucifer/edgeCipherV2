@@ -1,9 +1,9 @@
 
 
-"use client";
+      "use client";
 
 import { Button } from "@/components/ui/button";
-import { BrainCircuit, PlusCircle, CheckCircle, Search, Filter as FilterIcon, Clock, ListOrdered, FileText, Gauge, Calendar, ShieldCheck, Zap, MoreHorizontal, ArrowLeft, Edit, Archive, Star, BookOpen, BarChartHorizontal, Trash2, ChevronsUpDown, Info, Check, Save, Copy, CircleDashed, ArrowRight, X, AlertTriangle, ChevronUp, Scale, Lightbulb } from "lucide-react";
+import { BrainCircuit, PlusCircle, CheckCircle, Search, Filter as FilterIcon, Clock, ListOrdered, FileText, Gauge, Calendar, ShieldCheck, Zap, MoreHorizontal, ArrowLeft, Edit, Archive, Star, BookOpen, BarChartHorizontal, Trash2, ChevronsUpDown, Info, Check, Save, Copy, CircleDashed, ArrowRight, X, AlertTriangle, ChevronUp, Scale, Lightbulb, User } from "lucide-react";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -392,6 +392,77 @@ function ArjunRefinementSuggestions({ strategy, onEdit }: { strategy: StrategyGr
     );
 }
 
+function PersonaFitAnalysis({ activeVersion }: { activeVersion: StrategyVersion | undefined }) {
+    const [persona, setPersona] = useState<{ primaryPersonaName?: string } | null>(null);
+
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            const personaData = localStorage.getItem("ec_persona_final") || localStorage.getItem("ec_persona_base");
+            if (personaData) {
+                setPersona(JSON.parse(personaData));
+            }
+        }
+    }, []);
+
+    const analysis = useMemo(() => {
+        if (!persona || !activeVersion) return null;
+
+        const results: { status: 'Caution' | 'Good', reasons: string[] } = { status: 'Good', reasons: [] };
+        const { riskRules } = activeVersion.ruleSet;
+        const personaName = persona.primaryPersonaName || '';
+
+        if (personaName.includes("Impulsive") || personaName.includes("Sprinter")) {
+            if (riskRules.maxDailyTrades > 3) {
+                results.status = 'Caution';
+                results.reasons.push("A high daily trade limit may enable overtrading for your impulsive persona.");
+            }
+            if (riskRules.leverageCap > 20) {
+                results.status = 'Caution';
+                results.reasons.push("High leverage can amplify losses, which is risky for an impulsive trading style.");
+            }
+        }
+        
+        if (personaName.includes("Fearful")) { // Hypothetical persona
+            if (riskRules.riskPerTradePct < 0.75) {
+                 results.status = 'Caution';
+                 results.reasons.push("Very low risk-per-trade might indicate a fear of loss, leading to missed opportunities.");
+            }
+        }
+
+        if (results.status === 'Good') {
+            results.reasons.push("This strategy's risk parameters seem well-suited to your trading persona.");
+        }
+
+        return results;
+    }, [persona, activeVersion]);
+
+    if (!analysis) return null;
+
+    const isCaution = analysis.status === 'Caution';
+
+    return (
+        <Card className={cn("bg-muted/30 border-border/50", isCaution && "border-amber-500/30 bg-amber-950/20")}>
+            <CardHeader className="pb-4">
+                <CardTitle className={cn("text-base flex items-center gap-2", isCaution && "text-amber-400")}>
+                    <User className="h-5 w-5" />
+                    Persona Fit
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
+                <div className="flex items-center gap-2 mb-3">
+                    <Badge variant={isCaution ? "destructive" : "secondary"} className={cn(
+                        isCaution && "bg-amber-500/20 text-amber-300 border-amber-500/30"
+                    )}>{analysis.status}</Badge>
+                    <p className="text-xs text-muted-foreground">vs. <span className="font-semibold text-foreground">{persona?.primaryPersonaName || "Your Persona"}</span></p>
+                </div>
+                 <ul className="space-y-2 text-sm text-muted-foreground list-disc list-inside">
+                    {analysis.reasons.map((reason, i) => <li key={i}>{reason}</li>)}
+                </ul>
+            </CardContent>
+        </Card>
+    )
+}
+
 function StrategyDetailView({ 
     strategy, 
     onBack,
@@ -527,6 +598,7 @@ function StrategyDetailView({
                                 </div>
                             </CardContent>
                         </Card>
+                        <PersonaFitAnalysis activeVersion={selectedVersion} />
                     </div>
 
                     {/* Right Column */}
@@ -1157,7 +1229,7 @@ function StrategyCreatorView({
     );
 }
 
-function diffArrays(arrA: string[], arrB: string[]) {
+const diffArrays = (arrA: string[], arrB: string[]) => {
     const setA = new Set(arrA);
     const setB = new Set(arrB);
     const added = [...setB].filter(item => !setA.has(item));
