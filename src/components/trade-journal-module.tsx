@@ -135,7 +135,7 @@ const mockJournalEntries: JournalEntry[] = [
       timestamps: { plannedAt: new Date(Date.now() - 86400000).toISOString(), executedAt: new Date(Date.now() - 86400000).toISOString(), closedAt: new Date(Date.now() - 86400000).toISOString() },
       technical: { instrument: 'ETH-PERP', direction: 'Short', entryPrice: 3605, stopLoss: 3625, leverage: 50, positionSize: 12, riskPercent: 2, rrRatio: 1, strategy: "London Reversal" },
       planning: { planNotes: "Fading what looks like a sweep of the high.", mindset: "Anxious" },
-      review: { pnl: -240, exitPrice: 3625, emotionalNotes: "Market kept pushing, I felt like I was fighting a trend. Should have waited for more confirmation.", emotionsTags: "Anxious,Revenge", mistakesTags: "Forced Entry,Moved SL", learningNotes: "Don't fight a strong trend, even if it looks like a sweep.", newsContextTags: "News-driven day" },
+      review: { pnl: -240, exitPrice: 3625, emotionalNotes: "Market kept pushing, I felt like I was fighting a trend. Should have waited for more confirmation.", emotionsTags: "Anxious,Revenge", mistakesTags: "Forced Entry,Moved SL,Override", learningNotes: "Don't fight a strong trend, even if it looks like a sweep.", newsContextTags: "News-driven day" },
       meta: { strategyVersion: "v1", journalingCompletedAt: new Date(Date.now() - 86400000).toISOString(), ruleAdherenceSummary: { followedEntryRules: false, movedSL: true, exitedEarly: false, rrBelowMin: true } }
     },
 ];
@@ -1125,6 +1125,76 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filte
         );
     };
 
+    const renderEntries = (entriesToRender: JournalEntry[]) => (
+        <>
+          <div className="space-y-4 md:hidden">
+            {entriesToRender.map(entry => (
+              <Card key={entry.id} className="bg-muted/30 border-border/50" onClick={() => setEditingEntry(entry)}>
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="font-semibold">{entry.technical?.instrument} <span className={cn(entry.technical?.direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{entry.technical?.direction}</span></p>
+                      <p className="text-xs text-muted-foreground">{entry.timestamps ? format(new Date(entry.timestamps.executedAt), "MMM d, yyyy") : 'N/A'}</p>
+                    </div>
+                    <PnLCell entry={entry} />
+                  </div>
+                  <div className="space-y-2">
+                    <TagCell tags={entry.review?.emotionsTags} variant="emotion" />
+                    <TagCell tags={entry.review?.mistakesTags} variant="mistake" />
+                  </div>
+                  <Button variant="outline" size="sm" className="w-full">
+                    {entry.status === 'pending' ? 'Complete Journal' : 'View Details'}
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+    
+          <div className="hidden md:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Trade</TableHead>
+                  <TableHead>Result (R)</TableHead>
+                  <TableHead>Emotions</TableHead>
+                  <TableHead>Mistakes</TableHead>
+                  <TableHead>Strategy</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {entriesToRender.map(entry => (
+                  <TableRow key={entry.id} className="group cursor-pointer" onClick={() => setEditingEntry(entry)}>
+                    <TableCell className="text-xs text-muted-foreground">{entry.timestamps ? format(new Date(entry.timestamps.executedAt), "MMM d") : 'N/A'}</TableCell>
+                    <TableCell>
+                      <div className="font-semibold">{entry.technical?.instrument}</div>
+                      <div className={cn("text-xs", entry.technical?.direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{entry.technical?.direction}</div>
+                    </TableCell>
+                    <TableCell><PnLCell entry={entry} /></TableCell>
+                    <TableCell><TagCell tags={entry.review?.emotionsTags} variant="emotion" /></TableCell>
+                    <TableCell><TagCell tags={entry.review?.mistakesTags} variant="mistake" /></TableCell>
+                    <TableCell><Badge variant="secondary" className="text-xs">{entry.technical?.strategy || 'N/A'}</Badge></TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2 text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span>Open</span>
+                        <ChevronRightIcon className="h-4 w-4" />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            {entriesToRender.length === 0 && (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">No trades match your filters.</p>
+                <Button variant="link" size="sm" className="mt-2" onClick={clearFilters}>Clear filters</Button>
+              </div>
+            )}
+          </div>
+        </>
+      );
     const renderGroupHeader = (groupKey: string, groupEntries: JournalEntry[]) => {
         if (groupBy === 'day') {
             const netR = groupEntries.reduce((acc, entry) => {
@@ -1169,81 +1239,6 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filte
             )
         }
     };
-
-    const renderEntries = (entriesToRender: JournalEntry[]) => {
-      return (
-        <>
-          {/* Mobile Card View */}
-          <div className="space-y-4 md:hidden">
-            {entriesToRender.map(entry => (
-              <Card key={entry.id} className="bg-muted/30 border-border/50" onClick={() => setEditingEntry(entry)}>
-                <CardContent className="p-4 space-y-3">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="font-semibold">{entry.technical?.instrument} <span className={cn(entry.technical?.direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{entry.technical?.direction}</span></p>
-                      <p className="text-xs text-muted-foreground">{entry.timestamps ? format(new Date(entry.timestamps.executedAt), "MMM d, yyyy") : 'N/A'}</p>
-                    </div>
-                    <PnLCell entry={entry} />
-                  </div>
-                  <div className="space-y-2">
-                    <TagCell tags={entry.review?.emotionsTags} variant="emotion" />
-                    <TagCell tags={entry.review?.mistakesTags} variant="mistake" />
-                  </div>
-                  <Button variant="outline" size="sm" className="w-full">
-                    {entry.status === 'pending' ? 'Complete Journal' : 'View Details'}
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-    
-          {/* Desktop Table View */}
-          <div className="hidden md:block">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Trade</TableHead>
-                  <TableHead>Result (R)</TableHead>
-                  <TableHead>Emotions</TableHead>
-                  <TableHead>Mistakes</TableHead>
-                  <TableHead>Strategy</TableHead>
-                  <TableHead className="text-right">Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {entriesToRender.map(entry => (
-                  <TableRow key={entry.id} className="group cursor-pointer" onClick={() => setEditingEntry(entry)}>
-                    <TableCell className="text-xs text-muted-foreground">{entry.timestamps ? format(new Date(entry.timestamps.executedAt), "MMM d") : 'N/A'}</TableCell>
-                    <TableCell>
-                      <div className="font-semibold">{entry.technical?.instrument}</div>
-                      <div className={cn("text-xs", entry.technical?.direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{entry.technical?.direction}</div>
-                    </TableCell>
-                    <TableCell><PnLCell entry={entry} /></TableCell>
-                    <TableCell><TagCell tags={entry.review?.emotionsTags} variant="emotion" /></TableCell>
-                    <TableCell><TagCell tags={entry.review?.mistakesTags} variant="mistake" /></TableCell>
-                    <TableCell><Badge variant="secondary" className="text-xs">{entry.technical?.strategy || 'N/A'}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2 text-primary opacity-0 group-hover:opacity-100 transition-opacity">
-                        <span>Open</span>
-                        <ChevronRightIcon className="h-4 w-4" />
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            {entriesToRender.length === 0 && (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground">No trades match your filters.</p>
-                <Button variant="link" size="sm" className="mt-2" onClick={clearFilters}>Clear filters</Button>
-              </div>
-            )}
-          </div>
-        </>
-      );
-    }
 
     return (
         <div className="space-y-8">
@@ -1801,8 +1796,8 @@ function DemoScriptPanel({ isOpen, onOpenChange }: { isOpen: boolean, onOpenChan
     "Switch to All Trades tab. Show the new completed entry.",
     "Use filters to isolate losing trades or trades tagged with 'Revenge'.",
     "Show the Patterns sidebar, pointing out how the new tags are reflected.",
-    "Click 'Discuss these patterns with Arjun' to show the handoff to AI Coaching.',
-    'Jump to Performance Analytics > By Behaviour to show the full data pipeline.',
+    "Click 'Discuss these patterns with Arjun' to show the handoff to AI Coaching.",
+    "Jump to Performance Analytics > By Behaviour to show the full data pipeline.",
   ];
 
   return (
