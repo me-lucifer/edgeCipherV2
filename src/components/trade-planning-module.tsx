@@ -54,32 +54,52 @@ const planSchema = z.object({
     riskPercent: z.coerce.number().min(0.1, "Risk per trade must be at least 0.1%").max(100, "Risk cannot exceed 100%"),
     strategyId: z.string().min(1, "You must select a strategy for this plan."),
     notes: z.string().optional(),
-    justification: z.string().min(10, "Justification must be at least 10 characters.").optional(),
+    justification: z.string().optional(),
     mindset: z.string().optional(),
 }).refine(data => {
+    if (data.justification && data.justification.length > 0) return true;
+    
     if (data.direction === 'Long' && data.entryPrice > 0 && data.stopLoss > 0) return data.stopLoss < data.entryPrice;
     return true;
 }, {
     message: "For Longs, SL must be below Entry.",
     path: ["stopLoss"],
 }).refine(data => {
+    if (data.justification && data.justification.length > 0) return true;
+
     if (data.direction === 'Long' && data.entryPrice > 0 && data.takeProfit && data.takeProfit > 0) return data.takeProfit > data.entryPrice;
     return true;
 }, {
     message: "For Longs, TP must be above Entry.",
     path: ["takeProfit"],
 }).refine(data => {
+    if (data.justification && data.justification.length > 0) return true;
+
     if (data.direction === 'Short' && data.entryPrice > 0 && data.stopLoss > 0) return data.stopLoss > data.entryPrice;
     return true;
 }, {
     message: "For Shorts, SL must be above Entry.",
     path: ["stopLoss"],
 }).refine(data => {
+    if (data.justification && data.justification.length > 0) return true;
+
     if (data.direction === 'Short' && data.entryPrice > 0 && data.takeProfit && data.takeProfit > 0) return data.takeProfit < data.entryPrice;
     return true;
 }, {
     message: "For Shorts, TP must be below Entry.",
     path: ["takeProfit"],
+}).refine(data => {
+    // If justification is provided, bypass this rule
+    if (data.justification && data.justification.length > 0) return true;
+    
+    // Otherwise, check the condition
+    if (data.entryPrice && data.stopLoss) {
+        return data.entryPrice !== data.stopLoss;
+    }
+    return true;
+}, {
+    message: "Entry and Stop Loss cannot be the same.",
+    path: ["stopLoss"],
 });
 
 
@@ -92,6 +112,13 @@ type SavedDraft = {
 };
 
 // Validation Engine Types
+type PlanInputs = {
+    leverage: number;
+    riskPct: number;
+    rr: number;
+    session: "Asia" | "London" | "New York"; // Mocked
+};
+
 type ValidationStatus = "PASS" | "WARN" | "FAIL";
 type ValidationCheck = {
   ruleId: string;
@@ -104,13 +131,6 @@ type ValidationOutput = {
   validations: ValidationCheck[];
   overallStatus: "PASS" | "WARN" | "FAIL";
   requiresJustification: boolean;
-};
-
-type PlanInputs = {
-    leverage: number;
-    riskPct: number;
-    rr: number;
-    session: "Asia" | "London" | "New York"; // Mocked
 };
 
 type ValidationContext = {
@@ -137,18 +157,19 @@ const validatePlanAgainstStrategy = (plan: PlanInputs, strategy: RuleSet, contex
     // B) Risk per trade
     const riskDifference = plan.riskPct - riskRules.riskPerTradePct;
     let riskStatus: ValidationStatus = "PASS";
+    let riskMessage = `Risk of ${plan.riskPct}% is within strategy limits.`;
     if (riskDifference > 0.25) {
         riskStatus = "FAIL";
+        riskMessage = `Plan risks ${plan.riskPct}%, which is critically over the strategy's ${riskRules.riskPerTradePct}% limit.`;
     } else if (riskDifference > 0) {
         riskStatus = "WARN";
+        riskMessage = `Plan risks ${plan.riskPct}%, which is slightly over the strategy's ${riskRules.riskPerTradePct}% limit.`;
     }
     validations.push({
         ruleId: 'riskPerTrade',
         title: `Risk per trade <= ${riskRules.riskPerTradePct}%`,
         status: riskStatus,
-        message: riskStatus === "PASS"
-            ? `Risk of ${plan.riskPct}% is within strategy limits.`
-            : `Plan risks ${plan.riskPct}%, which is over the strategy's ${riskRules.riskPerTradePct}% limit.`
+        message: riskMessage,
     });
 
     // C) Max daily trades
@@ -365,36 +386,49 @@ function MarketContext() {
     )
 }
 
-const StatusBadge = ({ status }: { status: ValidationStatus }) => {
-    const config = {
-        "PASS": "bg-green-500/20 text-green-400 border-green-500/30",
-        "WARN": "bg-amber-500/20 text-amber-400 border-amber-500/30",
-        "FAIL": "bg-red-500/20 text-red-400 border-red-500/30",
-    };
-    return <Badge variant="secondary" className={cn("text-xs font-mono", config[status])}>{status}</Badge>;
-}
+const RuleCheckRow = ({ check }: { check: ValidationCheck }) => {
+    const Icon = {
+        PASS: CheckCircle,
+        WARN: AlertTriangle,
+        FAIL: XCircle,
+    }[check.status];
+
+    const color = {
+        PASS: 'text-green-400',
+        WARN: 'text-amber-400',
+        FAIL: 'text-destructive',
+    }[check.status];
+
+    return (
+        <TooltipProvider>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <div className="flex justify-between items-center text-sm cursor-help">
+                        <div className="flex items-center gap-2">
+                             <Icon className={cn("h-4 w-4", color)} />
+                            <span className={cn('text-muted-foreground', check.status !== 'PASS' && 'text-foreground font-medium')}>{check.title}</span>
+                        </div>
+                         <Badge variant="secondary" className={cn("text-xs font-mono",
+                            check.status === 'PASS' && "bg-green-500/10 text-green-400 border-green-500/20",
+                            check.status === 'WARN' && "bg-amber-500/10 text-amber-400 border-amber-500/20",
+                            check.status === 'FAIL' && "bg-red-500/10 text-red-400 border-red-500/20",
+                         )}>{check.status}</Badge>
+                    </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                    <p className="max-w-xs">{check.message}</p>
+                </TooltipContent>
+            </Tooltip>
+        </TooltipProvider>
+    );
+};
 
 function RuleChecks({ checks }: { checks: ValidationCheck[] }) {
     return (
         <div>
             <h3 className="text-sm font-semibold text-foreground mb-3">Strategy Rule Checks</h3>
             <div className="p-4 rounded-lg bg-muted/50 border border-border/50 space-y-4">
-                 <p className="text-xs text-muted-foreground">Your plan is checked against your saved rules and best practices.</p>
-                {checks.map((check, i) => (
-                     <TooltipProvider key={i}>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <div className="flex justify-between items-center text-sm">
-                                    <p className="text-muted-foreground">{check.title}</p>
-                                    <StatusBadge status={check.status} />
-                                </div>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p className="max-w-xs">{check.message}</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
-                ))}
+                {checks.map((check, i) => <RuleCheckRow key={i} check={check} />)}
             </div>
         </div>
     )
@@ -736,7 +770,6 @@ function PlanSummary({ control, setPlanStatus, onSetModule }: { control: any, se
 
     const positionSize = riskPerUnit > 0 ? potentialLoss / riskPerUnit : 0;
 
-    // This is where the validation engine is used
     const validationResult = useMemo(() => {
         if (!activeRuleset) return null;
         
@@ -806,6 +839,30 @@ function PlanSummary({ control, setPlanStatus, onSetModule }: { control: any, se
                         <RuleChecks checks={validationResult.validations} />
                     </>
                 )}
+                
+                {validationResult?.requiresJustification && (
+                     <>
+                        <Separator />
+                         <FormField
+                            control={control}
+                            name="justification"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel className="text-destructive">Justification Required</FormLabel>
+                                    <FormControl>
+                                        <Textarea
+                                            placeholder="Why are you breaking your own rules for this trade? Be specific."
+                                            className="border-destructive/50"
+                                            {...field}
+                                        />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </>
+                )}
+                
                 <Separator />
                 <DisciplineAlerts onSetModule={onSetModule} />
                 <Separator />
@@ -1213,6 +1270,7 @@ function ExecutionOptions({ form, onSetModule, executionHeadingRef }: { form: an
                 timestamps: {
                     plannedAt: new Date().toISOString(),
                     executedAt: new Date().toISOString(),
+                    closedAt: undefined,
                 },
                 technical: {
                     instrument: values.instrument,
@@ -1993,7 +2051,6 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
         </div>
     );
 }
-
 function SummaryRow({ label, value, className }: { label: string, value: string | React.ReactNode, className?: string }) {
     return (
         <div className="flex justify-between items-center text-sm">
@@ -2002,24 +2059,3 @@ function SummaryRow({ label, value, className }: { label: string, value: string 
         </div>
     )
 }
-
-const RuleCheckRow = ({ check }: { check: ValidationCheck }) => {
-    const Icon = {
-        PASS: CheckCircle,
-        WARN: AlertTriangle,
-        FAIL: XCircle,
-    }[check.status];
-
-    const color = {
-        PASS: 'text-green-400',
-        WARN: 'text-amber-400',
-        FAIL: 'text-destructive',
-    }[check.status];
-
-    return (
-        <div className="flex items-center gap-2 text-sm">
-            <Icon className={cn("h-4 w-4", color)} />
-            <span className={cn(check.status === 'FAIL' && 'text-destructive', check.status === 'WARN' && 'text-amber-400')}>{check.title}</span>
-        </div>
-    );
-};
