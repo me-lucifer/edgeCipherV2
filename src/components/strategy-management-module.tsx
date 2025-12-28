@@ -403,38 +403,50 @@ const WhereThisMatters = ({ onSetModule }: { onSetModule: (module: any, context?
 };
 
 function ArjunRefinementSuggestions({ strategy, onEdit }: { strategy: StrategyGroup; onEdit: (strategy: StrategyGroup, changeNotes?: string) => void; }) {
+    const [dismissedSuggestions, setDismissedSuggestions] = useState<string[]>([]);
     const mockSuggestions = useMemo(() => {
-        // Simple deterministic mock based on strategy ID
         const suggestions = [];
         if (strategy.strategyId === 'strat_1') {
             suggestions.push({
+                id: 's1',
                 problem: "Data shows an 18% 'Exited Early' rate on winning trades with this strategy.",
                 suggestion: "Your TP rule is too vague. Define a partial take-profit rule at 1.5R and let the rest run.",
-                action: "Define a partial take-profit rule."
+                action: "Define a partial take-profit rule.",
+                patch: { field: "Take Profit Rule", before: "Target next liquidity level", after: "Take 50% at 1.5R, move SL to entry" }
             });
         }
         if (strategy.strategyId === 'strat_2') {
             suggestions.push({
+                id: 's2',
                 problem: "This strategy has a low win rate (38%) in 'Elevated' volatility.",
                 suggestion: "Add a context rule to avoid trading this strategy when the Crypto VIX is 'Elevated' or higher.",
-                action: "Add VIX context rule."
+                action: "Add VIX context rule.",
+                patch: { field: "VIX Policy", before: "Allow All", after: "Avoid Elevated/Extreme" }
             });
         }
         if (strategy.strategyId === 'strat_3') {
              suggestions.push({
+                id: 's3',
                 problem: "You have a high 'Moved SL' rate (25%) on this scalping strategy.",
                 suggestion: "Your stop loss might be too tight. Try setting it based on 1.5x ATR instead of just structure.",
-                action: "Update SL rule to use ATR."
+                action: "Update SL rule to use ATR.",
+                patch: { field: "Stop Loss Rule", before: "Above/below sweep wick", after: "Set at 1.5x ATR" }
             });
         }
         return suggestions;
     }, [strategy.strategyId]);
 
-    if (mockSuggestions.length === 0) return null;
-
     const handleApply = (actionText: string) => {
         onEdit(strategy, `Applied Arjun's suggestion: ${actionText}`);
     };
+
+    const handleDismiss = (id: string) => {
+        setDismissedSuggestions(prev => [...prev, id]);
+    };
+
+    const activeSuggestions = mockSuggestions.filter(s => !dismissedSuggestions.includes(s.id));
+
+    if (activeSuggestions.length === 0) return null;
 
     return (
         <Card className="bg-primary/10 border-primary/20">
@@ -443,13 +455,32 @@ function ArjunRefinementSuggestions({ strategy, onEdit }: { strategy: StrategyGr
                 <CardDescription>Based on the last {strategy.versions.reduce((acc, v) => acc + v.usageCount, 0)} trades, here are some recommended rule updates.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-                {mockSuggestions.map((s, i) => (
-                    <div key={i} className="p-3 bg-muted/50 rounded-md border-border/50">
+                {activeSuggestions.map((s, i) => (
+                    <div key={i} className="p-3 bg-muted/50 rounded-md border border-border/50">
                         <p className="text-sm text-amber-400/90"><strong className="font-semibold text-amber-400">Observation:</strong> {s.problem}</p>
                         <p className="text-sm text-foreground mt-2"><strong className="font-semibold text-primary">Suggestion:</strong> {s.suggestion}</p>
-                        <Button size="sm" variant="outline" className="mt-3" onClick={() => handleApply(s.action)}>
-                            <PlusCircle className="mr-2 h-4 w-4" /> Apply as new version
-                        </Button>
+                        
+                        <Card className="mt-3 bg-background/30">
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-xs">Patch Preview</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-sm">
+                                    <span className="text-muted-foreground">{s.patch.field}:</span>{' '}
+                                    <span className="text-destructive font-mono line-through">{s.patch.before}</span>{' '}
+                                    <ArrowRight className="inline h-3 w-3 mx-1" />{' '}
+                                    <span className="text-green-400 font-semibold font-mono">{s.patch.after}</span>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <div className="flex flex-wrap gap-2 mt-4">
+                            <Button size="sm" variant="outline" onClick={() => handleApply(s.action)}>
+                                <PlusCircle className="mr-2 h-4 w-4" /> Apply Patch as New Version
+                            </Button>
+                            <Button size="sm" variant="ghost" className="text-xs text-muted-foreground" onClick={() => handleDismiss(s.id)}>Dismiss</Button>
+                            <Button size="sm" variant="ghost" className="text-xs text-muted-foreground" onClick={() => handleDismiss(s.id)}>Remind me later</Button>
+                        </div>
                     </div>
                 ))}
             </CardContent>
@@ -2061,4 +2092,5 @@ export function StrategyManagementModule({ onSetModule, context }: StrategyManag
 
 
     
+
 
