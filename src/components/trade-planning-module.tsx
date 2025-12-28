@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Info, CheckCircle, Circle, AlertTriangle, FileText, ArrowRight, Gauge, ShieldCheck, XCircle, X, Lock, Loader2, Bookmark, Copy, RefreshCw, Sparkles, Clock, HelpCircle, ArrowLeft } from "lucide-react";
+import { Bot, Info, CheckCircle, Circle, AlertTriangle, FileText, ArrowRight, Gauge, ShieldCheck, XCircle, X, Lock, Loader2, Bookmark, Copy, RefreshCw, Sparkles, Clock, HelpCircle, ArrowLeft, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
@@ -31,6 +31,9 @@ import { formatDistanceToNow } from "date-fns";
 import type { JournalEntry } from "./trade-journal-module";
 import type { StrategyGroup as Strategy, RuleSet } from './strategy-management-module';
 import { useDailyCounters } from "@/hooks/use-daily-counters";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "./ui/command";
+import { Check } from "lucide-react";
 
 
 interface TradePlanningModuleProps {
@@ -1016,9 +1019,30 @@ interface PlanStepProps {
     setVixZone: (z: VixZone) => void;
 }
 
+const getStrategyHealth = (strategy: Strategy) => {
+    // This is mock logic. In a real app, this would be computed from analytics data.
+    const usage = strategy.versions.reduce((sum, v) => sum + v.usageCount, 0);
+    if (usage === 0) return "Needs Work";
+    if (strategy.strategyId === 'strat_1') return "Healthy";
+    if (strategy.strategyId === 'strat_2') return "Needs Work";
+    return "Risky";
+};
+
+const getRecommendedStatus = (strategy: Strategy, context: { instrument: string, session: string }) => {
+    if (strategy.name.toLowerCase().includes(context.instrument.split('-')[0].toLowerCase())) {
+        return "Symbol Match";
+    }
+    const activeVersion = strategy.versions.find(v => v.isActiveVersion);
+    if (activeVersion?.ruleSet.contextRules.allowedSessions.includes(context.session)) {
+        return "Session Match";
+    }
+    return null;
+}
+
 function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser, currentStep, draftToResume, onResume, onDiscard, entryChecklist, setEntryChecklist, session, setSession, vixZone, setVixZone }: PlanStepProps) {
     const entryType = useWatch({ control: form.control, name: 'entryType' });
     const strategyId = useWatch({ control: form.control, name: 'strategyId' });
+    const instrument = useWatch({ control: form.control, name: 'instrument' });
     
     const [selectedTemplate, setSelectedTemplate] = useState<string>(() => {
         if (typeof window !== 'undefined') {
@@ -1028,6 +1052,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
     });
     
     const [isStrategyDrawerOpen, setIsStrategyDrawerOpen] = useState(false);
+    const [isSelectorOpen, setIsSelectorOpen] = useState(false);
     const [availableStrategies, setAvailableStrategies] = useState<Strategy[]>([]);
     const [showArchivedWarning, setShowArchivedWarning] = useState(false);
 
@@ -1040,7 +1065,6 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
                     const activeStrategies = allStrategies.filter(s => s.status === 'active');
                     setAvailableStrategies(activeStrategies);
 
-                    // Check if a loaded strategyId is now archived
                     const currentStrategyId = form.getValues('strategyId');
                     if (currentStrategyId && !activeStrategies.some(s => s.strategyId === currentStrategyId)) {
                         setShowArchivedWarning(true);
@@ -1082,6 +1106,12 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
             [rule]: isChecked,
         });
     };
+
+    const handleStrategySelect = (stratId: string) => {
+        form.setValue('strategyId', stratId, { shouldValidate: true });
+        setIsSelectorOpen(false);
+    }
+    const selectedStrategyForDisplay = availableStrategies.find(s => s.strategyId === strategyId);
 
     return (
          <div className="grid lg:grid-cols-3 gap-8 items-start">
@@ -1231,17 +1261,82 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
                                 </Alert>
                             )}
                             <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] items-end gap-2">
-                                <FormField control={form.control} name="strategyId" render={({ field }) => (
-                                    <FormItem><FormLabel>Strategy*</FormLabel>
-                                    <Select onValueChange={field.onChange} value={field.value}>
-                                        <FormControl>
-                                            <SelectTrigger><SelectValue placeholder="Select from your playbook"/></SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            {availableStrategies.map(s => <SelectItem key={s.strategyId} value={s.strategyId}>{s.name} (v{s.versions.find(v => v.isActiveVersion)?.versionNumber || 1})</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
-                                    <FormMessage /></FormItem>
+                                 <FormField control={form.control} name="strategyId" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Strategy*</FormLabel>
+                                        <Popover open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
+                                            <PopoverTrigger asChild>
+                                                <FormControl>
+                                                    <Button
+                                                        variant="outline"
+                                                        role="combobox"
+                                                        className={cn(
+                                                            "w-full justify-between",
+                                                            !field.value && "text-muted-foreground"
+                                                        )}
+                                                    >
+                                                        {selectedStrategyForDisplay
+                                                            ? selectedStrategyForDisplay.name
+                                                            : "Select from your playbook"}
+                                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                    </Button>
+                                                </FormControl>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-full p-0" style={{ width: 'var(--radix-popover-trigger-width)' }}>
+                                                <Command>
+                                                    <CommandInput placeholder="Search strategy..." />
+                                                    <CommandEmpty>No strategy found.</CommandEmpty>
+                                                    <CommandGroup>
+                                                        <CommandList>
+                                                        {availableStrategies.map(strategy => {
+                                                            const health = getStrategyHealth(strategy);
+                                                            const activeVersion = strategy.versions.find(v => v.isActiveVersion);
+                                                            const recommendation = getRecommendedStatus(strategy, { instrument, session });
+
+                                                            const minRR = activeVersion?.ruleSet?.tpRules.minRR;
+                                                            const maxTrades = activeVersion?.ruleSet?.riskRules.maxDailyTrades;
+                                                            const vixPolicy = activeVersion?.ruleSet?.contextRules.vixPolicy;
+
+                                                            return (
+                                                                <CommandItem
+                                                                    value={strategy.name}
+                                                                    key={strategy.strategyId}
+                                                                    onSelect={() => handleStrategySelect(strategy.strategyId)}
+                                                                >
+                                                                    <div className="flex flex-col gap-2 w-full">
+                                                                        <div className="flex justify-between items-start">
+                                                                            <div>
+                                                                                <p className="font-semibold">{strategy.name} <span className="text-xs text-muted-foreground">v{activeVersion?.versionNumber}</span></p>
+                                                                                <div className="flex items-center gap-1.5 mt-1">
+                                                                                    {recommendation && <Badge className="text-xs bg-primary/10 text-primary">{recommendation}</Badge>}
+                                                                                    <Badge variant="outline" className="text-xs">{strategy.type}</Badge>
+                                                                                    {strategy.timeframes.map(tf => <Badge key={tf} variant="secondary" className="text-xs">{tf}</Badge>)}
+                                                                                </div>
+                                                                            </div>
+                                                                            <Badge variant={health === 'Healthy' ? 'secondary' : 'destructive'} className={cn(
+                                                                                "text-xs",
+                                                                                health === 'Healthy' && 'bg-green-500/10 text-green-400 border-green-500/20',
+                                                                                health === 'Needs Work' && 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+                                                                                health === 'Risky' && 'bg-red-500/10 text-red-400 border-red-500/20'
+                                                                            )}>{health}</Badge>
+                                                                        </div>
+                                                                         <div className="flex flex-wrap items-center gap-2">
+                                                                            {minRR && <Badge variant="outline" className="text-xs">RR ≥ {minRR}</Badge>}
+                                                                            {maxTrades && <Badge variant="outline" className="text-xs">Max {maxTrades} trades/day</Badge>}
+                                                                            {vixPolicy === 'avoidHigh' && <Badge variant="outline" className="text-xs">Avoid High VIX</Badge>}
+                                                                        </div>
+                                                                    </div>
+                                                                    <Check className={cn("ml-auto h-4 w-4", field.value === strategy.strategyId ? "opacity-100" : "opacity-0")} />
+                                                                </CommandItem>
+                                                            )
+                                                        })}
+                                                        </CommandList>
+                                                    </CommandGroup>
+                                                </Command>
+                                            </PopoverContent>
+                                        </Popover>
+                                        <FormMessage />
+                                    </FormItem>
                                 )}/>
                                 <Button type="button" variant="outline" size="sm" onClick={() => setIsStrategyDrawerOpen(true)} disabled={!strategyId}>
                                     View Details
