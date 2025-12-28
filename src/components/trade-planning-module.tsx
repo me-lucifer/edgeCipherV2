@@ -2378,7 +2378,7 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
                         )}
                     </div>
                     <h1 className="text-2xl font-bold tracking-tight text-foreground">Trade Planning</h1>
-                    <p className="text-muted-foreground">The heart of disciplined trading inside EdgeCipher.</p>
+                    <p className="text-muted-foreground">This is where every disciplined trade begins.</p>
                 </div>
                 <div className="flex items-center gap-2">
                      <TooltipProvider>
