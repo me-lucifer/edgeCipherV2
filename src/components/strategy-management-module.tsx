@@ -386,7 +386,7 @@ function StrategyDetailView({
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={onArchive}>
+                            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); onArchive(); }}>
                                 <Archive className="mr-2 h-4 w-4" />
                                 {strategy.status === 'active' ? 'Archive' : 'Restore'}
                             </DropdownMenuItem>
@@ -1091,6 +1091,7 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
     const [isDuplicateDialogOpen, setIsDuplicateDialogOpen] = useState(false);
     const [strategyToDuplicate, setStrategyToDuplicate] = useState<StrategyGroup | null>(null);
     const [newStrategyName, setNewStrategyName] = useState('');
+    const [dialogAction, setDialogAction] = useState<'archive' | 'delete' | null>(null);
 
     const [filters, setFilters] = useState<StrategyFilters>({
         search: '',
@@ -1154,7 +1155,7 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
         setFilters(prev => ({ ...prev, [key]: value }));
     };
     
-    const handleArchive = () => {
+    const confirmArchive = () => {
         if (!viewingStrategy) return;
         const newStatus = viewingStrategy.status === 'active' ? 'archived' : 'active';
         const updatedStrategies = strategies.map(s => 
@@ -1163,6 +1164,17 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
         updateStrategies(updatedStrategies);
         setViewingStrategy(prev => prev ? { ...prev, status: newStatus } : null);
         toast({ title: `Strategy ${newStatus === 'archived' ? 'Archived' : 'Restored'}` });
+        setDialogAction(null);
+    };
+
+    const confirmDelete = () => {
+        if (!viewingStrategy) return;
+        
+        const updatedStrategies = strategies.filter(s => s.strategyId !== viewingStrategy.strategyId);
+        updateStrategies(updatedStrategies);
+        setViewingStrategy(null);
+        toast({ title: "Strategy deleted" });
+        setDialogAction(null);
     };
 
     const handleMakeActive = (versionId: string) => {
@@ -1270,26 +1282,7 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
         setEditingStrategy(strategy);
         setViewMode('edit');
     };
-
-    const handleDelete = () => {
-        if (!viewingStrategy) return;
-        
-        const isUsed = viewingStrategy.versions.some(v => v.usageCount > 0);
-        if (isUsed) {
-            toast({
-                variant: 'destructive',
-                title: "Cannot delete strategy",
-                description: "This strategy has been used in executed trades and cannot be deleted."
-            });
-            return;
-        }
-
-        const updatedStrategies = strategies.filter(s => s.strategyId !== viewingStrategy.strategyId);
-        updateStrategies(updatedStrategies);
-        setViewingStrategy(null);
-        toast({ title: "Strategy deleted" });
-    };
-
+    
     const openDuplicateDialog = (strategy: StrategyGroup) => {
         setStrategyToDuplicate(strategy);
         setNewStrategyName(`${strategy.name} (Copy)`);
@@ -1371,13 +1364,14 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
     
     useEffect(() => {
         if(viewMode === 'create' && editingStrategy && editingStrategy.strategyId === 'temp_duplicate_id') {
-            const initialData: StrategyCreationValues = {
+            const activeVersion = editingStrategy.versions[0];
+            initialData = {
                 name: editingStrategy.name,
                 type: editingStrategy.type,
                 timeframes: editingStrategy.timeframes,
-                description: editingStrategy.versions[0].description,
-                difficulty: editingStrategy.versions[0].difficulty,
-                ruleSet: { ...editingStrategy.versions[0].ruleSet }
+                description: activeVersion.description,
+                difficulty: activeVersion.difficulty,
+                ruleSet: activeVersion.ruleSet
             };
 
             const event = new CustomEvent('populate-creator-form', { detail: initialData });
@@ -1429,8 +1423,8 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
         return <StrategyDetailView 
             strategy={viewingStrategy} 
             onBack={() => setViewingStrategy(null)}
-            onArchive={handleArchive}
-            onDelete={handleDelete}
+            onArchive={() => setDialogAction('archive')}
+            onDelete={() => setDialogAction('delete')}
             onMakeActive={handleMakeActive}
             onEdit={handleEdit}
             onSetModule={onSetModule}
@@ -1439,6 +1433,29 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
 
     return (
         <div className="space-y-8">
+             <AlertDialog open={dialogAction !== null} onOpenChange={(open) => !open && setDialogAction(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>
+                            {dialogAction === 'archive' ? `${viewingStrategy?.status === 'active' ? 'Archive' : 'Restore'} this strategy?` : 'Permanently delete this strategy?'}
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {dialogAction === 'archive' 
+                                ? "It will no longer be selectable in Trade Planning, but will remain in your analytics and journal history."
+                                : "This action cannot be undone. The strategy will be permanently removed."}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setDialogAction(null)}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={dialogAction === 'archive' ? confirmArchive : confirmDelete}
+                          className={dialogAction === 'delete' ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : ''}
+                        >
+                            {dialogAction === 'archive' ? (viewingStrategy?.status === 'active' ? 'Archive' : 'Restore') : 'Delete'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
             <Dialog open={isDuplicateDialogOpen} onOpenChange={setIsDuplicateDialogOpen}>
                  <DialogContentNonAlertDialog>
                     <DialogHeaderNonAlertDialog>
