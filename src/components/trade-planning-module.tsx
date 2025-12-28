@@ -1,4 +1,5 @@
 
+
       "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -1043,6 +1044,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
     const entryType = useWatch({ control: form.control, name: 'entryType' });
     const strategyId = useWatch({ control: form.control, name: 'strategyId' });
     const instrument = useWatch({ control: form.control, name: 'instrument' });
+    const { toast } = useToast();
     
     const [selectedTemplate, setSelectedTemplate] = useState<string>(() => {
         if (typeof window !== 'undefined') {
@@ -1088,9 +1090,6 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
             setShowArchivedWarning(false);
             const activeRuleset = strategy.versions.find(v => v.isActiveVersion)?.ruleSet;
             if (!activeRuleset) return;
-
-            form.setValue('riskPercent', activeRuleset.riskRules.riskPerTradePct, { shouldValidate: true });
-            form.setValue('leverage', activeRuleset.riskRules.leverageCap, { shouldValidate: true });
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [strategyId, availableStrategies]);
@@ -1108,8 +1107,21 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
     };
 
     const handleStrategySelect = (stratId: string) => {
+        const selectedStrat = availableStrategies.find(s => s.strategyId === stratId);
+        if (!selectedStrat) return;
+
+        const activeRuleset = selectedStrat.versions.find(v => v.isActiveVersion)?.ruleSet;
+        if (!activeRuleset) return;
+
         form.setValue('strategyId', stratId, { shouldValidate: true });
+        form.setValue('riskPercent', activeRuleset.riskRules.riskPerTradePct, { shouldValidate: true });
+        form.setValue('leverage', activeRuleset.riskRules.leverageCap, { shouldValidate: true });
         setIsSelectorOpen(false);
+
+        toast({
+            title: "Strategy Defaults Applied",
+            description: `Risk set to ${activeRuleset.riskRules.riskPerTradePct}% and Leverage to ${activeRuleset.riskRules.leverageCap}x.`,
+        });
     }
     const selectedStrategyForDisplay = availableStrategies.find(s => s.strategyId === strategyId);
 
