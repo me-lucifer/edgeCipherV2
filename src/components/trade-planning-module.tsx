@@ -532,7 +532,7 @@ function RuleChecks({ checks, onFix }: { checks: ValidationCheck[]; onFix: (fix:
 
     return (
         <div>
-            <h3 className="text-sm font-semibold text-foreground mb-3">Strategy Validation (Rulebook Firewall)</h3>
+            <h3 className="text-sm font-semibold text-foreground mb-3">Rulebook Firewall</h3>
             <div className="rounded-lg bg-muted/50 border border-border/50">
                 {groupedChecks.map(([category, group], index) => {
                     const status = getGroupStatus(group);

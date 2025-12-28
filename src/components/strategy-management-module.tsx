@@ -618,7 +618,7 @@ function StrategyDetailView({
                     ) : (
                         <Button onClick={() => onEdit(strategy, undefined)}>
                             <Edit className="mr-2 h-4 w-4" />
-                            Edit (creates new version)
+                            Create New Version
                         </Button>
                     )}
                      <DropdownMenu>
@@ -1974,16 +1974,16 @@ export function StrategyManagementModule({ onSetModule, context }: StrategyManag
 
             <div>
                 <h1 className="text-2xl font-bold tracking-tight text-foreground">Strategy Management</h1>
-                <p className="text-muted-foreground">Your rulebook. Every trade must belong to a strategy.</p>
+                <p className="text-muted-foreground">Your playbook of rulebooks. Every trade must belong to a strategy.</p>
             </div>
 
             <Card className="bg-muted/30 border-dashed border-2">
                  <CardContent className="p-6 text-center flex flex-col items-center">
                     <h2 className="text-xl font-bold">Define Your Playbook</h2>
                     <div className="text-muted-foreground mt-2 max-w-2xl text-center space-y-1 text-sm">
-                        <p>Create strategies as templates with strict, repeatable rules for entries, exits, and risk.</p>
-                        <p>The Trade Planning module validates every plan against these rules to enforce discipline.</p>
-                        <p>Edits create new versions of a strategy, preserving historical analytics to track what works over time.</p>
+                        <p>Build rulebooks with strict, repeatable rules for entries, exits, and risk.</p>
+                        <p>The Trade Planning module uses these rulebooks to enforce discipline.</p>
+                        <p>Edits create new versions, preserving historical analytics to track what works over time.</p>
                     </div>
                 </CardContent>
             </Card>
