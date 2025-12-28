@@ -31,6 +31,7 @@ import { Skeleton } from "./ui/skeleton";
 import { formatDistanceToNow } from "date-fns";
 import type { JournalEntry } from "./trade-journal-module";
 import type { StrategyGroup as Strategy, RuleSet } from './strategy-management-module';
+import { useDailyCounters } from "@/hooks/use-daily-counters";
 
 
 interface TradePlanningModuleProps {
@@ -155,6 +156,8 @@ const validatePlanAgainstStrategy = (plan: PlanInputs, strategy: RuleSet, contex
             requiresJustification: true
         };
     }
+
+    // H) SL presence is handled by Zod schema
 
     // A) Leverage cap
     validations.push({
@@ -863,6 +866,7 @@ function StrategyGuardrailChecklist({ strategyId, onSetModule, checkedRules, onC
 function PlanSummary({ control, setPlanStatus, onSetModule, entryChecklist }: { control: any, setPlanStatus: (status: PlanStatusType) => void, onSetModule: (module: any) => void, entryChecklist: Record<string, boolean> }) {
     const values = useWatch({ control }) as PlanFormValues;
     const { direction, entryPrice, stopLoss, takeProfit, riskPercent, accountCapital, justification, strategyId } = values;
+    const { totalTradesExecuted, lossStreak } = useDailyCounters();
 
     const [strategies, setStrategies] = useState<Strategy[]>([]);
     useEffect(() => {
@@ -887,7 +891,6 @@ function PlanSummary({ control, setPlanStatus, onSetModule, entryChecklist }: { 
         
         const scenario = localStorage.getItem('ec_demo_scenario') as DemoScenario | null;
         const vixZone = scenario === 'high_vol' ? 'Elevated' : 'Normal';
-        const lossStreak = scenario === 'drawdown' ? 3 : 0;
         
         const allEntryRulesChecked = (activeRuleset.entryRules.conditions || []).every(rule => entryChecklist[rule]);
 
@@ -898,13 +901,13 @@ function PlanSummary({ control, setPlanStatus, onSetModule, entryChecklist }: { 
             session: "New York" // Mock
         };
         const validationContext: ValidationContext = {
-            todayTradeCountAll: 2, // Mock
+            todayTradeCountAll: totalTradesExecuted,
             lossStreak,
             vixZone,
             allEntryRulesChecked,
         };
         return validatePlanAgainstStrategy(planInputs, activeRuleset, validationContext);
-    }, [values, activeRuleset, rrr, entryChecklist]);
+    }, [values, activeRuleset, rrr, entryChecklist, totalTradesExecuted, lossStreak]);
 
 
     let status: PlanStatusType = 'incomplete';
@@ -1361,6 +1364,7 @@ function ExecutionOptions({ form, onSetModule, executionHeadingRef, validationRe
     const [executionResult, setExecutionResult] = useState<{ tradeId: string, draftId: string } | null>(null);
     const { addLog } = useEventLog();
     const { toast } = useToast();
+    const { incrementTrades } = useDailyCounters();
 
     const values = form.getValues() as PlanFormValues;
     const { entryPrice, stopLoss, riskPercent, accountCapital, instrument } = values;
@@ -1372,6 +1376,8 @@ function ExecutionOptions({ form, onSetModule, executionHeadingRef, validationRe
     const handleExecute = () => {
         setIsExecuting(true);
         addLog("Executing trade plan (prototype)...");
+
+        incrementTrades(values.strategyId);
 
         setTimeout(() => {
             const tradeId = `DELTA-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
@@ -2192,3 +2198,4 @@ function SummaryRow({ label, value, className }: { label: string, value: string 
         </div>
     )
 }
+

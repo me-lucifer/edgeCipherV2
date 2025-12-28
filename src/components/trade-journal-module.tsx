@@ -39,6 +39,7 @@ import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "./ui/t
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
 import { Skeleton } from "./ui/skeleton";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerClose } from "./ui/drawer";
+import { useDailyCounters } from "@/hooks/use-daily-counters";
 
 
 export interface JournalFilters {
@@ -270,6 +271,7 @@ const presetContexts = ["News-driven day", "Major macro event", "Exchange outage
 
 function JournalReviewForm({ entry, onSubmit, onSetModule, onSaveDraft }: { entry: JournalEntry; onSubmit: (values: JournalEntry) => void; onSetModule: TradeJournalModuleProps['onSetModule'], onSaveDraft: () => void }) {
     const { toast } = useToast();
+    const { updateLossStreak } = useDailyCounters();
     const form = useForm<JournalEntry>({
       resolver: zodResolver(journalEntrySchema),
       defaultValues: entry,
@@ -286,6 +288,9 @@ function JournalReviewForm({ entry, onSubmit, onSetModule, onSaveDraft }: { entr
                 journalingCompletedAt: new Date().toISOString(),
             }
         };
+        if (finalEntry.review?.pnl) {
+            updateLossStreak(finalEntry.review.pnl < 0);
+        }
         onSubmit(finalEntry);
     };
 
@@ -756,7 +761,7 @@ const initialFilters: JournalFilters = {
     strategy: 'all',
 };
 
-function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filters: initialFiltersFromProps, setFilters, showUnjournaledOnly, setShowUnjournaledOnly, searchQuery, setSearchQuery, groupBy, setGroupBy }: { entries: JournalEntry[], updateEntry: (entry: JournalEntry) => void, onSetModule: TradeJournalModuleProps['onSetModule'], initialDraftId?: string, filters: Partial<JournalFilters>, setFilters: (filters: JournalFilters) => void, showUnjournaledOnly: boolean, setShowUnjournaledOnly: (show: boolean) => void, searchQuery: string, setSearchQuery: (query: string) => void, groupBy: GroupingOption, setGroupBy: (groupBy: GroupingOption) => void }) {
+function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filters, setFilters, showUnjournaledOnly, setShowUnjournaledOnly, searchQuery, setSearchQuery, groupBy, setGroupBy }: { entries: JournalEntry[], updateEntry: (entry: JournalEntry) => void, onSetModule: TradeJournalModuleProps['onSetModule'], initialDraftId?: string, filters: Partial<JournalFilters>, setFilters: (filters: JournalFilters) => void, showUnjournaledOnly: boolean, setShowUnjournaledOnly: (show: boolean) => void, searchQuery: string, setSearchQuery: (query: string) => void, groupBy: GroupingOption, setGroupBy: (groupBy: GroupingOption) => void }) {
     const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);
 
     const isMissingPsychData = (entry: JournalEntry) => {
@@ -2025,3 +2030,4 @@ export function TradeJournalModule({ onSetModule, draftId, filters: initialFilte
         </div>
     );
 }
+
