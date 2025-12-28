@@ -1029,6 +1029,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
     
     const [isStrategyDrawerOpen, setIsStrategyDrawerOpen] = useState(false);
     const [availableStrategies, setAvailableStrategies] = useState<Strategy[]>([]);
+    const [showArchivedWarning, setShowArchivedWarning] = useState(false);
 
     useEffect(() => {
         if (typeof window !== "undefined") {
@@ -1036,11 +1037,19 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
             if (stored) {
                 try {
                     const allStrategies: Strategy[] = JSON.parse(stored);
-                    setAvailableStrategies(allStrategies.filter(s => s.status === 'active'));
+                    const activeStrategies = allStrategies.filter(s => s.status === 'active');
+                    setAvailableStrategies(activeStrategies);
+
+                    // Check if a loaded strategyId is now archived
+                    const currentStrategyId = form.getValues('strategyId');
+                    if (currentStrategyId && !activeStrategies.some(s => s.strategyId === currentStrategyId)) {
+                        setShowArchivedWarning(true);
+                    }
+
                 } catch(e) { console.error("Could not parse strategies", e); }
             }
         }
-    }, []);
+    }, [form]);
 
     const viewedStrategy = availableStrategies.find(s => s.strategyId === strategyId) || null;
     const activeVersion = viewedStrategy?.versions.find(v => v.isActiveVersion);
@@ -1048,7 +1057,11 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
     useEffect(() => {
         if (strategyId && availableStrategies.length > 0) {
             const strategy = availableStrategies.find(s => s.strategyId === strategyId);
-            if (!strategy) return;
+            if (!strategy) {
+                 setShowArchivedWarning(true);
+                 return;
+            };
+            setShowArchivedWarning(false);
             const activeRuleset = strategy.versions.find(v => v.isActiveVersion)?.ruleSet;
             if (!activeRuleset) return;
 
@@ -1208,6 +1221,15 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
                         {/* Group D */}
                         <div className="p-4 bg-muted/50 rounded-lg space-y-4">
                             <h3 className="text-sm font-semibold text-muted-foreground">Strategy & Reasoning</h3>
+                            {showArchivedWarning && (
+                                <Alert variant="destructive">
+                                    <AlertTriangle className="h-4 w-4" />
+                                    <AlertTitle>Strategy Archived</AlertTitle>
+                                    <AlertDescription>
+                                        The strategy previously selected for this plan has been archived. Please select an active strategy to proceed.
+                                    </AlertDescription>
+                                </Alert>
+                            )}
                             <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] items-end gap-2">
                                 <FormField control={form.control} name="strategyId" render={({ field }) => (
                                     <FormItem><FormLabel>Strategy*</FormLabel>
@@ -2133,7 +2155,7 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
                     <p className="text-muted-foreground">The heart of disciplined trading inside EdgeCipher.</p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <TooltipProvider>
+                     <TooltipProvider>
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <Button variant="outline" size="icon" onClick={() => setIsWalkthroughOpen(true)}>
@@ -2183,7 +2205,7 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
                         </Button>
                     </div>
                 </Alert>
-            )}
+             )}
             
             {isBannerVisible && (
                  <Alert variant="destructive" className="bg-amber-950/60 border-amber-500/30 text-amber-300">
