@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { Switch } from "./ui/switch";
+import { Switch } from "@/components/ui/switch";
 import { Label } from "./ui/label";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Progress } from "./ui/progress";
@@ -886,6 +886,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
     const [isTourOpen, setIsTourOpen] = useState(false);
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'ascending' | 'descending' }>({ key: 'pnl', direction: 'descending' });
     const [isQAChecklistOpen, setIsQAChecklistOpen] = useState(false);
+    const [groupByVersion, setGroupByVersion] = useState(false);
 
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
@@ -1126,6 +1127,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                 },
                 meta: {
                     journalingCompletedAt: new Date(date.getTime() + (1000 * 60 * (150 + random() * 60))).toISOString(),
+                    strategyVersion: `v${1 + Math.floor(random() * 2)}`,
                     ruleAdherenceSummary: {
                         followedEntryRules: random() < 0.8,
                         movedSL: mistakes.includes("Moved SL"),
@@ -1149,8 +1151,42 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
 
     const sortedStrategies = useMemo(() => {
         if (!analyticsData?.current?.mockStrategyData) return [];
-        const sortableStrategies = [...analyticsData.current.mockStrategyData];
-        sortableStrategies.sort((a, b) => {
+        let dataToDisplay = [];
+
+        if (groupByVersion) {
+            dataToDisplay = analyticsData.current.mockStrategyData.map((s: any) => ({ ...s }));
+        } else {
+            const groupedByName: { [key: string]: any } = {};
+            analyticsData.current.mockStrategyData.forEach((s: any) => {
+                const baseName = s.name.replace(/ v\d+$/, '');
+                if (!groupedByName[baseName]) {
+                    groupedByName[baseName] = {
+                        name: baseName,
+                        trades: 0,
+                        pnl: 0,
+                        winRate: [],
+                        mistakeRate: [],
+                    };
+                }
+                groupedByName[baseName].trades += s.trades;
+                groupedByName[baseName].pnl += s.pnl;
+                groupedByName[baseName].winRate.push({ rate: s.winRate, trades: s.trades });
+                groupedByName[baseName].mistakeRate.push({ rate: s.mistakeRate, trades: s.trades });
+            });
+
+            dataToDisplay = Object.values(groupedByName).map(group => {
+                const totalTrades = group.trades;
+                const totalWinRateWeight = group.winRate.reduce((acc: number, curr: any) => acc + curr.rate * curr.trades, 0);
+                const totalMistakeRateWeight = group.mistakeRate.reduce((acc: number, curr: any) => acc + curr.rate * curr.trades, 0);
+                return {
+                    ...group,
+                    winRate: totalTrades > 0 ? totalWinRateWeight / totalTrades : 0,
+                    mistakeRate: totalTrades > 0 ? totalMistakeRateWeight / totalTrades : 0,
+                };
+            });
+        }
+
+        dataToDisplay.sort((a, b) => {
             if (sortConfig.key === 'name') {
                 return a.name.localeCompare(b.name) * (sortConfig.direction === 'ascending' ? 1 : -1);
             }
@@ -1162,8 +1198,8 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
             }
             return 0;
         });
-        return sortableStrategies;
-    }, [analyticsData, sortConfig]);
+        return dataToDisplay;
+    }, [analyticsData, sortConfig, groupByVersion]);
 
     const handleSort = (key: SortKey) => {
         let direction: 'ascending' | 'descending' = 'ascending';
@@ -1341,8 +1377,9 @@ ${JSON.stringify(data, null, 2)}
 
             <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
                 <div className={cn("flex flex-col md:flex-row md:items-center md:justify-between gap-4", isPresentationMode && "hidden")}>
-                    <TabsList className="grid w-full grid-cols-3 max-w-sm md:w-auto">
+                    <TabsList className="grid w-full grid-cols-4 max-w-lg md:w-auto">
                         <TabsTrigger value="overview">Overview</TabsTrigger>
+                        <TabsTrigger value="by-strategy">By Strategy</TabsTrigger>
                         <TabsTrigger value="discipline">Discipline</TabsTrigger>
                         <TabsTrigger value="by-behaviour">By Behaviour</TabsTrigger>
                     </TabsList>
@@ -1566,6 +1603,44 @@ ${JSON.stringify(data, null, 2)}
                         onClear={() => setSelectedBehavior(null)}
                         onOpenJournal={(journalId) => onSetModule('tradeJournal', { draftId: journalId })}
                     />
+                </TabsContent>
+                <TabsContent value="by-strategy" className="mt-6 space-y-8">
+                    <SectionCard
+                        title="Performance by Strategy"
+                        description="Which of your rulebooks is actually performing?"
+                        icon={BrainCircuit}
+                         headerContent={
+                            <div className="flex items-center space-x-2">
+                                <Switch id="group-by-version" checked={groupByVersion} onCheckedChange={setGroupByVersion} />
+                                <Label htmlFor="group-by-version" className="text-sm">Group by version</Label>
+                            </div>
+                        }
+                    >
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <SortableHeader sortKey="name" label="Strategy" sortConfig={sortConfig} onSort={handleSort} />
+                                    <TableHead>Trades</TableHead>
+                                    <SortableHeader sortKey="winRate" label="Win Rate" sortConfig={sortConfig} onSort={handleSort} />
+                                    <SortableHeader sortKey="pnl" label="Total PnL" sortConfig={sortConfig} onSort={handleSort} />
+                                    <SortableHeader sortKey="mistakeRate" label="Mistake Rate" sortConfig={sortConfig} onSort={handleSort} />
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {sortedStrategies.map((strat: any) => (
+                                    <TableRow key={strat.name}>
+                                        <TableCell className="font-medium">{strat.name}</TableCell>
+                                        <TableCell>{strat.trades}</TableCell>
+                                        <TableCell>{strat.winRate.toFixed(0)}%</TableCell>
+                                        <TableCell className={cn("font-mono", strat.pnl >= 0 ? "text-green-400" : "text-red-400")}>
+                                            {strat.pnl >= 0 ? '+' : ''}${strat.pnl.toFixed(2)}
+                                        </TableCell>
+                                        <TableCell>{strat.mistakeRate.toFixed(0)}%</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </SectionCard>
                 </TabsContent>
                  <TabsContent value="discipline" className="mt-6 space-y-8">
                     <SectionCard
@@ -1810,35 +1885,34 @@ const computeSinglePeriodAnalytics = (entries: JournalEntry[], random: () => num
       }))
       .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-      const mockStrategyData = ["Breakout Trend", "Mean Reversion", "Trend Following", "Range Play"].map(name => {
-        const strategyEntries = entries.filter(e => e.technical.strategy === name);
-        const completed = strategyEntries.filter(e => e.status === 'completed');
-        const wins = completed.filter(e => e.review && e.review.pnl > 0).length;
-        const totalCompleted = completed.length;
-        const pnl = completed.reduce((sum, e) => sum + (e.review?.pnl || 0), 0);
-        
-        let mistakeCount = 0;
-        const topMistakes: Record<string, number> = {};
-        completed.forEach(e => {
-            if (e.meta.ruleAdherenceSummary && Object.values(e.meta.ruleAdherenceSummary).some(v => v === false)) {
-                mistakeCount++;
-                if (e.meta.ruleAdherenceSummary.movedSL) topMistakes['Moved SL'] = (topMistakes['Moved SL'] || 0) + 1;
-                if (e.meta.ruleAdherenceSummary.rrBelowMin) topMistakes['Low R:R'] = (topMistakes['Low R:R'] || 0) + 1;
-            }
-        });
-        const topMistake = Object.entries(topMistakes).sort((a,b) => b[1] - a[1])[0]?.[0] || 'N/A';
+      const mockStrategyData = Object.values(entries.reduce((acc, entry) => {
+        const strategyName = entry.technical.strategy || 'Uncategorized';
+        const version = entry.meta.strategyVersion || 'v1';
+        const key = `${strategyName} ${version}`;
 
-        return {
-            name,
-            trades: strategyEntries.length,
-            winRate: totalCompleted > 0 ? (wins / totalCompleted) * 100 : 0,
-            mistakeRate: totalCompleted > 0 ? (mistakeCount / totalCompleted) * 100 : 0,
-            avgR: 1.2 + (random() - 0.5),
-            pnl,
-            topMistake,
-            emotionMix: [{emotion: 'Confident', percentage: 40 + Math.random() * 10}, {emotion: 'Anxious', percentage: 20 + Math.random() * 10}],
-        };
-    });
+        if (!acc[key]) {
+            acc[key] = {
+                name: key,
+                trades: 0,
+                pnl: 0,
+                wins: 0,
+                mistakes: 0,
+            };
+        }
+        acc[key].trades++;
+        if (entry.status === 'completed' && entry.review) {
+            if (entry.review.pnl > 0) acc[key].wins++;
+            if (entry.review.mistakesTags && entry.review.mistakesTags !== "None (disciplined)") {
+                acc[key].mistakes++;
+            }
+            acc[key].pnl += entry.review.pnl;
+        }
+        return acc;
+    }, {} as Record<string, any>)).map(s => ({
+        ...s,
+        winRate: s.trades > 0 ? (s.wins / s.trades) * 100 : 0,
+        mistakeRate: s.trades > 0 ? (s.mistakes / s.trades) * 100 : 0,
+    }));
 
 
     const timingHeatmapData = {
@@ -1915,4 +1989,5 @@ const computeSinglePeriodAnalytics = (entries: JournalEntry[], random: () => num
         disciplineByVolatility,
     };
   }
+
 
