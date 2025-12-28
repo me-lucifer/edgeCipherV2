@@ -3,7 +3,7 @@
       "use client";
 
 import { Button } from "@/components/ui/button";
-import { BrainCircuit, PlusCircle, CheckCircle, Search, Filter as FilterIcon, Clock, ListOrdered, FileText, Gauge, Calendar, ShieldCheck, Zap, MoreHorizontal, ArrowLeft, Edit, Archive, Star, BookOpen, BarChartHorizontal, Trash2, ChevronsUpDown, Info, Check, Save, Copy, CircleDashed, ArrowRight, X, AlertTriangle, ChevronUp, Scale, Lightbulb, User } from "lucide-react";
+import { BrainCircuit, PlusCircle, CheckCircle, Search, Filter as FilterIcon, Clock, ListOrdered, FileText, Gauge, Calendar, ShieldCheck, Zap, MoreHorizontal, ArrowLeft, Edit, Archive, Star, BookOpen, BarChartHorizontal, Trash2, ChevronsUpDown, Info, Check, Save, Copy, CircleDashed, ArrowRight, X, AlertTriangle, ChevronUp, Scale, Lightbulb, User, HeartPulse } from "lucide-react";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -23,9 +23,10 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Textarea } from "./ui/textarea";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "./ui/form";
 import { Checkbox } from "./ui/checkbox";
-import { Dialog, DialogClose, DialogContent as DialogContentNonAlertDialog, DialogFooter as DialogFooterNonAlertDialog, DialogHeader as DialogHeaderNonAlertDialog, DialogTitle as DialogTitleNonAlertDialog } from "./ui/dialog";
+import { Dialog, DialogClose, DialogContent as DialogContentNonAlertDialog, DialogFooter as DialogFooterNonAlertDialog, DialogHeader as DialogHeaderNonAlertDialog, DialogTitle as DialogTitleNonAlertDialog, DialogDescription as DialogDescriptionNonAlertDialog } from "./ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 
 
 interface StrategyManagementModuleProps {
@@ -100,7 +101,7 @@ export type StrategyGroup = {
 };
 
 // =================================================================
-// MOCK DATA
+// MOCK DATA & HELPERS
 // =================================================================
 const seedStrategies: StrategyGroup[] = [
     {
@@ -189,6 +190,34 @@ const seedStrategies: StrategyGroup[] = [
     }
 ];
 
+const getStrategyHealth = (strategy: StrategyGroup) => {
+    const usage = strategy.versions.reduce((sum, v) => sum + v.usageCount, 0);
+    if (usage === 0) {
+        return {
+            status: "Needs Work",
+            breakdown: { topBreach: "N/A", topEmotion: "N/A", bestCondition: "Not enough data" }
+        };
+    }
+    
+    // Mock logic based on strategy ID
+    if (strategy.strategyId === 'strat_1') {
+        return {
+            status: "Healthy",
+            breakdown: { topBreach: "None", topEmotion: "Focused", bestCondition: "Normal VIX / New York Session" }
+        };
+    }
+    if (strategy.strategyId === 'strat_2') {
+        return {
+            status: "Needs Work",
+            breakdown: { topBreach: "Exited Early", topEmotion: "Anxious", bestCondition: "Normal VIX / London Session" }
+        };
+    }
+    return {
+        status: "Risky",
+        breakdown: { topBreach: "Moved SL", topEmotion: "FOMO", bestCondition: "None (unprofitable)" }
+    };
+};
+
 type SortOption = 'recentlyUsed' | 'mostUsed' | 'recentlyCreated';
 
 interface StrategyFilters {
@@ -197,6 +226,10 @@ interface StrategyFilters {
     timeframe: string;
     sort: SortOption;
 }
+
+// =================================================================
+// UI COMPONENTS
+// =================================================================
 
 const InfoTooltip = ({ text, children }: { text: React.ReactNode, children: React.ReactNode }) => {
     return (
@@ -224,6 +257,7 @@ const RuleItem = ({ icon: Icon, label, value, unit }: { icon: React.ElementType,
 function StrategyCard({ strategy, onOpen, onEdit, onDuplicate }: { strategy: StrategyGroup, onOpen: (strategy: StrategyGroup) => void, onEdit: (strategy: StrategyGroup) => void, onDuplicate: (strategy: StrategyGroup) => void }) {
     const activeVersion = strategy.versions.find(v => v.isActiveVersion);
     const totalUsage = strategy.versions.reduce((sum, v) => sum + v.usageCount, 0);
+    const health = getStrategyHealth(strategy);
 
     const { riskPerTradePct, maxDailyLossPct, maxDailyTrades, leverageCap } = activeVersion?.ruleSet?.riskRules || {};
     const { allowedSessions, vixPolicy } = activeVersion?.ruleSet?.contextRules || {};
@@ -233,12 +267,32 @@ function StrategyCard({ strategy, onOpen, onEdit, onDuplicate }: { strategy: Str
             <CardHeader>
                 <div className="flex justify-between items-start">
                     <CardTitle className="text-base">{strategy.name}</CardTitle>
-                    <Badge variant={strategy.status === 'active' ? 'secondary' : strategy.status === 'draft' ? 'outline' : 'destructive'} className={cn(
-                        strategy.status === 'active' && 'bg-green-500/10 text-green-400 border-green-500/20',
-                        strategy.status === 'draft' && 'border-amber-500/30 text-amber-400'
-                    )}>
-                        {strategy.status.charAt(0).toUpperCase() + strategy.status.slice(1)}
-                    </Badge>
+                     <Popover>
+                        <PopoverTrigger asChild>
+                            <Badge variant={health.status === 'Healthy' ? 'secondary' : 'destructive'} className={cn(
+                                "cursor-pointer",
+                                health.status === 'Healthy' && 'bg-green-500/10 text-green-400 border-green-500/20',
+                                health.status === 'Needs Work' && 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+                                health.status === 'Risky' && 'bg-red-500/10 text-red-400 border-red-500/20'
+                            )}>
+                                <HeartPulse className="mr-1.5 h-3 w-3" />
+                                Health: {health.status}
+                            </Badge>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80">
+                            <div className="grid gap-4">
+                                <div className="space-y-2">
+                                    <h4 className="font-medium leading-none">Strategy Health Breakdown</h4>
+                                    <p className="text-sm text-muted-foreground">Mock analytics for this strategy.</p>
+                                </div>
+                                <div className="grid gap-2 text-sm">
+                                    <div className="grid grid-cols-2 items-center gap-4"><span>Top Breach:</span><Badge variant="outline" className="justify-center">{health.breakdown.topBreach}</Badge></div>
+                                    <div className="grid grid-cols-2 items-center gap-4"><span>Top Emotion:</span><Badge variant="outline" className="justify-center">{health.breakdown.topEmotion}</Badge></div>
+                                    <div className="grid grid-cols-2 items-center gap-4"><span>Best Condition:</span><span>{health.breakdown.bestCondition}</span></div>
+                                </div>
+                            </div>
+                        </PopoverContent>
+                    </Popover>
                 </div>
                 <CardDescription>
                     <Badge variant="outline">{strategy.type}</Badge>
@@ -255,13 +309,6 @@ function StrategyCard({ strategy, onOpen, onEdit, onDuplicate }: { strategy: Str
                         <RuleItem icon={Gauge} label="Max loss/day" value={maxDailyLossPct} unit="%" />
                         <RuleItem icon={ListOrdered} label="Max trades/day" value={maxDailyTrades} />
                         <RuleItem icon={FileText} label="Leverage cap" value={leverageCap} unit="x" />
-                    </div>
-                </div>
-                <div className="p-3 rounded-md bg-muted border space-y-3">
-                    <h4 className="font-semibold text-xs text-muted-foreground">Context Rules Snapshot</h4>
-                     <div className="grid grid-cols-2 gap-2">
-                        <RuleItem icon={Clock} label="Session" value={(allowedSessions || []).join(', ') || "Any"} />
-                        <RuleItem icon={Calendar} label="Volatility" value={vixPolicy || 'Any'} />
                     </div>
                 </div>
             </CardContent>
@@ -1758,7 +1805,7 @@ export function StrategyManagementModule({ onSetModule, context }: StrategyManag
                 <DialogContentNonAlertDialog className="max-w-4xl">
                     <DialogHeaderNonAlertDialog>
                         <DialogTitleNonAlertDialog>Compare Strategy Versions</DialogTitleNonAlertDialog>
-                        <DialogDescription>See what changed between two versions of your rulebook.</DialogDescription>
+                        <DialogDescriptionNonAlertDialog>See what changed between two versions of your rulebook.</DialogDescriptionNonAlertDialog>
                     </DialogHeaderNonAlertDialog>
                     <div className="py-4 space-y-4">
                         <div className="grid grid-cols-2 gap-4">
