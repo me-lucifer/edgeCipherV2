@@ -1,6 +1,6 @@
 
 
-"use client";
+      "use client";
 
 import { useState, useEffect, useRef } from "react";
 import { useForm, useWatch } from "react-hook-form";
@@ -92,7 +92,7 @@ type SavedDraft = {
 };
 
 // Validation Engine Types
-type ValidationStatus = "PASS" | "WARN" | "FAIL" | "N/A";
+type ValidationStatus = "PASS" | "WARN" | "FAIL";
 type ValidationCheck = {
   ruleId: string;
   title: string;
@@ -105,12 +105,14 @@ type ValidationOutput = {
   overallStatus: "PASS" | "WARN" | "FAIL";
   requiresJustification: boolean;
 };
+
 type PlanInputs = {
     leverage: number;
     riskPct: number;
     rr: number;
     session: "Asia" | "London" | "New York"; // Mocked
 };
+
 type ValidationContext = {
     todayTradeCountAll: number;
     lossStreak: number;
@@ -120,37 +122,47 @@ type ValidationContext = {
 // The Validation Engine
 const validatePlanAgainstStrategy = (plan: PlanInputs, strategy: RuleSet, context: ValidationContext): ValidationOutput => {
     const validations: ValidationCheck[] = [];
+    const { riskRules, tpRules, contextRules } = strategy;
 
-    // Risk Rules
-    validations.push({
-        ruleId: 'riskPerTrade',
-        title: `Risk per trade <= ${strategy.riskRules.riskPerTradePct}%`,
-        status: plan.riskPct > strategy.riskRules.riskPerTradePct ? "FAIL" : "PASS",
-        message: plan.riskPct > strategy.riskRules.riskPerTradePct 
-            ? `Your plan risks ${plan.riskPct}%, exceeding the strategy's max of ${strategy.riskRules.riskPerTradePct}%.`
-            : "Risk is within strategy limits.",
-        fixHint: "Lower your Risk %."
-    });
-
-    validations.push({
-        ruleId: 'maxDailyTrades',
-        title: `Max daily trades <= ${strategy.riskRules.maxDailyTrades}`,
-        status: context.todayTradeCountAll >= strategy.riskRules.maxDailyTrades ? "FAIL" : "PASS",
-        message: context.todayTradeCountAll >= strategy.riskRules.maxDailyTrades
-            ? `You've already made ${context.todayTradeCountAll} trades today. Your limit is ${strategy.riskRules.maxDailyTrades}.`
-            : "Within daily trade limit.",
-    });
-
+    // A) Leverage cap
     validations.push({
         ruleId: 'leverageCap',
-        title: `Leverage <= ${strategy.riskRules.leverageCap}x`,
-        status: plan.leverage > strategy.riskRules.leverageCap ? "WARN" : "PASS",
-        message: plan.leverage > strategy.riskRules.leverageCap
-            ? `Leverage of ${plan.leverage}x is higher than the strategy's recommended cap of ${strategy.riskRules.leverageCap}x.`
-            : "Leverage is within strategy limits."
+        title: `Leverage <= ${riskRules.leverageCap}x`,
+        status: plan.leverage > riskRules.leverageCap ? "FAIL" : "PASS",
+        message: plan.leverage > riskRules.leverageCap
+            ? `Leverage of ${plan.leverage}x exceeds strategy max of ${riskRules.leverageCap}x.`
+            : `Leverage is within strategy limits.`
     });
 
-    if (strategy.riskRules.cooldownAfterLosses && context.lossStreak >= 2) {
+    // B) Risk per trade
+    const riskDifference = plan.riskPct - riskRules.riskPerTradePct;
+    let riskStatus: ValidationStatus = "PASS";
+    if (riskDifference > 0.25) {
+        riskStatus = "FAIL";
+    } else if (riskDifference > 0) {
+        riskStatus = "WARN";
+    }
+    validations.push({
+        ruleId: 'riskPerTrade',
+        title: `Risk per trade <= ${riskRules.riskPerTradePct}%`,
+        status: riskStatus,
+        message: riskStatus === "PASS"
+            ? `Risk of ${plan.riskPct}% is within strategy limits.`
+            : `Plan risks ${plan.riskPct}%, which is over the strategy's ${riskRules.riskPerTradePct}% limit.`
+    });
+
+    // C) Max daily trades
+    validations.push({
+        ruleId: 'maxDailyTrades',
+        title: `Max daily trades <= ${riskRules.maxDailyTrades}`,
+        status: context.todayTradeCountAll >= riskRules.maxDailyTrades ? "FAIL" : "PASS",
+        message: context.todayTradeCountAll >= riskRules.maxDailyTrades
+            ? `You've already made ${context.todayTradeCountAll} trades today. Your limit is ${riskRules.maxDailyTrades}.`
+            : "Within daily trade limit."
+    });
+
+    // D) Cooldown after losses
+    if (riskRules.cooldownAfterLosses && context.lossStreak >= 2) {
         validations.push({
             ruleId: 'cooldown',
             title: `Cooldown after ${2} losses`,
@@ -159,35 +171,51 @@ const validatePlanAgainstStrategy = (plan: PlanInputs, strategy: RuleSet, contex
         });
     }
 
-    // TP Rules
-    if (strategy.tpRules.minRR && plan.rr > 0) {
+    // E) RR minimum
+    if (tpRules.minRR && plan.rr > 0) {
         validations.push({
             ruleId: 'minRR',
-            title: `R:R Ratio >= ${strategy.tpRules.minRR}`,
-            status: plan.rr < strategy.tpRules.minRR ? "WARN" : "PASS",
-            message: plan.rr < strategy.tpRules.minRR
-                ? `R:R of ${plan.rr.toFixed(2)} is below the strategy minimum of ${strategy.tpRules.minRR}.`
+            title: `R:R Ratio >= ${tpRules.minRR}`,
+            status: plan.rr < tpRules.minRR ? "FAIL" : "PASS",
+            message: plan.rr < tpRules.minRR
+                ? `R:R of ${plan.rr.toFixed(2)} is below the required minimum of ${tpRules.minRR}.`
                 : "R:R meets minimum requirement."
         });
     }
 
-    // Context Rules
-    if (strategy.contextRules.vixPolicy !== 'allowAll') {
-        let status: ValidationStatus = 'PASS';
-        if (strategy.contextRules.vixPolicy === 'avoidHigh' && (context.vixZone === 'Elevated' || context.vixZone === 'Extreme')) {
-            status = 'WARN';
+    // F) VIX policy
+    if (contextRules.vixPolicy !== 'allowAll') {
+        let vixStatus: ValidationStatus = 'PASS';
+        let message = "Volatility is within strategy parameters.";
+        if (contextRules.vixPolicy === 'avoidHigh' && (context.vixZone === 'Elevated' || context.vixZone === 'Extreme')) {
+            vixStatus = 'WARN';
+            message = `Current VIX is '${context.vixZone}', which this strategy suggests avoiding.`;
         }
-        if (strategy.contextRules.vixPolicy === 'onlyLowNormal' && (context.vixZone === 'Elevated' || context.vixZone === 'Extreme')) {
-            status = 'FAIL';
+        if (contextRules.vixPolicy === 'onlyLowNormal' && (context.vixZone === 'Elevated' || context.vixZone === 'Extreme')) {
+            vixStatus = 'FAIL';
+            message = `Strategy requires 'Calm' or 'Normal' VIX, but it is currently '${context.vixZone}'.`;
         }
         validations.push({
             ruleId: 'vixPolicy',
-            title: `VIX Policy: ${strategy.contextRules.vixPolicy}`,
-            status,
-            message: status !== 'PASS' ? `Current VIX is '${context.vixZone}', which conflicts with your strategy rule.` : "Volatility is within strategy parameters."
+            title: `VIX Policy: ${contextRules.vixPolicy}`,
+            status: vixStatus,
+            message: message
         });
     }
 
+    // G) Session restriction
+    if (contextRules.allowedSessions && contextRules.allowedSessions.length > 0) {
+        const isAllowed = contextRules.allowedSessions.includes(plan.session);
+        validations.push({
+            ruleId: 'session',
+            title: `Session in [${contextRules.allowedSessions.join(', ')}]`,
+            status: isAllowed ? 'PASS' : 'WARN',
+            message: isAllowed
+                ? 'Trading within allowed session.'
+                : `Current session (${plan.session}) is outside of this strategy's allowed sessions.`
+        });
+    }
+    
     const overallStatus = validations.some(v => v.status === 'FAIL') ? 'FAIL'
                         : validations.some(v => v.status === 'WARN') ? 'WARN'
                         : 'PASS';
@@ -342,7 +370,6 @@ const StatusBadge = ({ status }: { status: ValidationStatus }) => {
         "PASS": "bg-green-500/20 text-green-400 border-green-500/30",
         "WARN": "bg-amber-500/20 text-amber-400 border-amber-500/30",
         "FAIL": "bg-red-500/20 text-red-400 border-red-500/30",
-        "N/A": "bg-muted text-muted-foreground border-border",
     };
     return <Badge variant="secondary" className={cn("text-xs font-mono", config[status])}>{status}</Badge>;
 }
@@ -1981,14 +2008,12 @@ const RuleCheckRow = ({ check }: { check: ValidationCheck }) => {
         PASS: CheckCircle,
         WARN: AlertTriangle,
         FAIL: XCircle,
-        "N/A": Circle
     }[check.status];
 
     const color = {
         PASS: 'text-green-400',
         WARN: 'text-amber-400',
         FAIL: 'text-destructive',
-        "N/A": 'text-muted-foreground'
     }[check.status];
 
     return (
