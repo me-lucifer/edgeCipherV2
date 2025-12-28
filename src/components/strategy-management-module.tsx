@@ -3,7 +3,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { BrainCircuit, PlusCircle, CheckCircle, Search, Filter as FilterIcon, Clock, ListOrdered, FileText, Gauge, Calendar, ShieldCheck, Zap, MoreHorizontal, ArrowLeft, Edit, Archive, Star, BookOpen, BarChartHorizontal, Trash2, ChevronsUpDown, Info, Check, Save, Copy, CircleDashed, ArrowRight, X, AlertTriangle, ChevronUp, Scale } from "lucide-react";
+import { BrainCircuit, PlusCircle, CheckCircle, Search, Filter as FilterIcon, Clock, ListOrdered, FileText, Gauge, Calendar, ShieldCheck, Zap, MoreHorizontal, ArrowLeft, Edit, Archive, Star, BookOpen, BarChartHorizontal, Trash2, ChevronsUpDown, Info, Check, Save, Copy, CircleDashed, ArrowRight, X, AlertTriangle, ChevronUp, Scale, Lightbulb } from "lucide-react";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -337,6 +337,61 @@ const WhereThisMatters = ({ onSetModule }: { onSetModule: (module: any, context?
     );
 };
 
+function ArjunRefinementSuggestions({ strategy, onEdit }: { strategy: StrategyGroup; onEdit: (strategy: StrategyGroup, changeNotes?: string) => void; }) {
+    const mockSuggestions = useMemo(() => {
+        // Simple deterministic mock based on strategy ID
+        const suggestions = [];
+        if (strategy.strategyId === 'strat_1') {
+            suggestions.push({
+                problem: "Data shows an 18% 'Exited Early' rate on winning trades with this strategy.",
+                suggestion: "Your TP rule is too vague. Define a partial take-profit rule at 1.5R and let the rest run.",
+                action: "Define a partial take-profit rule."
+            });
+        }
+        if (strategy.strategyId === 'strat_2') {
+            suggestions.push({
+                problem: "This strategy has a low win rate (38%) in 'Elevated' volatility.",
+                suggestion: "Add a context rule to avoid trading this strategy when the Crypto VIX is 'Elevated' or higher.",
+                action: "Add VIX context rule."
+            });
+        }
+        if (strategy.strategyId === 'strat_3') {
+             suggestions.push({
+                problem: "You have a high 'Moved SL' rate (25%) on this scalping strategy.",
+                suggestion: "Your stop loss might be too tight. Try setting it based on 1.5x ATR instead of just structure.",
+                action: "Update SL rule to use ATR."
+            });
+        }
+        return suggestions;
+    }, [strategy.strategyId]);
+
+    if (mockSuggestions.length === 0) return null;
+
+    const handleApply = (actionText: string) => {
+        onEdit(strategy, `Applied Arjun's suggestion: ${actionText}`);
+    };
+
+    return (
+        <Card className="bg-primary/10 border-primary/20">
+            <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2"><Lightbulb className="h-5 w-5 text-primary" /> Arjun's Refinement Suggestions</CardTitle>
+                <CardDescription>Based on the last {strategy.versions.reduce((acc, v) => acc + v.usageCount, 0)} trades, here are some recommended rule updates.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                {mockSuggestions.map((s, i) => (
+                    <div key={i} className="p-3 bg-muted/50 rounded-md border-border/50">
+                        <p className="text-sm text-amber-400/90"><strong className="font-semibold text-amber-400">Observation:</strong> {s.problem}</p>
+                        <p className="text-sm text-foreground mt-2"><strong className="font-semibold text-primary">Suggestion:</strong> {s.suggestion}</p>
+                        <Button size="sm" variant="outline" className="mt-3" onClick={() => handleApply(s.action)}>
+                            <PlusCircle className="mr-2 h-4 w-4" /> Apply Suggestion
+                        </Button>
+                    </div>
+                ))}
+            </CardContent>
+        </Card>
+    );
+}
+
 function StrategyDetailView({ 
     strategy, 
     onBack,
@@ -353,7 +408,7 @@ function StrategyDetailView({
     onArchive: () => void;
     onDelete: () => void;
     onMakeActive: (versionId: string) => void;
-    onEdit: (strategy: StrategyGroup) => void;
+    onEdit: (strategy: StrategyGroup, changeNotes?: string) => void;
     onSetModule: (module: any, context?: any) => void;
     onOpenCompare: () => void;
     initialVersionId?: string;
@@ -380,7 +435,7 @@ function StrategyDetailView({
                         <Scale className="mr-2 h-4 w-4" />
                         Compare versions
                     </Button>
-                    <Button variant="outline" onClick={() => onEdit(strategy)}>
+                    <Button variant="outline" onClick={() => onEdit(strategy, undefined)}>
                         <Edit className="mr-2 h-4 w-4" />
                         Edit (creates new version)
                     </Button>
@@ -431,6 +486,8 @@ function StrategyDetailView({
 
             <div className="space-y-6">
                 <WhereThisMatters onSetModule={onSetModule} />
+
+                {totalUsageCount >= 30 && <ArjunRefinementSuggestions strategy={strategy} onEdit={onEdit} />}
 
                 <div className="grid lg:grid-cols-3 gap-8 items-start">
                     {/* Left Column */}
@@ -1385,8 +1442,22 @@ export function StrategyManagementModule({ onSetModule, context }: StrategyManag
         setEditingStrategy(null);
     };
 
-    const handleEdit = (strategy: StrategyGroup) => {
+    const handleEdit = (strategy: StrategyGroup, changeNotes?: string) => {
         setViewingStrategy(null);
+        const activeVersion = strategy.versions.find(v => v.isActiveVersion);
+        if (activeVersion) {
+            const initialData = { 
+                name: strategy.name, 
+                type: strategy.type, 
+                timeframes: strategy.timeframes, 
+                changeNotes: changeNotes || '',
+                description: activeVersion.description,
+                difficulty: activeVersion.difficulty,
+                ruleSet: activeVersion.ruleSet
+            };
+            const event = new CustomEvent('populate-creator-form', { detail: initialData });
+            window.dispatchEvent(event);
+        }
         setEditingStrategy(strategy);
         setViewMode('edit');
     };
@@ -1471,7 +1542,7 @@ export function StrategyManagementModule({ onSetModule, context }: StrategyManag
     const timeframes = ['All', '1m', '5m', '15m', '1H', '4H', '1D'];
     
     useEffect(() => {
-        if(viewMode === 'create' && editingStrategy && editingStrategy.strategyId === 'temp_duplicate_id') {
+        if(viewMode === 'create' && editingStrategy && editingStrategy.strategyId === 'temp_duplicate_id'){
             const activeVersion = editingStrategy.versions[0];
             const initialData: StrategyCreationValues = {
                 name: editingStrategy.name,
@@ -1739,7 +1810,7 @@ export function StrategyManagementModule({ onSetModule, context }: StrategyManag
                                                 key={strategy.strategyId} 
                                                 strategy={strategy} 
                                                 onOpen={setViewingStrategy} 
-                                                onEdit={handleEdit} 
+                                                onEdit={(s) => handleEdit(s, undefined)}
                                                 onDuplicate={openDuplicateDialog}
                                             />
                                         ))}
@@ -1756,7 +1827,7 @@ export function StrategyManagementModule({ onSetModule, context }: StrategyManag
                                                 key={strategy.strategyId} 
                                                 strategy={strategy} 
                                                 onOpen={setViewingStrategy} 
-                                                onEdit={handleEdit}
+                                                onEdit={(s) => handleEdit(s, undefined)}
                                                 onDuplicate={openDuplicateDialog}
                                             />
                                         ))}
