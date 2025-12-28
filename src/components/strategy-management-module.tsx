@@ -525,7 +525,7 @@ function PersonaFitAnalysis({ activeVersion }: { activeVersion: StrategyVersion 
         }
         
         if (personaName.includes("Fearful")) { // Hypothetical persona
-            if (riskRules.riskPerTradePct < 0.75) {
+             if (riskRules.riskPerTradePct < 0.75) {
                  results.status = 'Caution';
                  results.reasons.push("Very low risk-per-trade might indicate a fear of loss, leading to missed opportunities.");
             }
@@ -595,8 +595,21 @@ function StrategyDetailView({
     const totalUsageCount = strategy.versions.reduce((sum, v) => sum + v.usageCount, 0);
 
     if (!selectedVersion) return null; // Should not happen if data is correct
-
-    const { entryRules, slRules, tpRules, riskRules, contextRules } = selectedVersion.ruleSet;
+    
+    const {
+        entryRules,
+        slRules,
+        tpRules,
+        riskRules,
+        contextRules
+    } = selectedVersion.ruleSet || {
+        entryRules: { conditions: [], confirmations: [] },
+        slRules: { rules: [] },
+        tpRules: { otherRules: [] },
+        riskRules: {},
+        contextRules: { allowedSessions: [], otherRules: [] }
+    };
+    
     const isArchived = strategy.status === 'archived';
 
     return (
@@ -672,7 +685,7 @@ function StrategyDetailView({
                         <Archive className="h-4 w-4 text-amber-400" />
                         <AlertTitle className="text-amber-400">This strategy is archived.</AlertTitle>
                         <AlertDescription>
-                            It cannot be selected for new trade plans but remains for historical analysis. You can restore it or duplicate it to create a new active strategy.
+                            It will not be selectable for new trade plans, but remains in your analytics and journal history. You can restore it or duplicate it to create a new active strategy.
                         </AlertDescription>
                     </Alert>
                 )}
@@ -1246,7 +1259,7 @@ function StrategyCreatorView({
                                                         <FormField control={form.control} name="ruleSet.tpRules.preferredRR" render={({ field }) => (<FormItem><FormLabel>Preferred R:R</FormLabel><FormControl><Input type="number" placeholder="2.5" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} /></FormControl><FormMessage /></FormItem>)} />
                                                     </div>
                                                     <RuleEditorFormItem name="ruleSet.tpRules.otherRules" label="Other TP Rules" tooltipText="Define any other rules for taking profit, such as partial profit-taking or trailing stops." placeholder="e.g., Take 50% profit at 1R, move SL to entry" />
-                                                    <Textarea readOnly disabled value="Advanced logic like Trailing Stops, etc. are planned for Phase 2." className="text-muted-foreground italic mt-4" />
+                                                    <Textarea readOnly disabled value="Advanced logic like Trailing Stops, etc. are planned for a future phase." className="text-muted-foreground italic mt-4" />
                                                 </div>
                                             )}
                                             {currentStep === 4 && (
@@ -1327,7 +1340,7 @@ function StrategyCreatorView({
                             </CardContent>
                             <CardFooter className="flex-col items-start gap-4">
                                 <Separator />
-                                <Button variant="link" className="p-0 h-auto" onClick={() => setWizardStarted(true)}>Or start from scratch</Button>
+                                <Button variant="link" className="p-0 h-auto" onClick={() => setWizardStarted(true)}>Or build from scratch</Button>
                             </CardFooter>
                         </Card>
                     )}
@@ -1781,7 +1794,7 @@ export function StrategyManagementModule({ onSetModule, context }: StrategyManag
     useEffect(() => {
         if(viewMode === 'create' && editingStrategy && editingStrategy.strategyId === 'temp_duplicate_id'){
             const activeVersion = editingStrategy.versions[0];
-            const initialData: StrategyCreationValues = {
+            initialData = {
                 name: editingStrategy.name,
                 type: editingStrategy.type,
                 timeframes: editingStrategy.timeframes,
@@ -1996,7 +2009,7 @@ export function StrategyManagementModule({ onSetModule, context }: StrategyManag
                         <CardDescription>Create your first rulebook so Arjun can enforce discipline in Trade Planning.</CardDescription>
                     </CardHeader>
                     <CardContent className="flex justify-center gap-4">
-                        <Button onClick={() => setViewMode('create')}><PlusCircle className="mr-2 h-4 w-4" /> Create Strategy</Button>
+                        <Button onClick={() => setViewMode('create')}><PlusCircle className="mr-2 h-4 w-4" /> Build Strategy</Button>
                         <Button variant="outline" onClick={() => loadStrategies(true)}>
                             <Zap className="mr-2 h-4 w-4" />
                             Generate demo strategies
@@ -2010,7 +2023,7 @@ export function StrategyManagementModule({ onSetModule, context }: StrategyManag
                             <CardTitle>Your Playbook</CardTitle>
                             <Button className="w-full md:w-auto" onClick={() => setViewMode('create')}>
                                 <PlusCircle className="mr-2 h-4 w-4" />
-                                Add Strategy
+                                Build Strategy
                             </Button>
                         </div>
                     </CardHeader>
@@ -2097,3 +2110,4 @@ export function StrategyManagementModule({ onSetModule, context }: StrategyManag
 }
     
     
+
