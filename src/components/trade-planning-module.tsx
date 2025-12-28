@@ -999,21 +999,21 @@ function PlanSummary({ control, setPlanStatus, onSetModule, entryChecklist, sess
 }
 
 interface PlanStepProps {
-    form: any,
-    onSetModule: any,
-    setPlanStatus: any,
-    onApplyTemplate: (templateId: string) => void,
-    isNewUser: boolean,
-    currentStep: TradePlanStep,
-    draftToResume: SavedDraft | null,
-    onResume: () => void,
-    onDiscard: () => void,
-    entryChecklist: Record<string, boolean>,
-    setEntryChecklist: (checklist: Record<string, boolean>) => void,
-    session: "Asia" | "London" | "New York",
-    setSession: (s: "Asia" | "London" | "New York") => void,
-    vixZone: VixZone,
-    setVixZone: (z: VixZone) => void
+    form: any;
+    onSetModule: any;
+    setPlanStatus: any;
+    onApplyTemplate: (templateId: string) => void;
+    isNewUser: boolean;
+    currentStep: TradePlanStep;
+    draftToResume: SavedDraft | null;
+    onResume: () => void;
+    onDiscard: () => void;
+    entryChecklist: Record<string, boolean>;
+    setEntryChecklist: (checklist: Record<string, boolean>) => void;
+    session: "Asia" | "London" | "New York";
+    setSession: (s: "Asia" | "London" | "New York") => void;
+    vixZone: VixZone;
+    setVixZone: (z: VixZone) => void;
 }
 
 function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser, currentStep, draftToResume, onResume, onDiscard, entryChecklist, setEntryChecklist, session, setSession, vixZone, setVixZone }: PlanStepProps) {
@@ -1230,7 +1230,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
                                 <Alert variant="default" className="bg-muted/50 border-border/50">
                                     <Sparkles className="h-4 w-4 text-primary" />
                                     <AlertDescription className="text-xs">
-                                        <p>This strategy is tuned for <strong className="text-foreground">{activeVersion.ruleSet.contextRules.allowedSessions.join(', ')}</strong> sessions with a <strong className="text-foreground">{activeVersion.ruleSet.contextRules.vixPolicy}</strong> VIX policy.</p>
+                                        This strategy is tuned for <strong className="text-foreground">{activeVersion.ruleSet.contextRules.allowedSessions.join(', ')}</strong> sessions with a <strong className="text-foreground">{activeVersion.ruleSet.contextRules.vixPolicy}</strong> VIX policy.
                                     </AlertDescription>
                                 </Alert>
                             )}
@@ -1433,6 +1433,28 @@ function ExecutionOptions({ form, onSetModule, executionHeadingRef, validationRe
 
         incrementTrades(values.strategyId);
 
+        // Update strategy usage
+        if (typeof window !== "undefined") {
+            try {
+                const strategies: Strategy[] = JSON.parse(localStorage.getItem("ec_strategies") || "[]");
+                const now = new Date().toISOString();
+                const updatedStrategies = strategies.map(s => {
+                    if (s.strategyId === values.strategyId) {
+                        const activeVersionIndex = s.versions.findIndex(v => v.isActiveVersion);
+                        if (activeVersionIndex !== -1) {
+                            s.versions[activeVersionIndex].usageCount += 1;
+                            s.versions[activeVersionIndex].lastUsedAt = now;
+                        }
+                        return { ...s, lastUsedAt: now };
+                    }
+                    return s;
+                });
+                localStorage.setItem("ec_strategies", JSON.stringify(updatedStrategies));
+            } catch (e) {
+                console.error("Failed to update strategy usage", e);
+            }
+        }
+        
         setTimeout(() => {
             const tradeId = `DELTA-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
             const draftId = `draft-${Date.now()}`;
@@ -1801,6 +1823,14 @@ function RecoveryModeWarning() {
         </Alert>
     )
 }
+
+const SummaryRow = ({ label, value, className }: { label: string; value: React.ReactNode; className?: string }) => (
+    <div className="flex justify-between items-center text-sm">
+        <p className="text-muted-foreground">{label}</p>
+        <p className={cn("font-mono font-semibold", className)}>{value}</p>
+    </div>
+);
+
 
 export function TradePlanningModule({ onSetModule, planContext }: TradePlanningModuleProps) {
     const { toast } = useToast();
