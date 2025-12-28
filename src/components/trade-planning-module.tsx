@@ -1355,7 +1355,7 @@ function ReviewStep({ form, onSetModule, onSetStep, arjunFeedbackAccepted, setAr
     );
 }
 
-function ExecutionOptions({ form, onSetModule, executionHeadingRef }: { form: any, onSetModule: (module: any, context?: any) => void; executionHeadingRef: React.Ref<HTMLDivElement> }) {
+function ExecutionOptions({ form, onSetModule, executionHeadingRef, validationResult, entryChecklist }: { form: any, onSetModule: (module: any, context?: any) => void; executionHeadingRef: React.Ref<HTMLDivElement>; validationResult: ValidationOutput | null, entryChecklist: Record<string, boolean> }) {
     const [executionType, setExecutionType] = useState<"Market" | "Limit">("Market");
     const [isExecuting, setIsExecuting] = useState(false);
     const [executionResult, setExecutionResult] = useState<{ tradeId: string, draftId: string } | null>(null);
@@ -1384,6 +1384,13 @@ function ExecutionOptions({ form, onSetModule, executionHeadingRef }: { form: an
             
             const strategies: Strategy[] = JSON.parse(localStorage.getItem("ec_strategies") || "[]");
             const strategyName = strategies.find(s => s.strategyId === values.strategyId)?.name || "Unknown";
+
+            const ruleAdherenceSummary: JournalEntry['meta']['ruleAdherenceSummary'] = {
+                followedEntryRules: (validationResult?.validations.find(v => v.ruleId === 'entryConfirmation')?.status === 'PASS'),
+                movedSL: false, // This would be determined post-trade
+                exitedEarly: false, // This would be determined post-trade
+                rrBelowMin: (validationResult?.validations.find(v => v.ruleId === 'minRR')?.status !== 'PASS'),
+            };
 
             const journalDraft: JournalEntry = {
                 id: draftId,
@@ -1416,7 +1423,9 @@ function ExecutionOptions({ form, onSetModule, executionHeadingRef }: { form: an
                     pnl: 0,
                     exitPrice: 0,
                 },
-                meta: {},
+                meta: {
+                    ruleAdherenceSummary: ruleAdherenceSummary,
+                },
             };
             
             const existingDrafts = JSON.parse(localStorage.getItem("ec_journal_drafts") || "[]");
@@ -1518,7 +1527,7 @@ function ExecutionOptions({ form, onSetModule, executionHeadingRef }: { form: an
     );
 }
 
-function ExecuteStep({ form, onSetModule, onSetStep, planStatus, executionHeadingRef }: { form: any, onSetModule: any, onSetStep: (step: TradePlanStep) => void; planStatus: PlanStatusType, executionHeadingRef: React.Ref<HTMLDivElement> }) {
+function ExecuteStep({ form, onSetModule, onSetStep, planStatus, executionHeadingRef, validationResult, entryChecklist }: { form: any, onSetModule: any, onSetStep: (step: TradePlanStep) => void; planStatus: PlanStatusType, executionHeadingRef: React.Ref<HTMLDivElement>, validationResult: ValidationOutput | null, entryChecklist: Record<string, boolean> }) {
     return (
          <div className="grid lg:grid-cols-2 gap-8 items-start">
              <Card className="bg-muted/30 border-border/50">
@@ -1547,7 +1556,7 @@ function ExecuteStep({ form, onSetModule, onSetStep, planStatus, executionHeadin
                      </AlertDialog>
                 </CardContent>
             </Card>
-            <ExecutionOptions form={form} onSetModule={onSetModule} executionHeadingRef={executionHeadingRef} />
+            <ExecutionOptions form={form} onSetModule={onSetModule} executionHeadingRef={executionHeadingRef} validationResult={validationResult} entryChecklist={entryChecklist} />
         </div>
     );
 }
@@ -2139,7 +2148,7 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
 
                     {currentStep === "plan" && <PlanStep form={form} onSetModule={onSetModule} setPlanStatus={setPlanStatus} onApplyTemplate={handleApplyTemplate} isNewUser={isNewUser} currentStep={currentStep} draftToResume={draftToResume} onResume={handleResumeDraft} onDiscard={handleDiscardDraft} entryChecklist={entryChecklist} setEntryChecklist={setEntryChecklist} />}
                     {currentStep === "review" && <ReviewStep form={form} onSetModule={onSetModule} onSetStep={setCurrentStep} arjunFeedbackAccepted={arjunFeedbackAccepted} setArjunFeedbackAccepted={setArjunFeedbackAccepted} planStatus={planStatus} reviewHeadingRef={reviewHeadingRef} />}
-                    {currentStep === "execute" && <ExecuteStep form={form} onSetModule={onSetModule} onSetStep={setCurrentStep} planStatus={planStatus} executionHeadingRef={executionHeadingRef} />}
+                    {currentStep === "execute" && <ExecuteStep form={form} onSetModule={onSetModule} onSetStep={setCurrentStep} planStatus={planStatus} executionHeadingRef={executionHeadingRef} validationResult={null} entryChecklist={entryChecklist} />}
 
                      <div className="mt-8 p-4 bg-muted/20 border-t border-border/50 flex flex-col sm:flex-row items-center justify-between gap-4">
                         <p className="text-sm text-muted-foreground">Step {Object.keys(stepConfig).indexOf(currentStep) + 1} of 3: {stepConfig[currentStep].label} your trade.</p>

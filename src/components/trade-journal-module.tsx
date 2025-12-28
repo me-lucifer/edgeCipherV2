@@ -520,29 +520,31 @@ function JournalReviewForm({ entry, onSubmit, onSetModule, onSaveDraft }: { entr
     );
 }
 
-const RuleAdherenceCheck = ({ label, passed, note }: { label: string; passed: boolean; note?: string }) => {
+const RuleAdherenceCheck = ({ label, passed }: { label: string; passed: boolean; }) => {
     const Icon = passed ? CheckCircle : XCircle;
     const color = passed ? 'text-green-500' : 'text-red-500';
     return (
         <div className="flex items-center gap-2 text-sm">
             <Icon className={cn("h-4 w-4", color)} />
-            <span className={cn(!passed && 'text-foreground font-medium')}>{label}</span>
+            <span className={cn(passed ? 'text-muted-foreground' : 'text-foreground font-medium')}>{label}</span>
         </div>
     );
 };
 
 function RuleAdherenceSummary({ entry }: { entry: JournalEntry }) {
     if (!entry.meta.ruleAdherenceSummary) {
-        return null;
+        return (
+            <div>
+                <h4 className="text-sm font-semibold text-foreground mb-3">Rule Adherence Summary</h4>
+                <p className="text-xs text-muted-foreground italic">No adherence data logged for this trade.</p>
+            </div>
+        );
     }
     const summary = entry.meta.ruleAdherenceSummary;
-    const mistakes = entry.review?.mistakesTags || "";
-
     const checks = [
-        { label: "Followed Entry Rules", passed: summary.followedEntryRules, note: "" },
-        { label: "Stop Loss Respected", passed: !mistakes.includes("Moved SL"), note: "" },
-        { label: "R:R Met Minimum", passed: !summary.rrBelowMin, note: "" },
-        { label: "Risk Within Limits", passed: entry.technical.riskPercent <= 2, note: "" }, // Mocking threshold
+        { label: "Followed Entry Rules", passed: summary.followedEntryRules },
+        { label: "Stop Loss Respected", passed: !summary.movedSL },
+        { label: "R:R Met Minimum", passed: !summary.rrBelowMin },
     ];
 
     return (
