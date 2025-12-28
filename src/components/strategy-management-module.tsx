@@ -1106,6 +1106,7 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
     const [strategyToDuplicate, setStrategyToDuplicate] = useState<StrategyGroup | null>(null);
     const [newStrategyName, setNewStrategyName] = useState('');
     const [dialogAction, setDialogAction] = useState<'archive' | 'delete' | null>(null);
+    const [versionToMakeActive, setVersionToMakeActive] = useState<string | null>(null);
 
     const [filters, setFilters] = useState<StrategyFilters>({
         search: '',
@@ -1191,13 +1192,13 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
         setDialogAction(null);
     };
 
-    const handleMakeActive = (versionId: string) => {
-        if (!viewingStrategy) return;
+    const confirmMakeActive = () => {
+        if (!viewingStrategy || !versionToMakeActive) return;
         const updatedStrategies = strategies.map(s => {
             if (s.strategyId === viewingStrategy.strategyId) {
                 const newVersions = s.versions.map(v => ({
                     ...v,
-                    isActiveVersion: v.versionId === versionId
+                    isActiveVersion: v.versionId === versionToMakeActive
                 }));
                 return { ...s, versions: newVersions };
             }
@@ -1209,6 +1210,7 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
             setViewingStrategy(updatedStrategy);
         }
         toast({ title: "Active version updated" });
+        setVersionToMakeActive(null);
     };
 
     const handleSaveStrategy = (data: StrategyCreationValues, status: 'active' | 'draft', editingId?: string) => {
@@ -1218,7 +1220,7 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
                 if (s.strategyId === editingId) {
                     const latestVersionNumber = Math.max(...s.versions.map(v => v.versionNumber));
                     const newVersion: StrategyVersion = {
-                        versionId: `sv_${s.strategyId}_${latestVersionNumber + 1}`,
+                        versionId: `sv_${s.strategyId.replace('strat_', '')}_${latestVersionNumber + 1}`,
                         versionNumber: latestVersionNumber + 1,
                         isActiveVersion: true,
                         createdAt: new Date().toISOString(),
@@ -1441,7 +1443,7 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
             onBack={() => setViewingStrategy(null)}
             onArchive={() => setDialogAction('archive')}
             onDelete={() => setDialogAction('delete')}
-            onMakeActive={handleMakeActive}
+            onMakeActive={(versionId: string) => setVersionToMakeActive(versionId)}
             onEdit={handleEdit}
             onSetModule={onSetModule}
         />;
@@ -1469,6 +1471,20 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
                         >
                             {dialogAction === 'archive' ? (viewingStrategy?.status === 'active' ? 'Archive' : 'Restore') : 'Delete'}
                         </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+            <AlertDialog open={versionToMakeActive !== null} onOpenChange={(open) => !open && setVersionToMakeActive(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Make this version active?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Future trade plans will validate against this version's rules. Past trades remain linked to their original version for analytics accuracy.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setVersionToMakeActive(null)}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={confirmMakeActive}>Make Active</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
