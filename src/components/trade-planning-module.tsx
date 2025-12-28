@@ -1716,6 +1716,11 @@ function ExecutionOptions({ form, onSetModule, executionHeadingRef, validationRe
                 rrBelowMin: (validationResult?.validations.find(v => v.ruleId === 'minRR')?.status !== 'PASS'),
             };
 
+            let mistakes = [];
+            if (values.justification) {
+                mistakes.push('Override');
+            }
+
             const journalDraft: JournalEntry = {
                 id: draftId,
                 tradeId: tradeId,
@@ -1746,6 +1751,7 @@ function ExecutionOptions({ form, onSetModule, executionHeadingRef, validationRe
                 review: {
                     pnl: 0,
                     exitPrice: 0,
+                    mistakesTags: mistakes.join(','),
                 },
                 meta: {
                     ruleAdherenceSummary: ruleAdherenceSummary,

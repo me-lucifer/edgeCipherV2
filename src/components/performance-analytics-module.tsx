@@ -1028,7 +1028,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
         const directions: ("Long" | "Short")[] = ["Long", "Short"];
         const sessions = ["Asia", "London", "New York"];
         const emotionTags = ["FOMO", "Fear", "Anxious", "Revenge", "Calm", "Focused", "Confident", "Bored"];
-        const mistakeTags = ["Moved SL", "Exited early", "Exited late", "Oversized risk", "Forced Entry", "None (disciplined)"];
+        const mistakeTags = ["Moved SL", "Exited early", "Exited late", "Oversized risk", "Forced Entry", "Override", "None (disciplined)"];
 
         const numTrades = 60;
         const numDays = 30;
@@ -1055,6 +1055,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
             let mistakes = [];
             if (vixZone === 'Elevated' && random() < 0.4) mistakes.push("Moved SL");
             if (isRevengeTrade) mistakes.push("Forced Entry");
+            if (random() < 0.15) mistakes.push("Override");
             if (random() < 0.1) mistakes.push(mistakeTags[Math.floor(random() * mistakeTags.length)]);
             if (mistakes.length === 0 && random() < 0.7) mistakes.push("None (disciplined)");
             else if (mistakes.length === 0) mistakes.push("Exited early");
@@ -1116,7 +1117,8 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                 },
                 planning: {
                     planNotes: "Demo generated trade plan.",
-                    mindset: "Neutral"
+                    mindset: "Neutral",
+                    ruleOverridesJustification: mistakes.includes("Override") ? "Justified override due to market conditions." : undefined,
                 },
                 review: {
                     pnl,
@@ -1255,7 +1257,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
     }
 
     const { current: currentData, previous: previousData } = analyticsData;
-    const { totalTrades, wins, losses, winRate, lossRate, avgRR, totalPnL, quality, scores, discipline, topLossDrivers, mockEquityData, topEvents, mockStrategyData, timingHeatmapData, volatilityData, emotionResultMatrixData, radarChartData, planAdherence, disciplineBreakdown, disciplineByVolatility, bestCondition } = currentData;
+    const { totalTrades, wins, losses, winRate, lossRate, overrideRate, avgRR, totalPnL, quality, scores, discipline, topLossDrivers, mockEquityData, topEvents, mockStrategyData, timingHeatmapData, volatilityData, emotionResultMatrixData, radarChartData, planAdherence, disciplineBreakdown, disciplineByVolatility, bestCondition } = currentData;
     
     const equityChartData = mockEquityData.map((d: any, i: number) => ({
       ...d,
@@ -1449,10 +1451,11 @@ ${JSON.stringify(data, null, 2)}
                             </Badge>
                         }
                     >
-                         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+                         <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-4">
                             <MetricCard title="Total PnL" value={`$${totalPnL.toFixed(2)}`} hint={`${totalTrades} trades`} delta={getDelta(totalPnL, previousData?.totalPnL)} deltaUnit="$" />
                             <MetricCard title="Win Rate" value={`${winRate.toFixed(0)}%`} hint={`${wins}W / ${losses}L`} delta={getDelta(winRate, previousData?.winRate)} deltaUnit="%" />
                             <MetricCard title="Avg. R:R" value={`${avgRR.toFixed(2)}`} hint="Avg win / Avg loss" delta={getDelta(avgRR, previousData?.avgRR)} />
+                             <MetricCard title="Override Rate" value={`${overrideRate.toFixed(0)}%`} hint="Justified rule breaks" delta={getDelta(overrideRate, previousData?.overrideRate)} deltaUnit="%" />
                             <MetricCard title="Best Condition" value={bestCondition} hint="VIX Zone / Session" />
                         </div>
                     </SectionCard>
@@ -1774,6 +1777,8 @@ const computeSinglePeriodAnalytics = (entries: JournalEntry[], random: () => num
     
     const totalTrades = entries.length;
     const completedEntries = entries.filter(e => e.status === 'completed');
+    const overrideCount = completedEntries.filter(e => e.review?.mistakesTags?.includes("Override")).length;
+    const overrideRate = totalTrades > 0 ? (overrideCount / totalTrades) * 100 : 0;
     const wins = completedEntries.filter(e => e.review && e.review.pnl > 0).length;
     const losses = completedEntries.filter(e => e.review && e.review.pnl < 0).length;
     const winRate = totalTrades > 0 ? (wins / totalTrades) * 100 : 0;
@@ -1803,6 +1808,7 @@ const computeSinglePeriodAnalytics = (entries: JournalEntry[], random: () => num
     let disciplineScore = 80;
     if (slMovedPct > 10) disciplineScore -= 10;
     if (overtradedPct > 5) disciplineScore -= 8;
+    if (overrideRate > 5) disciplineScore -= 5;
     if (journalingCompletionRate < 70) disciplineScore -= 6;
     
     const emotionTags = completedEntries.flatMap(e => (e.review?.emotionsTags || "").split(','));
@@ -1976,7 +1982,7 @@ const computeSinglePeriodAnalytics = (entries: JournalEntry[], random: () => num
     ];
 
     return {
-        totalTrades, wins, losses, winRate, lossRate, avgRR, totalPnL,
+        totalTrades, wins, losses, winRate, lossRate, avgRR, totalPnL, overrideRate,
         bestCondition: "Normal VIX / NY Session", quality,
         discipline: { slRespectedPct: 100 - slMovedPct, slMovedPct, slRemovedPct: 3, tpExitedEarlyPct: 25, avgRiskPct: 1.1, riskOverLimitPct: 15 },
         scores: { disciplineScore, emotionalScore, consistencyScore },
@@ -1989,5 +1995,6 @@ const computeSinglePeriodAnalytics = (entries: JournalEntry[], random: () => num
         disciplineByVolatility,
     };
   }
+
 
 
