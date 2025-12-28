@@ -507,7 +507,7 @@ function PersonaFitAnalysis({ activeVersion }: { activeVersion: StrategyVersion 
     }, []);
 
     const analysis = useMemo(() => {
-        if (!persona || !activeVersion) return null;
+        if (!persona || !activeVersion || !activeVersion.ruleSet) return null;
 
         const results: { status: 'Caution' | 'Good', reasons: string[] } = { status: 'Good', reasons: [] };
         const { riskRules } = activeVersion.ruleSet;
@@ -606,8 +606,8 @@ function StrategyDetailView({
         entryRules: { conditions: [], confirmations: [] },
         slRules: { rules: [] },
         tpRules: { otherRules: [] },
-        riskRules: {},
-        contextRules: { allowedSessions: [], otherRules: [] }
+        riskRules: { riskPerTradePct: 0, maxDailyLossPct: 0, maxDailyTrades: 0, leverageCap: 0, cooldownAfterLosses: false },
+        contextRules: { allowedSessions: [], vixPolicy: 'allowAll', avoidNews: false, otherRules: [] }
     };
     
     const isArchived = strategy.status === 'archived';
@@ -1170,7 +1170,7 @@ function StrategyCreatorView({
             </AlertDialog>
 
             <div>
-                <h1 className="text-2xl font-bold tracking-tight text-foreground">{editingId ? 'Edit Strategy' : 'Create Strategy'}</h1>
+                <h1 className="text-2xl font-bold tracking-tight text-foreground">{editingId ? 'Edit Strategy' : 'Build a Rulebook'}</h1>
                 <p className="text-muted-foreground">{editingId ? 'Create a new version of your strategy.' : 'Build a rulebook Arjun can enforce.'}</p>
             </div>
             
@@ -1259,7 +1259,7 @@ function StrategyCreatorView({
                                                         <FormField control={form.control} name="ruleSet.tpRules.preferredRR" render={({ field }) => (<FormItem><FormLabel>Preferred R:R</FormLabel><FormControl><Input type="number" placeholder="2.5" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} /></FormControl><FormMessage /></FormItem>)} />
                                                     </div>
                                                     <RuleEditorFormItem name="ruleSet.tpRules.otherRules" label="Other TP Rules" tooltipText="Define any other rules for taking profit, such as partial profit-taking or trailing stops." placeholder="e.g., Take 50% profit at 1R, move SL to entry" />
-                                                    <Textarea readOnly disabled value="Advanced logic like Trailing Stops, etc. are planned for a future phase." className="text-muted-foreground italic mt-4" />
+                                                    <Textarea readOnly disabled value="Advanced logic like Trailing Stops, etc. is a future phase." className="text-muted-foreground italic mt-4" />
                                                 </div>
                                             )}
                                             {currentStep === 4 && (
@@ -1996,7 +1996,7 @@ export function StrategyManagementModule({ onSetModule, context }: StrategyManag
                     <h2 className="text-xl font-bold">Define Your Playbook</h2>
                     <div className="text-muted-foreground mt-2 max-w-2xl text-center space-y-1 text-sm">
                         <p>Build rulebooks with strict, repeatable rules for entries, exits, and risk.</p>
-                        <p>The Trade Planning module uses these rulebooks to enforce discipline.</p>
+                        <p>The Trade Planning module uses these rulebooks to enforce discipline via the "Rulebook Firewall".</p>
                         <p>Edits create new versions, preserving historical analytics to track what works over time.</p>
                     </div>
                 </CardContent>
@@ -2009,7 +2009,7 @@ export function StrategyManagementModule({ onSetModule, context }: StrategyManag
                         <CardDescription>Create your first rulebook so Arjun can enforce discipline in Trade Planning.</CardDescription>
                     </CardHeader>
                     <CardContent className="flex justify-center gap-4">
-                        <Button onClick={() => setViewMode('create')}><PlusCircle className="mr-2 h-4 w-4" /> Build Strategy</Button>
+                        <Button onClick={() => setViewMode('create')}><PlusCircle className="mr-2 h-4 w-4" /> Build a Rulebook</Button>
                         <Button variant="outline" onClick={() => loadStrategies(true)}>
                             <Zap className="mr-2 h-4 w-4" />
                             Generate demo strategies
@@ -2023,7 +2023,7 @@ export function StrategyManagementModule({ onSetModule, context }: StrategyManag
                             <CardTitle>Your Playbook</CardTitle>
                             <Button className="w-full md:w-auto" onClick={() => setViewMode('create')}>
                                 <PlusCircle className="mr-2 h-4 w-4" />
-                                Build Strategy
+                                Build a Rulebook
                             </Button>
                         </div>
                     </CardHeader>
@@ -2110,4 +2110,5 @@ export function StrategyManagementModule({ onSetModule, context }: StrategyManag
 }
     
     
+
 
