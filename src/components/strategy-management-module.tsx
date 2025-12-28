@@ -1315,6 +1315,7 @@ export function StrategyManagementModule({ onSetModule, context }: StrategyManag
     const [strategyToDuplicate, setStrategyToDuplicate] = useState<StrategyGroup | null>(null);
     const [newStrategyName, setNewStrategyName] = useState('');
     const [dialogAction, setDialogAction] = useState<'archive' | 'delete' | null>(null);
+    const [draftUsageWarning, setDraftUsageWarning] = useState(false);
     const [versionToMakeActive, setVersionToMakeActive] = useState<string | null>(null);
     const [isCompareOpen, setIsCompareOpen] = useState(false);
     const [versionsToCompare, setVersionsToCompare] = useState<{ vA: string, vB: string }>({ vA: '', vB: '' });
@@ -1391,6 +1392,24 @@ export function StrategyManagementModule({ onSetModule, context }: StrategyManag
         setFilters(prev => ({ ...prev, [key]: value }));
     };
     
+    const handleArchive = () => {
+        if (!viewingStrategy) return;
+
+        // Check if strategy is used in a draft
+        if (typeof window !== 'undefined') {
+            const draftString = localStorage.getItem("ec_trade_plan_draft");
+            if (draftString) {
+                const draft = JSON.parse(draftString);
+                if (draft?.formData?.strategyId === viewingStrategy.strategyId && viewingStrategy.status === 'active') {
+                    setDraftUsageWarning(true);
+                    return;
+                }
+            }
+        }
+        
+        setDialogAction('archive');
+    };
+
     const confirmArchive = () => {
         if (!viewingStrategy) return;
         const newStatus = viewingStrategy.status === 'active' ? 'archived' : 'active';
@@ -1401,6 +1420,30 @@ export function StrategyManagementModule({ onSetModule, context }: StrategyManag
         setViewingStrategy(prev => prev ? { ...prev, status: newStatus } : null);
         toast({ title: `Strategy ${newStatus === 'archived' ? 'Archived' : 'Restored'}` });
         setDialogAction(null);
+    };
+
+    const confirmArchiveAnyway = () => {
+        if (!viewingStrategy) return;
+        
+        // Clear strategy from draft
+        if (typeof window !== 'undefined') {
+            const draftString = localStorage.getItem("ec_trade_plan_draft");
+            if (draftString) {
+                const draft = JSON.parse(draftString);
+                if (draft?.formData?.strategyId === viewingStrategy.strategyId) {
+                    draft.formData.strategyId = '';
+                    localStorage.setItem("ec_trade_plan_draft", JSON.stringify(draft));
+                    toast({
+                        title: "Draft Updated",
+                        description: "Archived strategy was removed from your saved plan. Please re-select a strategy.",
+                    });
+                }
+            }
+        }
+        
+        // Proceed with archiving
+        confirmArchive();
+        setDraftUsageWarning(false);
     };
 
     const confirmDelete = () => {
@@ -1689,7 +1732,7 @@ export function StrategyManagementModule({ onSetModule, context }: StrategyManag
             <StrategyDetailView 
                 strategy={viewingStrategy} 
                 onBack={() => setViewingStrategy(null)}
-                onArchive={() => setDialogAction('archive')}
+                onArchive={handleArchive}
                 onDelete={() => setDialogAction('delete')}
                 onMakeActive={(versionId: string) => setVersionToMakeActive(versionId)}
                 onEdit={handleEdit}
@@ -1697,6 +1740,20 @@ export function StrategyManagementModule({ onSetModule, context }: StrategyManag
                 onOpenCompare={handleOpenCompare}
                 initialVersionId={context?.versionId}
             />
+            <AlertDialog open={draftUsageWarning} onOpenChange={setDraftUsageWarning}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Strategy in Use</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This strategy is currently selected in a saved trade plan draft. Archiving it will remove it from that draft. Do you want to continue?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={confirmArchiveAnyway}>Archive Anyway</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
             <Dialog open={isCompareOpen} onOpenChange={setIsCompareOpen}>
                 <DialogContentNonAlertDialog className="max-w-4xl">
                     <DialogHeaderNonAlertDialog>
