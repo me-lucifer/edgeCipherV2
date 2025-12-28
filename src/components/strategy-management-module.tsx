@@ -383,7 +383,7 @@ function ArjunRefinementSuggestions({ strategy, onEdit }: { strategy: StrategyGr
                         <p className="text-sm text-amber-400/90"><strong className="font-semibold text-amber-400">Observation:</strong> {s.problem}</p>
                         <p className="text-sm text-foreground mt-2"><strong className="font-semibold text-primary">Suggestion:</strong> {s.suggestion}</p>
                         <Button size="sm" variant="outline" className="mt-3" onClick={() => handleApply(s.action)}>
-                            <PlusCircle className="mr-2 h-4 w-4" /> Apply Suggestion
+                            <PlusCircle className="mr-2 h-4 w-4" /> Apply as new version
                         </Button>
                     </div>
                 ))}
