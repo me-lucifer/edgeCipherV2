@@ -158,8 +158,6 @@ const validatePlanAgainstStrategy = (plan: PlanInputs, strategy: RuleSet, contex
         };
     }
 
-    // H) SL presence is handled by Zod schema
-
     // A) Leverage cap
     validations.push({
         ruleId: 'leverageCap',
@@ -225,7 +223,7 @@ const validatePlanAgainstStrategy = (plan: PlanInputs, strategy: RuleSet, contex
         let vixStatus: ValidationStatus = 'PASS';
         let message = "Volatility is within strategy parameters.";
         if (contextRules.vixPolicy === 'avoidHigh' && (context.vixZone === 'Elevated' || context.vixZone === 'Extreme')) {
-            vixStatus = 'WARN';
+            vixStatus = 'FAIL';
             message = `Current VIX is '${context.vixZone}', which this strategy suggests avoiding.`;
         } else if (contextRules.vixPolicy === 'onlyLowNormal' && (context.vixZone === 'Elevated' || context.vixZone === 'Extreme')) {
             vixStatus = 'FAIL';
@@ -1000,7 +998,25 @@ function PlanSummary({ control, setPlanStatus, onSetModule, entryChecklist, sess
     );
 }
 
-function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser, currentStep, draftToResume, onResume, onDiscard, entryChecklist, setEntryChecklist, session, setSession, vixZone, setVixZone }: { form: any, onSetModule: any, setPlanStatus: any, onApplyTemplate: (templateId: string) => void, isNewUser: boolean, currentStep: TradePlanStep, draftToResume: SavedDraft | null, onResume: () => void, onDiscard: () => void, entryChecklist: Record<string, boolean>, setEntryChecklist: (checklist: Record<string, boolean>), session: "Asia" | "London" | "New York", setSession: (s: "Asia" | "London" | "New York") => void, vixZone: VixZone, setVixZone: (z: VixZone) => void }) {
+interface PlanStepProps {
+    form: any,
+    onSetModule: any,
+    setPlanStatus: any,
+    onApplyTemplate: (templateId: string) => void,
+    isNewUser: boolean,
+    currentStep: TradePlanStep,
+    draftToResume: SavedDraft | null,
+    onResume: () => void,
+    onDiscard: () => void,
+    entryChecklist: Record<string, boolean>,
+    setEntryChecklist: (checklist: Record<string, boolean>) => void,
+    session: "Asia" | "London" | "New York",
+    setSession: (s: "Asia" | "London" | "New York") => void,
+    vixZone: VixZone,
+    setVixZone: (z: VixZone) => void
+}
+
+function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser, currentStep, draftToResume, onResume, onDiscard, entryChecklist, setEntryChecklist, session, setSession, vixZone, setVixZone }: PlanStepProps) {
     const entryType = useWatch({ control: form.control, name: 'entryType' });
     const strategyId = useWatch({ control: form.control, name: 'strategyId' });
     
@@ -1757,7 +1773,7 @@ function RecoveryModeWarning() {
             <AlertTriangle className="h-4 w-4 text-red-400" />
             <AlertTitle className="text-red-400">Recovery Mode is Active</AlertTitle>
             <AlertDescription>
-                Arjun recommends a max risk of 0.5% and a max of 2 trades per day to get back on track.
+               Arjun recommends a max risk of 0.5% and a max of 2 trades per day to get back on track.
             </AlertDescription>
         </Alert>
     )
