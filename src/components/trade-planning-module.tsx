@@ -1043,6 +1043,20 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
     }, []);
 
     const viewedStrategy = availableStrategies.find(s => s.strategyId === strategyId) || null;
+    const activeVersion = viewedStrategy?.versions.find(v => v.isActiveVersion);
+
+    useEffect(() => {
+        if (strategyId && availableStrategies.length > 0) {
+            const strategy = availableStrategies.find(s => s.strategyId === strategyId);
+            if (!strategy) return;
+            const activeRuleset = strategy.versions.find(v => v.isActiveVersion)?.ruleSet;
+            if (!activeRuleset) return;
+
+            form.setValue('riskPercent', activeRuleset.riskRules.riskPerTradePct, { shouldValidate: true });
+            form.setValue('leverage', activeRuleset.riskRules.leverageCap, { shouldValidate: true });
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [strategyId, availableStrategies]);
 
     const handleTemplateChange = (templateId: string) => {
         setSelectedTemplate(templateId);
@@ -1211,6 +1225,15 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
                                     View Details
                                 </Button>
                             </div>
+
+                            {activeVersion && (
+                                <Alert variant="default" className="bg-muted/50 border-border/50">
+                                    <Sparkles className="h-4 w-4 text-primary" />
+                                    <AlertDescription className="text-xs">
+                                        <p>This strategy is tuned for <strong className="text-foreground">{activeVersion.ruleSet.contextRules.allowedSessions.join(', ')}</strong> sessions with a <strong className="text-foreground">{activeVersion.ruleSet.contextRules.vixPolicy}</strong> VIX policy.</p>
+                                    </AlertDescription>
+                                </Alert>
+                            )}
 
                             <StrategyGuardrailChecklist strategyId={strategyId} onSetModule={onSetModule} checkedRules={entryChecklist} onCheckRule={handleCheckRule} />
 
