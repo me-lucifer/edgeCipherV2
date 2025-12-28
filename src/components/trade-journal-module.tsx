@@ -1,5 +1,4 @@
 
-
       "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
@@ -13,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Calendar, Bookmark, ArrowRight, Edit, AlertCircle, CheckCircle, Filter, X, XCircle, Circle, BrainCircuit, Trophy, NotebookPen, TrendingUp, TrendingDown, Sparkles, ChevronUp, ChevronRightIcon, Star, Search, Layers, HelpCircle, Info, Keyboard, Presentation } from "lucide-react";
+import { Bot, Calendar, Bookmark, ArrowRight, Edit, AlertCircle, CheckCircle, Filter, X, XCircle, Circle, BrainCircuit, Trophy, NotebookPen, TrendingUp, TrendingDown, Sparkles, ChevronUp, ChevronRightIcon, Star, Search, Layers, HelpCircle, Info, Keyboard, Presentation, Heart, AlertTriangle } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Calendar as CalendarComponent } from "./ui/calendar";
 import { format, isToday, isYesterday, differenceInCalendarDays, startOfDay } from "date-fns";
@@ -266,9 +265,26 @@ export const useJournal = () => {
 }
 
 const presetEmotions = ["FOMO", "Fear", "Anxiety", "Overconfidence", "Revenge", "Boredom", "Calm", "Focused", "Curious"];
-const presetMistakes = ["Moved SL", "Exited early", "Exited late", "Oversized risk", "Skipped plan", "Took revenge trade", "Overtraded", "Ignored VIX / news", "None (disciplined)"];
+const presetMistakes = ["Moved SL", "Exited early", "Exited late", "Oversized risk", "Skipped plan", "Took revenge trade", "Overtraded", "Ignored VIX / news", "None (disciplined)", "Override", "Impatience"];
 const presetContexts = ["News-driven day", "Major macro event", "Exchange outage/latency", "Low liquidity session", "Weekend trading", "No special context"];
 
+
+function RuleBreachPrompt({ onSelectReason }: { onSelectReason: (reason: string) => void }) {
+    const reasons = ["Emotion", "Impatience", "Overconfidence", "Market volatility", "I didn’t follow my own rules"];
+    return (
+        <div className="p-4 bg-amber-950/40 border border-amber-500/20 rounded-lg space-y-3">
+            <h4 className="font-semibold text-amber-300 flex items-center gap-2"><AlertTriangle className="h-4 w-4" />What caused this rule breach?</h4>
+            <p className="text-xs text-amber-300/80">Help Arjun understand why the plan was broken. Your answer here will help tag this trade.</p>
+            <div className="flex flex-wrap gap-2">
+                {reasons.map(reason => (
+                    <Button key={reason} variant="outline" size="sm" className="text-xs h-8 bg-amber-500/10 border-amber-500/20 text-amber-300 hover:bg-amber-500/20" onClick={() => onSelectReason(reason)}>
+                        {reason}
+                    </Button>
+                ))}
+            </div>
+        </div>
+    );
+}
 
 function JournalReviewForm({ entry, onSubmit, onSetModule, onSaveDraft }: { entry: JournalEntry; onSubmit: (values: JournalEntry) => void; onSetModule: TradeJournalModuleProps['onSetModule'], onSaveDraft: () => void }) {
     const { toast } = useToast();
@@ -305,6 +321,22 @@ function JournalReviewForm({ entry, onSubmit, onSetModule, onSaveDraft }: { entr
     }
 
     const isLosingTrade = form.getValues('review.pnl') < 0;
+    
+    const hasRuleBreach = useMemo(() => {
+        const summary = entry.meta?.ruleAdherenceSummary;
+        if (!summary) return false;
+        return !summary.followedEntryRules || summary.movedSL || summary.rrBelowMin;
+    }, [entry.meta?.ruleAdherenceSummary]);
+    
+    const handleBreachReasonSelect = (reason: string) => {
+        const currentMistakes = form.getValues('review.mistakesTags')?.split(',').filter(Boolean) || [];
+        if (!currentMistakes.includes(reason)) {
+            const newMistakes = [...currentMistakes, reason].join(',');
+            form.setValue('review.mistakesTags', newMistakes);
+            toast({ title: `Tagged mistake: ${reason}` });
+        }
+    };
+
 
     return (
         <>
@@ -315,6 +347,9 @@ function JournalReviewForm({ entry, onSubmit, onSetModule, onSaveDraft }: { entr
                         handleAttemptSubmit();
                     }
                 }} className="space-y-6">
+                     {entry.status === 'completed' && hasRuleBreach && (
+                        <RuleBreachPrompt onSelectReason={handleBreachReasonSelect} />
+                    )}
                     {/* Final PnL and Exit Price */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField control={form.control} name="review.pnl" render={({ field }) => (<FormItem><FormLabel>Final PnL ($)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
@@ -981,6 +1016,16 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filte
                                 />
                             ) : editingEntry.review ? (
                                 <div className="space-y-6">
+                                     {editingEntry.meta.ruleAdherenceSummary && (!editingEntry.meta.ruleAdherenceSummary.followedEntryRules || editingEntry.meta.ruleAdherenceSummary.movedSL) && (
+                                        <RuleBreachPrompt onSelectReason={(reason) => {
+                                            const currentMistakes = editingEntry.review!.mistakesTags?.split(',').filter(Boolean) || [];
+                                            if (!currentMistakes.includes(reason)) {
+                                                const newMistakes = [...currentMistakes, reason].join(',');
+                                                updateEntry({ ...editingEntry, review: { ...editingEntry.review!, mistakesTags: newMistakes } });
+                                                toast({ title: `Tagged mistake: ${reason}` });
+                                            }
+                                        }} />
+                                    )}
                                      <div className="flex justify-between font-mono text-sm"><span className="text-muted-foreground">Final PnL:</span> <span className={cn(editingEntry.review.pnl >= 0 ? 'text-green-400' : 'text-red-400')}>{editingEntry.review.pnl >= 0 ? '+' : ''}{editingEntry.review.pnl.toFixed(2)}$</span></div>
                                      <div className="flex justify-between font-mono text-sm"><span className="text-muted-foreground">Exit Price:</span> <span>{editingEntry.review.exitPrice}</span></div>
                                     <Separator />
@@ -1125,78 +1170,80 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filte
         }
     };
 
-    const renderEntries = (entriesToRender: JournalEntry[]) => (
+    const renderEntries = (entriesToRender: JournalEntry[]) => {
+      return (
         <>
-            {/* Mobile Card View */}
-            <div className="space-y-4 md:hidden">
-                {entriesToRender.map(entry => (
-                    <Card key={entry.id} className="bg-muted/30 border-border/50" onClick={() => setEditingEntry(entry)}>
-                        <CardContent className="p-4 space-y-3">
-                            <div className="flex justify-between items-start">
-                                <div>
-                                    <p className="font-semibold">{entry.technical?.instrument} <span className={cn(entry.technical?.direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{entry.technical?.direction}</span></p>
-                                    <p className="text-xs text-muted-foreground">{entry.timestamps ? format(new Date(entry.timestamps.executedAt), "MMM d, yyyy") : 'N/A'}</p>
-                                </div>
-                                <PnLCell entry={entry} />
-                            </div>
-                            <div className="space-y-2">
-                                <TagCell tags={entry.review?.emotionsTags} variant="emotion" />
-                                <TagCell tags={entry.review?.mistakesTags} variant="mistake" />
-                            </div>
-                            <Button variant="outline" size="sm" className="w-full">
-                                {entry.status === 'pending' ? 'Complete Journal' : 'View Details'}
-                                <ArrowRight className="ml-2 h-4 w-4" />
-                            </Button>
-                        </CardContent>
-                    </Card>
-                ))}
-            </div>
-
-            {/* Desktop Table View */}
-            <div className="hidden md:block">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Trade</TableHead>
-                            <TableHead>Result (R)</TableHead>
-                            <TableHead>Emotions</TableHead>
-                            <TableHead>Mistakes</TableHead>
-                            <TableHead>Strategy</TableHead>
-                            <TableHead className="text-right">Action</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {entriesToRender.map(entry => (
-                            <TableRow key={entry.id} className="group cursor-pointer" onClick={() => setEditingEntry(entry)}>
-                                <TableCell className="text-xs text-muted-foreground">{entry.timestamps ? format(new Date(entry.timestamps.executedAt), "MMM d") : 'N/A'}</TableCell>
-                                <TableCell>
-                                    <div className="font-semibold">{entry.technical?.instrument}</div>
-                                    <div className={cn("text-xs", entry.technical?.direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{entry.technical?.direction}</div>
-                                </TableCell>
-                                <TableCell><PnLCell entry={entry} /></TableCell>
-                                <TableCell><TagCell tags={entry.review?.emotionsTags} variant="emotion" /></TableCell>
-                                <TableCell><TagCell tags={entry.review?.mistakesTags} variant="mistake" /></TableCell>
-                                <TableCell><Badge variant="secondary" className="text-xs">{entry.technical?.strategy || 'N/A'}</Badge></TableCell>
-                                <TableCell className="text-right">
-                                    <div className="flex items-center justify-end gap-2 text-primary opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <span>Open</span>
-                                        <ChevronRightIcon className="h-4 w-4" />
-                                    </div>
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-                    {entriesToRender.length === 0 && (
-                    <div className="text-center py-12">
-                        <p className="text-muted-foreground">No trades match your filters.</p>
-                        <Button variant="link" size="sm" className="mt-2" onClick={clearFilters}>Clear filters</Button>
+          {/* Mobile Card View */}
+          <div className="space-y-4 md:hidden">
+            {entriesToRender.map(entry => (
+              <Card key={entry.id} className="bg-muted/30 border-border/50" onClick={() => setEditingEntry(entry)}>
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="font-semibold">{entry.technical?.instrument} <span className={cn(entry.technical?.direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{entry.technical?.direction}</span></p>
+                      <p className="text-xs text-muted-foreground">{entry.timestamps ? format(new Date(entry.timestamps.executedAt), "MMM d, yyyy") : 'N/A'}</p>
                     </div>
-                )}
-            </div>
+                    <PnLCell entry={entry} />
+                  </div>
+                  <div className="space-y-2">
+                    <TagCell tags={entry.review?.emotionsTags} variant="emotion" />
+                    <TagCell tags={entry.review?.mistakesTags} variant="mistake" />
+                  </div>
+                  <Button variant="outline" size="sm" className="w-full">
+                    {entry.status === 'pending' ? 'Complete Journal' : 'View Details'}
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+    
+          {/* Desktop Table View */}
+          <div className="hidden md:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Trade</TableHead>
+                  <TableHead>Result (R)</TableHead>
+                  <TableHead>Emotions</TableHead>
+                  <TableHead>Mistakes</TableHead>
+                  <TableHead>Strategy</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {entriesToRender.map(entry => (
+                  <TableRow key={entry.id} className="group cursor-pointer" onClick={() => setEditingEntry(entry)}>
+                    <TableCell className="text-xs text-muted-foreground">{entry.timestamps ? format(new Date(entry.timestamps.executedAt), "MMM d") : 'N/A'}</TableCell>
+                    <TableCell>
+                      <div className="font-semibold">{entry.technical?.instrument}</div>
+                      <div className={cn("text-xs", entry.technical?.direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{entry.technical?.direction}</div>
+                    </TableCell>
+                    <TableCell><PnLCell entry={entry} /></TableCell>
+                    <TableCell><TagCell tags={entry.review?.emotionsTags} variant="emotion" /></TableCell>
+                    <TableCell><TagCell tags={entry.review?.mistakesTags} variant="mistake" /></TableCell>
+                    <TableCell><Badge variant="secondary" className="text-xs">{entry.technical?.strategy || 'N/A'}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2 text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span>Open</span>
+                        <ChevronRightIcon className="h-4 w-4" />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            {entriesToRender.length === 0 && (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">No trades match your filters.</p>
+                <Button variant="link" size="sm" className="mt-2" onClick={clearFilters}>Clear filters</Button>
+              </div>
+            )}
+          </div>
         </>
-    );
+      );
+    }
 
     return (
         <div className="space-y-8">
@@ -1329,54 +1376,6 @@ function AllTradesTab({ entries, updateEntry, onSetModule, initialDraftId, filte
             </div>
         </div>
     )
-}
-
-type Priority = 'High' | 'Medium' | 'Low';
-type ReviewPriority = {
-    priority: Priority;
-    reasons: string[];
-};
-
-function getReviewPriority(entry: JournalEntry): ReviewPriority {
-    const reasons: string[] = [];
-    let priority: Priority = 'Low';
-
-    if (entry.status === 'completed' && entry.review && entry.technical) {
-        const pnl = entry.review?.pnl;
-        const riskAmount = entry.technical.riskPercent / 100 * 10000; // Mock 10k capital
-        const rValue = pnl && riskAmount > 0 ? pnl / riskAmount : 0;
-
-        if (rValue < -1) {
-            reasons.push(`Significant loss (${rValue.toFixed(1)}R)`);
-            priority = 'High';
-        }
-    }
-
-    if (entry.planning.ruleOverridesJustification) {
-        reasons.push('Rule breach');
-        if (priority !== 'High') priority = 'High';
-    }
-
-    if ((entry.review?.mistakesTags || '').includes('Revenge')) {
-        reasons.push('Revenge trade');
-        priority = 'High';
-    }
-    
-    if (priority === 'Low' && (entry.planning.mindset || "").toLowerCase().includes("anxious")) {
-        reasons.push('Emotional trade');
-        priority = 'Medium';
-    }
-    
-    if (entry.status === 'pending' && priority !== 'High') {
-        priority = 'Medium';
-        reasons.push('Pending final result');
-    }
-
-    if (reasons.length === 0) {
-        reasons.push('Standard review');
-    }
-
-    return { priority, reasons };
 }
 
 function JournalDetailSkeleton() {
@@ -1802,8 +1801,8 @@ function DemoScriptPanel({ isOpen, onOpenChange }: { isOpen: boolean, onOpenChan
     "Switch to All Trades tab. Show the new completed entry.",
     "Use filters to isolate losing trades or trades tagged with 'Revenge'.",
     "Show the Patterns sidebar, pointing out how the new tags are reflected.",
-    "Click 'Discuss these patterns with Arjun' to show the handoff to AI Coaching.",
-    "Jump to Performance Analytics > By Behaviour to show the full data pipeline.",
+    "Click 'Discuss these patterns with Arjun' to show the handoff to AI Coaching.',
+    'Jump to Performance Analytics > By Behaviour to show the full data pipeline.',
   ];
 
   return (
@@ -2063,3 +2062,53 @@ export function TradeJournalModule({ onSetModule, draftId, filters: initialFilte
     );
 }
 
+// Helper to determine review priority (mock logic)
+type Priority = 'High' | 'Medium' | 'Low';
+type ReviewPriority = {
+    priority: Priority;
+    reasons: string[];
+};
+
+function getReviewPriority(entry: JournalEntry): ReviewPriority {
+    const reasons: string[] = [];
+    let priority: Priority = 'Low';
+
+    if (entry.status === 'completed' && entry.review && entry.technical) {
+        const pnl = entry.review?.pnl;
+        const riskAmount = entry.technical.riskPercent / 100 * 10000; // Mock 10k capital
+        const rValue = pnl && riskAmount > 0 ? pnl / riskAmount : 0;
+
+        if (rValue < -1) {
+            reasons.push(`Significant loss (${rValue.toFixed(1)}R)`);
+            priority = 'High';
+        }
+    }
+
+    if (entry.planning.ruleOverridesJustification) {
+        reasons.push('Rule breach');
+        if (priority !== 'High') priority = 'High';
+    }
+
+    if ((entry.review?.mistakesTags || '').includes('Revenge')) {
+        reasons.push('Revenge trade');
+        priority = 'High';
+    }
+    
+    if (priority === 'Low' && (entry.planning.mindset || "").toLowerCase().includes("anxious")) {
+        reasons.push('Emotional trade');
+        priority = 'Medium';
+    }
+    
+    if (entry.status === 'pending' && priority !== 'High') {
+        priority = 'Medium';
+        reasons.push('Pending final result');
+    }
+
+    if (reasons.length === 0) {
+        reasons.push('Standard review');
+    }
+
+    return { priority, reasons };
+}
+
+    
