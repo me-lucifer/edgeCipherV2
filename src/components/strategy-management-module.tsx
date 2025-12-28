@@ -143,19 +143,37 @@ const seedStrategies: StrategyGroup[] = [
             {
                 versionId: 'sv_2_1',
                 versionNumber: 1,
-                isActiveVersion: true,
+                isActiveVersion: false,
                 createdAt: new Date(Date.now() - 86400000 * 25).toISOString(),
-                changeNotes: "Initial creation.",
+                changeNotes: "Initial creation (too loose).",
                 description: "Entering a strong existing trend on a dip.",
                 difficulty: "Intermediate",
                 ruleSet: {
                     entryRules: { conditions: ["Market is in a clear uptrend/downtrend on 4H", "Price pulls back to the 1H 21 EMA"], confirmations: ["Enter on a bullish/bearish candle that respects the EMA"] },
                     slRules: { rules: ["Stop-loss is behind the most recent swing structure"] },
                     tpRules: { minRR: 1.5, preferredRR: 2.5, otherRules: ["Target is the previous swing high/low"] },
+                    riskRules: { riskPerTradePct: 1.5, maxDailyLossPct: 4, maxDailyTrades: 5, leverageCap: 10, cooldownAfterLosses: true },
+                    contextRules: { allowedSessions: ["London", "New York"], vixPolicy: "allowAll", avoidNews: false, otherRules: ["Only valid when 1H and 4H timeframes are aligned"] }
+                },
+                usageCount: 50,
+                lastUsedAt: new Date(Date.now() - 86400000 * 8).toISOString(),
+            },
+            {
+                versionId: 'sv_2_2',
+                versionNumber: 2,
+                isActiveVersion: true,
+                createdAt: new Date(Date.now() - 86400000 * 7).toISOString(),
+                changeNotes: "Applied Arjun's suggestion: Tightened risk rules and VIX policy.",
+                description: "Entering a strong existing trend on a dip, with stricter context rules.",
+                difficulty: "Intermediate",
+                ruleSet: {
+                    entryRules: { conditions: ["Market is in a clear uptrend/downtrend on 4H", "Price pulls back to the 1H 21 EMA"], confirmations: ["Enter on a bullish/bearish candle that respects the EMA"] },
+                    slRules: { rules: ["Stop-loss is behind the most recent swing structure"] },
+                    tpRules: { minRR: 1.8, preferredRR: 2.5, otherRules: ["Target is the previous swing high/low"] },
                     riskRules: { riskPerTradePct: 1.5, maxDailyLossPct: 4, maxDailyTrades: 3, leverageCap: 10, cooldownAfterLosses: true },
                     contextRules: { allowedSessions: ["London", "New York"], vixPolicy: "avoidHigh", avoidNews: false, otherRules: ["Only valid when 1H and 4H timeframes are aligned"] }
                 },
-                usageCount: 89,
+                usageCount: 39,
                 lastUsedAt: new Date(Date.now() - 86400000 * 3).toISOString(),
             }
         ]
