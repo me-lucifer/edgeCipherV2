@@ -537,7 +537,8 @@ function StrategyDetailView({
     onEdit,
     onSetModule,
     onOpenCompare,
-    initialVersionId
+    initialVersionId,
+    onDuplicate,
 }: { 
     strategy: StrategyGroup; 
     onBack: () => void;
@@ -548,6 +549,7 @@ function StrategyDetailView({
     onSetModule: (module: any, context?: any) => void;
     onOpenCompare: () => void;
     initialVersionId?: string;
+    onDuplicate: (strategy: StrategyGroup) => void;
 }) {
     const [selectedVersionId, setSelectedVersionId] = useState<string>(initialVersionId || strategy.versions.find(v => v.isActiveVersion)?.versionId || strategy.versions[0].versionId);
 
@@ -558,6 +560,7 @@ function StrategyDetailView({
     if (!selectedVersion) return null; // Should not happen if data is correct
 
     const { entryRules, slRules, tpRules, riskRules, contextRules } = selectedVersion.ruleSet;
+    const isArchived = strategy.status === 'archived';
 
     return (
         <div>
@@ -571,10 +574,16 @@ function StrategyDetailView({
                         <Scale className="mr-2 h-4 w-4" />
                         Compare versions
                     </Button>
-                    <Button variant="outline" onClick={() => onEdit(strategy, undefined)}>
-                        <Edit className="mr-2 h-4 w-4" />
-                        Edit (creates new version)
-                    </Button>
+                    {isArchived ? (
+                         <Button onClick={() => onDuplicate(strategy)}>
+                            <Copy className="mr-2 h-4 w-4" /> Duplicate & Revive
+                        </Button>
+                    ) : (
+                        <Button onClick={() => onEdit(strategy, undefined)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Edit (creates new version)
+                        </Button>
+                    )}
                      <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon">
@@ -621,6 +630,16 @@ function StrategyDetailView({
             </div>
 
             <div className="space-y-6">
+                {isArchived && (
+                     <Alert variant="destructive" className="bg-amber-950/40 border-amber-500/20 text-amber-300">
+                        <Archive className="h-4 w-4 text-amber-400" />
+                        <AlertTitle className="text-amber-400">This strategy is archived.</AlertTitle>
+                        <AlertDescription>
+                            It cannot be selected for new trade plans but remains for historical analysis. You can restore it or duplicate it to create a new active strategy.
+                        </AlertDescription>
+                    </Alert>
+                )}
+
                 <WhereThisMatters onSetModule={onSetModule} />
 
                 {totalUsageCount >= 30 && <ArjunRefinementSuggestions strategy={strategy} onEdit={onEdit} />}
@@ -1804,6 +1823,7 @@ export function StrategyManagementModule({ onSetModule, context }: StrategyManag
                 onSetModule={onSetModule}
                 onOpenCompare={handleOpenCompare}
                 initialVersionId={context?.versionId}
+                onDuplicate={openDuplicateDialog}
             />
             <AlertDialog open={draftUsageWarning} onOpenChange={setDraftUsageWarning}>
                 <AlertDialogContent>
@@ -2041,3 +2061,4 @@ export function StrategyManagementModule({ onSetModule, context }: StrategyManag
 
 
     
+
