@@ -1,5 +1,4 @@
 
-
       "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -112,6 +111,8 @@ type SavedDraft = {
 };
 
 // Validation Engine Types
+type ValidationStatus = "PASS" | "WARN" | "FAIL";
+
 type PlanInputs = {
     leverage: number;
     riskPct: number;
@@ -119,7 +120,12 @@ type PlanInputs = {
     session: "Asia" | "London" | "New York"; // Mocked
 };
 
-type ValidationStatus = "PASS" | "WARN" | "FAIL";
+type ValidationContext = {
+    todayTradeCountAll: number;
+    lossStreak: number;
+    vixZone: "Calm" | "Normal" | "Elevated" | "Extreme";
+};
+
 type ValidationCheck = {
   ruleId: string;
   title: string;
@@ -127,16 +133,11 @@ type ValidationCheck = {
   message: string;
   fixHint?: string;
 };
+
 type ValidationOutput = {
   validations: ValidationCheck[];
   overallStatus: "PASS" | "WARN" | "FAIL";
   requiresJustification: boolean;
-};
-
-type ValidationContext = {
-    todayTradeCountAll: number;
-    lossStreak: number;
-    vixZone: "Calm" | "Normal" | "Elevated" | "Extreme";
 };
 
 // The Validation Engine
@@ -278,7 +279,7 @@ const planTemplates: ({ id: string, name: string, values: Partial<PlanFormValues
     { id: 'custom_soon', name: "Custom template 1 (soon)", values: {} },
 ];
 
-type PlanStatusType = "incomplete" | "blocked" | "needs_attention" | "ok" | "overridden";
+type PlanStatusType = "incomplete" | "FAIL" | "WARN" | "PASS" | "overridden";
 
 const PlanStatus = ({ status, message }: { status: PlanStatusType, message: string }) => {
     const statusConfig = {
@@ -287,18 +288,18 @@ const PlanStatus = ({ status, message }: { status: PlanStatusType, message: stri
             className: "bg-muted text-muted-foreground border-border",
             icon: Circle
         },
-        blocked: {
-            label: "Blocked by Rules",
+        FAIL: {
+            label: "Major Violation",
             className: "bg-red-500/20 text-red-400 border-red-500/30",
             icon: XCircle,
         },
-        needs_attention: {
+        WARN: {
             label: "Needs Attention",
             className: "bg-amber-500/20 text-amber-400 border-amber-500/30",
             icon: AlertTriangle
         },
-        ok: {
-            label: "Structurally OK",
+        PASS: {
+            label: "Aligned with Strategy",
             className: "bg-green-500/20 text-green-400 border-green-500/30",
             icon: CheckCircle
         },
@@ -796,19 +797,19 @@ function PlanSummary({ control, setPlanStatus, onSetModule }: { control: any, se
     let message = "Fill in Entry, SL, Strategy and Risk % to see your plan summary.";
 
     if (validationResult && entryPrice > 0 && stopLoss > 0 && riskPercent > 0) {
-        if (validationResult.requiresJustification) {
-            status = 'blocked';
-            message = "This plan breaks a critical rule. Add justification to proceed.";
+        if (validationResult.overallStatus === 'FAIL') {
+            status = 'FAIL';
+            message = "Major violation. Arjun recommends NOT taking this trade.";
             if (justification && justification.length > 0) {
                 status = 'overridden';
-                message = "Critical rule overridden. Proceed with caution.";
+                message = "Critical rule overridden. You are consciously breaking your plan.";
             }
         } else if (validationResult.overallStatus === 'WARN') {
-            status = 'needs_attention';
-            message = "This plan has some warnings. Review the rule checks before proceeding.";
+            status = 'WARN';
+            message = "Slight deviation from your rules. Consider adjusting.";
         } else {
-            status = 'ok';
-            message = "This plan is structurally sound and follows your main rules.";
+            status = 'PASS';
+            message = "Aligned with your strategy. Looks solid.";
         }
     }
     
@@ -840,7 +841,7 @@ function PlanSummary({ control, setPlanStatus, onSetModule }: { control: any, se
                     </>
                 )}
                 
-                {validationResult?.requiresJustification && (
+                {validationResult?.overallStatus === 'FAIL' && (
                      <>
                         <Separator />
                          <FormField
@@ -848,10 +849,10 @@ function PlanSummary({ control, setPlanStatus, onSetModule }: { control: any, se
                             name="justification"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel className="text-destructive">Justification Required</FormLabel>
+                                    <FormLabel className={cn(justification && justification.length > 0 ? "text-amber-400" : "text-destructive")}>Justification Required</FormLabel>
                                     <FormControl>
                                         <Textarea
-                                            placeholder="Why are you breaking your own rules for this trade? Be specific."
+                                            placeholder="Why are you breaking your own rules for this trade? This will be logged in your journal."
                                             className="border-destructive/50"
                                             {...field}
                                         />
@@ -1654,7 +1655,7 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
         name: 'justification'
     });
     
-    const canProceedToReview = planStatus !== 'incomplete' && (planStatus !== 'blocked' || (justificationValue && justificationValue.length > 0));
+    const canProceedToReview = planStatus !== 'incomplete' && (planStatus !== 'FAIL' || (justificationValue && justificationValue.length > 0));
     const canProceedToExecution = canProceedToReview && arjunFeedbackAccepted;
 
     useEffect(() => {
@@ -1876,7 +1877,7 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
                               currentStep === 'review' ? !canProceedToExecution :
                               false;
     
-    const isBannerVisible = showBanner && (planStatus === 'blocked' || planStatus === 'overridden');
+    const isBannerVisible = showBanner && (planStatus === 'FAIL' || planStatus === 'overridden');
 
     const stepConfig = {
         plan: { label: "Plan", buttonText: isNewUser ? "Practice review (no real risk)" : "Proceed to Review (Step 2)", disabled: false },
@@ -1963,12 +1964,12 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
                     <div className="flex items-center justify-between w-full">
                         <div>
                             <AlertTitle className="text-amber-400">
-                                {planStatus === 'overridden' ? "You are overriding your rules" : "Critical Rule Violation"}
+                                {planStatus === 'overridden' ? "You are overriding your rules" : "Major Violation. Arjun recommends NOT taking this trade."}
                             </AlertTitle>
                             <AlertDescription>
                                {planStatus === 'overridden' 
                                  ? "This should be rare and done consciously. Your justification will be logged."
-                                 : "Fix the issues highlighted in the summary card, or add a justification to proceed."}
+                                 : "Fix the issues in the summary card, or add a justification to proceed."}
                             </AlertDescription>
                         </div>
                         <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setShowBanner(false)}>
@@ -2024,7 +2025,7 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
                             
                            {currentStep !== 'execute' && (
                                 <TooltipProvider>
-                                    <Tooltip open={isProceedDisabled && (planStatus === 'blocked' || currentStep === 'review' && !arjunFeedbackAccepted) ? undefined : false}>
+                                    <Tooltip open={isProceedDisabled && (planStatus === 'FAIL' || currentStep === 'review' && !arjunFeedbackAccepted) ? undefined : false}>
                                         <TooltipTrigger asChild>
                                             <div className="w-full sm:w-auto" tabIndex={0}>
                                                 <Button type="submit" disabled={isProceedDisabled} className="w-full">
@@ -2059,3 +2060,5 @@ function SummaryRow({ label, value, className }: { label: string, value: string 
         </div>
     )
 }
+
+    
