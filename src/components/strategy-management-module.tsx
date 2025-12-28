@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -359,6 +360,8 @@ function StrategyDetailView({
     const [selectedVersionId, setSelectedVersionId] = useState<string>(strategy.versions.find(v => v.isActiveVersion)?.versionId || strategy.versions[0].versionId);
 
     const selectedVersion = strategy.versions.find(v => v.versionId === selectedVersionId);
+    
+    const totalUsageCount = strategy.versions.reduce((sum, v) => sum + v.usageCount, 0);
 
     if (!selectedVersion) return null; // Should not happen if data is correct
 
@@ -388,27 +391,34 @@ function StrategyDetailView({
                                 {strategy.status === 'active' ? 'Archive' : 'Restore'}
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <TooltipProvider>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <div>
-                                            <DropdownMenuItem
-                                                className="text-destructive focus:text-destructive focus:bg-destructive/10"
-                                                onSelect={(e) => {
-                                                    e.preventDefault();
-                                                    onDelete();
-                                                }}
-                                            >
-                                                <Trash2 className="mr-2 h-4 w-4" />
-                                                Delete strategy
-                                            </DropdownMenuItem>
-                                        </div>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="left">
-                                        <p>Delete is allowed only if strategy has never been used in any executed trade.</p>
-                                    </TooltipContent>
-                                </Tooltip>
-                            </TooltipProvider>
+                            {totalUsageCount > 0 ? (
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                             <div className="w-full">
+                                                <DropdownMenuItem disabled>
+                                                    <Trash2 className="mr-2 h-4 w-4" />
+                                                    Delete strategy
+                                                </DropdownMenuItem>
+                                             </div>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="left">
+                                            <p className="max-w-xs">Used strategies cannot be deleted to preserve analytics accuracy. Please archive it instead.</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            ) : (
+                                <DropdownMenuItem
+                                    className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                                    onSelect={(e) => {
+                                        e.preventDefault();
+                                        onDelete();
+                                    }}
+                                >
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Delete strategy
+                                </DropdownMenuItem>
+                            )}
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </div>
