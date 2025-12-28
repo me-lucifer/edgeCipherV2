@@ -978,7 +978,7 @@ function PlanSummary({ control, setPlanStatus, onSetModule, entryChecklist, sess
                                     </FormLabel>
                                     <FormControl>
                                         <Textarea
-                                            placeholder="Why are you breaking your own rules for this trade? This will be logged in your journal."
+                                            placeholder="Explain why this trade is still valid despite the violation. This will be logged in your journal."
                                             className="border-destructive/50 focus-visible:ring-destructive"
                                             {...field}
                                         />
@@ -2249,4 +2249,3 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
         </div>
     );
 }
-
