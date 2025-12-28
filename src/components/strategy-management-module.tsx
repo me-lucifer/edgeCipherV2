@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -89,7 +88,7 @@ type StrategyVersion = {
     lastUsedAt: string | null;
 };
 
-type StrategyGroup = {
+export type StrategyGroup = {
     strategyId: string;
     name: string;
     type: 'Reversal' | 'Trend-Following' | 'Scalping' | 'Breakout' | 'Pullback' | 'SMC' | 'Custom';
@@ -225,8 +224,8 @@ function StrategyCard({ strategy, onOpen, onEdit, onDuplicate }: { strategy: Str
     const activeVersion = strategy.versions.find(v => v.isActiveVersion);
     const totalUsage = strategy.versions.reduce((sum, v) => sum + v.usageCount, 0);
 
-    const { riskPerTradePct, maxDailyLossPct, maxDailyTrades, leverageCap } = activeVersion?.ruleSet.riskRules || {};
-    const { allowedSessions, vixPolicy } = activeVersion?.ruleSet.contextRules || {};
+    const { riskPerTradePct, maxDailyLossPct, maxDailyTrades, leverageCap } = activeVersion?.ruleSet?.riskRules || {};
+    const { allowedSessions, vixPolicy } = activeVersion?.ruleSet?.contextRules || {};
     
     return (
         <Card className="bg-muted/40 hover:bg-muted/60 transition-colors flex flex-col">
@@ -986,6 +985,13 @@ function StrategyCreatorView({
                                             )}
                                             {currentStep === 4 && (
                                                 <div className="space-y-4">
+                                                    <Alert variant="default" className="bg-muted/50 border-border/50">
+                                                        <ShieldCheck className="h-4 w-4 text-primary" />
+                                                        <AlertTitle>Why this matters</AlertTitle>
+                                                        <AlertDescription className="text-muted-foreground">
+                                                            Your risk rules are the most critical part of your plan. They protect your capital so you can stay in the game.
+                                                        </AlertDescription>
+                                                    </Alert>
                                                     <div className="grid md:grid-cols-2 gap-4">
                                                         <FormField control={form.control} name="ruleSet.riskRules.riskPerTradePct" render={({ field }) => (<FormItem><FormLabel>Risk per trade (%)</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} /></FormControl><FormMessage /></FormItem>)} />
                                                         <FormField control={form.control} name="ruleSet.riskRules.maxDailyLossPct" render={({ field }) => (<FormItem><FormLabel>Max daily loss (%)</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} /></FormControl><FormMessage /></FormItem>)} />
@@ -1568,3 +1574,6 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
     );
 }
 
+
+
+    
