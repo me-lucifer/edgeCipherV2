@@ -1,5 +1,4 @@
 
-
       "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -122,10 +121,12 @@ type PlanInputs = {
     session: "Asia" | "London" | "New York"; // Mocked
 };
 
+type VixZone = "Calm" | "Normal" | "Elevated" | "Extreme";
+
 type ValidationContext = {
     todayTradeCountAll: number;
     lossStreak: number;
-    vixZone: "Calm" | "Normal" | "Elevated" | "Extreme";
+    vixZone: VixZone;
     allEntryRulesChecked: boolean;
 };
 
@@ -316,7 +317,7 @@ const PlanStatus = ({ status }: { status: PlanStatusType }) => {
         },
         FAIL: {
             label: "Major Violation",
-            message: "Major violation. Arjun recommends NOT taking this trade.",
+            message: "Arjun recommends NOT taking this trade.",
             className: "bg-red-500/20 text-red-400 border-red-500/30",
             icon: XCircle,
         },
@@ -354,44 +355,58 @@ const PlanStatus = ({ status }: { status: PlanStatusType }) => {
     )
 }
 
-function MarketContext() {
-    const [market, setMarket] = useState({ vixValue: 45, vixZone: 'Normal' });
+function MarketContext({ session, setSession, vixZone, setVixZone }: { session: "Asia" | "London" | "New York", setSession: (s: "Asia" | "London" | "New York") => void, vixZone: VixZone, setVixZone: (z: VixZone) => void}) {
+    const [market, setMarket] = useState({ vixValue: 45 });
 
     useEffect(() => {
         const scenario = localStorage.getItem('ec_demo_scenario') as DemoScenario | null;
         let vixValue = 45;
         if (scenario === 'high_vol') vixValue = 82;
+        
+        setMarket({ vixValue });
+        setVixZone(getVixZone(vixValue));
+    }, [setVixZone]);
 
-        const getVixZone = (vix: number) => {
-            if (vix > 75) return "Extreme";
-            if (vix > 50) return "Elevated";
-            if (vix > 25) return "Normal";
-            return "Calm";
-        }
-        setMarket({ vixValue, vixZone: getVixZone(vixValue) as "Calm" | "Normal" | "Elevated" | "Extreme" });
-    }, []);
-    
-    const isHighVol = market.vixZone === 'Extreme' || market.vixZone === 'Elevated';
+    const getVixZone = (vix: number): VixZone => {
+        if (vix > 75) return "Extreme";
+        if (vix > 50) return "Elevated";
+        if (vix > 25) return "Normal";
+        return "Calm";
+    };
+
+    const isHighVol = vixZone === 'Extreme' || vixZone === 'Elevated';
 
     return (
         <div>
             <h3 className="text-sm font-semibold text-foreground mb-3">Market Context</h3>
             <div className="p-4 rounded-lg bg-muted/50 border border-border/50 space-y-3">
                 <div className="flex justify-between items-center">
-                    <p className="text-sm text-muted-foreground flex items-center gap-2"><Gauge className="h-4 w-4" /> Crypto VIX</p>
-                    <div className="flex items-center gap-2">
-                        <span className="font-mono font-semibold">{market.vixValue}</span>
-                        <Badge variant="secondary" className={cn(
-                            'text-xs',
-                            isHighVol ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-green-500/20 text-green-400 border-green-500/30'
-                        )}>
-                            {market.vixZone}
-                        </Badge>
-                    </div>
+                    <Label htmlFor="session-select" className="text-sm text-muted-foreground flex items-center gap-2"><Clock className="h-4 w-4" /> Session</Label>
+                    <Select value={session} onValueChange={(v) => setSession(v as any)}>
+                        <SelectTrigger id="session-select" className="w-[180px]">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="Asia">Asia</SelectItem>
+                            <SelectItem value="London">London</SelectItem>
+                            <SelectItem value="New York">New York</SelectItem>
+                        </SelectContent>
+                    </Select>
                 </div>
-                <p className="text-xs text-muted-foreground italic">
-                    {isHighVol ? "Volatility is elevated – expect sharp swings." : "Volatility is normal – market is stable."}
-                </p>
+                 <div className="flex justify-between items-center">
+                    <Label htmlFor="vix-select" className="text-sm text-muted-foreground flex items-center gap-2"><Gauge className="h-4 w-4" /> VIX Zone</Label>
+                    <Select value={vixZone} onValueChange={(v) => setVixZone(v as any)}>
+                        <SelectTrigger id="vix-select" className="w-[180px]">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="Calm">Calm</SelectItem>
+                            <SelectItem value="Normal">Normal</SelectItem>
+                            <SelectItem value="Elevated">Elevated</SelectItem>
+                            <SelectItem value="Extreme">Extreme</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
                 
                 <Separator />
 
@@ -863,7 +878,7 @@ function StrategyGuardrailChecklist({ strategyId, onSetModule, checkedRules, onC
     );
 }
 
-function PlanSummary({ control, setPlanStatus, onSetModule, entryChecklist }: { control: any, setPlanStatus: (status: PlanStatusType) => void, onSetModule: (module: any) => void, entryChecklist: Record<string, boolean> }) {
+function PlanSummary({ control, setPlanStatus, onSetModule, entryChecklist, session, vixZone }: { control: any, setPlanStatus: (status: PlanStatusType) => void, onSetModule: (module: any) => void, entryChecklist: Record<string, boolean>, session: "Asia" | "London" | "New York", vixZone: VixZone }) {
     const values = useWatch({ control }) as PlanFormValues;
     const { direction, entryPrice, stopLoss, takeProfit, riskPercent, accountCapital, justification, strategyId } = values;
     const { totalTradesExecuted, lossStreak } = useDailyCounters();
@@ -889,16 +904,13 @@ function PlanSummary({ control, setPlanStatus, onSetModule, entryChecklist }: { 
     const validationResult = useMemo(() => {
         if (!activeRuleset) return null;
         
-        const scenario = localStorage.getItem('ec_demo_scenario') as DemoScenario | null;
-        const vixZone = scenario === 'high_vol' ? 'Elevated' : 'Normal';
-        
         const allEntryRulesChecked = (activeRuleset.entryRules.conditions || []).every(rule => entryChecklist[rule]);
 
         const planInputs: PlanInputs = {
             leverage: values.leverage,
             riskPct: values.riskPercent,
             rr: rrr,
-            session: "New York" // Mock
+            session: session,
         };
         const validationContext: ValidationContext = {
             todayTradeCountAll: totalTradesExecuted,
@@ -907,7 +919,7 @@ function PlanSummary({ control, setPlanStatus, onSetModule, entryChecklist }: { 
             allEntryRulesChecked,
         };
         return validatePlanAgainstStrategy(planInputs, activeRuleset, validationContext);
-    }, [values, activeRuleset, rrr, entryChecklist, totalTradesExecuted, lossStreak]);
+    }, [values, activeRuleset, rrr, entryChecklist, totalTradesExecuted, lossStreak, session, vixZone]);
 
 
     let status: PlanStatusType = 'incomplete';
@@ -983,14 +995,12 @@ function PlanSummary({ control, setPlanStatus, onSetModule, entryChecklist }: { 
                 
                 <Separator />
                 <DisciplineAlerts onSetModule={onSetModule} />
-                <Separator />
-                <MarketContext />
             </CardContent>
         </Card>
     );
 }
 
-function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser, currentStep, draftToResume, onResume, onDiscard, entryChecklist, setEntryChecklist }: { form: any, onSetModule: any, setPlanStatus: any, onApplyTemplate: (templateId: string) => void, isNewUser: boolean, currentStep: TradePlanStep, draftToResume: SavedDraft | null, onResume: () => void, onDiscard: () => void, entryChecklist: Record<string, boolean>, setEntryChecklist: (checklist: Record<string, boolean>) => void }) {
+function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser, currentStep, draftToResume, onResume, onDiscard, entryChecklist, setEntryChecklist, session, setSession, vixZone, setVixZone }: { form: any, onSetModule: any, setPlanStatus: any, onApplyTemplate: (templateId: string) => void, isNewUser: boolean, currentStep: TradePlanStep, draftToResume: SavedDraft | null, onResume: () => void, onDiscard: () => void, entryChecklist: Record<string, boolean>, setEntryChecklist: (checklist: Record<string, boolean>), session: "Asia" | "London" | "New York", setSession: (s: "Asia" | "London" | "New York") => void, vixZone: VixZone, setVixZone: (z: VixZone) => void }) {
     const entryType = useWatch({ control: form.control, name: 'entryType' });
     const strategyId = useWatch({ control: form.control, name: 'strategyId' });
     
@@ -1203,7 +1213,12 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
 
             <div className="lg:col-span-1 space-y-6 sticky top-24">
                 <SessionChecklist currentStep={currentStep} />
-                <PlanSummary control={form.control} setPlanStatus={setPlanStatus} onSetModule={onSetModule} entryChecklist={entryChecklist} />
+                <PlanSummary control={form.control} setPlanStatus={setPlanStatus} onSetModule={onSetModule} entryChecklist={entryChecklist} session={session} vixZone={vixZone} />
+                 <Card className="bg-muted/30 border-border/50">
+                    <CardContent className="p-4">
+                         <MarketContext session={session} setSession={setSession} vixZone={vixZone} setVixZone={setVixZone} />
+                    </CardContent>
+                </Card>
             </div>
             
             <Drawer open={isStrategyDrawerOpen} onOpenChange={setIsStrategyDrawerOpen}>
@@ -1764,6 +1779,11 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
     const [initialContext, setInitialContext] = useState(planContext);
     const [isRecoveryMode, setIsRecoveryMode] = useState(false);
     const [entryChecklist, setEntryChecklist] = useState<Record<string, boolean>>({});
+    
+    // Context states
+    const [session, setSession] = useState<'Asia' | 'London' | 'New York'>('New York');
+    const [vixZone, setVixZone] = useState<VixZone>('Normal');
+
 
     const reviewHeadingRef = useRef<HTMLDivElement>(null);
     const executionHeadingRef = useRef<HTMLDivElement>(null);
@@ -2152,7 +2172,7 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onValidSubmit, onInvalidSubmit)} className="space-y-8">
 
-                    {currentStep === "plan" && <PlanStep form={form} onSetModule={onSetModule} setPlanStatus={setPlanStatus} onApplyTemplate={handleApplyTemplate} isNewUser={isNewUser} currentStep={currentStep} draftToResume={draftToResume} onResume={handleResumeDraft} onDiscard={handleDiscardDraft} entryChecklist={entryChecklist} setEntryChecklist={setEntryChecklist} />}
+                    {currentStep === "plan" && <PlanStep form={form} onSetModule={onSetModule} setPlanStatus={setPlanStatus} onApplyTemplate={handleApplyTemplate} isNewUser={isNewUser} currentStep={currentStep} draftToResume={draftToResume} onResume={handleResumeDraft} onDiscard={handleDiscardDraft} entryChecklist={entryChecklist} setEntryChecklist={setEntryChecklist} session={session} setSession={setSession} vixZone={vixZone} setVixZone={setVixZone} />}
                     {currentStep === "review" && <ReviewStep form={form} onSetModule={onSetModule} onSetStep={setCurrentStep} arjunFeedbackAccepted={arjunFeedbackAccepted} setArjunFeedbackAccepted={setArjunFeedbackAccepted} planStatus={planStatus} reviewHeadingRef={reviewHeadingRef} />}
                     {currentStep === "execute" && <ExecuteStep form={form} onSetModule={onSetModule} onSetStep={setCurrentStep} planStatus={planStatus} executionHeadingRef={executionHeadingRef} validationResult={null} entryChecklist={entryChecklist} />}
 
@@ -2199,3 +2219,4 @@ function SummaryRow({ label, value, className }: { label: string, value: string 
     )
 }
 
+    
