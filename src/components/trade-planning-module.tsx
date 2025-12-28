@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Info, CheckCircle, Circle, AlertTriangle, FileText, ArrowRight, Gauge, ShieldCheck, XCircle, X, Lock, Loader2, Bookmark, Copy, RefreshCw, Sparkles, Clock, HelpCircle, ArrowLeft, ChevronsUpDown } from "lucide-react";
+import { Bot, Info, CheckCircle, Circle, AlertTriangle, FileText, ArrowRight, Gauge, ShieldCheck, XCircle, X, Lock, Loader2, Bookmark, Copy, RefreshCw, Sparkles, Clock, HelpCircle, ArrowLeft, ChevronsUpDown, HeartPulse, Scale, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
@@ -35,6 +35,7 @@ import { useDailyCounters } from "@/hooks/use-daily-counters";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "./ui/command";
 import { Check } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
 
 
 interface TradePlanningModuleProps {
@@ -117,6 +118,7 @@ type SavedDraft = {
 
 // Validation Engine Types
 type ValidationStatus = "PASS" | "WARN" | "FAIL";
+type ValidationCategory = 'Risk & Leverage' | 'RR & TP' | 'Daily Discipline' | 'Context' | 'Entry Confirmation';
 
 type PlanInputs = {
     leverage: number;
@@ -139,6 +141,7 @@ type ValidationCheck = {
   title: string;
   status: ValidationStatus;
   message: string;
+  category: ValidationCategory;
   fixHint?: string;
 };
 
@@ -156,7 +159,7 @@ const validatePlanAgainstStrategy = (plan: PlanInputs, strategy: RuleSet, contex
     if (!riskRules || !tpRules || !contextRules || !entryRules) {
         // Fallback if ruleSet is incomplete
         return {
-            validations: [{ ruleId: 'incomplete', title: 'Strategy Incomplete', status: 'FAIL', message: 'The selected strategy is missing critical rule definitions.' }],
+            validations: [{ ruleId: 'incomplete', title: 'Strategy Incomplete', status: 'FAIL', message: 'The selected strategy is missing critical rule definitions.', category: 'Risk & Leverage' }],
             overallStatus: 'FAIL',
             requiresJustification: true
         };
@@ -169,7 +172,8 @@ const validatePlanAgainstStrategy = (plan: PlanInputs, strategy: RuleSet, contex
         status: plan.leverage > riskRules.leverageCap ? "FAIL" : "PASS",
         message: plan.leverage > riskRules.leverageCap
             ? `Leverage of ${plan.leverage}x exceeds strategy max of ${riskRules.leverageCap}x.`
-            : `Leverage is within strategy limits.`
+            : `Leverage is within strategy limits.`,
+        category: 'Risk & Leverage'
     });
 
     // B) Risk per trade
@@ -188,6 +192,7 @@ const validatePlanAgainstStrategy = (plan: PlanInputs, strategy: RuleSet, contex
         title: `Risk per trade <= ${riskRules.riskPerTradePct}%`,
         status: riskStatus,
         message: riskMessage,
+        category: 'Risk & Leverage'
     });
 
     // C) Max daily trades
@@ -197,7 +202,8 @@ const validatePlanAgainstStrategy = (plan: PlanInputs, strategy: RuleSet, contex
         status: context.todayTradeCountAll >= riskRules.maxDailyTrades ? "FAIL" : "PASS",
         message: context.todayTradeCountAll >= riskRules.maxDailyTrades
             ? `You've already made ${context.todayTradeCountAll} trades today. Your limit for this strategy is ${riskRules.maxDailyTrades}.`
-            : "Within daily trade limit."
+            : "Within daily trade limit.",
+        category: 'Daily Discipline'
     });
 
     // D) Cooldown after losses
@@ -206,7 +212,8 @@ const validatePlanAgainstStrategy = (plan: PlanInputs, strategy: RuleSet, contex
             ruleId: 'cooldown',
             title: `Cooldown after ${2} losses`,
             status: "FAIL",
-            message: `You are on a ${context.lossStreak}-trade losing streak. This strategy requires a cooldown.`
+            message: `You are on a ${context.lossStreak}-trade losing streak. This strategy requires a cooldown.`,
+            category: 'Daily Discipline'
         });
     }
 
@@ -218,7 +225,8 @@ const validatePlanAgainstStrategy = (plan: PlanInputs, strategy: RuleSet, contex
             status: plan.rr < tpRules.minRR ? "FAIL" : "PASS",
             message: plan.rr < tpRules.minRR
                 ? `R:R of ${plan.rr.toFixed(2)} is below the required minimum of ${tpRules.minRR}.`
-                : "R:R meets minimum requirement."
+                : "R:R meets minimum requirement.",
+            category: 'RR & TP'
         });
     }
 
@@ -237,7 +245,8 @@ const validatePlanAgainstStrategy = (plan: PlanInputs, strategy: RuleSet, contex
             ruleId: 'vixPolicy',
             title: `VIX Policy: ${contextRules.vixPolicy}`,
             status: vixStatus,
-            message: message
+            message: message,
+            category: 'Context'
         });
     }
 
@@ -250,7 +259,8 @@ const validatePlanAgainstStrategy = (plan: PlanInputs, strategy: RuleSet, contex
             status: isAllowed ? 'PASS' : 'WARN',
             message: isAllowed
                 ? 'Trading within allowed session.'
-                : `Current session (${plan.session}) is outside of this strategy's allowed sessions.`
+                : `Current session (${plan.session}) is outside of this strategy's allowed sessions.`,
+            category: 'Context'
         });
     }
     
@@ -262,7 +272,8 @@ const validatePlanAgainstStrategy = (plan: PlanInputs, strategy: RuleSet, contex
             status: context.allEntryRulesChecked ? 'PASS' : 'WARN',
             message: context.allEntryRulesChecked 
                 ? 'All entry conditions have been manually confirmed.'
-                : 'Entry confirmation checklist is incomplete.'
+                : 'Entry confirmation checklist is incomplete.',
+            category: 'Entry Confirmation'
         });
     }
     
@@ -472,14 +483,61 @@ const RuleCheckRow = ({ check }: { check: ValidationCheck }) => {
 };
 
 function RuleChecks({ checks }: { checks: ValidationCheck[] }) {
+    const groupedChecks = useMemo(() => {
+        const groups: Partial<Record<ValidationCategory, ValidationCheck[]>> = {};
+        for (const check of checks) {
+            if (!groups[check.category]) {
+                groups[check.category] = [];
+            }
+            groups[check.category]!.push(check);
+        }
+        return Object.entries(groups) as [ValidationCategory, ValidationCheck[]][];
+    }, [checks]);
+
+    const getGroupStatus = (group: ValidationCheck[]): ValidationStatus => {
+        if (group.some(c => c.status === 'FAIL')) return 'FAIL';
+        if (group.some(c => c.status === 'WARN')) return 'WARN';
+        return 'PASS';
+    };
+
     return (
         <div>
             <h3 className="text-sm font-semibold text-foreground mb-3">Strategy Validation (Rulebook Firewall)</h3>
-            <div className="p-4 rounded-lg bg-muted/50 border border-border/50 space-y-4">
-                {checks.map((check, i) => <RuleCheckRow key={i} check={check} />)}
+            <div className="rounded-lg bg-muted/50 border border-border/50">
+                {groupedChecks.map(([category, group], index) => {
+                    const status = getGroupStatus(group);
+                    const Icon = { PASS: CheckCircle, WARN: AlertTriangle, FAIL: XCircle }[status];
+                    const color = { PASS: 'text-green-400', WARN: 'text-amber-400', FAIL: 'text-destructive' }[status];
+                    
+                    return (
+                        <Collapsible key={category} defaultOpen={status !== 'PASS'}>
+                             <CollapsibleTrigger className="w-full">
+                                <div className={cn("flex items-center justify-between p-3 cursor-pointer hover:bg-muted", index > 0 && "border-t")}>
+                                    <div className="flex items-center gap-2">
+                                        <Icon className={cn("h-4 w-4", color)} />
+                                        <span className="text-sm font-semibold text-foreground">{category}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <Badge variant="secondary" className={cn("text-xs font-mono",
+                                            status === 'PASS' && "bg-green-500/10 text-green-400 border-green-500/20",
+                                            status === 'WARN' && "bg-amber-500/10 text-amber-400 border-amber-500/20",
+                                            status === 'FAIL' && "bg-red-500/10 text-red-400 border-red-500/20",
+                                        )}>{status}</Badge>
+                                        <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200" />
+                                    </div>
+                                </div>
+                            </CollapsibleTrigger>
+                            <CollapsibleContent className="p-4 pt-0">
+                                <div className="space-y-4 pt-2 border-t">
+                                     {group.map((check) => <RuleCheckRow key={check.ruleId} check={check} />)}
+                                </div>
+                            </CollapsibleContent>
+                        </Collapsible>
+                    );
+                })}
             </div>
         </div>
-    )
+    );
 }
 
 const interventionMessages = {
