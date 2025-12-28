@@ -223,7 +223,7 @@ const validatePlanAgainstStrategy = (plan: PlanInputs, strategy: RuleSet, contex
         let vixStatus: ValidationStatus = 'PASS';
         let message = "Volatility is within strategy parameters.";
         if (contextRules.vixPolicy === 'avoidHigh' && (context.vixZone === 'Elevated' || context.vixZone === 'Extreme')) {
-            vixStatus = 'FAIL';
+            vixStatus = 'WARN';
             message = `Current VIX is '${context.vixZone}', which this strategy suggests avoiding.`;
         } else if (contextRules.vixPolicy === 'onlyLowNormal' && (context.vixZone === 'Elevated' || context.vixZone === 'Extreme')) {
             vixStatus = 'FAIL';
@@ -1202,13 +1202,13 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
                                             <SelectTrigger><SelectValue placeholder="Select from your playbook"/></SelectTrigger>
                                         </FormControl>
                                         <SelectContent>
-                                            {availableStrategies.map(s => <SelectItem key={s.strategyId} value={s.strategyId}>{s.name}</SelectItem>)}
+                                            {availableStrategies.map(s => <SelectItem key={s.strategyId} value={s.strategyId}>{s.name} (v{s.versions.find(v => v.isActiveVersion)?.versionNumber || 1})</SelectItem>)}
                                         </SelectContent>
                                     </Select>
                                     <FormMessage /></FormItem>
                                 )}/>
-                                <Button type="button" variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => setIsStrategyDrawerOpen(true)} disabled={!strategyId}>
-                                    View strategy details <ArrowRight className="ml-1 h-3 w-3" />
+                                <Button type="button" variant="outline" size="sm" onClick={() => setIsStrategyDrawerOpen(true)} disabled={!strategyId}>
+                                    View Details
                                 </Button>
                             </div>
 
@@ -2226,13 +2226,4 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
         </div>
     );
 }
-function SummaryRow({ label, value, className }: { label: string, value: string | React.ReactNode, className?: string }) {
-    return (
-        <div className="flex justify-between items-center text-sm">
-            <p className="text-muted-foreground">{label}</p>
-            <p className={cn("font-semibold font-mono text-foreground", className)}>{value}</p>
-        </div>
-    )
-}
 
-    
