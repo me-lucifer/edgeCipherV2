@@ -1,5 +1,4 @@
 
-
       "use client";
 
 import { Button } from "@/components/ui/button";
@@ -278,7 +277,6 @@ function StrategyCard({ strategy, onOpen, onEdit, onDuplicate }: { strategy: Str
     const health = getStrategyHealth(strategy);
 
     const { riskPerTradePct, maxDailyLossPct, maxDailyTrades, leverageCap } = activeVersion?.ruleSet?.riskRules || {};
-    const { allowedSessions, vixPolicy } = activeVersion?.ruleSet?.contextRules || {};
     
     return (
         <Card className="bg-muted/40 hover:bg-muted/60 transition-colors flex flex-col">
@@ -304,9 +302,17 @@ function StrategyCard({ strategy, onOpen, onEdit, onDuplicate }: { strategy: Str
                                     <p className="text-sm text-muted-foreground">Mock analytics for this strategy.</p>
                                 </div>
                                 <div className="grid gap-2 text-sm">
-                                    <div className="grid grid-cols-2 items-center gap-4"><span>Top Breach:</span><Badge variant="outline" className="justify-center">{health.breakdown.topBreach}</Badge></div>
+                                    <div className="grid grid-cols-2 items-center gap-4"><span>Top Leak:</span><Badge variant="outline" className="justify-center">{health.breakdown.topBreach}</Badge></div>
                                     <div className="grid grid-cols-2 items-center gap-4"><span>Top Emotion:</span><Badge variant="outline" className="justify-center">{health.breakdown.topEmotion}</Badge></div>
                                     <div className="grid grid-cols-2 items-center gap-4"><span>Best Condition:</span><span>{health.breakdown.bestCondition}</span></div>
+                                </div>
+                                 <div className="flex gap-2 pt-2">
+                                    <Button size="sm" variant="outline" className="flex-1" onClick={() => onOpen(strategy)}>
+                                        <Bot className="mr-2 h-4 w-4" /> See Suggestions
+                                    </Button>
+                                    <Button size="sm" className="flex-1" onClick={() => onEdit(strategy)}>
+                                        <Edit className="mr-2 h-4 w-4" /> Create vNext
+                                    </Button>
                                 </div>
                             </div>
                         </PopoverContent>
@@ -2088,9 +2094,5 @@ export function StrategyManagementModule({ onSetModule, context }: StrategyManag
         </div>
     );
 }
-
-
-
     
-
-
+    
