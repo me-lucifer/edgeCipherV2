@@ -1341,8 +1341,9 @@ ${JSON.stringify(data, null, 2)}
 
             <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
                 <div className={cn("flex flex-col md:flex-row md:items-center md:justify-between gap-4", isPresentationMode && "hidden")}>
-                    <TabsList className="grid w-full grid-cols-2 max-w-sm md:w-auto">
+                    <TabsList className="grid w-full grid-cols-3 max-w-sm md:w-auto">
                         <TabsTrigger value="overview">Overview</TabsTrigger>
+                        <TabsTrigger value="discipline">Discipline</TabsTrigger>
                         <TabsTrigger value="by-behaviour">By Behaviour</TabsTrigger>
                     </TabsList>
                     <div className="flex flex-wrap items-center gap-2">
@@ -1566,8 +1567,7 @@ ${JSON.stringify(data, null, 2)}
                         onOpenJournal={(journalId) => onSetModule('tradeJournal', { draftId: journalId })}
                     />
                 </TabsContent>
-                <TabsContent value="by-behaviour" className="mt-6 space-y-8">
-                    <PinnedInsightsCard analyticsData={analyticsData} onSetModule={onSetModule} onApplyGuardrails={handleApplyGuardrails} />
+                 <TabsContent value="discipline" className="mt-6 space-y-8">
                     <SectionCard
                         id="discipline-scores"
                         title="Behaviour Scores"
@@ -1580,7 +1580,24 @@ ${JSON.stringify(data, null, 2)}
                             <ScoreGauge score={scores.consistencyScore} delta={getDelta(scores.consistencyScore, previousData?.scores.consistencyScore)} label="Consistency" interpretation={scores.consistencyScore > 70 ? 'High' : 'Medium'} />
                          </div>
                     </SectionCard>
-                    
+                    <SectionCard
+                        id="discipline-breakdown"
+                        title="Discipline Breakdown"
+                        description="Where are you deviating from your plan?"
+                        icon={Award}
+                    >
+                        <ChartContainer config={{}} className="h-64">
+                            <BarChart data={disciplineBreakdown} layout="vertical" margin={{ left: 20 }}>
+                                <XAxis type="number" hide />
+                                <YAxis type="category" dataKey="violation" hide />
+                                <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line" />} />
+                                <Bar dataKey="frequency" fill="hsl(var(--primary))" radius={4} />
+                            </BarChart>
+                        </ChartContainer>
+                    </SectionCard>
+                </TabsContent>
+                <TabsContent value="by-behaviour" className="mt-6 space-y-8">
+                    <PinnedInsightsCard analyticsData={analyticsData} onSetModule={onSetModule} onApplyGuardrails={handleApplyGuardrails} />
                     <SectionCard
                         id="psych-profile"
                         title="Psychological Profile"
@@ -1645,40 +1662,6 @@ ${JSON.stringify(data, null, 2)}
                             <Button onClick={handleApplyGuardrails}>
                                 <ShieldCheck className="mr-2 h-4 w-4" /> Turn on Recommended Guardrails
                             </Button>
-                        </div>
-                    </SectionCard>
-
-                    <SectionCard
-                        id="plan-adherence"
-                        title="Plan Adherence"
-                        description="How well are you following your own rules?"
-                        icon={Award}
-                    >
-                        <div className="grid md:grid-cols-2 gap-8 items-center">
-                            <div className="space-y-4">
-                                <MetricCard title="Adherence Rate" value={`${planAdherence.adherenceRate.toFixed(0)}%`} hint="Trades that followed plan exactly" />
-                                <div className="p-4 bg-muted/50 rounded-lg">
-                                    <p className="text-sm text-muted-foreground">Followed plan: {planAdherence.followedPlan} trades</p>
-                                    <p className="text-sm text-muted-foreground">Minor deviations: {planAdherence.minorDeviations} trades</p>
-                                    <p className="text-sm text-muted-foreground">Major violations: {planAdherence.majorViolations} trades</p>
-                                </div>
-                            </div>
-                             <ChartContainer config={{}} className="h-64">
-                                <BarChart
-                                    data={[
-                                        { name: 'Followed Plan', value: planAdherence.followedPlan, fill: 'hsl(var(--chart-2))' },
-                                        { name: 'Minor Deviations', value: planAdherence.minorDeviations, fill: 'hsl(var(--chart-4))' },
-                                        { name: 'Major Violations', value: planAdherence.majorViolations, fill: 'hsl(var(--chart-5))' },
-                                    ]}
-                                    layout="vertical"
-                                    margin={{ left: 20 }}
-                                >
-                                    <XAxis type="number" hide />
-                                    <YAxis type="category" dataKey="name" hide />
-                                    <ChartTooltip cursor={false} content={<ChartTooltipContent hideIndicator />} />
-                                    <Bar dataKey="value" radius={4} />
-                                </BarChart>
-                            </ChartContainer>
                         </div>
                     </SectionCard>
                 </TabsContent>
@@ -1827,13 +1810,36 @@ const computeSinglePeriodAnalytics = (entries: JournalEntry[], random: () => num
       }))
       .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
+      const mockStrategyData = ["Breakout Trend", "Mean Reversion", "Trend Following", "Range Play"].map(name => {
+        const strategyEntries = entries.filter(e => e.technical.strategy === name);
+        const completed = strategyEntries.filter(e => e.status === 'completed');
+        const wins = completed.filter(e => e.review && e.review.pnl > 0).length;
+        const totalCompleted = completed.length;
+        const pnl = completed.reduce((sum, e) => sum + (e.review?.pnl || 0), 0);
+        
+        let mistakeCount = 0;
+        const topMistakes: Record<string, number> = {};
+        completed.forEach(e => {
+            if (e.meta.ruleAdherenceSummary && Object.values(e.meta.ruleAdherenceSummary).some(v => v === false)) {
+                mistakeCount++;
+                if (e.meta.ruleAdherenceSummary.movedSL) topMistakes['Moved SL'] = (topMistakes['Moved SL'] || 0) + 1;
+                if (e.meta.ruleAdherenceSummary.rrBelowMin) topMistakes['Low R:R'] = (topMistakes['Low R:R'] || 0) + 1;
+            }
+        });
+        const topMistake = Object.entries(topMistakes).sort((a,b) => b[1] - a[1])[0]?.[0] || 'N/A';
 
-    const mockStrategyData = [
-      { name: "Breakout", trades: Math.floor(random() * 50) + 20, winRate: 40 + Math.floor(random() * 20), mistakeRate: 20 + Math.floor(random() * 10), avgR: 1.5 + random() * 0.5, pnl: 2000 + random() * 1000, topMistake: "Exited early", emotionMix: [{emotion: 'FOMO', percentage: 25}, {emotion: 'Confident', percentage: 40}] },
-      { name: "Mean Reversion", trades: Math.floor(random() * 50) + 20, winRate: 60 + Math.floor(random() * 15), mistakeRate: 10 + Math.floor(random() * 5), avgR: 0.8 + random() * 0.3, pnl: 1000 + random() * 500, topMistake: "Moved SL", emotionMix: [{emotion: 'Anxious', percentage: 30}, {emotion: 'Calm', percentage: 50}] },
-      { name: "Trend Following", trades: Math.floor(random() * 30) + 15, winRate: 35 + Math.floor(random() * 15), mistakeRate: 30 + Math.floor(random() * 15), avgR: 2.2 + random() * 0.8, pnl: 2500 + random() * 1500, topMistake: "Forced Entry", emotionMix: [{emotion: 'Confident', percentage: 45}, {emotion: 'Greed', percentage: 20}] },
-      { name: "Range Play", trades: Math.floor(random() * 20) + 10, winRate: 65 + Math.floor(random() * 10), mistakeRate: 40 + Math.floor(random() * 20), avgR: 0.6 + random() * 0.2, pnl: -200 - random() * 500, topMistake: "Oversized risk", emotionMix: [{emotion: 'Bored', percentage: 40}, {emotion: 'Hope', percentage: 30}] },
-    ];
+        return {
+            name,
+            trades: strategyEntries.length,
+            winRate: totalCompleted > 0 ? (wins / totalCompleted) * 100 : 0,
+            mistakeRate: totalCompleted > 0 ? (mistakeCount / totalCompleted) * 100 : 0,
+            avgR: 1.2 + (random() - 0.5),
+            pnl,
+            topMistake,
+            emotionMix: [{emotion: 'Confident', percentage: 40 + Math.random() * 10}, {emotion: 'Anxious', percentage: 20 + Math.random() * 10}],
+        };
+    });
+
 
     const timingHeatmapData = {
         sessions: [
@@ -1909,7 +1915,4 @@ const computeSinglePeriodAnalytics = (entries: JournalEntry[], random: () => num
         disciplineByVolatility,
     };
   }
-
-
-
 
