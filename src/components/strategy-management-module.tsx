@@ -1022,7 +1022,21 @@ function StrategyCreatorView({
                                             {currentStep === 6 && (
                                                 <div className="space-y-4">
                                                     <h3 className="font-semibold">Review & Save</h3>
-                                                    {editingId && ( <FormField control={form.control} name="changeNotes" render={({ field }) => ( <FormItem> <FormLabel>What's new in this version?</FormLabel> <FormControl> <Textarea placeholder="e.g., 'Tightened SL rule and added a new entry confirmation.'" {...field} /> </FormControl> <FormMessage /> </FormItem> )}/>
+                                                    {editingId && (
+                                                        <FormField
+                                                            control={form.control}
+                                                            name="changeNotes"
+                                                            render={({ field }) => (
+                                                                <FormItem>
+                                                                    <FormLabel>What's new in this version?</FormLabel>
+                                                                    <FormControl>
+                                                                        <Textarea placeholder="e.g., 'Tightened SL rule and added a new entry confirmation.'" {...field} />
+                                                                    </FormControl>
+                                                                    <FormDescription>This note helps you track how your strategy evolves.</FormDescription>
+                                                                    <FormMessage />
+                                                                </FormItem>
+                                                            )}
+                                                        />
                                                     )}
                                                     <p>Final review of all structured rules will be available in the detail view after saving.</p>
                                                 </div>
@@ -1235,7 +1249,7 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
 
             updateStrategies(updatedStrategies);
             toast({
-                title: `Strategy saved as v${Math.max(...updatedStrategies.find(s => s.strategyId === editingId)!.versions.map(v => v.versionNumber))}`,
+                title: `Strategy saved as v${Math.max(...(updatedStrategies.find(s => s.strategyId === editingId)!.versions.map(v => v.versionNumber)))}`,
                 description: "Historical trades will still reference older versions.",
             });
         } else {
@@ -1365,13 +1379,14 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
     useEffect(() => {
         if(viewMode === 'create' && editingStrategy && editingStrategy.strategyId === 'temp_duplicate_id') {
             const activeVersion = editingStrategy.versions[0];
-            initialData = {
+            const initialData: StrategyCreationValues = {
                 name: editingStrategy.name,
                 type: editingStrategy.type,
                 timeframes: editingStrategy.timeframes,
                 description: activeVersion.description,
                 difficulty: activeVersion.difficulty,
-                ruleSet: activeVersion.ruleSet
+                ruleSet: activeVersion.ruleSet,
+                changeNotes: `Copied from ${editingStrategy.name} v${activeVersion.versionNumber}`
             };
 
             const event = new CustomEvent('populate-creator-form', { detail: initialData });
@@ -1405,7 +1420,8 @@ export function StrategyManagementModule({ onSetModule }: StrategyManagementModu
                 timeframes: editingStrategy.timeframes,
                 description: activeVersion.description,
                 difficulty: activeVersion.difficulty,
-                ruleSet: activeVersion.ruleSet
+                ruleSet: activeVersion.ruleSet,
+                changeNotes: `Copied from ${editingStrategy.name} v${activeVersion.versionNumber}`
             };
         }
 
