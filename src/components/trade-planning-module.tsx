@@ -1,5 +1,4 @@
 
-
       "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -13,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Info, CheckCircle, Circle, AlertTriangle, FileText, ArrowRight, Gauge, ShieldCheck, XCircle, X, Lock, Loader2, Bookmark, Copy, RefreshCw, Sparkles, Clock, HelpCircle, ArrowLeft, ChevronsUpDown, HeartPulse, Scale, ChevronDown } from "lucide-react";
+import { Bot, Info, CheckCircle, Circle, AlertTriangle, FileText, ArrowRight, Gauge, ShieldCheck, XCircle, X, Lock, Loader2, Bookmark, Copy, RefreshCw, Sparkles, Clock, HelpCircle, ArrowLeft, ChevronsUpDown, HeartPulse, Scale, ChevronDown, Wand2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
@@ -142,7 +141,14 @@ type ValidationCheck = {
   status: ValidationStatus;
   message: string;
   category: ValidationCategory;
-  fixHint?: string;
+  fix?: {
+    type: 'SET_VALUE' | 'SHOW_HINT';
+    payload: {
+        field?: keyof PlanFormValues;
+        value?: any;
+        toastMessage?: string;
+    }
+  }
 };
 
 type ValidationOutput = {
@@ -173,7 +179,11 @@ const validatePlanAgainstStrategy = (plan: PlanInputs, strategy: RuleSet, contex
         message: plan.leverage > riskRules.leverageCap
             ? `Leverage of ${plan.leverage}x exceeds strategy max of ${riskRules.leverageCap}x.`
             : `Leverage is within strategy limits.`,
-        category: 'Risk & Leverage'
+        category: 'Risk & Leverage',
+        fix: plan.leverage > riskRules.leverageCap ? {
+            type: 'SET_VALUE',
+            payload: { field: 'leverage', value: riskRules.leverageCap }
+        } : undefined,
     });
 
     // B) Risk per trade
@@ -192,7 +202,11 @@ const validatePlanAgainstStrategy = (plan: PlanInputs, strategy: RuleSet, contex
         title: `Risk per trade <= ${riskRules.riskPerTradePct}%`,
         status: riskStatus,
         message: riskMessage,
-        category: 'Risk & Leverage'
+        category: 'Risk & Leverage',
+        fix: riskDifference > 0 ? {
+            type: 'SET_VALUE',
+            payload: { field: 'riskPercent', value: riskRules.riskPerTradePct }
+        } : undefined,
     });
 
     // C) Max daily trades
@@ -226,7 +240,11 @@ const validatePlanAgainstStrategy = (plan: PlanInputs, strategy: RuleSet, contex
             message: plan.rr < tpRules.minRR
                 ? `R:R of ${plan.rr.toFixed(2)} is below the required minimum of ${tpRules.minRR}.`
                 : "R:R meets minimum requirement.",
-            category: 'RR & TP'
+            category: 'RR & TP',
+            fix: plan.rr < tpRules.minRR ? {
+                type: 'SET_VALUE',
+                payload: { field: 'takeProfit', value: tpRules.minRR } // Special handling needed
+            } : undefined,
         });
     }
 
@@ -234,19 +252,23 @@ const validatePlanAgainstStrategy = (plan: PlanInputs, strategy: RuleSet, contex
     if (contextRules.vixPolicy) {
         let vixStatus: ValidationStatus = 'PASS';
         let message = "Volatility is within strategy parameters.";
+        let fix: ValidationCheck['fix'] | undefined;
         if (contextRules.vixPolicy === 'avoidHigh' && (context.vixZone === 'Elevated' || context.vixZone === 'Extreme')) {
             vixStatus = 'WARN';
             message = `Current VIX is '${context.vixZone}', which this strategy suggests avoiding.`;
+            fix = { type: 'SHOW_HINT', payload: { toastMessage: 'Consider switching to a strategy that performs better in high volatility.' } };
         } else if (contextRules.vixPolicy === 'onlyLowNormal' && (context.vixZone === 'Elevated' || context.vixZone === 'Extreme')) {
             vixStatus = 'FAIL';
             message = `Strategy requires 'Calm' or 'Normal' VIX, but it is currently '${context.vixZone}'.`;
+            fix = { type: 'SHOW_HINT', payload: { toastMessage: 'Switch to a strategy suitable for high volatility or wait for calmer markets.' } };
         }
         validations.push({
             ruleId: 'vixPolicy',
             title: `VIX Policy: ${contextRules.vixPolicy}`,
             status: vixStatus,
             message: message,
-            category: 'Context'
+            category: 'Context',
+            fix,
         });
     }
 
@@ -445,7 +467,7 @@ function MarketContext({ session, setSession, vixZone, setVixZone }: { session: 
     )
 }
 
-const RuleCheckRow = ({ check }: { check: ValidationCheck }) => {
+const RuleCheckRow = ({ check, onFix }: { check: ValidationCheck, onFix: (fix: ValidationCheck['fix']) => void }) => {
     const Icon = {
         PASS: CheckCircle,
         WARN: AlertTriangle,
@@ -467,11 +489,19 @@ const RuleCheckRow = ({ check }: { check: ValidationCheck }) => {
                              <Icon className={cn("h-4 w-4", color)} />
                             <span className={cn('text-muted-foreground', check.status !== 'PASS' && 'text-foreground font-medium')}>{check.title}</span>
                         </div>
-                         <Badge variant="secondary" className={cn("text-xs font-mono",
-                            check.status === 'PASS' && "bg-green-500/10 text-green-400 border-green-500/20",
-                            check.status === 'WARN' && "bg-amber-500/10 text-amber-400 border-amber-500/20",
-                            check.status === 'FAIL' && "bg-red-500/10 text-red-400 border-red-500/20",
-                         )}>{check.status}</Badge>
+                         <div className="flex items-center gap-2">
+                             {check.fix && check.status !== 'PASS' && (
+                                <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => onFix(check.fix)}>
+                                    <Wand2 className="mr-1 h-3 w-3" />
+                                    Fix
+                                </Button>
+                            )}
+                            <Badge variant="secondary" className={cn("text-xs font-mono",
+                                check.status === 'PASS' && "bg-green-500/10 text-green-400 border-green-500/20",
+                                check.status === 'WARN' && "bg-amber-500/10 text-amber-400 border-amber-500/20",
+                                check.status === 'FAIL' && "bg-red-500/10 text-red-400 border-red-500/20",
+                            )}>{check.status}</Badge>
+                        </div>
                     </div>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -482,7 +512,7 @@ const RuleCheckRow = ({ check }: { check: ValidationCheck }) => {
     );
 };
 
-function RuleChecks({ checks }: { checks: ValidationCheck[] }) {
+function RuleChecks({ checks, onFix }: { checks: ValidationCheck[]; onFix: (fix: ValidationCheck['fix']) => void; }) {
     const groupedChecks = useMemo(() => {
         const groups: Partial<Record<ValidationCategory, ValidationCheck[]>> = {};
         for (const check of checks) {
@@ -529,7 +559,7 @@ function RuleChecks({ checks }: { checks: ValidationCheck[] }) {
                             </CollapsibleTrigger>
                             <CollapsibleContent className="p-4 pt-0">
                                 <div className="space-y-4 pt-2 border-t">
-                                     {group.map((check) => <RuleCheckRow key={check.ruleId} check={check} />)}
+                                     {group.map((check) => <RuleCheckRow key={check.ruleId} check={check} onFix={onFix} />)}
                                 </div>
                             </CollapsibleContent>
                         </Collapsible>
@@ -938,10 +968,11 @@ function StrategyGuardrailChecklist({ strategyId, onSetModule, checkedRules, onC
     );
 }
 
-function PlanSummary({ control, setPlanStatus, onSetModule, entryChecklist, session, vixZone }: { control: any, setPlanStatus: (status: PlanStatusType) => void, onSetModule: (module: any) => void, entryChecklist: Record<string, boolean>, session: "Asia" | "London" | "New York", vixZone: VixZone }) {
+function PlanSummary({ control, setPlanStatus, onSetModule, entryChecklist, session, vixZone, form }: { control: any, setPlanStatus: (status: PlanStatusType) => void, onSetModule: (module: any) => void, entryChecklist: Record<string, boolean>, session: "Asia" | "London" | "New York", vixZone: VixZone, form: any }) {
     const values = useWatch({ control }) as PlanFormValues;
     const { direction, entryPrice, stopLoss, takeProfit, riskPercent, accountCapital, justification, strategyId } = values;
     const { totalTradesExecuted, lossStreak } = useDailyCounters();
+    const { toast } = useToast();
 
     const [strategies, setStrategies] = useState<Strategy[]>([]);
     useEffect(() => {
@@ -980,6 +1011,30 @@ function PlanSummary({ control, setPlanStatus, onSetModule, entryChecklist, sess
         };
         return validatePlanAgainstStrategy(planInputs, activeRuleset, validationContext);
     }, [values, activeRuleset, rrr, entryChecklist, totalTradesExecuted, lossStreak, session, vixZone]);
+
+    const handleFix = (fix: ValidationCheck['fix']) => {
+        if (!fix) return;
+
+        if (fix.type === 'SET_VALUE' && fix.payload.field) {
+            let valueToSet = fix.payload.value;
+
+            // Special handling for R:R fix
+            if (fix.payload.field === 'takeProfit' && typeof fix.payload.value === 'number') {
+                const minRR = fix.payload.value;
+                const riskDist = Math.abs(values.entryPrice - values.stopLoss);
+                if (values.direction === 'Long') {
+                    valueToSet = values.entryPrice + (riskDist * minRR);
+                } else {
+                    valueToSet = values.entryPrice - (riskDist * minRR);
+                }
+            }
+            
+            form.setValue(fix.payload.field, valueToSet, { shouldValidate: true });
+            toast({ title: `Auto-fix applied to ${fix.payload.field}.` });
+        } else if (fix.type === 'SHOW_HINT' && fix.payload.toastMessage) {
+            toast({ title: "Arjun's Suggestion", description: fix.payload.toastMessage });
+        }
+    };
 
 
     let status: PlanStatusType = 'incomplete';
@@ -1022,7 +1077,7 @@ function PlanSummary({ control, setPlanStatus, onSetModule, entryChecklist, sess
                 {validationResult && (
                     <>
                         <Separator />
-                        <RuleChecks checks={validationResult.validations} />
+                        <RuleChecks checks={validationResult.validations} onFix={handleFix} />
                     </>
                 )}
                 
@@ -1439,7 +1494,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
 
             <div className="lg:col-span-1 space-y-6 sticky top-24">
                 <SessionChecklist currentStep={currentStep} />
-                <PlanSummary control={form.control} setPlanStatus={setPlanStatus} onSetModule={onSetModule} entryChecklist={entryChecklist} session={session} vixZone={vixZone} />
+                <PlanSummary control={form.control} setPlanStatus={setPlanStatus} onSetModule={onSetModule} entryChecklist={entryChecklist} session={session} vixZone={vixZone} form={form} />
                  <Card className="bg-muted/30 border-border/50">
                     <CardContent className="p-4">
                          <MarketContext session={session} setSession={setSession} vixZone={vixZone} setVixZone={setVixZone} />
@@ -1892,7 +1947,7 @@ function PlanSnapshot({ form, onSetStep }: { form: any; onSetStep: (step: TradeP
                     <h3 className="text-sm font-semibold text-foreground mb-3">Rule Checklist</h3>
                     <div className="space-y-3">
                         {validationResult.validations.map((check, i) => (
-                            <RuleCheckRow key={i} check={check} />
+                            <RuleCheckRow key={i} check={check} onFix={() => {}} /> // onFix is no-op in snapshot
                         ))}
                     </div>
                 </div>
@@ -2466,3 +2521,5 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
         </div>
     );
 }
+
+    
