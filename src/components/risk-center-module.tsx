@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Pencil, ShieldAlert, BarChart, Info, CheckCircle, XCircle, AlertTriangle, Gauge, Calendar, Zap, Sun, Moon, Waves, User, ArrowRight, RefreshCw, SlidersHorizontal, TrendingUp, Sparkles, Droplets, TrendingDown, BookOpen, Layers, Settings, ShieldCheck, MoreHorizontal, Copy, Edit, Archive, Trash2, Scale } from "lucide-react";
+import { Bot, Pencil, ShieldAlert, BarChart, Info, CheckCircle, XCircle, AlertTriangle, Gauge, Calendar, Zap, Sun, Moon, Waves, User, ArrowRight, RefreshCw, SlidersHorizontal, TrendingUp, Sparkles, Droplets, TrendingDown, BookOpen, Layers, Settings, ShieldCheck, MoreHorizontal, Copy, Edit, Archive, Trash2, Scale, HeartPulse } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -278,6 +278,39 @@ const ScoreGauge = ({ score, label, interpretation, delta, colorClass }: { score
         </div>
     );
 };
+
+function RevengeRiskCard({ revengeRiskIndex, revengeRiskLevel }: { revengeRiskIndex: number, revengeRiskLevel: 'Low' | 'Medium' | 'High' | 'Critical' }) {
+    const levelConfig = {
+        Low: { color: "hsl(var(--chart-2))", suggestion: "No signs of revenge trading. Stick to the plan." },
+        Medium: { color: "hsl(var(--chart-1))", suggestion: "Slight elevation. Be mindful of emotional entries." },
+        High: { color: "hsl(var(--chart-4))", suggestion: "Risk is high. A losing streak or rule override was detected." },
+        Critical: { color: "hsl(var(--chart-5))", suggestion: "Risk is critical. Consider a cooldown before taking another trade." },
+    };
+
+    const config = levelConfig[revengeRiskLevel];
+    
+    return (
+        <Card className={cn("bg-muted/30 border-border/50", (revengeRiskLevel === 'High' || revengeRiskLevel === 'Critical') && 'border-amber-500/30')}>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <HeartPulse className="h-5 w-5" /> Revenge Risk Index
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col items-center gap-4">
+                 <ScoreGauge 
+                    score={revengeRiskIndex} 
+                    label="Revenge Risk" 
+                    interpretation={revengeRiskLevel}
+                    colorClass={config.color}
+                />
+                <p className="text-xs text-center text-muted-foreground">{config.suggestion}</p>
+                {(revengeRiskLevel === 'High' || revengeRiskLevel === 'Critical') && (
+                    <Button variant="outline" size="sm" className="mt-2">Enable Recovery Mode</Button>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
 
 function PersonalRiskCard({ personalRisk, onSetModule }: { personalRisk: RiskState['personalRisk'], onSetModule: (module: any) => void }) {
     const { disciplineScore, disciplineScoreDelta, emotionalScore, emotionalScoreDelta, consistencyScore, consistencyScoreDelta } = personalRisk;
@@ -893,6 +926,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                 </div>
 
                 <div className="lg:col-span-1 space-y-8 sticky top-24">
+                     <RevengeRiskCard revengeRiskIndex={personalRisk.revengeRiskIndex} revengeRiskLevel={personalRisk.revengeRiskLevel} />
                      <PersonalRiskCard personalRisk={personalRisk} onSetModule={onSetModule} />
                      <TodaysLimitsCard limits={todaysLimits} onSetModule={onSetModule} />
                      <RiskBudgetCard limits={todaysLimits} decision={decision} refreshState={refresh} />

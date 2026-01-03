@@ -1078,7 +1078,7 @@ function PlanSummary({ control, setPlanStatus, onSetModule, entryChecklist, sess
                 {validationResult && (
                     <>
                         <Separator />
-                        <RuleChecks checks={validationResult.validations} onFix={handleFix} />
+                        <RuleChecks checks={validationResult.validations} onFix={onFix} />
                     </>
                 )}
                 
@@ -1580,10 +1580,10 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
         const [executionResult, setExecutionResult] = useState<{ tradeId: string, draftId: string } | null>(null);
         const { addLog } = useEventLog();
         const { toast } = useToast();
-        const { incrementTrades } = useDailyCounters();
+        const { incrementTrades, incrementOverrides } = useDailyCounters();
     
         const values = form.getValues() as PlanFormValues;
-        const { entryPrice, stopLoss, riskPercent, accountCapital, instrument } = values;
+        const { entryPrice, stopLoss, riskPercent, accountCapital, instrument, justification } = values;
     
         const riskPerUnit = (entryPrice && stopLoss) ? Math.abs(entryPrice - stopLoss) : 0;
         const potentialLoss = (accountCapital && riskPercent) ? (accountCapital * riskPercent) / 100 : 0;
@@ -1594,6 +1594,10 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
             addLog("Executing trade plan (prototype)...");
     
             incrementTrades(values.strategyId);
+
+            if(justification && justification.length > 0){
+                incrementOverrides();
+            }
     
             // Update strategy usage
             if (typeof window !== "undefined") {
@@ -2548,5 +2552,6 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
     
     
     
+
 
 

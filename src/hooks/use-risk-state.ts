@@ -26,6 +26,8 @@ export type RiskState = {
         emotionalScoreDelta: number;
         consistencyScore: number;
         consistencyScoreDelta: number;
+        revengeRiskIndex: number;
+        revengeRiskLevel: 'Low' | 'Medium' | 'High' | 'Critical';
         // Mocked for now
         slMovedRate: number;
         riskLeakageRate: number;
@@ -70,7 +72,7 @@ export function useRiskState() {
             // 1. Gather data from various localStorage sources
             const scenario = localStorage.getItem('ec_demo_scenario') as DemoScenario || 'normal';
             const personaData = JSON.parse(localStorage.getItem("ec_persona_final") || localStorage.getItem("ec_persona_base") || "{}");
-            const dailyCounters = JSON.parse(localStorage.getItem("ec_daily_counters") || '{}')[new Date().toISOString().split('T')[0]] || { lossStreak: 0, tradesExecuted: 0 };
+            const dailyCounters = JSON.parse(localStorage.getItem("ec_daily_counters") || '{}')[new Date().toISOString().split('T')[0]] || { lossStreak: 0, tradesExecuted: 0, overrideCount: 0 };
             const strategies = JSON.parse(localStorage.getItem("ec_strategies") || "[]");
             const activeStrategy = strategies.find((s: any) => s.status === 'active'); // Simplified: gets first active
             const recoveryMode = localStorage.getItem('ec_recovery_mode') === 'true';
@@ -95,7 +97,22 @@ export function useRiskState() {
                 message: `Volatility is ${vixZone}.`,
             };
 
-            // 3. Compute Personal Risk
+            // 3. Compute Personal Risk & Revenge Risk
+            let revengeRiskIndex = 0;
+            if (dailyCounters.lossStreak >= 2) revengeRiskIndex += 30;
+            if (dailyCounters.lossStreak >= 3) revengeRiskIndex += 20; // Additional penalty
+            if (dailyCounters.overrideCount > 0) revengeRiskIndex += 25;
+            if (dailyCounters.tradesExecuted >= (activeStrategy?.versions.find((v:any) => v.isActiveVersion)?.ruleSet?.riskRules.maxDailyTrades || 5) - 1) revengeRiskIndex += 15;
+            if (vixZone === 'Elevated') revengeRiskIndex += 10;
+            if (vixZone === 'Extreme') revengeRiskIndex += 25;
+
+            revengeRiskIndex = Math.min(100, revengeRiskIndex);
+            
+            let revengeRiskLevel: 'Low' | 'Medium' | 'High' | 'Critical' = 'Low';
+            if (revengeRiskIndex >= 75) revengeRiskLevel = 'Critical';
+            else if (revengeRiskIndex >= 50) revengeRiskLevel = 'High';
+            else if (revengeRiskIndex >= 25) revengeRiskLevel = 'Medium';
+            
             const personalRisk = {
                 disciplineScore: personaData.disciplineScore || 70,
                 disciplineScoreDelta: -5, // Mock data
@@ -103,6 +120,8 @@ export function useRiskState() {
                 emotionalScoreDelta: 10, // Mock data
                 consistencyScore: 65, // Mock data
                 consistencyScoreDelta: 2, // Mock data
+                revengeRiskIndex,
+                revengeRiskLevel,
                 slMovedRate: scenario === 'drawdown' ? 25 : 8, // Mock
                 riskLeakageRate: scenario === 'drawdown' ? 1.5 : 0.2, // Mock
             };
@@ -158,6 +177,14 @@ export function useRiskState() {
             if (vixZone === "Extreme") {
                 level = "red";
                 reasons.push("Market volatility is 'Extreme'.");
+            }
+            if (revengeRiskLevel === 'Critical') {
+                level = "red";
+                reasons.push("Revenge Risk Index is critical.");
+            }
+            if (revengeRiskLevel === 'High') {
+                if(level !== 'red') level = 'yellow';
+                reasons.push("Revenge Risk Index is high.");
             }
             if (personalRisk.disciplineScore < 50) {
                 if (level !== 'red') level = "yellow";

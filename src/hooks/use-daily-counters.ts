@@ -8,6 +8,7 @@ type DailyCounters = {
     totalTradesPlanned: number;
     totalTradesExecuted: number;
     lossStreak: number;
+    overrideCount: number;
     tradesByStrategyId: { [key: string]: number };
 };
 
@@ -30,6 +31,7 @@ const getCountersForToday = (): DailyCounters => {
         totalTradesPlanned: 0,
         totalTradesExecuted: 0,
         lossStreak: 0,
+        overrideCount: 0,
         tradesByStrategyId: {},
     };
 };
@@ -51,6 +53,7 @@ export function useDailyCounters() {
         totalTradesPlanned: 0,
         totalTradesExecuted: 0,
         lossStreak: 0,
+        overrideCount: 0,
         tradesByStrategyId: {},
     });
 
@@ -59,37 +62,53 @@ export function useDailyCounters() {
     }, []);
 
     const incrementTrades = useCallback((strategyId: string) => {
-        const newCounters = {
-            ...counters,
-            totalTradesExecuted: counters.totalTradesExecuted + 1,
-            tradesByStrategyId: {
-                ...counters.tradesByStrategyId,
-                [strategyId]: (counters.tradesByStrategyId[strategyId] || 0) + 1,
-            }
-        };
-        saveCountersForToday(newCounters);
-        setCounters(newCounters);
-    }, [counters]);
+        setCounters(prevCounters => {
+            const newCounters = {
+                ...prevCounters,
+                totalTradesExecuted: prevCounters.totalTradesExecuted + 1,
+                tradesByStrategyId: {
+                    ...prevCounters.tradesByStrategyId,
+                    [strategyId]: (prevCounters.tradesByStrategyId[strategyId] || 0) + 1,
+                }
+            };
+            saveCountersForToday(newCounters);
+            return newCounters;
+        });
+    }, []);
+
+    const incrementOverrides = useCallback(() => {
+        setCounters(prevCounters => {
+            const newCounters = {
+                ...prevCounters,
+                overrideCount: prevCounters.overrideCount + 1,
+            };
+            saveCountersForToday(newCounters);
+            return newCounters;
+        });
+    }, []);
 
     const updateLossStreak = useCallback((isLoss: boolean) => {
-        const newCounters = {
-            ...counters,
-            lossStreak: isLoss ? counters.lossStreak + 1 : 0,
-        };
-        saveCountersForToday(newCounters);
-        setCounters(newCounters);
-    }, [counters]);
+        setCounters(prevCounters => {
+            const newCounters = {
+                ...prevCounters,
+                lossStreak: isLoss ? prevCounters.lossStreak + 1 : 0,
+            };
+            saveCountersForToday(newCounters);
+            return newCounters;
+        });
+    }, []);
 
     const resetCounters = useCallback(() => {
-        const freshCounters = {
+        const freshCounters: DailyCounters = {
             totalTradesPlanned: 0,
             totalTradesExecuted: 0,
             lossStreak: 0,
+            overrideCount: 0,
             tradesByStrategyId: {},
         };
         saveCountersForToday(freshCounters);
         setCounters(freshCounters);
     }, []);
 
-    return { ...counters, incrementTrades, updateLossStreak, resetCounters };
+    return { ...counters, incrementTrades, updateLossStreak, incrementOverrides, resetCounters };
 }
