@@ -1521,7 +1521,7 @@ function RiskNudge({ nudge, onDismiss, onAcknowledge }: { nudge: ActiveNudge | n
     );
 }
 
-function LastPlanDraftCard({ onSetModule }: { onSetModule: (module: string) => void }) {
+function LastPlanDraftCard({ onSetModule }: { onSetModule: (module: string, context?: any) => void }) {
     const [draft, setDraft] = useState<any | null>(null);
 
     useEffect(() => {
@@ -1829,3 +1829,4 @@ const DeltaIndicator = ({ delta, unit = "" }: { delta: number; unit?: string }) 
 };
     
     
+
