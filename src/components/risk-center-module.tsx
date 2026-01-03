@@ -8,16 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Bot, Pencil, ShieldAlert, BarChart as BarChartIcon, Info, CheckCircle, XCircle, AlertTriangle, Gauge, Calendar, Zap, Sun, Moon, Waves, User, ArrowRight, RefreshCw, SlidersHorizontal, TrendingUp, Sparkles, Droplets, TrendingDown, BookOpen, Layers, Settings, ShieldCheck, MoreHorizontal, Copy, Edit, Archive, Trash2, Scale, HeartPulse, HardHat, Globe, FileText, Clipboard } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-  DialogClose,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { useToast } from "@/hooks/use-toast";
@@ -630,15 +621,11 @@ function ExposureSnapshotCard({ onSetModule }: { onSetModule: (module: any) => v
                                             <div className="font-semibold">{pos.symbol}</div>
                                             <div className={cn("text-xs", pos.direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{pos.direction}</div>
                                         </TableCell>
-                                        <TableCell className={cn("font-mono", pos.pnl >= 0 ? "text-green-400" : "text-red-400")}>
-                                            {pos.pnl >= 0 ? '+' : ''}${pos.pnl.toFixed(2)}
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant="outline" className={cn(
-                                                pos.risk === "High" && "border-red-500/50 text-red-400",
-                                                pos.risk === "Medium" && "border-amber-500/50 text-amber-400"
-                                            )}>{pos.risk}</Badge>
-                                        </TableCell>
+                                        <TableCell className={cn("font-mono", pos.pnl >= 0 ? 'text-green-400' : 'text-red-400')}>{pos.pnl >= 0 ? '+' : ''}${pos.pnl.toFixed(2)}</TableCell>
+                                        <TableCell><Badge variant="outline" className={cn(
+                                            pos.risk === "High" && "border-red-500/50 text-red-400",
+                                            pos.risk === "Medium" && "border-amber-500/50 text-amber-400"
+                                        )}>{pos.risk}</Badge></TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
@@ -1081,7 +1068,7 @@ function ReportDialog({ reportType }: { reportType: ReportType }) {
         const title = `### ${reportType} Trading Report ###`;
         const performance = `**Performance:** PnL ${reportData.pnl} | Win Rate ${reportData.winRate}`;
         if (short) {
-            return `${title}\\n${performance}\\n**Focus:** ${reportData.recommendations[0]}`;
+            return `${title}\n${performance}\n**Focus:** ${reportData.recommendations[0]}`;
         }
         return `
 ${title}
@@ -1103,7 +1090,7 @@ ${title}
 - Worst: ${reportData.worstCondition}
 
 **Recommended Next Actions**
-${reportData.recommendations.map(r => `- ${r}`).join('\\n')}
+${reportData.recommendations.map(r => `- ${r}`).join('\n')}
         `.trim();
     };
 
@@ -1201,14 +1188,16 @@ const SLDisciplineChart = ({ data }: { data: SLDisciplineData[] }) => (
 );
 
 const LeverageHistogram = ({ data }: { data: LeverageDistributionData[] }) => (
-    <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data}>
-            <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-            <YAxis tick={{ fontSize: 10 }} />
-            <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
-            <Bar dataKey="count" fill="hsl(var(--primary))" radius={2} />
-        </BarChart>
-    </ResponsiveContainer>
+    <ChartContainer config={{}} className="w-full h-full">
+        <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={data}>
+                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 10 }} />
+                <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
+                <Bar dataKey="count" fill="hsl(var(--primary))" radius={2} />
+            </BarChart>
+        </ResponsiveContainer>
+    </ChartContainer>
 );
 
 
@@ -1296,7 +1285,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                            )}
                         </TelemetryCard>
                         <TelemetryCard title="Leverage Stability" value={personalRisk.mostCommonLeverageBucket} hint="Most Common Leverage">
-                             <LeverageHistogram data={personalRisk.leverageDistribution} />
+                            <LeverageHistogram data={personalRisk.leverageDistribution} />
                              {personalRisk.leverageDistributionWarning && (
                                 <Alert variant="destructive" className="mt-4">
                                     <AlertTriangle className="h-4 w-4" />
@@ -1308,7 +1297,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                              )}
                         </TelemetryCard>
                         <TelemetryCard title="Risk-per-Trade Drift" value={`${personalRisk.riskLeakageRate.toFixed(1)}x`} hint="Actual loss vs. planned risk">
-                             <ChartContainer config={{}} className="h-full w-full">
+                             <ChartContainer config={{}} className="w-full h-full">
                                 <LineChart data={personalRisk.overridesTrend7d} margin={{ top: 5, right: 10, left: -30, bottom: 0 }}>
                                     <YAxis domain={[0,2]} tickFormatter={(v) => `${v.toFixed(1)}x`} tick={{fontSize: 10}}/>
                                     <ChartTooltip content={<ChartTooltipContent formatter={(v) => `${Number(v).toFixed(1)}x`}/>} />
@@ -1368,5 +1357,8 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
 }
 
 const dailyCounters = { overrideCount: 0 };
+
+    
+
 
     
