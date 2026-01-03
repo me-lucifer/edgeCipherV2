@@ -535,7 +535,7 @@ function RiskControlsCard() {
     );
 }
 
-function ExposureSnapshotCard({ onSetModule }: { onSetModule: (module: any) => void }) {
+function ExposureSnapshotCard({ onSetModule, vixZone }: { onSetModule: (module: any) => void, vixZone: VixZone }) {
     const [brokerConnected, setBrokerConnected] = useState(false);
     const [positions, setPositions] = useState<any[]>([]);
 
@@ -549,9 +549,21 @@ function ExposureSnapshotCard({ onSetModule }: { onSetModule: (module: any) => v
         }
     }, []);
 
+    const getLiquidationProximity = (leverage: number, vixZone: VixZone): { label: 'Far' | 'Moderate' | 'Close', className: string } => {
+        if (leverage >= 50 && (vixZone === 'Elevated' || vixZone === 'Extreme')) return { label: 'Close', className: 'text-red-400 border-red-500/50' };
+        if (leverage >= 50 || (leverage >= 20 && (vixZone === 'Elevated' || vixZone === 'Extreme'))) return { label: 'Moderate', className: 'text-amber-400 border-amber-500/50' };
+        return { label: 'Far', className: 'text-green-400 border-green-500/50' };
+    };
+
     const positionsWithNotional = useMemo(() => {
-        return positions.map(p => ({ ...p, notional: p.size * p.price }));
-    }, [positions]);
+        return positions.map(p => ({
+            ...p,
+            notional: p.size * p.price,
+            liquidationProximity: getLiquidationProximity(p.leverage, vixZone),
+        }));
+    }, [positions, vixZone]);
+    
+    const hasCloseLiquidationRisk = positionsWithNotional.some(p => p.liquidationProximity.label === 'Close');
 
     const totalNotional = positionsWithNotional.reduce((sum, p) => sum + p.notional, 0);
     const largestPositionNotional = Math.max(...positionsWithNotional.map(p => p.notional));
@@ -588,7 +600,16 @@ function ExposureSnapshotCard({ onSetModule }: { onSetModule: (module: any) => v
                     </div>
                 ) : (
                     <div className="space-y-4">
-                        {(hasHighConcentration) && (
+                        {hasCloseLiquidationRisk && (
+                             <Alert variant="destructive">
+                                <Bot className="h-4 w-4" />
+                                <AlertTitle>Arjun's Warning</AlertTitle>
+                                <AlertDescription>
+                                    Close liquidation risk: reduce exposure now.
+                                </AlertDescription>
+                            </Alert>
+                        )}
+                        {(hasHighConcentration && !hasCloseLiquidationRisk) && (
                             <Alert variant="destructive">
                                 <Bot className="h-4 w-4" />
                                 <AlertTitle>Arjun's Warning</AlertTitle>
@@ -612,21 +633,22 @@ function ExposureSnapshotCard({ onSetModule }: { onSetModule: (module: any) => v
                                 <TableRow>
                                     <TableHead>Symbol</TableHead>
                                     <TableHead>PnL</TableHead>
-                                    <TableHead>Risk</TableHead>
+                                    <TableHead>Liq. Proximity</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {positions.map(pos => (
+                                {positionsWithNotional.map(pos => (
                                     <TableRow key={pos.symbol}>
                                         <TableCell>
                                             <div className="font-semibold">{pos.symbol}</div>
                                             <div className={cn("text-xs", pos.direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{pos.direction}</div>
                                         </TableCell>
                                         <TableCell className={cn("font-mono", pos.pnl >= 0 ? 'text-green-400' : 'text-red-400')}>{pos.pnl >= 0 ? '+' : ''}${pos.pnl.toFixed(2)}</TableCell>
-                                        <TableCell><Badge variant="outline" className={cn(
-                                            pos.risk === "High" && "border-red-500/50 text-red-400",
-                                            pos.risk === "Medium" && "border-amber-500/50 text-amber-400"
-                                        )}>{pos.risk}</Badge></TableCell>
+                                        <TableCell>
+                                             <Badge variant="outline" className={pos.liquidationProximity.className}>
+                                                {pos.liquidationProximity.label}
+                                            </Badge>
+                                        </TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
@@ -862,6 +884,8 @@ function RiskEventsTimeline({ events }: { events: RiskState['riskEventsToday'] }
         </Card>
     );
 }
+
+type VolatilityPolicy = 'follow' | 'conservative' | 'strict';
 
 function VolatilityPolicyCard() {
     const [policy, setPolicy] = useState<VolatilityPolicy>('follow');
@@ -1204,6 +1228,7 @@ const DisciplineLeaksCard = ({ disciplineLeaks, onSetModule }: { disciplineLeaks
         <TelemetryCard
             title="Discipline Leaks"
             hint="Rule overrides and validation failures."
+            className="md:col-span-2"
         >
             <div className="grid grid-cols-2 h-full gap-4">
                 <div className="flex flex-col items-center justify-center text-center p-2 bg-muted/50 rounded-lg">
@@ -1413,7 +1438,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                         <div className="lg:col-span-2 space-y-8">
                            <MarketRiskCard marketRisk={marketRisk} onSetModule={onSetModule} />
                            <RiskEventsTimeline events={riskEventsToday} />
-                           <ExposureSnapshotCard onSetModule={onSetModule} />
+                           <ExposureSnapshotCard onSetModule={onSetModule} vixZone={marketRisk.vixZone} />
                         </div>
 
                         <div className="lg:col-span-1 space-y-8 sticky top-24">
@@ -1425,8 +1450,8 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                     </div>
                 </TabsContent>
                 <TabsContent value="insights" className="mt-6 space-y-8">
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <TelemetryCard title="SL Discipline" value={`${totalSLTrades > 0 ? (slDisciplineData.reduce((sum, d) => sum + d.respected, 0) / totalSLTrades * 100).toFixed(0) : 'N/A'}%`} hint="Trades where SL was NOT moved" className="md:col-span-2">
+                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <TelemetryCard title="SL Discipline" value={`${totalSLTrades > 0 ? (slDisciplineData.reduce((sum, d) => sum + d.respected, 0) / totalSLTrades * 100).toFixed(0) : 'N/A'}%`} hint="Trades where SL was NOT moved" className="lg:col-span-1">
                            {totalSLTrades > 0 ? (
                                 <>
                                 <div className="flex items-center gap-2 mb-2">
@@ -1453,7 +1478,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                                 </div>
                            )}
                         </TelemetryCard>
-                        <TelemetryCard title="Leverage Stability" value={personalRisk.mostCommonLeverageBucket} hint="Most Common Leverage">
+                        <TelemetryCard title="Leverage Stability" value={personalRisk.mostCommonLeverageBucket} hint="Most Common Leverage" className="lg:col-span-1">
                             <LeverageHistogram data={personalRisk.leverageDistribution} />
                              {personalRisk.leverageDistributionWarning && (
                                 <Alert variant="destructive" className="mt-4">
@@ -1465,7 +1490,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                                 </Alert>
                              )}
                         </TelemetryCard>
-                        <TelemetryCard title="Risk-per-Trade Drift" value={`${personalRisk.riskLeakageRate.toFixed(1)}x`} hint="Actual loss vs. planned risk">
+                        <TelemetryCard title="Risk-per-Trade Drift" value={`${personalRisk.riskLeakageRate.toFixed(1)}x`} hint="Actual loss vs. planned risk" className="lg:col-span-1">
                              <ChartContainer config={{}} className="w-full h-full">
                                 <LineChart data={personalRisk.overridesTrend7d} margin={{ top: 5, right: 10, left: -30, bottom: 0 }}>
                                     <YAxis domain={[0,2]} tickFormatter={(v) => `${v.toFixed(1)}x`} tick={{fontSize: 10}}/>
@@ -1544,6 +1569,7 @@ const DeltaIndicator = ({ delta, unit = "" }: { delta: number; unit?: string }) 
 };
     
     
+
 
 
 
