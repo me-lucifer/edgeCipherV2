@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Pencil, ShieldAlert, BarChart as BarChartIcon, Info, CheckCircle, XCircle, AlertTriangle, Gauge, Calendar, Zap, Sun, Moon, Waves, User, ArrowRight, RefreshCw, SlidersHorizontal, TrendingUp, Sparkles, Droplets, TrendingDown, BookOpen, Layers, Settings, ShieldCheck, MoreHorizontal, Copy, Edit, Archive, Trash2, Scale, HeartPulse, HardHat, Globe, FileText, Clipboard, Flag, Filter, Flame } from "lucide-react";
+import { Bot, Pencil, ShieldAlert, BarChart as BarChartIcon, Info, CheckCircle, XCircle, AlertTriangle, Gauge, Calendar, Zap, Sun, Moon, Waves, User, ArrowRight, RefreshCw, SlidersHorizontal, TrendingUp, Sparkles, Droplets, TrendingDown, BookOpen, Layers, Settings, ShieldCheck, MoreHorizontal, Copy, Edit, Archive, Trash2, Scale, HeartPulse, HardHat, Globe, FileText, Clipboard, Flag, Flame } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "./ui/input";
@@ -828,11 +828,13 @@ function RiskBudgetCard({ limits, decision, refreshState, pnlTrend7d }: { limits
              <CardFooter className="flex-col items-start gap-4 text-xs text-muted-foreground border-t pt-4">
                 <h4 className="font-semibold text-foreground text-sm">PnL Trend (7D)</h4>
                 <div className="w-full h-10">
-                    <ResponsiveContainer>
-                        <LineChart data={pnlTrend7d}>
-                            <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
-                        </LineChart>
-                    </ResponsiveContainer>
+                    <ChartContainer config={{}} className="w-full h-full">
+                        <ResponsiveContainer>
+                            <LineChart data={pnlTrend7d}>
+                                <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+                            </LineChart>
+                        </ResponsiveContainer>
+                    </ChartContainer>
                 </div>
             </CardFooter>
         </Card>
@@ -1056,64 +1058,72 @@ const MetricCard = ({ title, value, hint }: { title: string; value: string | Rea
 
 type ReportType = 'Weekly' | 'Monthly';
 
-function ReportDialog({ reportType }: { reportType: ReportType }) {
+function ReportDialog({ reportType, riskState }: { reportType: ReportType, riskState: RiskState | null }) {
     const { toast } = useToast();
-    const reportData = {
-        'Weekly': {
-            pnl: "+$850.25",
-            winRate: "55%",
-            discipline: { journalingRate: "92%", slMovedPct: "8%" },
-            psychology: { topEmotion: "FOMO", topMistake: "Exited early" },
-            bestCondition: "NY Session / Normal VIX",
-            worstCondition: "London Open / High VIX",
-            recommendations: [
-                "Try a partial take-profit to let winners run.",
-                "Review trades where you exited early; what was the trigger?",
-                "Avoid trading the first 30 mins of London if feeling anxious.",
-            ]
-        },
-        'Monthly': {
-            pnl: "+$6,430.80",
-            winRate: "49%",
-            discipline: { journalingRate: "85%", slMovedPct: "18%" },
-            psychology: { topEmotion: "Anxiety", topMistake: "Moved SL" },
-            bestCondition: "Trend following strategies",
-            worstCondition: "Range plays in high volatility",
-            recommendations: [
-                "Reduce size by 50% when VIX is 'Elevated' or higher.",
-                "Review all trades where you moved your stop loss.",
-                "Focus on your 'Breakout' strategy, as it's your most profitable.",
-            ]
+    
+    const reportData = useMemo(() => {
+        if (!riskState) {
+            return {
+                pnl: 'N/A',
+                winRate: 'N/A',
+                discipline: { journalingRate: 'N/A', slMovedPct: 'N/A' },
+                psychology: { topEmotion: 'N/A', topMistake: 'N/A' },
+                risk: {
+                    biggestRiskEvent: 'Not enough data.',
+                    topDisciplineLeak: 'Not enough data.',
+                },
+                recommendations: ["Complete more journals to generate reports."]
+            };
         }
-    }[reportType];
+
+        const { personalRisk, riskEventsToday } = riskState;
+
+        const reportDuration = reportType === 'Weekly' ? 7 : 30;
+        
+        return {
+            pnl: `~$${(Math.random() * 2000 - 1000).toFixed(2)}`, // Mock PnL
+            winRate: `${(45 + Math.random() * 15).toFixed(0)}%`, // Mock WR
+            discipline: {
+                journalingRate: `${(80 + Math.random() * 20).toFixed(0)}%`,
+                slMovedPct: `${personalRisk.slMovedRate.toFixed(0)}%`
+            },
+            psychology: {
+                topEmotion: "FOMO",
+                topMistake: "Moved SL"
+            },
+            risk: {
+                biggestRiskEvent: riskEventsToday[0]?.description || "None recorded.",
+                topDisciplineLeak: personalRisk.disciplineLeaks.topBreachTypes[0] || "None",
+            },
+            recommendations: [
+                `Your discipline score trended down by ${personalRisk.disciplineScoreDelta} points. Focus on pre-trade checklists.`,
+                "Your top discipline leak was 'RR below min'. Enable the R:R guardrail in settings.",
+                "Review all trades tagged with 'FOMO' this week.",
+            ]
+        };
+    }, [reportType, riskState]);
 
     const generateReportText = (short = false) => {
-        const title = `### ${reportType} Trading Report ###`;
-        const performance = `**Performance:** PnL ${reportData.pnl} | Win Rate ${reportData.winRate}`;
+        const title = `### ${reportType} Risk & Discipline Report ###`;
+        
         if (short) {
-            return `${title}\\n${performance}\\n**Focus:** ${reportData.recommendations[0]}`;
+            return `${title}\n- **Top Leak**: ${reportData.risk.topDisciplineLeak}\n- **Focus**: ${reportData.recommendations[0]}`;
         }
         return `
 ${title}
 
-**Performance Summary**
-- Overall PnL: ${reportData.pnl}
-- Win Rate: ${reportData.winRate}
+**Risk Posture Trend**
+- Discipline Score: ${riskState?.personalRisk.disciplineScore || 'N/A'} (${riskState?.personalRisk.disciplineScoreDelta.toFixed(0) || '0'} pts)
+- Emotional Control: ${riskState?.personalRisk.emotionalScore || 'N/A'} (${riskState?.personalRisk.emotionalScoreDelta.toFixed(0) || '0'} pts)
 
-**Discipline Summary**
-- Journaling Rate: ${reportData.discipline.journalingRate}
-- Stop Loss Moved: ${reportData.discipline.slMovedPct} of trades
+**Key Risk Events This Period**
+${(riskState?.riskEventsToday.slice(0, 3) || []).map(e => `- ${e.description}`).join('\n') || "- None recorded."}
 
-**Psychology Summary**
-- Top Emotion: ${reportData.psychology.topEmotion}
-- Top Mistake: ${reportData.psychology.topMistake}
-
-**Conditions**
-- Best: ${reportData.bestCondition}
-- Worst: ${reportData.worstCondition}
+**Top Discipline Leak**
+- ${reportData.risk.topDisciplineLeak}
 
 **Recommended Next Actions**
-${reportData.recommendations.map(r => `- ${r}`).join('\\n')}
+${reportData.recommendations.map(r => `- ${r}`).join('\n')}
         `.trim();
     };
 
@@ -1125,39 +1135,37 @@ ${reportData.recommendations.map(r => `- ${r}`).join('\\n')}
     return (
         <DialogContent className="max-w-2xl">
             <DialogHeader>
-                <DialogTitle>{reportType} Report Card</DialogTitle>
+                <DialogTitle>{reportType} Risk Report</DialogTitle>
                 <DialogDescription>
-                    Your performance summarized into actionable insights for the period.
+                    Your risk and discipline profile summarized for the period.
                 </DialogDescription>
             </DialogHeader>
             <div className="py-4 space-y-6 max-h-[70vh] overflow-y-auto pr-2">
-                <div className="p-4 bg-muted rounded-lg border grid grid-cols-2 gap-4">
-                    <SummaryRow label="Overall PnL" value={reportData.pnl} className={reportData.pnl.startsWith('+') ? 'text-green-400' : 'text-red-400'} />
-                    <SummaryRow label="Win Rate" value={reportData.winRate} />
-                </div>
-                 <div className="space-y-4">
-                    <h4 className="font-semibold text-foreground">Discipline Summary</h4>
-                    <div className="grid grid-cols-2 gap-4">
-                        <MetricCard title="Journaling Rate" value={reportData.discipline.journalingRate} hint="Completed journals" />
-                        <MetricCard title="SL Moved" value={reportData.discipline.slMovedPct} hint="Trades with moved stops" />
+                <div className="space-y-4">
+                    <h4 className="font-semibold text-foreground">Risk Posture Trend</h4>
+                     <div className="p-4 bg-muted rounded-lg border grid grid-cols-2 gap-4">
+                        <SummaryRow label="Discipline Score" value={<>{riskState?.personalRisk.disciplineScore || 'N/A'} <DeltaIndicator delta={riskState?.personalRisk.disciplineScoreDelta || 0} unit="pts" /></>} />
+                        <SummaryRow label="Emotional Score" value={<>{riskState?.personalRisk.emotionalScore || 'N/A'} <DeltaIndicator delta={riskState?.personalRisk.emotionalScoreDelta || 0} unit="pts" /></>} />
                     </div>
                 </div>
+
                 <div className="space-y-4">
-                    <h4 className="font-semibold text-foreground">Psychology Summary</h4>
-                     <div className="grid grid-cols-2 gap-4">
-                        <MetricCard title="Top Emotion" value={reportData.psychology.topEmotion} hint="Most tagged emotion" />
-                        <MetricCard title="Top Mistake" value={<Badge variant="destructive">{reportData.psychology.topMistake}</Badge>} hint="Costliest mistake" />
-                    </div>
-                </div>
-                <div className="space-y-4">
-                    <h4 className="font-semibold text-foreground">Conditions</h4>
+                    <h4 className="font-semibold text-foreground">Key Risk Events</h4>
                     <Card className="bg-muted/50">
                         <CardContent className="p-4 space-y-2">
-                            <SummaryRow label="Best Condition" value={reportData.bestCondition} />
-                            <SummaryRow label="Worst Condition" value={reportData.worstCondition} />
+                            <ul className="list-disc list-inside text-sm text-muted-foreground space-y-2">
+                                {(riskState?.riskEventsToday.slice(0, 3) || []).map((event, i) => <li key={i}>{event.description}</li>)}
+                                {riskState?.riskEventsToday.length === 0 && <li>No significant events recorded.</li>}
+                            </ul>
                         </CardContent>
                     </Card>
                 </div>
+
+                <div className="space-y-4">
+                    <h4 className="font-semibold text-foreground">Top Discipline Leak</h4>
+                    <MetricCard title={reportData.risk.topDisciplineLeak} value={<Badge variant="destructive">{reportData.risk.topDisciplineLeak}</Badge>} hint="Your most frequent rule violation this period." />
+                </div>
+                
                 <div className="space-y-4">
                      <h4 className="font-semibold text-foreground">Recommended Next Actions</h4>
                      <ul className="list-disc list-inside text-sm text-muted-foreground space-y-2">
@@ -1211,7 +1219,7 @@ const SLDisciplineChart = ({ data }: { data: SLDisciplineData[] }) => (
 );
 
 const LeverageHistogram = ({ data }: { data: LeverageDistributionData[] }) => (
-    <ChartContainer config={{}} className="w-full h-full">
+    <ChartContainer config={{}} className="h-full w-full">
         <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data}>
                 <XAxis dataKey="name" tick={{ fontSize: 12 }} />
@@ -1450,7 +1458,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                     </div>
                 </TabsContent>
                 <TabsContent value="insights" className="mt-6 space-y-8">
-                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                         <TelemetryCard title="SL Discipline" value={`${totalSLTrades > 0 ? (slDisciplineData.reduce((sum, d) => sum + d.respected, 0) / totalSLTrades * 100).toFixed(0) : 'N/A'}%`} hint="Trades where SL was NOT moved" className="lg:col-span-1">
                            {totalSLTrades > 0 ? (
                                 <>
@@ -1490,7 +1498,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                                 </Alert>
                              )}
                         </TelemetryCard>
-                        <TelemetryCard title="Risk-per-Trade Drift" value={`${personalRisk.riskLeakageRate.toFixed(1)}x`} hint="Actual loss vs. planned risk" className="lg:col-span-1">
+                         <TelemetryCard title="Risk-per-Trade Drift" value={`${personalRisk.riskLeakageRate.toFixed(1)}x`} hint="Actual loss vs. planned risk">
                              <ChartContainer config={{}} className="w-full h-full">
                                 <LineChart data={personalRisk.overridesTrend7d} margin={{ top: 5, right: 10, left: -30, bottom: 0 }}>
                                     <YAxis domain={[0,2]} tickFormatter={(v) => `${v.toFixed(1)}x`} tick={{fontSize: 10}}/>
@@ -1518,13 +1526,13 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                                 <DialogTrigger asChild>
                                     <Button><FileText className="mr-2 h-4 w-4" /> Generate Weekly Report</Button>
                                 </DialogTrigger>
-                                <ReportDialog reportType="Weekly" />
+                                <ReportDialog reportType="Weekly" riskState={riskState} />
                             </Dialog>
                              <Dialog>
                                 <DialogTrigger asChild>
                                     <Button variant="outline"><FileText className="mr-2 h-4 w-4" /> Generate Monthly Report</Button>
                                 </DialogTrigger>
-                                <ReportDialog reportType="Monthly" />
+                                <ReportDialog reportType="Monthly" riskState={riskState} />
                             </Dialog>
                         </CardContent>
                     </Card>
@@ -1569,6 +1577,7 @@ const DeltaIndicator = ({ delta, unit = "" }: { delta: number; unit?: string }) 
 };
     
     
+
 
 
 
