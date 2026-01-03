@@ -71,7 +71,38 @@ function PnlDisplay({ value, animateKey }: { value: number, animateKey: number }
     );
 }
 
-const getArjunMessage = ({ disciplineScore = 50, performanceState = 'stable' }: { disciplineScore?: number, performanceState?: string }) => {
+const getArjunMessage = ({
+    decision,
+    disciplineScore = 50,
+    performanceState = 'stable'
+}: {
+    decision: ReturnType<typeof getTradeDecision>,
+    disciplineScore?: number,
+    performanceState?: string
+}) => {
+
+    if (decision.status === 'Red') {
+        return {
+            message: "Do not trade today. Your primary job is capital protection, not action.",
+            reason: "The Risk Center decision is RED. This overrides all other factors. Reasons could include extreme volatility, hitting a loss limit, or a critical revenge risk level."
+        };
+    }
+
+    if (decision.status === 'Amber') {
+        return {
+            message: "Conditions are challenging. Trade only A+ setups and consider reducing your size.",
+            reason: "The Risk Center decision is YELLOW, indicating elevated risk from market conditions (like VIX) or your personal state (like a recent loss)."
+        };
+    }
+
+    if (decision.status === 'Green') {
+         return {
+            message: "Conditions look normal. Execute your plan and stick to your rulebook.",
+            reason: "The Risk Center decision is GREEN. No major internal or external risk factors are currently active. Focus on disciplined execution."
+        };
+    }
+    
+    // Fallback logic if decision isn't red/amber/green
     if (performanceState === 'drawdown' && disciplineScore < 50) {
         return {
             message: "You’re in a drawdown and discipline has been slipping. Today, focus on following your rules, not making back losses.",
@@ -655,11 +686,15 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                 const growthPlan = localStorage.getItem('ec_growth_plan_today');
                 const growthPlanItems = growthPlan ? JSON.parse(growthPlan) : (hasHistory ? defaultGrowthPlanItems : newUserGrowthPlanItems);
 
+                const disciplineScore = currentScenario === 'drawdown' ? 35 : (personaData.disciplineScore || 65);
+                const vixZone = getVixZone(vixValue);
+                const tradeDecision = getTradeDecision({ vixZone, performanceState, disciplineScore, hasHistory });
+
                 setData({
                     persona: {
                         primaryPersonaName: personaData.primaryPersonaName || 'Trader',
                         riskScore: personaData.riskScore || 50,
-                        disciplineScore: currentScenario === 'drawdown' ? 35 : (personaData.disciplineScore || 65),
+                        disciplineScore,
                         emotionScore: personaData.emotionScore || 50,
                     },
                     connection: {
@@ -668,7 +703,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                     },
                     market: {
                         vixValue,
-                        vixZone: getVixZone(vixValue),
+                        vixZone,
                     },
                     performance: {
                         dailyPnl7d,
@@ -681,6 +716,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                     },
                     positions: brokerConnected && hasHistory ? openPositions : [],
                     growthPlanToday: growthPlanItems,
+                    tradeDecision,
                 });
             }
         }, [currentScenario]);
@@ -698,9 +734,10 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
         return null;
     }
 
-    const { persona: personaData, connection, market, performance, positions, growthPlanToday } = data;
+    const { persona: personaData, connection, market, performance, positions, growthPlanToday, tradeDecision } = data;
 
     const arjunInsight = getArjunMessage({
+        decision: tradeDecision,
         disciplineScore: personaData.disciplineScore,
         performanceState: performance.performanceState
     });
@@ -1045,3 +1082,4 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
 }
 
     
+
