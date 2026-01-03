@@ -38,6 +38,7 @@ import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { Progress } from "./ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { format } from 'date-fns';
+import { LineChart, Line, ResponsiveContainer } from 'recharts';
 
 
 interface RiskCenterModuleProps {
@@ -331,7 +332,7 @@ function RevengeRiskCard({ revengeRiskIndex, revengeRiskLevel }: { revengeRiskIn
 }
 
 function PersonalRiskCard({ personalRisk, onSetModule }: { personalRisk: RiskState['personalRisk'], onSetModule: (module: any) => void }) {
-    const { disciplineScore, disciplineScoreDelta, emotionalScore, emotionalScoreDelta, consistencyScore, consistencyScoreDelta } = personalRisk;
+    const { disciplineScore, disciplineScoreDelta, emotionalScore, emotionalScoreDelta, pnlTrend7d, slMovedTrend7d, overridesTrend7d } = personalRisk;
 
     const getInterpretation = (score: number, type: 'discipline' | 'emotion' | 'consistency') => {
         if (type === 'discipline') {
@@ -394,6 +395,25 @@ function PersonalRiskCard({ personalRisk, onSetModule }: { personalRisk: RiskSta
                     Open Performance Analytics <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
             </CardContent>
+            <CardFooter className="flex-col items-start gap-4 text-xs text-muted-foreground border-t pt-4">
+                <h4 className="font-semibold text-foreground text-sm">7-Day Trends</h4>
+                <div className="w-full h-10">
+                    <ResponsiveContainer>
+                        <LineChart data={slMovedTrend7d}>
+                            <Line type="monotone" dataKey="value" stroke="hsl(var(--chart-4))" strokeWidth={2} dot={false} />
+                        </LineChart>
+                    </ResponsiveContainer>
+                    <p className="text-center -mt-2">SL Moved</p>
+                </div>
+                <div className="w-full h-10">
+                     <ResponsiveContainer>
+                        <LineChart data={overridesTrend7d}>
+                            <Line type="monotone" dataKey="value" stroke="hsl(var(--chart-5))" strokeWidth={2} dot={false} />
+                        </LineChart>
+                    </ResponsiveContainer>
+                    <p className="text-center -mt-2">Rule Overrides</p>
+                </div>
+            </CardFooter>
         </Card>
     );
 }
@@ -657,7 +677,7 @@ function ArjunRiskAlerts({ onSetModule }: { onSetModule: (module: any, context?:
                     severity: 'red' as 'red',
                     title: 'High Leverage Detected',
                     suggestion: "High leverage + high volatility increases liquidation probability. Review open positions.",
-                    action: { label: 'Reduce Leverage', module: 'tradePlanning', context: { instrument: 'BTC-PERP', source: 'RiskCenter' } }
+                    action: { label: 'Review Open Positions', module: 'tradePlanning', context: { instrument: 'BTC-PERP', source: 'RiskCenter' } }
                 };
             }
              if (lowerReason.includes('cooldown')) {
@@ -755,7 +775,7 @@ function ArjunRiskAlerts({ onSetModule }: { onSetModule: (module: any, context?:
     );
 }
 
-function RiskBudgetCard({ limits, decision, refreshState }: { limits: RiskState['todaysLimits'], decision: RiskState['decision'] | null, refreshState: () => void }) {
+function RiskBudgetCard({ limits, decision, refreshState, pnlTrend7d }: { limits: RiskState['todaysLimits'], decision: RiskState['decision'] | null, refreshState: () => void, pnlTrend7d: { value: number }[] }) {
     const [simulatedLossR, setSimulatedLossR] = useState<number | null>(null);
     const [assumedCapital, setAssumedCapital] = useState(() => {
         if (typeof window !== 'undefined') {
@@ -880,6 +900,16 @@ function RiskBudgetCard({ limits, decision, refreshState }: { limits: RiskState[
                     )}
                 </div>
             </CardContent>
+             <CardFooter className="flex-col items-start gap-4 text-xs text-muted-foreground border-t pt-4">
+                <h4 className="font-semibold text-foreground text-sm">PnL Trend (7D)</h4>
+                <div className="w-full h-10">
+                    <ResponsiveContainer>
+                        <LineChart data={pnlTrend7d}>
+                            <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+                        </LineChart>
+                    </ResponsiveContainer>
+                </div>
+            </CardFooter>
         </Card>
     );
 }
@@ -1044,7 +1074,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                      <RevengeRiskCard revengeRiskIndex={personalRisk.revengeRiskIndex} revengeRiskLevel={personalRisk.revengeRiskLevel} />
                      <PersonalRiskCard personalRisk={personalRisk} onSetModule={onSetModule} />
                      <TodaysLimitsCard limits={todaysLimits} onSetModule={onSetModule} />
-                     <RiskBudgetCard limits={todaysLimits} decision={decision} refreshState={refresh} />
+                     <RiskBudgetCard limits={todaysLimits} decision={decision} refreshState={refresh} pnlTrend7d={personalRisk.pnlTrend7d}/>
                      <VolatilityPolicyCard />
                      <RiskControlsCard />
                 </div>

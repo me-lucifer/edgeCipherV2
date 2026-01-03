@@ -39,6 +39,9 @@ export type RiskState = {
         // Mocked for now
         slMovedRate: number;
         riskLeakageRate: number;
+        pnlTrend7d: { value: number }[];
+        slMovedTrend7d: { value: number }[];
+        overridesTrend7d: { value: number }[];
     };
     todaysLimits: {
         maxTrades: number;
@@ -128,6 +131,8 @@ export function useRiskState() {
             else if (revengeRiskIndex >= 50) revengeRiskLevel = 'High';
             else if (revengeRiskIndex >= 25) revengeRiskLevel = 'Medium';
             
+            const pnlTrendBase = scenario === 'drawdown' ? -200 : 100;
+
             const personalRisk = {
                 disciplineScore: personaData.disciplineScore || 70,
                 disciplineScoreDelta: -5, // Mock data
@@ -139,6 +144,9 @@ export function useRiskState() {
                 revengeRiskLevel,
                 slMovedRate: scenario === 'drawdown' ? 25 : 8, // Mock
                 riskLeakageRate: scenario === 'drawdown' ? 1.5 : 0.2, // Mock
+                pnlTrend7d: Array.from({ length: 7 }, (_, i) => ({ value: pnlTrendBase + (Math.random() - 0.5) * 150 * (i + 1) })),
+                slMovedTrend7d: Array.from({ length: 7 }, () => ({ value: Math.random() > 0.7 ? 1 : 0 })),
+                overridesTrend7d: Array.from({ length: 7 }, () => ({ value: Math.random() > 0.8 ? 1 : 0 })),
             };
 
             // 4. Compute Today's Limits & Risk Budget
