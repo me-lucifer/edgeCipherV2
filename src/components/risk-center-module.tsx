@@ -1194,7 +1194,7 @@ ${reportData.fixNext.map(item => `- ${item}`).join('\n')}
     )
 }
 
-const TelemetryCard = ({ title, value, hint, children, className }: { title: string, value?: string | React.ReactNode, hint: string, children: React.ReactNode, className?: string }) => (
+const TelemetryCard = ({ title, value, hint, children, className, onSetModule }: { title: string, value?: string | React.ReactNode, hint: string, children: React.ReactNode, className?: string, onSetModule: (module: string) => void }) => (
     <Card className={cn("bg-muted/50 flex flex-col", className)}>
         <CardHeader>
             <CardTitle className="text-base">{title}</CardTitle>
@@ -1207,7 +1207,7 @@ const TelemetryCard = ({ title, value, hint, children, className }: { title: str
             </div>
         </CardContent>
          <CardFooter className="pt-4 border-t">
-            <Button variant="link" size="sm" className="p-0 h-auto text-xs text-muted-foreground">
+            <Button variant="link" size="sm" className="p-0 h-auto text-xs text-muted-foreground" onClick={() => onSetModule('analytics')}>
                 View in Analytics
                 <ArrowRight className="ml-1 h-3 w-3" />
             </Button>
@@ -1250,6 +1250,7 @@ const DisciplineLeaksCard = ({ disciplineLeaks, onSetModule }: { disciplineLeaks
             title="Discipline Leaks"
             hint="Rule overrides and validation failures."
             className="md:col-span-2"
+            onSetModule={onSetModule}
         >
             <div className="grid grid-cols-2 h-full gap-4">
                 <div className="flex flex-col items-center justify-center text-center p-2 bg-muted/50 rounded-lg">
@@ -1668,7 +1669,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                      {hasSufficientData ? (
                         <>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                                <TelemetryCard title="SL Discipline" value={`${totalSLTrades > 0 ? (slDisciplineData.reduce((sum, d) => sum + d.respected, 0) / totalSLTrades * 100).toFixed(0) : 'N/A'}%`} hint="SL Respected Rate" className="lg:col-span-1">
+                                <TelemetryCard title="SL Discipline" value={`${totalSLTrades > 0 ? (slDisciplineData.reduce((sum, d) => sum + d.respected, 0) / totalSLTrades * 100).toFixed(0) : 'N/A'}%`} hint="SL Respected Rate" className="lg:col-span-1" onSetModule={onSetModule}>
                                 {totalSLTrades > 0 ? (
                                         <>
                                         <div className="flex items-center gap-2 mb-2">
@@ -1695,7 +1696,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                                         </div>
                                 )}
                                 </TelemetryCard>
-                                <TelemetryCard title="Leverage Stability" value={personalRisk.mostCommonLeverageBucket} hint="Most Common Leverage" className="lg:col-span-1">
+                                <TelemetryCard title="Leverage Stability" value={personalRisk.mostCommonLeverageBucket} hint="Most Common Leverage" className="lg:col-span-1" onSetModule={onSetModule}>
                                     <LeverageHistogram data={personalRisk.leverageDistribution} />
                                     {personalRisk.leverageDistributionWarning && (
                                         <Alert variant="destructive" className="mt-4">
@@ -1707,7 +1708,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                                         </Alert>
                                     )}
                                 </TelemetryCard>
-                                <TelemetryCard title="Risk-per-Trade Drift" value={`${personalRisk.riskLeakageRate.toFixed(1)}x`} hint="Actual loss vs. planned risk">
+                                <TelemetryCard title="Risk-per-Trade Drift" value={`${personalRisk.riskLeakageRate.toFixed(1)}x`} hint="Actual loss vs. planned risk" onSetModule={onSetModule}>
                                     <ChartContainer config={{value: {color: "hsl(var(--chart-4))"}}} className="w-full h-full">
                                         <LineChart data={personalRisk.overridesTrend7d} margin={{ top: 5, right: 10, left: -30, bottom: 0 }}>
                                             <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50" />
@@ -1789,6 +1790,7 @@ const DeltaIndicator = ({ delta, unit = "" }: { delta: number; unit?: string }) 
 };
     
     
+
 
 
 
