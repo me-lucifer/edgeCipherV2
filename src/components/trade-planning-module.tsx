@@ -43,6 +43,7 @@ interface TradePlanningModuleProps {
         instrument: string;
         direction?: 'Long' | 'Short';
         origin: string;
+        safeMode?: boolean;
     }
 }
 
@@ -1570,8 +1571,6 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
     
     // ... other components remain the same ...
     
-    export { TradePlanningModule };
-    
     // The rest of the file needs to be included...
     // Re-adding the full file content with the change integrated.
     
@@ -2062,7 +2061,9 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
             if (typeof window !== "undefined") {
                 const scenario = localStorage.getItem('ec_demo_scenario') as DemoScenario | null;
                 setIsNewUser(scenario === 'no_positions');
-                setIsRecoveryMode(localStorage.getItem('ec_recovery_mode') === 'true');
+                
+                const recovery = localStorage.getItem('ec_recovery_mode') === 'true';
+                setIsRecoveryMode(recovery);
                 
                 const draftString = localStorage.getItem("ec_trade_plan_draft");
                 if (draftString) {
@@ -2075,19 +2076,23 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
                 }
     
                 const storedContext = localStorage.getItem('ec_trade_planning_context');
+                let contextToUse = planContext;
                 if (storedContext) {
-                    const parsedContext = JSON.parse(storedContext);
-                    setInitialContext(parsedContext);
-                    form.setValue('instrument', parsedContext.instrument);
-                    if (parsedContext.direction) {
-                      form.setValue('direction', parsedContext.direction);
+                    try {
+                        contextToUse = JSON.parse(storedContext);
+                        localStorage.removeItem('ec_trade_planning_context');
+                    } catch (e) {}
+                }
+    
+                if (contextToUse) {
+                    setInitialContext(contextToUse);
+                    form.setValue('instrument', contextToUse.instrument);
+                    if (contextToUse.direction) {
+                        form.setValue('direction', contextToUse.direction);
                     }
-                    localStorage.removeItem('ec_trade_planning_context');
-                } else if (planContext) {
-                    setInitialContext(planContext);
-                    form.setValue('instrument', planContext.instrument);
-                    if (planContext.direction) {
-                        form.setValue('direction', planContext.direction);
+                    if (contextToUse.safeMode || recovery) {
+                        form.setValue('riskPercent', 0.5);
+                        toast({ title: 'Safe Mode Activated', description: "Default risk has been reduced to 0.5%." });
                     }
                 }
     
@@ -2328,11 +2333,14 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
                 </div>
     
                 {initialContext && (
-                     <Alert variant="default" className="bg-primary/10 border-primary/20 text-primary">
-                        <Sparkles className="h-4 w-4 text-primary" />
-                        <AlertTitle>Context from {initialContext.origin}</AlertTitle>
-                        <AlertDescription>
-                           You've been sent here to plan a trade for <strong className="font-semibold">{initialContext.instrument}</strong>.
+                     <Alert variant="default" className={cn("border-primary/20", initialContext.safeMode ? "bg-blue-950/40" : "bg-primary/10 text-primary")}>
+                        {initialContext.safeMode ? <ShieldCheck className="h-4 w-4 text-blue-400" /> : <Sparkles className="h-4 w-4 text-primary" />}
+                        <AlertTitle>{initialContext.safeMode ? "Safe Mode Activated" : `Context from ${initialContext.origin}`}</AlertTitle>
+                        <AlertDescription className={initialContext.safeMode ? "text-blue-300/80" : ""}>
+                           {initialContext.safeMode 
+                            ? "You're planning this trade from the Risk Center in a heightened risk state. Default risk has been reduced."
+                            : `You've been sent here to plan a trade for ${initialContext.instrument}.`
+                           }
                         </AlertDescription>
                     </Alert>
                 )}
@@ -2540,4 +2548,5 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
     
     
     
+
 

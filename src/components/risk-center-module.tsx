@@ -572,9 +572,15 @@ function ArjunRiskAlerts({ onSetModule }: { onSetModule: (module: any, context?:
             severity: 'info',
             title: 'No critical alerts',
             suggestion: 'All systems are currently within your defined risk parameters. Focus on executing your plan.',
-            action: { label: 'Go to Trade Planning', module: 'tradePlanning' }
+            action: { label: 'Plan next trade', module: 'tradePlanning' }
         });
     }
+
+    const handlePlanSafeTrade = () => {
+        onSetModule('tradePlanning', {
+            planContext: { source: 'riskCenter', safeMode: true }
+        });
+    };
 
     return (
         <Card className="bg-muted/30 border-border/50">
@@ -613,6 +619,15 @@ function ArjunRiskAlerts({ onSetModule }: { onSetModule: (module: any, context?:
                         </Button>
                     </div>
                 ))}
+                <div className="pt-4 border-t border-border/50 text-center">
+                    <Button onClick={handlePlanSafeTrade}>
+                        <ShieldCheck className="mr-2 h-4 w-4" />
+                        Plan a trade (Safe Mode)
+                    </Button>
+                    <p className="text-xs text-muted-foreground mt-2">
+                        This pre-selects a conservative strategy and reduced risk.
+                    </p>
+                </div>
             </CardContent>
         </Card>
     );
