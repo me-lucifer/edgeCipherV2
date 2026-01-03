@@ -60,9 +60,9 @@ const defaultRules: RiskRule[] = [
 ];
 
 const mockPositions = [
-    { symbol: 'BTC-PERP', direction: 'Long', size: 0.5, pnl: 234.50, leverage: 10, risk: 'Medium' },
-    { symbol: 'ETH-PERP', direction: 'Short', size: 12, pnl: -88.12, leverage: 50, risk: 'High' },
-    { symbol: 'SOL-PERP', direction: 'Long', size: 100, pnl: 45.20, leverage: 5, risk: 'Low' },
+    { symbol: 'BTC-PERP', direction: 'Long', size: 0.5, pnl: 234.50, leverage: 10, risk: 'Medium', price: 68500 },
+    { symbol: 'ETH-PERP', direction: 'Short', size: 12, pnl: -88.12, leverage: 50, risk: 'High', price: 3600 },
+    { symbol: 'SOL-PERP', direction: 'Long', size: 100, pnl: 45.20, leverage: 5, risk: 'Low', price: 150 },
 ];
 
 function TradeDecisionBar({ decision }: { decision: RiskState['decision'] | null }) {
@@ -546,13 +546,29 @@ function ExposureSnapshotCard({ onSetModule }: { onSetModule: (module: any) => v
             const connected = localStorage.getItem('ec_broker_connected') === 'true';
             setBrokerConnected(connected);
             if (connected) {
-                // In a real app, you'd fetch this. For now, use mock.
                 setPositions(mockPositions);
             }
         }
     }, []);
 
-    const hasHighRisk = positions.some(p => p.risk === 'High');
+    const positionsWithNotional = useMemo(() => {
+        return positions.map(p => ({ ...p, notional: p.size * p.price }));
+    }, [positions]);
+
+    const totalNotional = positionsWithNotional.reduce((sum, p) => sum + p.notional, 0);
+    const largestPositionNotional = Math.max(...positionsWithNotional.map(p => p.notional));
+    const concentrationRisk = totalNotional > 0 ? (largestPositionNotional / totalNotional) * 100 : 0;
+    const hasHighConcentration = concentrationRisk > 60;
+
+    const netExposure = useMemo(() => {
+        const longNotional = positionsWithNotional.filter(p => p.direction === 'Long').reduce((sum, p) => sum + p.notional, 0);
+        const shortNotional = positionsWithNotional.filter(p => p.direction === 'Short').reduce((sum, p) => sum + p.notional, 0);
+        if (longNotional === 0 && shortNotional === 0) return "Flat";
+        const ratio = longNotional / (longNotional + shortNotional);
+        if (ratio > 0.6) return "Mostly Long";
+        if (ratio < 0.4) return "Mostly Short";
+        return "Balanced";
+    }, [positionsWithNotional]);
 
     return (
         <Card className="bg-muted/30 border-border/50">
@@ -574,15 +590,25 @@ function ExposureSnapshotCard({ onSetModule }: { onSetModule: (module: any) => v
                     </div>
                 ) : (
                     <div className="space-y-4">
-                        {hasHighRisk && (
+                        {(hasHighConcentration) && (
                             <Alert variant="destructive">
                                 <Bot className="h-4 w-4" />
                                 <AlertTitle>Arjun's Warning</AlertTitle>
                                 <AlertDescription>
-                                    One or more of your open positions has a high-risk rating. Review your SL and position size.
+                                    Your portfolio is overexposed to a single asset. Consider reducing size or diversifying.
                                 </AlertDescription>
                             </Alert>
                         )}
+                        <div className="grid grid-cols-2 gap-4">
+                             <Card className="bg-muted/50 text-center p-4">
+                                <p className="text-xs text-muted-foreground">Net Exposure</p>
+                                <p className="text-lg font-bold">{netExposure}</p>
+                            </Card>
+                            <Card className={cn("bg-muted/50 text-center p-4", hasHighConcentration && "border-destructive/50")}>
+                                <p className="text-xs text-muted-foreground">Concentration Risk</p>
+                                <p className={cn("text-lg font-bold", hasHighConcentration && "text-destructive")}>{concentrationRisk.toFixed(0)}%</p>
+                            </Card>
+                        </div>
                         <Table>
                             <TableHeader>
                                 <TableRow>
