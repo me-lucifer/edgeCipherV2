@@ -34,6 +34,7 @@ import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, CartesianGrid, BarC
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "./ui/chart";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
+import { useJournal, type JournalEntry } from "./trade-journal-module";
 
 
 interface RiskCenterModuleProps {
@@ -369,19 +370,19 @@ function PersonalRiskCard({ personalRisk, onSetModule }: { personalRisk: RiskSta
             <CardFooter className="flex-col items-start gap-4 text-xs text-muted-foreground border-t pt-4">
                 <h4 className="font-semibold text-foreground text-sm">7-Day Trends</h4>
                 <div className="w-full h-10">
-                    <ResponsiveContainer>
-                        <LineChart data={slMovedTrend7d}>
+                    <ChartContainer config={{value: {color: "hsl(var(--chart-4))"}}} className="w-full h-full">
+                        <LineChart data={slMovedTrend7d} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
                             <Line type="monotone" dataKey="value" stroke="hsl(var(--chart-4))" strokeWidth={2} dot={false} />
                         </LineChart>
-                    </ResponsiveContainer>
+                    </ChartContainer>
                     <p className="text-center -mt-2">SL Moved</p>
                 </div>
                 <div className="w-full h-10">
-                     <ResponsiveContainer>
-                        <LineChart data={overridesTrend7d}>
+                    <ChartContainer config={{value: {color: "hsl(var(--chart-5))"}}} className="w-full h-full">
+                         <LineChart data={overridesTrend7d} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
                             <Line type="monotone" dataKey="value" stroke="hsl(var(--chart-5))" strokeWidth={2} dot={false} />
                         </LineChart>
-                    </ResponsiveContainer>
+                    </ChartContainer>
                     <p className="text-center -mt-2">Rule Overrides</p>
                 </div>
             </CardFooter>
@@ -851,9 +852,9 @@ function RiskBudgetCard({ limits, decision, refreshState, pnlTrend7d }: { limits
              <CardFooter className="flex-col items-start gap-4 text-xs text-muted-foreground border-t pt-4">
                 <h4 className="font-semibold text-foreground text-sm">PnL Trend (7D)</h4>
                 <div className="w-full h-10">
-                    <ChartContainer config={{}} className="w-full h-full">
+                    <ChartContainer config={{value: {color: "hsl(var(--primary))"}}} className="w-full h-full">
                         <ResponsiveContainer>
-                            <LineChart data={pnlTrend7d}>
+                            <LineChart data={pnlTrend7d} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
                                 <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
                             </LineChart>
                         </ResponsiveContainer>
@@ -1018,7 +1019,7 @@ function ReportDialog({ reportType, riskState }: { reportType: ReportType, riskS
             const title = `### Weekly Risk & Discipline Report ###`;
             
             if (short) {
-                return `${title}\\n- **Top Leak**: ${reportData.risk.topDisciplineLeak}\\n- **Focus**: ${reportData.recommendations[0]}`;
+                return `${title}\n- **Top Leak**: ${reportData.risk.topDisciplineLeak}\n- **Focus**: ${reportData.recommendations[0]}`;
             }
             return `
 ${title}
@@ -1027,24 +1028,24 @@ ${title}
 - Discipline Score: ${riskState?.personalRisk.disciplineScore || 'N/A'} (${riskState?.personalRisk.disciplineScoreDelta.toFixed(0) || '0'} pts)
 - Emotional Control: ${riskState?.personalRisk.emotionalScore || 'N/A'} (${riskState?.personalRisk.emotionalScoreDelta.toFixed(0) || '0'} pts)
 **Key Risk Events This Period**
-${(riskState?.riskEventsToday.slice(0, 3) || []).map(e => `- ${e.description}`).join('\\n') || "- None recorded."}
+${(riskState?.riskEventsToday.slice(0, 3) || []).map(e => `- ${e.description}`).join('\n') || "- None recorded."}
 **Top Discipline Leak**
 - ${reportData.risk.topDisciplineLeak}
 **Recommended Next Actions**
-${reportData.recommendations.map(r => `- ${r}`).join('\\n')}
+${reportData.recommendations.map(r => `- ${r}`).join('\n')}
             `.trim();
         } else { // Monthly
              const title = `### Monthly Risk Review ###`;
              if (short) {
-                return `${title}\\n- **Improvement**: ${reportData.improvements[0]}\\n- **Next Focus**: ${reportData.fixNext[0]}`;
+                return `${title}\n- **Improvement**: ${reportData.improvements[0]}\n- **Next Focus**: ${reportData.fixNext[0]}`;
              }
              return `
 ${title}
 **Summary of Improvements**
-${reportData.improvements.map(item => `- ${item}`).join('\\n')}
+${reportData.improvements.map(item => `- ${item}`).join('\n')}
 
 **Priorities for Next Month**
-${reportData.fixNext.map(item => `- ${item}`).join('\\n')}
+${reportData.fixNext.map(item => `- ${item}`).join('\n')}
 
 **Trend Data**
 - SL Discipline: ${reportData.slDisciplineTrend.slice(-1)[0]?.value.toFixed(0)}% (final)
@@ -1519,6 +1520,11 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
     const [activeTab, setActiveTab] = useState("today");
     const [disciplineTimeframe, setDisciplineTimeframe] = useState<'today' | '7d'>('today');
     const [hasSufficientData, setHasSufficientData] = useState(false);
+    const { entries: journalEntries } = useJournal();
+
+    const hasPendingJournals = useMemo(() => {
+        return journalEntries.some(e => e.status === 'pending');
+    }, [journalEntries]);
 
      useEffect(() => {
         if (typeof window !== "undefined") {
@@ -1558,21 +1564,6 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
         }
     };
 
-
-    if (isLoading || !riskState) {
-        return (
-            <div className="space-y-8 animate-pulse">
-                <Skeleton className="h-8 w-1/3" />
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-64 w-full" />
-            </div>
-        );
-    }
-
-    const { marketRisk, personalRisk, todaysLimits, decision, riskEventsToday, activeNudge, topRiskDrivers } = riskState;
-    const slDisciplineData = disciplineTimeframe === 'today' ? personalRisk.slDisciplineToday : personalRisk.slDiscipline7d;
-    const totalSLTrades = slDisciplineData.reduce((acc, d) => acc + d.respected + d.moved + d.removed, 0);
-
     const handleDismissNudge = (id: string) => {
         const today = format(new Date(), 'yyyy-MM-dd');
         const states = JSON.parse(localStorage.getItem('ec_risk_alert_states') || '{}');
@@ -1589,6 +1580,20 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
         refresh();
     };
 
+    if (isLoading || !riskState) {
+        return (
+            <div className="space-y-8 animate-pulse">
+                <Skeleton className="h-8 w-1/3" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-64 w-full" />
+            </div>
+        );
+    }
+
+    const { marketRisk, personalRisk, todaysLimits, decision, riskEventsToday, activeNudge, topRiskDrivers } = riskState;
+    const slDisciplineData = disciplineTimeframe === 'today' ? personalRisk.slDisciplineToday : personalRisk.slDiscipline7d;
+    const totalSLTrades = slDisciplineData.reduce((acc, d) => acc + d.respected + d.moved + d.removed, 0);
+
     return (
         <div className="space-y-8">
             <div className="flex items-start justify-between">
@@ -1600,6 +1605,23 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                 </div>
                 <Button variant="ghost" size="sm" onClick={refresh}><RefreshCw className="mr-2 h-4 w-4" /> Refresh State</Button>
             </div>
+
+            {hasPendingJournals && (
+                <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <div className="flex items-center justify-between w-full">
+                        <div>
+                            <AlertTitle>Unjournaled Trades</AlertTitle>
+                            <AlertDescription>
+                                You have pending journals. Complete them before taking new trades to maintain accurate risk telemetry.
+                            </AlertDescription>
+                        </div>
+                        <Button variant="outline" className="text-destructive-foreground border-destructive" onClick={() => onSetModule('tradeJournal')}>
+                            Open Pending Journals
+                        </Button>
+                    </div>
+                </Alert>
+            )}
             
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="grid w-full grid-cols-3 max-w-lg">
@@ -1750,4 +1772,6 @@ const DeltaIndicator = ({ delta, unit = "" }: { delta: number; unit?: string }) 
 };
     
     
+
+
 
