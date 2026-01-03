@@ -1,8 +1,6 @@
-
-
       "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -1072,59 +1070,108 @@ function ReportDialog({ reportType, riskState }: { reportType: ReportType, riskS
                     biggestRiskEvent: 'Not enough data.',
                     topDisciplineLeak: 'Not enough data.',
                 },
-                recommendations: ["Complete more journals to generate reports."]
+                recommendations: ["Complete more journals to generate reports."],
+                leverageTrend: [],
+                slDisciplineTrend: [],
+                overrideRateTrend: [],
+                guardrailAdoption: 0,
+                improvements: [],
+                fixNext: [],
             };
         }
 
         const { personalRisk, riskEventsToday } = riskState;
-
-        const reportDuration = reportType === 'Weekly' ? 7 : 30;
         
-        return {
-            pnl: `~$${(Math.random() * 2000 - 1000).toFixed(2)}`, // Mock PnL
-            winRate: `${(45 + Math.random() * 15).toFixed(0)}%`, // Mock WR
-            discipline: {
-                journalingRate: `${(80 + Math.random() * 20).toFixed(0)}%`,
-                slMovedPct: `${personalRisk.slMovedRate.toFixed(0)}%`
-            },
-            psychology: {
-                topEmotion: "FOMO",
-                topMistake: "Moved SL"
-            },
-            risk: {
-                biggestRiskEvent: riskEventsToday[0]?.description || "None recorded.",
-                topDisciplineLeak: personalRisk.disciplineLeaks.topBreachTypes[0] || "None",
-            },
-            recommendations: [
-                `Your discipline score trended down by ${personalRisk.disciplineScoreDelta} points. Focus on pre-trade checklists.`,
-                "Your top discipline leak was 'RR below min'. Enable the R:R guardrail in settings.",
-                "Review all trades tagged with 'FOMO' this week.",
-            ]
-        };
+        if (reportType === 'Weekly') {
+            return {
+                pnl: `~$${(Math.random() * 2000 - 1000).toFixed(2)}`, // Mock PnL
+                winRate: `${(45 + Math.random() * 15).toFixed(0)}%`, // Mock WR
+                discipline: {
+                    journalingRate: `${(80 + Math.random() * 20).toFixed(0)}%`,
+                    slMovedPct: `${personalRisk.slMovedRate.toFixed(0)}%`
+                },
+                psychology: {
+                    topEmotion: "FOMO",
+                    topMistake: "Moved SL"
+                },
+                risk: {
+                    biggestRiskEvent: riskEventsToday[0]?.description || "None recorded.",
+                    topDisciplineLeak: personalRisk.disciplineLeaks.topBreachTypes[0] || "None",
+                },
+                recommendations: [
+                    `Your discipline score trended down by ${personalRisk.disciplineScoreDelta.toFixed(0)} points. Focus on pre-trade checklists.`,
+                    "Your top discipline leak was 'RR below min'. Enable the R:R guardrail in settings.",
+                    "Review all trades tagged with 'FOMO' this week.",
+                ],
+                leverageTrend: [],
+                slDisciplineTrend: [],
+                overrideRateTrend: [],
+                guardrailAdoption: 0,
+                improvements: [],
+                fixNext: [],
+            };
+        } else { // Monthly
+             return {
+                pnl: 'N/A',
+                winRate: 'N/A',
+                discipline: { journalingRate: 'N/A', slMovedPct: 'N/A' },
+                psychology: { topEmotion: 'N/A', topMistake: 'N/A' },
+                risk: { biggestRiskEvent: 'N/A', topDisciplineLeak: 'N/A' },
+                recommendations: [],
+                leverageTrend: Array.from({length: 4}, (_, i) => ({ name: `W${i+1}`, value: 12 + Math.random() * 8 })),
+                slDisciplineTrend: Array.from({length: 4}, (_, i) => ({ name: `W${i+1}`, value: 85 - Math.random() * 15 })),
+                overrideRateTrend: Array.from({length: 4}, (_, i) => ({ name: `W${i+1}`, value: 3 + Math.floor(Math.random() * 5) })),
+                guardrailAdoption: Math.floor(30 + Math.random() * 60),
+                improvements: [
+                    "SL discipline improved by 12% vs last month.",
+                    "Reduced frequency of 'FOMO' trades during NY session.",
+                ],
+                fixNext: [
+                    "Continue to reduce 'Moved SL' violations on volatile days.",
+                    "Increase average R:R from 1.2 to 1.5 by letting winners run.",
+                    "Trial the 'Range Fade' strategy during the Asia session.",
+                ]
+            }
+        }
     }, [reportType, riskState]);
 
     const generateReportText = (short = false) => {
-        const title = `### ${reportType} Risk & Discipline Report ###`;
-        
-        if (short) {
-            return `${title}\n- **Top Leak**: ${reportData.risk.topDisciplineLeak}\n- **Focus**: ${reportData.recommendations[0]}`;
-        }
-        return `
+        if (reportType === 'Weekly') {
+            const title = `### Weekly Risk & Discipline Report ###`;
+            
+            if (short) {
+                return `${title}\n- **Top Leak**: ${reportData.risk.topDisciplineLeak}\n- **Focus**: ${reportData.recommendations[0]}`;
+            }
+            return `
 ${title}
-
 **Risk Posture Trend**
 - Discipline Score: ${riskState?.personalRisk.disciplineScore || 'N/A'} (${riskState?.personalRisk.disciplineScoreDelta.toFixed(0) || '0'} pts)
 - Emotional Control: ${riskState?.personalRisk.emotionalScore || 'N/A'} (${riskState?.personalRisk.emotionalScoreDelta.toFixed(0) || '0'} pts)
-
 **Key Risk Events This Period**
 ${(riskState?.riskEventsToday.slice(0, 3) || []).map(e => `- ${e.description}`).join('\n') || "- None recorded."}
-
 **Top Discipline Leak**
 - ${reportData.risk.topDisciplineLeak}
-
 **Recommended Next Actions**
 ${reportData.recommendations.map(r => `- ${r}`).join('\n')}
-        `.trim();
+            `.trim();
+        } else { // Monthly
+             const title = `### Monthly Risk Review ###`;
+             if (short) {
+                return `${title}\n- **Improvement**: ${reportData.improvements[0]}\n- **Next Focus**: ${reportData.fixNext[0]}`;
+             }
+             return `
+${title}
+**Summary of Improvements**
+${reportData.improvements.map(item => `- ${item}`).join('\n')}
+
+**Priorities for Next Month**
+${reportData.fixNext.map(item => `- ${item}`).join('\n')}
+
+**Trend Data**
+- SL Discipline: ${reportData.slDisciplineTrend.slice(-1)[0]?.value.toFixed(0)}% (final)
+- Guardrail Adoption: ${reportData.guardrailAdoption}%
+             `.trim();
+        }
     };
 
     const handleCopy = (short: boolean) => {
@@ -1132,48 +1179,118 @@ ${reportData.recommendations.map(r => `- ${r}`).join('\n')}
         toast({ title: short ? "Short summary copied" : "Full report copied" });
     }
 
-    return (
-        <DialogContent className="max-w-2xl">
-            <DialogHeader>
-                <DialogTitle>{reportType} Risk Report</DialogTitle>
-                <DialogDescription>
-                    Your risk and discipline profile summarized for the period.
-                </DialogDescription>
-            </DialogHeader>
-            <div className="py-4 space-y-6 max-h-[70vh] overflow-y-auto pr-2">
-                <div className="space-y-4">
-                    <h4 className="font-semibold text-foreground">Risk Posture Trend</h4>
-                     <div className="p-4 bg-muted rounded-lg border grid grid-cols-2 gap-4">
-                        <SummaryRow label="Discipline Score" value={<>{riskState?.personalRisk.disciplineScore || 'N/A'} <DeltaIndicator delta={riskState?.personalRisk.disciplineScoreDelta || 0} unit="pts" /></>} />
-                        <SummaryRow label="Emotional Score" value={<>{riskState?.personalRisk.emotionalScore || 'N/A'} <DeltaIndicator delta={riskState?.personalRisk.emotionalScoreDelta || 0} unit="pts" /></>} />
+    if (reportType === 'Weekly') {
+        return (
+            <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                    <DialogTitle>Weekly Risk Report</DialogTitle>
+                    <DialogDescription>Your risk and discipline profile summarized for the period.</DialogDescription>
+                </DialogHeader>
+                <div className="py-4 space-y-6 max-h-[70vh] overflow-y-auto pr-2">
+                    {/* ... existing weekly report content ... */}
+                     <div className="space-y-4">
+                        <h4 className="font-semibold text-foreground">Risk Posture Trend</h4>
+                         <div className="p-4 bg-muted rounded-lg border grid grid-cols-2 gap-4">
+                            <SummaryRow label="Discipline Score" value={<>{riskState?.personalRisk.disciplineScore || 'N/A'} <DeltaIndicator delta={riskState?.personalRisk.disciplineScoreDelta || 0} unit="pts" /></>} />
+                            <SummaryRow label="Emotional Score" value={<>{riskState?.personalRisk.emotionalScore || 'N/A'} <DeltaIndicator delta={riskState?.personalRisk.emotionalScoreDelta || 0} unit="pts" /></>} />
+                        </div>
+                    </div>
+
+                    <div className="space-y-4">
+                        <h4 className="font-semibold text-foreground">Key Risk Events</h4>
+                        <Card className="bg-muted/50">
+                            <CardContent className="p-4 space-y-2">
+                                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-2">
+                                    {(riskState?.riskEventsToday.slice(0, 3) || []).map((event, i) => <li key={i}>{event.description}</li>)}
+                                    {riskState?.riskEventsToday.length === 0 && <li>No significant events recorded.</li>}
+                                </ul>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    <div className="space-y-4">
+                        <h4 className="font-semibold text-foreground">Top Discipline Leak</h4>
+                        <MetricCard title={reportData.risk.topDisciplineLeak} value={<Badge variant="destructive">{reportData.risk.topDisciplineLeak}</Badge>} hint="Your most frequent rule violation this period." />
+                    </div>
+                    
+                    <div className="space-y-4">
+                        <h4 className="font-semibold text-foreground">Recommended Next Actions</h4>
+                        <ul className="list-disc list-inside text-sm text-muted-foreground space-y-2">
+                            {reportData.recommendations.map((rec, i) => <li key={i}>{rec}</li>)}
+                        </ul>
                     </div>
                 </div>
-
-                <div className="space-y-4">
-                    <h4 className="font-semibold text-foreground">Key Risk Events</h4>
-                    <Card className="bg-muted/50">
-                        <CardContent className="p-4 space-y-2">
-                            <ul className="list-disc list-inside text-sm text-muted-foreground space-y-2">
-                                {(riskState?.riskEventsToday.slice(0, 3) || []).map((event, i) => <li key={i}>{event.description}</li>)}
-                                {riskState?.riskEventsToday.length === 0 && <li>No significant events recorded.</li>}
-                            </ul>
-                        </CardContent>
-                    </Card>
-                </div>
-
-                <div className="space-y-4">
-                    <h4 className="font-semibold text-foreground">Top Discipline Leak</h4>
-                    <MetricCard title={reportData.risk.topDisciplineLeak} value={<Badge variant="destructive">{reportData.risk.topDisciplineLeak}</Badge>} hint="Your most frequent rule violation this period." />
+                 <DialogFooter className="sm:justify-between gap-2 border-t pt-4">
+                    <DialogClose asChild><Button variant="ghost">Close</Button></DialogClose>
+                    <div className="flex gap-2">
+                        <Button variant="outline" onClick={() => handleCopy(true)}>
+                            <Clipboard className="mr-2 h-4 w-4" /> Copy Short Summary
+                        </Button>
+                        <Button variant="outline" onClick={() => handleCopy(false)}>
+                            <Copy className="mr-2 h-4 w-4" /> Copy Full Report
+                        </Button>
+                    </div>
+                </DialogFooter>
+            </DialogContent>
+        );
+    }
+    
+    // Monthly Report
+    return (
+        <DialogContent className="max-w-4xl">
+            <DialogHeader>
+                 <DialogTitle className="flex items-center gap-2">
+                    Monthly Risk Review
+                    <Badge variant="outline">Prototype report (journal-driven)</Badge>
+                </DialogTitle>
+                <DialogDescription>A high-level look at your risk and discipline trends over the last month.</DialogDescription>
+            </DialogHeader>
+            <div className="py-4 space-y-8 max-h-[70vh] overflow-y-auto pr-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="space-y-4">
+                        <h4 className="font-semibold text-foreground">What Improved</h4>
+                         <ul className="list-disc list-inside text-sm text-muted-foreground space-y-2">
+                            {reportData.improvements.map((item, i) => <li key={i} className="text-green-400"><span className="text-muted-foreground">{item}</span></li>)}
+                        </ul>
+                    </div>
+                     <div className="space-y-4">
+                        <h4 className="font-semibold text-foreground">What to Fix Next Month</h4>
+                         <ul className="list-disc list-inside text-sm text-muted-foreground space-y-2">
+                            {reportData.fixNext.map((item, i) => <li key={i}>{item}</li>)}
+                        </ul>
+                    </div>
                 </div>
                 
-                <div className="space-y-4">
-                     <h4 className="font-semibold text-foreground">Recommended Next Actions</h4>
-                     <ul className="list-disc list-inside text-sm text-muted-foreground space-y-2">
-                        {reportData.recommendations.map((rec, i) => <li key={i}>{rec}</li>)}
-                    </ul>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <TelemetryCard title="Leverage Stability" hint="Avg. leverage per week" value={`${reportData.leverageTrend.slice(-1)[0]?.value.toFixed(0)}x`}>
+                        <ChartContainer config={{value: {color: "hsl(var(--chart-1))"}}} className="h-full w-full">
+                            <BarChart data={reportData.leverageTrend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                <YAxis tickFormatter={(v) => `${v}x`} tick={{fontSize: 10}} />
+                                <Bar dataKey="value" radius={2} />
+                            </BarChart>
+                        </ChartContainer>
+                    </TelemetryCard>
+                     <TelemetryCard title="SL Discipline" hint="SL Respected Rate (%)" value={`${reportData.slDisciplineTrend.slice(-1)[0]?.value.toFixed(0)}%`}>
+                        <ChartContainer config={{value: {color: "hsl(var(--chart-2))"}}} className="h-full w-full">
+                             <LineChart data={reportData.slDisciplineTrend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                <YAxis domain={[50, 100]} tickFormatter={(v) => `${v}%`} tick={{fontSize: 10}} />
+                                <Line type="monotone" dataKey="value" stroke="hsl(var(--chart-2))" strokeWidth={2} dot={false} />
+                            </LineChart>
+                        </ChartContainer>
+                    </TelemetryCard>
+                     <TelemetryCard title="Override Rate" hint="Rule overrides per week" value={`${reportData.overrideRateTrend.slice(-1)[0]?.value.toFixed(0)}`}>
+                        <ChartContainer config={{value: {color: "hsl(var(--chart-5))"}}} className="h-full w-full">
+                            <BarChart data={reportData.overrideRateTrend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                <YAxis domain={[0, 10]} tick={{fontSize: 10}} />
+                                <Bar dataKey="value" fill="hsl(var(--chart-5))" radius={2} />
+                            </BarChart>
+                        </ChartContainer>
+                    </TelemetryCard>
+                    <MetricCard title="Guardrail Adoption" value={`${reportData.guardrailAdoption}%`} hint="% of triggered guardrails respected" />
                 </div>
+
             </div>
-             <DialogFooter className="sm:justify-between gap-2 border-t pt-4">
+            <DialogFooter className="sm:justify-between gap-2 border-t pt-4">
                 <DialogClose asChild><Button variant="ghost">Close</Button></DialogClose>
                 <div className="flex gap-2">
                     <Button variant="outline" onClick={() => handleCopy(true)}>
@@ -1185,11 +1302,11 @@ ${reportData.recommendations.map(r => `- ${r}`).join('\n')}
                 </div>
             </DialogFooter>
         </DialogContent>
-    );
+    )
 }
 
 const TelemetryCard = ({ title, value, hint, children, className }: { title: string, value?: string | React.ReactNode, hint: string, children: React.ReactNode, className?: string }) => (
-    <Card className={cn(className)}>
+    <Card className={cn("bg-muted/50", className)}>
         <CardHeader>
             <CardTitle className="text-base">{title}</CardTitle>
             <CardDescription>{hint}</CardDescription>
@@ -1219,13 +1336,13 @@ const SLDisciplineChart = ({ data }: { data: SLDisciplineData[] }) => (
 );
 
 const LeverageHistogram = ({ data }: { data: LeverageDistributionData[] }) => (
-    <ChartContainer config={{}} className="h-full w-full">
+    <ChartContainer config={{count: {color: "hsl(var(--primary))"}}} className="h-full w-full">
         <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data}>
                 <XAxis dataKey="name" tick={{ fontSize: 12 }} />
                 <YAxis tick={{ fontSize: 10 }} />
                 <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
-                <Bar dataKey="count" fill="hsl(var(--primary))" radius={2} />
+                <Bar dataKey="count" radius={2} />
             </BarChart>
         </ResponsiveContainer>
     </ChartContainer>
@@ -1459,7 +1576,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                 </TabsContent>
                 <TabsContent value="insights" className="mt-6 space-y-8">
                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        <TelemetryCard title="SL Discipline" value={`${totalSLTrades > 0 ? (slDisciplineData.reduce((sum, d) => sum + d.respected, 0) / totalSLTrades * 100).toFixed(0) : 'N/A'}%`} hint="Trades where SL was NOT moved" className="lg:col-span-1">
+                        <TelemetryCard title="SL Discipline" value={`${totalSLTrades > 0 ? (slDisciplineData.reduce((sum, d) => sum + d.respected, 0) / totalSLTrades * 100).toFixed(0) : 'N/A'}%`} hint="SL Respected Rate" className="lg:col-span-1">
                            {totalSLTrades > 0 ? (
                                 <>
                                 <div className="flex items-center gap-2 mb-2">
@@ -1499,7 +1616,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                              )}
                         </TelemetryCard>
                          <TelemetryCard title="Risk-per-Trade Drift" value={`${personalRisk.riskLeakageRate.toFixed(1)}x`} hint="Actual loss vs. planned risk">
-                             <ChartContainer config={{}} className="w-full h-full">
+                             <ChartContainer config={{value: {color: "hsl(var(--chart-4))"}}} className="w-full h-full">
                                 <LineChart data={personalRisk.overridesTrend7d} margin={{ top: 5, right: 10, left: -30, bottom: 0 }}>
                                     <YAxis domain={[0,2]} tickFormatter={(v) => `${v.toFixed(1)}x`} tick={{fontSize: 10}}/>
                                     <ChartTooltip content={<ChartTooltipContent formatter={(v) => `${Number(v).toFixed(1)}x`}/>} />
@@ -1577,6 +1694,7 @@ const DeltaIndicator = ({ delta, unit = "" }: { delta: number; unit?: string }) 
 };
     
     
+
 
 
 
