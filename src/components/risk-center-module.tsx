@@ -1144,7 +1144,7 @@ ${reportData.fixNext.map(item => `- ${item}`).join('\\n')}
                     <TelemetryCard title="Leverage Stability" hint="Avg. leverage per week" value={`${reportData.leverageTrend.slice(-1)[0]?.value.toFixed(0)}x`}>
                         <ChartContainer config={{value: {color: "hsl(var(--chart-1))"}}} className="h-full w-full">
                             <BarChart data={reportData.leverageTrend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                                <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                                <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50" />
                                 <YAxis tickFormatter={(v) => `${v}x`} tick={{fontSize: 10}} />
                                 <Bar dataKey="value" radius={2} />
                             </BarChart>
@@ -1153,7 +1153,7 @@ ${reportData.fixNext.map(item => `- ${item}`).join('\\n')}
                      <TelemetryCard title="SL Discipline" hint="SL Respected Rate (%)" value={`${reportData.slDisciplineTrend.slice(-1)[0]?.value.toFixed(0)}%`}>
                         <ChartContainer config={{value: {color: "hsl(var(--chart-2))"}}} className="h-full w-full">
                              <LineChart data={reportData.slDisciplineTrend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                                <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                                <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50" />
                                 <YAxis domain={[50, 100]} tickFormatter={(v) => `${v}%`} tick={{fontSize: 10}} />
                                 <Line type="monotone" dataKey="value" stroke="hsl(var(--chart-2))" strokeWidth={2} dot={false} />
                             </LineChart>
@@ -1162,7 +1162,7 @@ ${reportData.fixNext.map(item => `- ${item}`).join('\\n')}
                      <TelemetryCard title="Override Rate" hint="Rule overrides per week" value={`${reportData.overrideRateTrend.slice(-1)[0]?.value.toFixed(0)}`}>
                         <ChartContainer config={{value: {color: "hsl(var(--chart-5))"}}} className="h-full w-full">
                             <BarChart data={reportData.overrideRateTrend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                                <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                                <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50" />
                                 <YAxis domain={[0, 10]} tick={{fontSize: 10}} />
                                 <Bar dataKey="value" fill="hsl(var(--chart-5))" radius={2} />
                             </BarChart>
@@ -1187,7 +1187,7 @@ ${reportData.fixNext.map(item => `- ${item}`).join('\\n')}
     )
 }
 
-const TelemetryCard = ({ title, value, hint, children, className, onSetModule }: { title: string, value?: string | React.ReactNode, hint: string, children: React.ReactNode, className?: string, onSetModule: (module: any) => void }) => (
+const TelemetryCard = ({ title, value, hint, children, className }: { title: string, value?: string | React.ReactNode, hint: string, children: React.ReactNode, className?: string }) => (
     <Card className={cn("bg-muted/50 flex flex-col", className)}>
         <CardHeader>
             <CardTitle className="text-base">{title}</CardTitle>
@@ -1200,7 +1200,7 @@ const TelemetryCard = ({ title, value, hint, children, className, onSetModule }:
             </div>
         </CardContent>
          <CardFooter className="pt-4 border-t">
-            <Button variant="link" size="sm" className="p-0 h-auto text-xs text-muted-foreground" onClick={() => onSetModule('analytics')}>
+            <Button variant="link" size="sm" className="p-0 h-auto text-xs text-muted-foreground">
                 View in Analytics
                 <ArrowRight className="ml-1 h-3 w-3" />
             </Button>
@@ -1227,7 +1227,7 @@ const LeverageHistogram = ({ data }: { data: LeverageDistributionData[] }) => (
     <ChartContainer config={{count: {color: "hsl(var(--primary))"}}} className="h-full w-full">
         <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data}>
-                 <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                 <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50" />
                 <XAxis dataKey="name" tick={{ fontSize: 12 }} />
                 <YAxis tick={{ fontSize: 10 }} />
                 <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
@@ -1243,7 +1243,6 @@ const DisciplineLeaksCard = ({ disciplineLeaks, onSetModule }: { disciplineLeaks
             title="Discipline Leaks"
             hint="Rule overrides and validation failures."
             className="md:col-span-2"
-            onSetModule={onSetModule}
         >
             <div className="grid grid-cols-2 h-full gap-4">
                 <div className="flex flex-col items-center justify-center text-center p-2 bg-muted/50 rounded-lg">
@@ -1473,6 +1472,48 @@ function RiskNudge({ nudge, onDismiss, onAcknowledge }: { nudge: ActiveNudge | n
     );
 }
 
+function LastPlanDraftCard({ onSetModule }: { onSetModule: (module: string) => void }) {
+    const [draft, setDraft] = useState<any | null>(null);
+
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            const draftString = localStorage.getItem("ec_trade_plan_draft");
+            if (draftString) {
+                try {
+                    setDraft(JSON.parse(draftString));
+                } catch (e) {
+                    console.error("Failed to parse trade plan draft", e);
+                }
+            }
+        }
+    }, []);
+
+    if (!draft) {
+        return null;
+    }
+
+    const { instrument, direction, riskPercent, leverage } = draft.formData;
+
+    return (
+        <Card className="bg-muted/30 border-primary/20">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Pencil className="h-5 w-5 text-primary" /> Unfinished Plan</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+                <p className="text-sm font-semibold text-foreground">{instrument} &ndash; {direction}</p>
+                <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Risk: <span className="font-mono text-foreground">{riskPercent}%</span></span>
+                    <span>Leverage: <span className="font-mono text-foreground">{leverage}x</span></span>
+                </div>
+                <Button className="w-full mt-2" onClick={() => onSetModule('tradePlanning')}>
+                    Resume Plan
+                </Button>
+            </CardContent>
+        </Card>
+    );
+}
+
+
 export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
     const { riskState, isLoading, refresh } = useRiskState();
     const [activeTab, setActiveTab] = useState("today");
@@ -1577,6 +1618,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                         </div>
 
                         <div className="lg:col-span-1 space-y-8 sticky top-24">
+                             <LastPlanDraftCard onSetModule={onSetModule} />
                              <TopRiskDriversCard drivers={topRiskDrivers} onSetModule={onSetModule} />
                              <RiskBudgetCard limits={todaysLimits} decision={decision} refreshState={refresh} pnlTrend7d={personalRisk.pnlTrend7d}/>
                              <RiskControlsCard />
@@ -1587,7 +1629,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                      {hasSufficientData ? (
                         <>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                                <TelemetryCard title="SL Discipline" value={`${totalSLTrades > 0 ? (slDisciplineData.reduce((sum, d) => sum + d.respected, 0) / totalSLTrades * 100).toFixed(0) : 'N/A'}%`} hint="SL Respected Rate" className="lg:col-span-1" onSetModule={onSetModule}>
+                                <TelemetryCard title="SL Discipline" value={`${totalSLTrades > 0 ? (slDisciplineData.reduce((sum, d) => sum + d.respected, 0) / totalSLTrades * 100).toFixed(0) : 'N/A'}%`} hint="SL Respected Rate" className="lg:col-span-1">
                                 {totalSLTrades > 0 ? (
                                         <>
                                         <div className="flex items-center gap-2 mb-2">
@@ -1614,7 +1656,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                                         </div>
                                 )}
                                 </TelemetryCard>
-                                <TelemetryCard title="Leverage Stability" value={personalRisk.mostCommonLeverageBucket} hint="Most Common Leverage" className="lg:col-span-1" onSetModule={onSetModule}>
+                                <TelemetryCard title="Leverage Stability" value={personalRisk.mostCommonLeverageBucket} hint="Most Common Leverage" className="lg:col-span-1">
                                     <LeverageHistogram data={personalRisk.leverageDistribution} />
                                     {personalRisk.leverageDistributionWarning && (
                                         <Alert variant="destructive" className="mt-4">
@@ -1626,10 +1668,10 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                                         </Alert>
                                     )}
                                 </TelemetryCard>
-                                <TelemetryCard title="Risk-per-Trade Drift" value={`${personalRisk.riskLeakageRate.toFixed(1)}x`} hint="Actual loss vs. planned risk" onSetModule={onSetModule}>
+                                <TelemetryCard title="Risk-per-Trade Drift" value={`${personalRisk.riskLeakageRate.toFixed(1)}x`} hint="Actual loss vs. planned risk">
                                     <ChartContainer config={{value: {color: "hsl(var(--chart-4))"}}} className="w-full h-full">
                                         <LineChart data={personalRisk.overridesTrend7d} margin={{ top: 5, right: 10, left: -30, bottom: 0 }}>
-                                            <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                                            <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50" />
                                             <YAxis domain={[0,2]} tickFormatter={(v) => `${v.toFixed(1)}x`} tick={{fontSize: 10}}/>
                                             <ChartTooltip content={<ChartTooltipContent formatter={(v) => `${Number(v).toFixed(1)}x`}/>} />
                                             <Line type="monotone" dataKey="value" stroke="hsl(var(--chart-4))" strokeWidth={2} dot={false} />
@@ -1708,3 +1750,4 @@ const DeltaIndicator = ({ delta, unit = "" }: { delta: number; unit?: string }) 
 };
     
     
+
