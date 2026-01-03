@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Pencil, ShieldAlert, BarChart as BarChartIcon, Info, CheckCircle, XCircle, AlertTriangle, Gauge, Calendar, Zap, Sun, Moon, Waves, User, ArrowRight, RefreshCw, SlidersHorizontal, TrendingUp, Sparkles, Droplets, TrendingDown, BookOpen, Layers, Settings, ShieldCheck, MoreHorizontal, Copy, Edit, Archive, Trash2, Scale, HeartPulse, HardHat, Globe, FileText, Clipboard, Flag } from "lucide-react";
+import { Bot, Pencil, ShieldAlert, BarChart as BarChartIcon, Info, CheckCircle, XCircle, AlertTriangle, Gauge, Calendar, Zap, Sun, Moon, Waves, User, ArrowRight, RefreshCw, SlidersHorizontal, TrendingUp, Sparkles, Droplets, TrendingDown, BookOpen, Layers, Settings, ShieldCheck, MoreHorizontal, Copy, Edit, Archive, Trash2, Scale, HeartPulse, HardHat, Globe, FileText, Clipboard, Flag, Filter, Flame } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "./ui/input";
@@ -20,7 +20,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { useRiskState, type RiskState, type VixZone, type RiskDecision, type ActiveNudge, type SLDisciplineData, type LeverageDistributionData, type DisciplineLeaksData } from "@/hooks/use-risk-state";
+import { useRiskState, type RiskState, type VixZone, type RiskDecision, type ActiveNudge, type SLDisciplineData, type LeverageDistributionData, type DisciplineLeaksData, type RiskHeatmapData } from "@/hooks/use-risk-state";
 import { Skeleton } from "./ui/skeleton";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "./ui/drawer";
 import { Slider } from "./ui/slider";
@@ -1068,7 +1068,7 @@ function ReportDialog({ reportType }: { reportType: ReportType }) {
         const title = `### ${reportType} Trading Report ###`;
         const performance = `**Performance:** PnL ${reportData.pnl} | Win Rate ${reportData.winRate}`;
         if (short) {
-            return `${title}\\n${performance}\\n**Focus:** ${reportData.recommendations[0]}`;
+            return `${title}\n${performance}\n**Focus:** ${reportData.recommendations[0]}`;
         }
         return `
 ${title}
@@ -1090,7 +1090,7 @@ ${title}
 - Worst: ${reportData.worstCondition}
 
 **Recommended Next Actions**
-${reportData.recommendations.map(r => `- ${r}`).join('\\n')}
+${reportData.recommendations.map(r => `- ${r}`).join('\n')}
         `.trim();
     };
 
@@ -1233,6 +1233,85 @@ const DisciplineLeaksCard = ({ disciplineLeaks, onSetModule }: { disciplineLeaks
     );
 };
 
+const RiskHeatmapCard = ({ heatmapData }: { heatmapData: RiskHeatmapData | undefined }) => {
+    const [metric, setMetric] = useState<keyof RiskHeatmapData['sessions'][0]['blocks'][0]['metrics']>('lossStreak');
+    if (!heatmapData) return null;
+
+    const { sessions, timeBlocks } = heatmapData;
+    const allMetrics = sessions.flatMap(s => s.blocks.map(b => b.metrics[metric]));
+    const maxMetricValue = Math.max(...allMetrics, 1);
+
+    const getMetricColor = (value: number) => {
+        if (value === 0) return 'bg-muted/30';
+        const opacity = Math.min(1, 0.1 + (value / maxMetricValue) * 0.9);
+        return `bg-destructive/10 border-destructive/20`
+    };
+
+    return (
+        <Card className="bg-muted/30 border-border/50 md:col-span-2">
+            <CardHeader>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <CardTitle className="flex items-center gap-2"><Flame className="h-5 w-5" /> Risk Heatmap</CardTitle>
+                    <div className="flex items-center gap-2">
+                        <Label htmlFor="heatmap-metric" className="text-sm">Metric:</Label>
+                        <Select value={metric} onValueChange={(v) => setMetric(v as any)}>
+                            <SelectTrigger id="heatmap-metric" className="w-[180px]">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="lossStreak">Loss Streaks</SelectItem>
+                                <SelectItem value="highLeverage">High Leverage</SelectItem>
+                                <SelectItem value="slMoved">Moved SL</SelectItem>
+                                <SelectItem value="overrides">Overrides</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+            </CardHeader>
+            <CardContent>
+                <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1">
+                    <div />
+                    <div className="grid grid-cols-6 gap-1">
+                        {timeBlocks.map(block => (
+                            <div key={block} className="text-center text-xs font-semibold text-muted-foreground">{block}</div>
+                        ))}
+                    </div>
+                    {sessions.map(session => (
+                        <React.Fragment key={session.name}>
+                            <div className="text-sm font-semibold text-muted-foreground flex items-center justify-end pr-2">{session.name}</div>
+                            <div className="grid grid-cols-6 gap-1">
+                                {session.blocks.map(block => (
+                                    <TooltipProvider key={block.time}>
+                                        <Tooltip>
+                                            <TooltipTrigger>
+                                                <div className={cn(
+                                                    "h-12 w-full rounded border flex items-center justify-center font-mono text-sm",
+                                                    getMetricColor(block.metrics[metric])
+                                                )}>
+                                                    {block.metrics[metric]}
+                                                </div>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p className="font-bold">{session.name} / {block.time}</p>
+                                                <p>Count: {block.metrics[metric]}</p>
+                                                <p>Top Symbol: {block.topSymbol}</p>
+                                                <p>Top Emotion: {block.topEmotion}</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                ))}
+                            </div>
+                        </React.Fragment>
+                    ))}
+                </div>
+                <p className="text-xs text-muted-foreground mt-4">
+                    This heatmap shows the frequency of risky behaviors during different times, helping you identify your most vulnerable periods.
+                </p>
+            </CardContent>
+        </Card>
+    );
+};
+
 
 export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
     const { riskState, isLoading, refresh } = useRiskState();
@@ -1289,7 +1368,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                     </div>
                 </TabsContent>
                 <TabsContent value="insights" className="mt-6 space-y-8">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <TelemetryCard title="SL Discipline" value={`${totalSLTrades > 0 ? (slDisciplineData.reduce((sum, d) => sum + d.respected, 0) / totalSLTrades * 100).toFixed(0) : 'N/A'}%`} hint="Trades where SL was NOT moved" className="md:col-span-2">
                            {totalSLTrades > 0 ? (
                                 <>
@@ -1310,7 +1389,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                                     <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[hsl(var(--chart-5))]"></div>Removed</div>
                                 </div>
                                 <p className="text-xs text-muted-foreground text-center mt-4">SL behavior is a top predictor of drawdowns.</p>
-                               </>
+                                </>
                            ) : (
                                 <div className="h-full flex items-center justify-center text-center">
                                     <p className="text-sm text-muted-foreground">Complete journals to unlock discipline telemetry.</p>
@@ -1339,6 +1418,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                             </ChartContainer>
                         </TelemetryCard>
                         <DisciplineLeaksCard disciplineLeaks={personalRisk.disciplineLeaks} onSetModule={onSetModule} />
+                         <RiskHeatmapCard heatmapData={personalRisk.riskHeatmapData} />
                     </div>
                     <div className="grid lg:grid-cols-2 gap-8 items-start">
                            <RevengeRiskCard revengeRiskIndex={personalRisk.revengeRiskIndex} revengeRiskLevel={personalRisk.revengeRiskLevel} />
@@ -1407,6 +1487,7 @@ const DeltaIndicator = ({ delta, unit = "" }: { delta: number; unit?: string }) 
 };
     
     
+
 
 
 

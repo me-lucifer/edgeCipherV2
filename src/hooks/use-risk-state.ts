@@ -49,6 +49,24 @@ export type DisciplineLeaksData = {
     topBreachTypes: string[];
 };
 
+export type RiskHeatmapData = {
+    sessions: {
+        name: string;
+        blocks: {
+            time: string;
+            metrics: {
+                lossStreak: number;
+                highLeverage: number;
+                slMoved: number;
+                overrides: number;
+            },
+            topSymbol: string;
+            topEmotion: string;
+        }[];
+    }[];
+    timeBlocks: string[];
+};
+
 
 export type RiskState = {
     marketRisk: {
@@ -77,6 +95,7 @@ export type RiskState = {
         highLeverageTradesToday: number;
         leverageDistributionWarning: boolean;
         disciplineLeaks: DisciplineLeaksData;
+        riskHeatmapData: RiskHeatmapData;
     };
     todaysLimits: {
         maxTrades: number;
@@ -207,6 +226,28 @@ export function useRiskState() {
                 breaches7d: (scenario === 'drawdown' ? 8 : 3),
                 topBreachTypes: ['RR below min', 'Risk too high', 'VIX policy violated'],
             };
+            
+            const timeBlocks = ["00-04", "04-08", "08-12", "12-16", "16-20", "20-24"];
+            const riskHeatmapData: RiskHeatmapData = {
+                sessions: ["Asia", "London", "New York"].map(session => ({
+                    name: session,
+                    blocks: timeBlocks.map(time => {
+                        const isRisky = (session === "London" && scenario === "drawdown") || (session === "New York" && scenario === "high_vol");
+                        return {
+                            time,
+                            metrics: {
+                                lossStreak: isRisky && Math.random() > 0.5 ? Math.floor(Math.random() * 3) : 0,
+                                highLeverage: isRisky && Math.random() > 0.6 ? Math.floor(Math.random() * 5) : 0,
+                                slMoved: isRisky && Math.random() > 0.4 ? Math.floor(Math.random() * 4) : 0,
+                                overrides: isRisky && Math.random() > 0.7 ? Math.floor(Math.random() * 2) : 0,
+                            },
+                            topSymbol: isRisky ? 'ETH-PERP' : 'BTC-PERP',
+                            topEmotion: isRisky ? 'Anxious' : 'Focused',
+                        };
+                    })
+                })),
+                timeBlocks: timeBlocks,
+            };
 
             const personalRisk = {
                 disciplineScore: personaData.disciplineScore || 70,
@@ -229,6 +270,7 @@ export function useRiskState() {
                 highLeverageTradesToday,
                 leverageDistributionWarning: highLeverageTradesToday > 5 && (vixZone === 'Elevated' || vixZone === 'Extreme'),
                 disciplineLeaks,
+                riskHeatmapData,
             };
 
             // 4. Compute Today's Limits & Risk Budget
@@ -419,3 +461,4 @@ export function useRiskState() {
 
     return { riskState, isLoading, refresh: computeRiskState };
 }
+
