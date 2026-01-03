@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Pencil, ShieldAlert, BarChart, Info, CheckCircle, XCircle, AlertTriangle, Gauge, Calendar, Zap, Sun, Moon, Waves, User, ArrowRight, RefreshCw, SlidersHorizontal, TrendingUp, Sparkles, Droplets, TrendingDown, BookOpen, Layers } from "lucide-react";
+import { Bot, Pencil, ShieldAlert, BarChart, Info, CheckCircle, XCircle, AlertTriangle, Gauge, Calendar, Zap, Sun, Moon, Waves, User, ArrowRight, RefreshCw, SlidersHorizontal, TrendingUp, Sparkles, Droplets, TrendingDown, BookOpen, Layers, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -33,6 +33,7 @@ import { Skeleton } from "./ui/skeleton";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "./ui/drawer";
 import { Slider } from "./ui/slider";
 import { Separator } from "./ui/separator";
+import { Switch } from "./ui/switch";
 
 
 interface RiskCenterModuleProps {
@@ -379,6 +380,82 @@ function TodaysLimitsCard({ limits, onSetModule }: { limits: RiskState['todaysLi
     );
 }
 
+function RiskControlsCard() {
+    const [controls, setControls] = useState({
+        warnOnLowRR: true,
+        warnOnHighRisk: true,
+        warnOnHighVIX: false,
+        cooldownAfterLosses: true,
+    });
+    const [isRecoveryMode, setIsRecoveryMode] = useState(false);
+
+    const { refresh } = useRiskState(); // To trigger a re-computation
+
+    useEffect(() => {
+        // Load initial state from localStorage
+        const guardrails = JSON.parse(localStorage.getItem("ec_guardrails") || "{}");
+        const recoveryMode = localStorage.getItem("ec_recovery_mode") === 'true';
+        setControls(prev => ({ ...prev, ...guardrails }));
+        setIsRecoveryMode(recoveryMode);
+    }, []);
+
+    const handleGuardrailChange = (key: keyof typeof controls, value: boolean) => {
+        const newControls = { ...controls, [key]: value };
+        setControls(newControls);
+        localStorage.setItem("ec_guardrails", JSON.stringify(newControls));
+        refresh(); // Manually trigger state re-computation
+    };
+
+    const handleRecoveryModeChange = (value: boolean) => {
+        setIsRecoveryMode(value);
+        localStorage.setItem("ec_recovery_mode", String(value));
+        refresh();
+    };
+
+    const ControlSwitch = ({ id, label, description }: { id: keyof typeof controls, label: string, description: string }) => (
+        <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+                <Label htmlFor={id} className="text-sm">{label}</Label>
+                <p className="text-xs text-muted-foreground">{description}</p>
+            </div>
+            <Switch
+                id={id}
+                checked={controls[id]}
+                onCheckedChange={(checked) => handleGuardrailChange(id, checked)}
+            />
+        </div>
+    );
+    
+    return (
+        <Card className="bg-muted/30 border-border/50">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Settings className="h-5 w-5" /> Risk Controls</CardTitle>
+                <CardDescription>Toggle real-time guardrails.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <ControlSwitch id="warnOnHighRisk" label="Warn if risk > strategy" description="Alerts if trade risk % exceeds strategy default." />
+                <ControlSwitch id="warnOnHighVIX" label="Warn in high VIX" description="Alerts when trading in Elevated/Extreme VIX." />
+                <ControlSwitch id="cooldownAfterLosses" label="Stop after 2 losses" description="Enforces a daily cooldown after 2 losses." />
+                
+                <Separator />
+                
+                <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                        <Label htmlFor="recovery-mode" className="text-sm text-amber-400">Recovery Mode</Label>
+                        <p className="text-xs text-muted-foreground">Enforces stricter global risk limits.</p>
+                    </div>
+                    <Switch
+                        id="recovery-mode"
+                        checked={isRecoveryMode}
+                        onCheckedChange={handleRecoveryModeChange}
+                        className="data-[state=checked]:bg-amber-500"
+                    />
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
 function ExposureSnapshotCard({ onSetModule }: { onSetModule: (module: any) => void }) {
     const [brokerConnected, setBrokerConnected] = useState(false);
     const [positions, setPositions] = useState<any[]>([]);
@@ -571,7 +648,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
             <div className="flex items-start justify-between">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight text-foreground">Risk Center</h1>
-                    <p className="text-muted-foreground flex items-center gap-2">
+                     <p className="text-muted-foreground flex items-center gap-2">
                         A single view of market risk + your personal risk posture. Answer: Should I trade today?
                         <TooltipProvider>
                             <Tooltip>
@@ -629,6 +706,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                 <div className="lg:col-span-1 space-y-8 sticky top-24">
                      <PersonalRiskCard personalRisk={personalRisk} onSetModule={onSetModule} />
                      <TodaysLimitsCard limits={todaysLimits} onSetModule={onSetModule} />
+                     <RiskControlsCard />
                 </div>
             </div>
              <ArjunRiskAlerts onSetModule={onSetModule} />

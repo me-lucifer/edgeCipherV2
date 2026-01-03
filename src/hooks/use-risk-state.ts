@@ -66,6 +66,7 @@ export function useRiskState() {
             const strategies = JSON.parse(localStorage.getItem("ec_strategies") || "[]");
             const activeStrategy = strategies.find((s: any) => s.status === 'active'); // Simplified: gets first active
             const recoveryMode = localStorage.getItem('ec_recovery_mode') === 'true';
+            const guardrails = JSON.parse(localStorage.getItem("ec_guardrails") || "{}");
             
             // 2. Compute Market Risk
             const vixOverride = localStorage.getItem("ec_vix_override");
@@ -103,7 +104,7 @@ export function useRiskState() {
                 tradesExecuted: dailyCounters.tradesExecuted || 0,
                 maxDailyLoss: baseRules?.maxDailyLossPct || 3,
                 lossStreak: dailyCounters.lossStreak || 0,
-                cooldownActive: (baseRules?.cooldownAfterLosses && (dailyCounters.lossStreak || 0) >= 2),
+                cooldownActive: (guardrails.cooldownAfterLosses !== false && (dailyCounters.lossStreak || 0) >= 2),
                 riskPerTradePct: baseRules?.riskPerTradePct || 1,
                 leverageCap: baseRules?.leverageCap || 20,
                 recoveryMode: recoveryMode,
@@ -125,7 +126,7 @@ export function useRiskState() {
                 if (level !== 'red') level = "yellow";
                 reasons.push(`Recent discipline score is low (${personalRisk.disciplineScore}).`);
             }
-             if (vixZone === "Elevated") {
+             if (guardrails.warnOnHighVIX && vixZone === "Elevated") {
                 if (level !== 'red') level = "yellow";
                 reasons.push("Market volatility is 'Elevated'.");
             }
