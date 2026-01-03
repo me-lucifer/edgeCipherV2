@@ -1018,32 +1018,33 @@ function ReportDialog({ reportType, riskState }: { reportType: ReportType, riskS
             const title = `### Weekly Risk & Discipline Report ###`;
             
             if (short) {
-                return `${title}\n- **Top Leak**: ${reportData.risk.topDisciplineLeak}\n- **Focus**: ${reportData.recommendations[0]}`;
+                return `${title}\\n- **Top Leak**: ${reportData.risk.topDisciplineLeak}\\n- **Focus**: ${reportData.recommendations[0]}`;
             }
             return `
 ${title}
+
 **Risk Posture Trend**
 - Discipline Score: ${riskState?.personalRisk.disciplineScore || 'N/A'} (${riskState?.personalRisk.disciplineScoreDelta.toFixed(0) || '0'} pts)
 - Emotional Control: ${riskState?.personalRisk.emotionalScore || 'N/A'} (${riskState?.personalRisk.emotionalScoreDelta.toFixed(0) || '0'} pts)
 **Key Risk Events This Period**
-${(riskState?.riskEventsToday.slice(0, 3) || []).map(e => `- ${e.description}`).join('\n') || "- None recorded."}
+${(riskState?.riskEventsToday.slice(0, 3) || []).map(e => `- ${e.description}`).join('\\n') || "- None recorded."}
 **Top Discipline Leak**
 - ${reportData.risk.topDisciplineLeak}
 **Recommended Next Actions**
-${reportData.recommendations.map(r => `- ${r}`).join('\n')}
+${reportData.recommendations.map(r => `- ${r}`).join('\\n')}
             `.trim();
         } else { // Monthly
              const title = `### Monthly Risk Review ###`;
              if (short) {
-                return `${title}\n- **Improvement**: ${reportData.improvements[0]}\n- **Next Focus**: ${reportData.fixNext[0]}`;
+                return `${title}\\n- **Improvement**: ${reportData.improvements[0]}\\n- **Next Focus**: ${reportData.fixNext[0]}`;
              }
              return `
 ${title}
 **Summary of Improvements**
-${reportData.improvements.map(item => `- ${item}`).join('\n')}
+${reportData.improvements.map(item => `- ${item}`).join('\\n')}
 
 **Priorities for Next Month**
-${reportData.fixNext.map(item => `- ${item}`).join('\n')}
+${reportData.fixNext.map(item => `- ${item}`).join('\\n')}
 
 **Trend Data**
 - SL Discipline: ${reportData.slDisciplineTrend.slice(-1)[0]?.value.toFixed(0)}% (final)
@@ -1186,18 +1187,24 @@ ${reportData.fixNext.map(item => `- ${item}`).join('\n')}
     )
 }
 
-const TelemetryCard = ({ title, value, hint, children, className }: { title: string, value?: string | React.ReactNode, hint: string, children: React.ReactNode, className?: string }) => (
-    <Card className={cn("bg-muted/50", className)}>
+const TelemetryCard = ({ title, value, hint, children, className, onSetModule }: { title: string, value?: string | React.ReactNode, hint: string, children: React.ReactNode, className?: string, onSetModule: (module: any) => void }) => (
+    <Card className={cn("bg-muted/50 flex flex-col", className)}>
         <CardHeader>
             <CardTitle className="text-base">{title}</CardTitle>
             <CardDescription>{hint}</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex-1 flex flex-col">
             {value && <p className="text-3xl font-bold font-mono mb-4">{value}</p>}
-            <div className="h-40">
+            <div className="flex-1 h-40">
                 {children}
             </div>
         </CardContent>
+         <CardFooter className="pt-4 border-t">
+            <Button variant="link" size="sm" className="p-0 h-auto text-xs text-muted-foreground" onClick={() => onSetModule('analytics')}>
+                View in Analytics
+                <ArrowRight className="ml-1 h-3 w-3" />
+            </Button>
+        </CardFooter>
     </Card>
 );
 
@@ -1236,6 +1243,7 @@ const DisciplineLeaksCard = ({ disciplineLeaks, onSetModule }: { disciplineLeaks
             title="Discipline Leaks"
             hint="Rule overrides and validation failures."
             className="md:col-span-2"
+            onSetModule={onSetModule}
         >
             <div className="grid grid-cols-2 h-full gap-4">
                 <div className="flex flex-col items-center justify-center text-center p-2 bg-muted/50 rounded-lg">
@@ -1255,9 +1263,6 @@ const DisciplineLeaksCard = ({ disciplineLeaks, onSetModule }: { disciplineLeaks
                              <Badge key={breach} variant="destructive" className="bg-red-500/10 border-red-500/20 text-red-300 font-normal">{breach}</Badge>
                         ))}
                     </div>
-                    <Button size="sm" variant="link" className="p-0 h-auto text-xs" onClick={() => onSetModule('analytics')}>
-                        Open Analytics for breakdown <ArrowRight className="ml-1 h-3 w-3" />
-                    </Button>
                 </div>
             </div>
         </TelemetryCard>
@@ -1418,6 +1423,55 @@ const EmptyState = ({ onAction }: { onAction: (action: 'journal' | 'plan' | 'gen
     );
 };
 
+function RiskNudge({ nudge, onDismiss, onAcknowledge }: { nudge: ActiveNudge | null; onDismiss: (id: string) => void; onAcknowledge: (id: string) => void }) {
+    const [isVisible, setIsVisible] = useState(false);
+    
+    useEffect(() => {
+        if (nudge) {
+            setIsVisible(true);
+        }
+    }, [nudge]);
+
+    if (!nudge || !isVisible) {
+        return null;
+    }
+
+    const isAcknowledged = nudge.status === 'acknowledged';
+
+    const severityConfig = {
+        warn: {
+            icon: AlertTriangle,
+            className: "bg-amber-950/40 border-amber-500/20 text-amber-300",
+            titleClass: "text-amber-400"
+        },
+        info: {
+            icon: Info,
+            className: "bg-blue-950/40 border-blue-500/20 text-blue-300",
+            titleClass: "text-blue-400"
+        },
+    };
+    
+    const config = severityConfig[nudge.severity];
+    const Icon = config.icon;
+
+    return (
+        <Alert variant="default" className={cn(config.className, "animate-in fade-in")}>
+            <Icon className="h-4 w-4" />
+            <AlertTitle className={config.titleClass}>{nudge.title}</AlertTitle>
+            <AlertDescription>{nudge.message}</AlertDescription>
+            {!isAcknowledged && (
+                 <div className="mt-4 flex gap-2">
+                    <Button size="sm" variant="outline" className="text-foreground" onClick={() => onAcknowledge(nudge.id)}>
+                        <CheckCircle className="mr-2 h-4 w-4" /> Got it
+                    </Button>
+                    <Button size="sm" variant="ghost" className="text-xs text-muted-foreground" onClick={() => { onDismiss(nudge.id); setIsVisible(false); }}>
+                        Snooze for today
+                    </Button>
+                </div>
+            )}
+        </Alert>
+    );
+}
 
 export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
     const { riskState, isLoading, refresh } = useRiskState();
@@ -1533,7 +1587,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                      {hasSufficientData ? (
                         <>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                                <TelemetryCard title="SL Discipline" value={`${totalSLTrades > 0 ? (slDisciplineData.reduce((sum, d) => sum + d.respected, 0) / totalSLTrades * 100).toFixed(0) : 'N/A'}%`} hint="SL Respected Rate" className="lg:col-span-1">
+                                <TelemetryCard title="SL Discipline" value={`${totalSLTrades > 0 ? (slDisciplineData.reduce((sum, d) => sum + d.respected, 0) / totalSLTrades * 100).toFixed(0) : 'N/A'}%`} hint="SL Respected Rate" className="lg:col-span-1" onSetModule={onSetModule}>
                                 {totalSLTrades > 0 ? (
                                         <>
                                         <div className="flex items-center gap-2 mb-2">
@@ -1560,7 +1614,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                                         </div>
                                 )}
                                 </TelemetryCard>
-                                <TelemetryCard title="Leverage Stability" value={personalRisk.mostCommonLeverageBucket} hint="Most Common Leverage" className="lg:col-span-1">
+                                <TelemetryCard title="Leverage Stability" value={personalRisk.mostCommonLeverageBucket} hint="Most Common Leverage" className="lg:col-span-1" onSetModule={onSetModule}>
                                     <LeverageHistogram data={personalRisk.leverageDistribution} />
                                     {personalRisk.leverageDistributionWarning && (
                                         <Alert variant="destructive" className="mt-4">
@@ -1572,7 +1626,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                                         </Alert>
                                     )}
                                 </TelemetryCard>
-                                <TelemetryCard title="Risk-per-Trade Drift" value={`${personalRisk.riskLeakageRate.toFixed(1)}x`} hint="Actual loss vs. planned risk">
+                                <TelemetryCard title="Risk-per-Trade Drift" value={`${personalRisk.riskLeakageRate.toFixed(1)}x`} hint="Actual loss vs. planned risk" onSetModule={onSetModule}>
                                     <ChartContainer config={{value: {color: "hsl(var(--chart-4))"}}} className="w-full h-full">
                                         <LineChart data={personalRisk.overridesTrend7d} margin={{ top: 5, right: 10, left: -30, bottom: 0 }}>
                                             <CartesianGrid vertical={false} strokeDasharray="3 3" />
@@ -1584,10 +1638,6 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                                 </TelemetryCard>
                                 <DisciplineLeaksCard disciplineLeaks={personalRisk.disciplineLeaks} onSetModule={onSetModule} />
                                 <RiskHeatmapCard heatmapData={personalRisk.riskHeatmapData} />
-                            </div>
-                            <div className="grid lg:grid-cols-2 gap-8 items-start">
-                                <RevengeRiskCard revengeRiskIndex={personalRisk.revengeRiskIndex} revengeRiskLevel={personalRisk.revengeRiskLevel} />
-                                <PersonaFitAnalysis onSetModule={onSetModule} />
                             </div>
                         </>
                     ) : (
