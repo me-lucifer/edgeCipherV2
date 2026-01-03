@@ -1672,7 +1672,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                         <div>
                             <AlertTitle>Unjournaled Trades</AlertTitle>
                             <AlertDescription>
-                                You have pending journals. Complete them before taking new trades to maintain accurate risk telemetry.
+                                You have pending journals. Complete them before trading again to maintain accurate risk telemetry.
                             </AlertDescription>
                         </div>
                         <Button variant="outline" className="text-destructive-foreground border-destructive" onClick={() => onSetModule('tradeJournal')}>
@@ -1708,7 +1708,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                 </TabsContent>
                 <TabsContent value="insights" className="mt-6 space-y-8">
                      {hasSufficientData ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             <TelemetryCard title="SL Discipline" value={`${totalSLTrades > 0 ? (slDisciplineData.reduce((sum, d) => sum + d.respected, 0) / totalSLTrades * 100).toFixed(0) : 'N/A'}%`} hint="SL Respected Rate" className="lg:col-span-1" onSetModule={onSetModule}>
                                 {totalSLTrades > 0 ? (
                                     <>
@@ -1829,12 +1829,3 @@ const DeltaIndicator = ({ delta, unit = "" }: { delta: number; unit?: string }) 
 };
     
     
-
-
-
-
-
-
-
-
-
