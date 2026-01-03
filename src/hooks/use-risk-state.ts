@@ -181,43 +181,43 @@ export function useRiskState() {
             const reasons: string[] = [];
             let level: "green" | "yellow" | "red" = "green";
 
+            if (todaysLimits.cooldownActive) {
+                level = "red";
+                reasons.push(`Cooldown Active: Loss streak limit of 2 was met.`);
+            }
+            if (dailyBudgetRemaining <= 0) {
+                level = "red";
+                reasons.push(`Daily Budget Exceeded: Daily loss limit of ${maxDailyLossPct}% has been reached.`);
+            }
+            if (vixZone === "Extreme") {
+                level = "red";
+                reasons.push("Extreme Volatility: Market VIX is in the 'Extreme' zone.");
+            }
+            if (revengeRiskLevel === 'Critical') {
+                level = "red";
+                reasons.push("Critical Revenge Risk: Index is at a critical level, indicating high probability of emotional trading.");
+            }
+            if (revengeRiskLevel === 'High') {
+                if(level !== 'red') level = 'yellow';
+                reasons.push("High Revenge Risk: Index is high; caution advised.");
+            }
+            if (personalRisk.disciplineScore < 50) {
+                if (level !== 'red') level = "yellow";
+                reasons.push(`Low Discipline Score: Recent score of ${personalRisk.disciplineScore} suggests rule-breaking tendency.`);
+            }
+             if (guardrails.warnOnHighVIX && vixZone === "Elevated") {
+                if (level !== 'red') level = "yellow";
+                reasons.push("Elevated Volatility: Your guardrails warn against trading in 'Elevated' VIX.");
+            }
+
             // Leverage Check from open positions
             const maxLeverage = Math.max(...mockPositions.map(p => p.leverage));
             if (maxLeverage >= 20 || (maxLeverage >= 15 && (vixZone === 'Elevated' || vixZone === 'Extreme'))) {
                 level = 'red';
-                reasons.push(`High leverage (${maxLeverage}x) detected in high volatility (${vixZone}), increasing liquidation risk.`);
+                reasons.push(`Excessive Leverage: High leverage (${maxLeverage}x) detected in high volatility (${vixZone}), increasing liquidation risk.`);
             } else if (maxLeverage >= 15) {
                 if (level !== 'red') level = 'yellow';
-                reasons.push(`Leverage of ${maxLeverage}x is high; be cautious.`);
-            }
-
-            if (todaysLimits.cooldownActive) {
-                level = "red";
-                reasons.push(`Cooldown is active due to a ${todaysLimits.lossStreak}-trade losing streak.`);
-            }
-             if (dailyBudgetRemaining <= 0) {
-                level = "red";
-                reasons.push(`Daily loss limit of ${maxDailyLossPct}% has been reached.`);
-            }
-            if (vixZone === "Extreme") {
-                level = "red";
-                reasons.push("Market volatility is 'Extreme'.");
-            }
-            if (revengeRiskLevel === 'Critical') {
-                level = "red";
-                reasons.push("Revenge Risk Index is critical.");
-            }
-            if (revengeRiskLevel === 'High') {
-                if(level !== 'red') level = 'yellow';
-                reasons.push("Revenge Risk Index is high.");
-            }
-            if (personalRisk.disciplineScore < 50) {
-                if (level !== 'red') level = "yellow";
-                reasons.push(`Recent discipline score is low (${personalRisk.disciplineScore}).`);
-            }
-             if (guardrails.warnOnHighVIX && vixZone === "Elevated") {
-                if (level !== 'red') level = "yellow";
-                reasons.push("Market volatility is 'Elevated'.");
+                reasons.push(`High Leverage: Open position with ${maxLeverage}x leverage detected.`);
             }
             
             const decisionMessages = {

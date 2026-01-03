@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Pencil, ShieldAlert, BarChart, Info, CheckCircle, XCircle, AlertTriangle, Gauge, Calendar, Zap, Sun, Moon, Waves, User, ArrowRight, RefreshCw, SlidersHorizontal, TrendingUp, Sparkles, Droplets, TrendingDown, BookOpen, Layers, Settings, ShieldCheck, MoreHorizontal, Copy, Edit, Archive, Trash2, Scale, HeartPulse } from "lucide-react";
+import { Bot, Pencil, ShieldAlert, BarChart, Info, CheckCircle, XCircle, AlertTriangle, Gauge, Calendar, Zap, Sun, Moon, Waves, User, ArrowRight, RefreshCw, SlidersHorizontal, TrendingUp, Sparkles, Droplets, TrendingDown, BookOpen, Layers, Settings, ShieldCheck, MoreHorizontal, Copy, Edit, Archive, Trash2, Scale, HeartPulse, HardHat } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -79,18 +79,41 @@ function TradeDecisionBar({ decision }: { decision: RiskState['decision'] | null
     const config = decisionConfig[decision.level];
     const Icon = config.icon;
 
+    const blocks = decision.reasons.filter(reason => {
+        const lowerReason = reason.toLowerCase();
+        return lowerReason.includes('exceeded') || lowerReason.includes('cooldown') || lowerReason.includes('extreme') || lowerReason.includes('critical') || lowerReason.includes('excessive');
+    });
+    const warnings = decision.reasons.filter(reason => !blocks.includes(reason));
+
     return (
         <>
             <Drawer open={isWhyOpen} onOpenChange={setIsWhyOpen}>
                 <DrawerContent>
                     <DrawerHeader>
-                        <DrawerTitle>Reasoning for Today's Decision</DrawerTitle>
-                        <DrawerDescription>Arjun aggregated these risk factors to form the recommendation.</DrawerDescription>
+                        <DrawerTitle className="flex items-center gap-2"><HardHat /> Firewall Status</DrawerTitle>
+                        <DrawerDescription>These are the currently active rules affecting your trading decision.</DrawerDescription>
                     </DrawerHeader>
-                    <div className="px-4 pb-4">
-                        <ul className="space-y-2 list-disc list-inside text-sm text-muted-foreground">
-                            {decision.reasons.map((reason, i) => <li key={i}>{reason}</li>)}
-                        </ul>
+                    <div className="px-4 pb-4 grid md:grid-cols-2 gap-6">
+                        <div className="space-y-3">
+                            <h3 className="font-semibold text-destructive flex items-center gap-2"><XCircle /> Execution Blocks ({blocks.length})</h3>
+                            {blocks.length > 0 ? (
+                                <ul className="space-y-2 list-disc list-inside text-sm text-muted-foreground">
+                                    {blocks.map((reason, i) => <li key={i}>{reason}</li>)}
+                                </ul>
+                            ) : (
+                                <p className="text-sm text-muted-foreground">No blocking rules active.</p>
+                            )}
+                        </div>
+                        <div className="space-y-3">
+                            <h3 className="font-semibold text-amber-400 flex items-center gap-2"><AlertTriangle /> Active Warnings ({warnings.length})</h3>
+                             {warnings.length > 0 ? (
+                                <ul className="space-y-2 list-disc list-inside text-sm text-muted-foreground">
+                                    {warnings.map((reason, i) => <li key={i}>{reason}</li>)}
+                                </ul>
+                            ) : (
+                                <p className="text-sm text-muted-foreground">No warnings active.</p>
+                            )}
+                        </div>
                     </div>
                 </DrawerContent>
             </Drawer>
@@ -105,7 +128,7 @@ function TradeDecisionBar({ decision }: { decision: RiskState['decision'] | null
                             <p className="text-sm text-muted-foreground">{decision.message}</p>
                         </div>
                     </div>
-                    <Button variant="link" onClick={() => setIsWhyOpen(true)}>Why?</Button>
+                    <Button variant="link" onClick={() => setIsWhyOpen(true)}>Firewall Status</Button>
                 </CardContent>
             </Card>
         </>
