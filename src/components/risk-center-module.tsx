@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Pencil, ShieldAlert, BarChart as BarChartIcon, Info, CheckCircle, XCircle, AlertTriangle, Gauge, Calendar, Zap, Sun, Moon, Waves, User, ArrowRight, RefreshCw, SlidersHorizontal, TrendingUp, Sparkles, Droplets, TrendingDown, BookOpen, Layers, Settings, ShieldCheck, MoreHorizontal, Copy, Edit, Archive, Trash2, Scale, HeartPulse, HardHat, Globe, FileText, Clipboard, Flag, Flame } from "lucide-react";
+import { Bot, Pencil, ShieldAlert, BarChart as BarChartIcon, Info, CheckCircle, XCircle, AlertTriangle, Gauge, Calendar, Zap, Sun, Moon, Waves, User, ArrowRight, RefreshCw, SlidersHorizontal, TrendingUp, Sparkles, Droplets, TrendingDown, BookOpen, Layers, Settings, ShieldCheck, MoreHorizontal, Copy, Edit, Archive, Trash2, Scale, HeartPulse, HardHat, Globe, FileText, Clipboard, Flag, Flame, NotebookPen, BrainCircuit } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "./ui/input";
@@ -1140,7 +1140,7 @@ function ReportDialog({ reportType, riskState }: { reportType: ReportType, riskS
             const title = `### Weekly Risk & Discipline Report ###`;
             
             if (short) {
-                return `${title}\n- **Top Leak**: ${reportData.risk.topDisciplineLeak}\n- **Focus**: ${reportData.recommendations[0]}`;
+                return `${title}\\n- **Top Leak**: ${reportData.risk.topDisciplineLeak}\\n- **Focus**: ${reportData.recommendations[0]}`;
             }
             return `
 ${title}
@@ -1148,24 +1148,24 @@ ${title}
 - Discipline Score: ${riskState?.personalRisk.disciplineScore || 'N/A'} (${riskState?.personalRisk.disciplineScoreDelta.toFixed(0) || '0'} pts)
 - Emotional Control: ${riskState?.personalRisk.emotionalScore || 'N/A'} (${riskState?.personalRisk.emotionalScoreDelta.toFixed(0) || '0'} pts)
 **Key Risk Events This Period**
-${(riskState?.riskEventsToday.slice(0, 3) || []).map(e => `- ${e.description}`).join('\n') || "- None recorded."}
+${(riskState?.riskEventsToday.slice(0, 3) || []).map(e => `- ${e.description}`).join('\\n') || "- None recorded."}
 **Top Discipline Leak**
 - ${reportData.risk.topDisciplineLeak}
 **Recommended Next Actions**
-${reportData.recommendations.map(r => `- ${r}`).join('\n')}
+${reportData.recommendations.map(r => `- ${r}`).join('\\n')}
             `.trim();
         } else { // Monthly
              const title = `### Monthly Risk Review ###`;
              if (short) {
-                return `${title}\n- **Improvement**: ${reportData.improvements[0]}\n- **Next Focus**: ${reportData.fixNext[0]}`;
+                return `${title}\\n- **Improvement**: ${reportData.improvements[0]}\\n- **Next Focus**: ${reportData.fixNext[0]}`;
              }
              return `
 ${title}
 **Summary of Improvements**
-${reportData.improvements.map(item => `- ${item}`).join('\n')}
+${reportData.improvements.map(item => `- ${item}`).join('\\n')}
 
 **Priorities for Next Month**
-${reportData.fixNext.map(item => `- ${item}`).join('\n')}
+${reportData.fixNext.map(item => `- ${item}`).join('\\n')}
 
 **Trend Data**
 - SL Discipline: ${reportData.slDisciplineTrend.slice(-1)[0]?.value.toFixed(0)}% (final)
@@ -1517,12 +1517,70 @@ function TopRiskDriversCard({ drivers, onSetModule }: { drivers: TopRiskDriver[]
     );
 }
 
+const EmptyState = ({ onAction }: { onAction: (action: 'journal' | 'plan' | 'generate') => void }) => {
+    return (
+        <Card className="bg-muted/30 border-border/50 text-center py-12">
+            <CardHeader>
+                <BrainCircuit className="mx-auto h-12 w-12 text-muted-foreground" />
+                <CardTitle>Unlock Risk Telemetry</CardTitle>
+                <CardDescription>
+                    Complete journals and plan trades to see your live risk insights here.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col sm:flex-row justify-center gap-4">
+                <Button variant="outline" onClick={() => onAction('journal')}><NotebookPen className="mr-2 h-4 w-4" /> Open Pending Journals</Button>
+                <Button variant="outline" onClick={() => onAction('plan')}><FileText className="mr-2 h-4 w-4" /> Plan a trade (demo)</Button>
+                <Button onClick={() => onAction('generate')}><Zap className="mr-2 h-4 w-4" /> Generate demo dataset</Button>
+            </CardContent>
+        </Card>
+    );
+};
 
 
 export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
     const { riskState, isLoading, refresh } = useRiskState();
     const [activeTab, setActiveTab] = useState("today");
     const [disciplineTimeframe, setDisciplineTimeframe] = useState<'today' | '7d'>('today');
+    const [hasSufficientData, setHasSufficientData] = useState(false);
+
+     useEffect(() => {
+        if (typeof window !== "undefined") {
+            const entries = localStorage.getItem('ec_journal_entries');
+            if (riskState && entries && JSON.parse(entries).length > 0) {
+                setHasSufficientData(true);
+            } else {
+                setHasSufficientData(false);
+            }
+        }
+    }, [riskState]);
+
+    const generateDemoData = () => {
+        // This is a simplified version of the journal's demo data generator.
+        // In a real app, this would be a shared service.
+        const mockEntry = {
+            id: `demo-${Date.now()}`,
+            tradeId: `DELTA-${Date.now()}`,
+            status: 'completed',
+            timestamps: { executedAt: new Date().toISOString() },
+            technical: { strategy: "Demo Strategy", instrument: 'BTC-PERP', direction: 'Long' },
+            review: { pnl: 100, emotionsTags: 'Focused', mistakesTags: 'None (disciplined)' },
+            meta: {}
+        };
+        const entries = JSON.parse(localStorage.getItem('ec_journal_entries') || '[]');
+        localStorage.setItem('ec_journal_entries', JSON.stringify([...entries, mockEntry]));
+        refresh(); // Refresh risk state after data is added
+    };
+
+     const handleEmptyStateAction = (action: 'journal' | 'plan' | 'generate') => {
+        if (action === 'journal') {
+            onSetModule('tradeJournal', { tab: 'pending' });
+        } else if (action === 'plan') {
+            onSetModule('tradePlanning');
+        } else if (action === 'generate') {
+            generateDemoData();
+        }
+    };
+
 
     if (isLoading || !riskState) {
         return (
@@ -1591,84 +1649,94 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                     </div>
                 </TabsContent>
                 <TabsContent value="insights" className="mt-6 space-y-8">
-                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        <TelemetryCard title="SL Discipline" value={`${totalSLTrades > 0 ? (slDisciplineData.reduce((sum, d) => sum + d.respected, 0) / totalSLTrades * 100).toFixed(0) : 'N/A'}%`} hint="SL Respected Rate" className="lg:col-span-1">
-                           {totalSLTrades > 0 ? (
-                                <>
-                                <div className="flex items-center gap-2 mb-2">
-                                     <Tabs value={disciplineTimeframe} onValueChange={(v) => setDisciplineTimeframe(v as any)} className="w-full">
-                                        <TabsList className="grid w-full grid-cols-2 h-8 text-xs">
-                                            <TabsTrigger value="today">Today</TabsTrigger>
-                                            <TabsTrigger value="7d">Last 7 Days</TabsTrigger>
-                                        </TabsList>
-                                    </Tabs>
-                                </div>
-                                <div className="h-28">
-                                    <SLDisciplineChart data={slDisciplineData} />
-                                </div>
-                                <div className="flex justify-center gap-4 text-xs mt-2">
-                                    <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[hsl(var(--chart-2))]"></div>Respected</div>
-                                    <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[hsl(var(--chart-4))]"></div>Moved</div>
-                                    <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[hsl(var(--chart-5))]"></div>Removed</div>
-                                </div>
-                                <p className="text-xs text-muted-foreground text-center mt-4">SL behavior is a top predictor of drawdowns.</p>
-                                </>
-                           ) : (
-                                <div className="h-full flex items-center justify-center text-center">
-                                    <p className="text-sm text-muted-foreground">Complete journals to unlock discipline telemetry.</p>
-                                </div>
-                           )}
-                        </TelemetryCard>
-                        <TelemetryCard title="Leverage Stability" value={personalRisk.mostCommonLeverageBucket} hint="Most Common Leverage" className="lg:col-span-1">
-                            <LeverageHistogram data={personalRisk.leverageDistribution} />
-                             {personalRisk.leverageDistributionWarning && (
-                                <Alert variant="destructive" className="mt-4">
-                                    <AlertTriangle className="h-4 w-4" />
-                                    <AlertTitle>Warning</AlertTitle>
-                                    <AlertDescription>
-                                        High leverage ({personalRisk.highLeverageTradesToday} trades > 20x) detected in Elevated/Extreme volatility.
-                                    </AlertDescription>
-                                </Alert>
-                             )}
-                        </TelemetryCard>
-                         <TelemetryCard title="Risk-per-Trade Drift" value={`${personalRisk.riskLeakageRate.toFixed(1)}x`} hint="Actual loss vs. planned risk">
-                             <ChartContainer config={{value: {color: "hsl(var(--chart-4))"}}} className="w-full h-full">
-                                <LineChart data={personalRisk.overridesTrend7d} margin={{ top: 5, right: 10, left: -30, bottom: 0 }}>
-                                    <YAxis domain={[0,2]} tickFormatter={(v) => `${v.toFixed(1)}x`} tick={{fontSize: 10}}/>
-                                    <ChartTooltip content={<ChartTooltipContent formatter={(v) => `${Number(v).toFixed(1)}x`}/>} />
-                                    <Line type="monotone" dataKey="value" stroke="hsl(var(--chart-4))" strokeWidth={2} dot={false} />
-                                </LineChart>
-                            </ChartContainer>
-                        </TelemetryCard>
-                        <DisciplineLeaksCard disciplineLeaks={personalRisk.disciplineLeaks} onSetModule={onSetModule} />
-                         <RiskHeatmapCard heatmapData={personalRisk.riskHeatmapData} />
-                    </div>
-                    <div className="grid lg:grid-cols-2 gap-8 items-start">
-                           <RevengeRiskCard revengeRiskIndex={personalRisk.revengeRiskIndex} revengeRiskLevel={personalRisk.revengeRiskLevel} />
-                           <PersonaFitAnalysis onSetModule={onSetModule} />
-                    </div>
+                     {hasSufficientData ? (
+                        <>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                                <TelemetryCard title="SL Discipline" value={`${totalSLTrades > 0 ? (slDisciplineData.reduce((sum, d) => sum + d.respected, 0) / totalSLTrades * 100).toFixed(0) : 'N/A'}%`} hint="SL Respected Rate" className="lg:col-span-1">
+                                {totalSLTrades > 0 ? (
+                                        <>
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <Tabs value={disciplineTimeframe} onValueChange={(v) => setDisciplineTimeframe(v as any)} className="w-full">
+                                                <TabsList className="grid w-full grid-cols-2 h-8 text-xs">
+                                                    <TabsTrigger value="today">Today</TabsTrigger>
+                                                    <TabsTrigger value="7d">Last 7 Days</TabsTrigger>
+                                                </TabsList>
+                                            </Tabs>
+                                        </div>
+                                        <div className="h-28">
+                                            <SLDisciplineChart data={slDisciplineData} />
+                                        </div>
+                                        <div className="flex justify-center gap-4 text-xs mt-2">
+                                            <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[hsl(var(--chart-2))]"></div>Respected</div>
+                                            <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[hsl(var(--chart-4))]"></div>Moved</div>
+                                            <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[hsl(var(--chart-5))]"></div>Removed</div>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground text-center mt-4">SL behavior is a top predictor of drawdowns.</p>
+                                        </>
+                                ) : (
+                                        <div className="h-full flex items-center justify-center text-center">
+                                            <p className="text-sm text-muted-foreground">Complete journals to unlock discipline telemetry.</p>
+                                        </div>
+                                )}
+                                </TelemetryCard>
+                                <TelemetryCard title="Leverage Stability" value={personalRisk.mostCommonLeverageBucket} hint="Most Common Leverage" className="lg:col-span-1">
+                                    <LeverageHistogram data={personalRisk.leverageDistribution} />
+                                    {personalRisk.leverageDistributionWarning && (
+                                        <Alert variant="destructive" className="mt-4">
+                                            <AlertTriangle className="h-4 w-4" />
+                                            <AlertTitle>Warning</AlertTitle>
+                                            <AlertDescription>
+                                                High leverage ({personalRisk.highLeverageTradesToday} trades > 20x) detected in Elevated/Extreme volatility.
+                                            </AlertDescription>
+                                        </Alert>
+                                    )}
+                                </TelemetryCard>
+                                <TelemetryCard title="Risk-per-Trade Drift" value={`${personalRisk.riskLeakageRate.toFixed(1)}x`} hint="Actual loss vs. planned risk">
+                                    <ChartContainer config={{value: {color: "hsl(var(--chart-4))"}}} className="w-full h-full">
+                                        <LineChart data={personalRisk.overridesTrend7d} margin={{ top: 5, right: 10, left: -30, bottom: 0 }}>
+                                            <YAxis domain={[0,2]} tickFormatter={(v) => `${v.toFixed(1)}x`} tick={{fontSize: 10}}/>
+                                            <ChartTooltip content={<ChartTooltipContent formatter={(v) => `${Number(v).toFixed(1)}x`}/>} />
+                                            <Line type="monotone" dataKey="value" stroke="hsl(var(--chart-4))" strokeWidth={2} dot={false} />
+                                        </LineChart>
+                                    </ChartContainer>
+                                </TelemetryCard>
+                                <DisciplineLeaksCard disciplineLeaks={personalRisk.disciplineLeaks} onSetModule={onSetModule} />
+                                <RiskHeatmapCard heatmapData={personalRisk.riskHeatmapData} />
+                            </div>
+                            <div className="grid lg:grid-cols-2 gap-8 items-start">
+                                <RevengeRiskCard revengeRiskIndex={personalRisk.revengeRiskIndex} revengeRiskLevel={personalRisk.revengeRiskLevel} />
+                                <PersonaFitAnalysis onSetModule={onSetModule} />
+                            </div>
+                        </>
+                    ) : (
+                        <EmptyState onAction={handleEmptyStateAction} />
+                    )}
                 </TabsContent>
                 <TabsContent value="reports" className="mt-6 space-y-8">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Generate Risk Report</CardTitle>
-                            <CardDescription>Get a copy-paste summary of your risk profile for a given period.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="flex gap-4">
-                            <Dialog>
-                                <DialogTrigger asChild>
-                                    <Button><FileText className="mr-2 h-4 w-4" /> Generate Weekly Report</Button>
-                                </DialogTrigger>
-                                <ReportDialog reportType="Weekly" riskState={riskState} />
-                            </Dialog>
-                             <Dialog>
-                                <DialogTrigger asChild>
-                                    <Button variant="outline"><FileText className="mr-2 h-4 w-4" /> Generate Monthly Report</Button>
-                                </DialogTrigger>
-                                <ReportDialog reportType="Monthly" riskState={riskState} />
-                            </Dialog>
-                        </CardContent>
-                    </Card>
+                     {hasSufficientData ? (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Generate Risk Report</CardTitle>
+                                <CardDescription>Get a copy-paste summary of your risk profile for a given period.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="flex gap-4">
+                                <Dialog>
+                                    <DialogTrigger asChild>
+                                        <Button><FileText className="mr-2 h-4 w-4" /> Generate Weekly Report</Button>
+                                    </DialogTrigger>
+                                    <ReportDialog reportType="Weekly" riskState={riskState} />
+                                </Dialog>
+                                <Dialog>
+                                    <DialogTrigger asChild>
+                                        <Button variant="outline"><FileText className="mr-2 h-4 w-4" /> Generate Monthly Report</Button>
+                                    </DialogTrigger>
+                                    <ReportDialog reportType="Monthly" riskState={riskState} />
+                                </Dialog>
+                            </CardContent>
+                        </Card>
+                     ) : (
+                        <EmptyState onAction={handleEmptyStateAction} />
+                     )}
                 </TabsContent>
             </Tabs>
             
@@ -1710,6 +1778,7 @@ const DeltaIndicator = ({ delta, unit = "" }: { delta: number; unit?: string }) 
 };
     
     
+
 
 
 
