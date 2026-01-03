@@ -1745,8 +1745,6 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
         const [entryChecklist, setEntryChecklist] = useState<Record<string, boolean>>({});
         
         const { riskState } = useRiskState();
-        const [riskDecisionLevel, setRiskDecisionLevel] = useState<RiskDecision['level'] | null>(null);
-        const [riskReasons, setRiskReasons] = useState<string[]>([]);
         const [justificationOverride, setJustificationOverride] = useState(false);
         const [yellowAcknowledge, setYellowAcknowledge] = useState(false);
 
@@ -1783,18 +1781,23 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
             name: 'justification'
         });
 
-        useEffect(() => {
-            if (riskState) {
-                setRiskDecisionLevel(riskState.decision.level);
-                setRiskReasons(riskState.decision.reasons || []);
+        const canProceedToReview = useMemo(() => {
+            if (planStatus === 'incomplete') return false;
+            
+            const riskLevel = riskState?.decision.level;
+
+            if (riskLevel === 'red') {
+                return justificationOverride && justificationValue && justificationValue.length > 0;
             }
-        }, [riskState]);
-        
-        const canProceedToReview = planStatus !== 'incomplete' && 
-            (riskDecisionLevel === 'green') ||
-            (riskDecisionLevel === 'yellow' && yellowAcknowledge) ||
-            (riskDecisionLevel === 'red' && justificationOverride && justificationValue && justificationValue.length > 0) ||
-            (planStatus !== 'FAIL' || (justificationValue && justificationValue.length > 0));
+            if (riskLevel === 'yellow') {
+                return yellowAcknowledge;
+            }
+            if (planStatus === 'FAIL') {
+                return justificationValue && justificationValue.length > 0;
+            }
+
+            return true;
+        }, [planStatus, riskState, justificationOverride, justificationValue, yellowAcknowledge]);
         
         const canProceedToExecution = canProceedToReview && arjunFeedbackAccepted;
     
@@ -2019,20 +2022,14 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
             }
         }
     
-        
+        const riskDecisionLevel = riskState?.decision.level;
         let isProceedDisabled = currentStep === 'plan' ? !canProceedToReview :
                                   currentStep === 'review' ? !canProceedToExecution :
                                   false;
         
-        if (riskDecisionLevel === 'red' && !justificationOverride) {
-            isProceedDisabled = true;
-        }
+        const isBlocked = (planStatus === 'FAIL' && (!justificationValue || justificationValue.length === 0)) || (riskDecisionLevel === 'red' && (!justificationOverride || !justificationValue || justificationValue.length === 0));
 
-        if (riskDecisionLevel === 'yellow' && !yellowAcknowledge) {
-            isProceedDisabled = true;
-        }
-
-        const isBannerVisible = showBanner && (planStatus === 'FAIL' || planStatus === 'overridden');
+        const isBannerVisible = showBanner && isBlocked;
     
         const stepConfig = {
             plan: { label: "Plan", buttonText: isNewUser ? "Practice review (no real risk)" : "Proceed to Review (Step 2)", disabled: false },
@@ -2058,7 +2055,17 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
                             )}
                         </div>
                         <h1 className="text-2xl font-bold tracking-tight text-foreground">Trade Planning</h1>
-                        <p className="text-muted-foreground">This is where every disciplined trade begins.</p>
+                        <div className="flex flex-wrap items-center gap-2 mt-2">
+                            <p className="text-muted-foreground">This is where every disciplined trade begins.</p>
+                            <Badge variant="outline" className={cn(planStatus === 'FAIL' && 'border-destructive text-destructive', planStatus === 'WARN' && 'border-amber-500 text-amber-500', planStatus === 'PASS' && 'border-green-500 text-green-500', 'capitalize')}>
+                                Strategy: {planStatus}
+                            </Badge>
+                            {riskState && (
+                                <Badge variant="outline" className={cn(riskState.decision.level === 'red' && 'border-destructive text-destructive', riskState.decision.level === 'yellow' && 'border-amber-500 text-amber-500', riskState.decision.level === 'green' && 'border-green-500 text-green-500', 'capitalize')}>
+                                    Risk Center: {riskState.decision.level}
+                                </Badge>
+                            )}
+                        </div>
                     </div>
                     <div className="flex items-center gap-2">
                          <TooltipProvider>
@@ -2085,58 +2092,15 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
                         ))}
                     </div>
                 </div>
-    
-                {initialContext?.safeMode && (
-                    <Alert variant="default" className={cn("border-blue-500/30", "bg-blue-950/40")}>
-                        <ShieldCheck className="h-4 w-4 text-blue-400" />
-                        <AlertTitle className="text-blue-400">Entering in Safe Mode</AlertTitle>
-                        <AlertDescription className={"text-blue-300/80"}>
-                            The Risk Center detected elevated risk. Your default risk parameters have been reduced for this plan.
-                        </AlertDescription>
-                    </Alert>
-                )}
 
-                {riskState?.activeNudge && <RiskNudge nudge={riskState.activeNudge} />}
-
-                {riskDecisionLevel === 'red' && (
-                     <Alert variant="destructive">
-                        <XCircle className="h-4 w-4" />
-                        <AlertTitle>Execution Locked by Risk Center</AlertTitle>
-                        <AlertDescription>
-                            Your current risk state is RED. The following rules are blocking execution:
-                            <ul className="list-disc list-inside mt-2 text-xs">
-                                {riskReasons.map((reason, i) => <li key={i}>{reason}</li>)}
-                            </ul>
-                        </AlertDescription>
-                        <div className="mt-4 flex gap-2">
-                             <Button variant="outline" size="sm" onClick={() => onSetModule('riskCenter')}>Open Risk Center</Button>
-                             <Button variant="destructive" size="sm" onClick={() => setJustificationOverride(true)}>Override</Button>
-                        </div>
-                    </Alert>
-                )}
-
-                 {riskDecisionLevel === 'yellow' && (
-                    <Alert variant="default" className="bg-amber-950/40 border-amber-500/20 text-amber-300">
-                        <AlertTriangle className="h-4 w-4 text-amber-400" />
-                        <AlertTitle className="text-amber-400">Risk Warning</AlertTitle>
-                        <AlertDescription>
-                           The Risk Center has identified warnings for this trade. Please acknowledge before proceeding.
-                        </AlertDescription>
-                         <div className="flex items-center space-x-2 mt-4">
-                            <Checkbox id="yellow-ack" checked={yellowAcknowledge} onCheckedChange={c => setYellowAcknowledge(c as boolean)} />
-                            <Label htmlFor="yellow-ack" className="text-sm font-normal text-amber-300">I acknowledge the risks.</Label>
-                        </div>
-                    </Alert>
-                )}
-
-                {showValidationBanner && (
-                     <Alert variant="destructive">
+                {isBlocked && (
+                    <Alert variant="destructive">
                         <AlertTriangle className="h-4 w-4" />
                         <div className="flex items-center justify-between w-full">
                             <div>
-                                <AlertTitle>Validation Errors</AlertTitle>
+                                <AlertTitle>Execution Blocked</AlertTitle>
                                 <AlertDescription>
-                                    Fix the highlighted issues before moving to Review.
+                                    This trade plan is blocked by the Rulebook Firewall or Risk Center. Review the violations below and either fix them or provide a justification to override.
                                 </AlertDescription>
                             </div>
                             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setShowValidationBanner(false)}>
@@ -2144,30 +2108,9 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
                             </Button>
                         </div>
                     </Alert>
-                 )}
+                )}
                 
-                {isBannerVisible && (
-                     <Alert variant="destructive" className="bg-amber-950/60 border-amber-500/30 text-amber-300">
-                        <AlertTriangle className="h-4 w-4 text-amber-400" />
-                        <div className="flex items-center justify-between w-full">
-                            <div>
-                                <AlertTitle className="text-amber-400">
-                                    {planStatus === 'overridden' ? "You are overriding your rules" : "Major Violation. Arjun recommends NOT taking this trade."}
-                                </AlertTitle>
-                                <AlertDescription>
-                                   {planStatus === 'overridden' 
-                                     ? "This should be rare and done consciously. Your justification will be logged."
-                                     : "Fix the issues in the summary card, or add a justification to proceed."}
-                                </AlertDescription>
-                            </div>
-                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setShowBanner(false)}>
-                                <X className="h-4 w-4" />
-                            </Button>
-                        </div>
-                    </Alert>
-                 )}
-    
-                 {isRecoveryMode ? <RecoveryModeWarning /> : isNewUser ? (
+                {isRecoveryMode ? <RecoveryModeWarning /> : isNewUser ? (
                     <Alert variant="default" className="bg-blue-950/50 border-blue-500/30 text-blue-300">
                         <Info className="h-4 w-4 text-blue-400" />
                         <AlertTitle className="text-blue-400">You're in Practice Mode</AlertTitle>
@@ -2329,6 +2272,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
     
     
     
+
 
 
 
