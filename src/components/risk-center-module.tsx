@@ -157,7 +157,7 @@ function MarketRiskCard({ marketRisk, onSetModule }: { marketRisk: RiskState['ma
                                 <Info className="h-4 w-4 text-muted-foreground/80 cursor-help" />
                             </TooltipTrigger>
                             <TooltipContent>
-                                <p className="max-w-xs">An indicator of current market volatility (0-100). Higher values mean larger price swings and more risk.</p>
+                                <p className="max-w-xs">The Crypto VIX is an indicator of current market volatility (0-100). Higher values mean larger price swings and more risk.</p>
                             </TooltipContent>
                         </Tooltip>
                     </TooltipProvider>
@@ -380,7 +380,7 @@ function TodaysLimitsCard({ limits, onSetModule }: { limits: RiskState['todaysLi
                     <div className="space-y-2">
                         <StatusRow label="Max risk / trade" value={`${limits.riskPerTradePct.toFixed(2)}%`} tooltipText="The maximum percentage of your total account capital you've committed to not exceed on any single trade." />
                         <StatusRow label="Max daily trades" value={limits.maxTrades} />
-                        <StatusRow label="Max daily loss" value={`${limits.maxDailyLoss}%`} />
+                        <StatusRow label="Max daily loss" value={`${limits.maxDailyLossPct}%`} />
                         <StatusRow label="Leverage cap" value={`${limits.leverageCap}x`} />
                         <StatusRow label="Cooldown rule" value={limits.cooldownActive ? "ON" : "OFF"} valueClass={limits.cooldownActive ? "text-amber-400" : ""} tooltipText="A mandatory break from trading after a set number of consecutive losses to prevent revenge trading." />
                     </div>
