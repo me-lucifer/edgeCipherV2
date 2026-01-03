@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Pencil, ShieldAlert, BarChart, Info, CheckCircle, XCircle, AlertTriangle, Gauge, Calendar, Zap, Sun, Moon, Waves, User, ArrowRight } from "lucide-react";
+import { Bot, Pencil, ShieldAlert, BarChart, Info, CheckCircle, XCircle, AlertTriangle, Gauge, Calendar, Zap, Sun, Moon, Waves, User, ArrowRight, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -28,7 +28,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import type { DemoScenario } from "./dashboard-module";
+import { useRiskState, type RiskState, type VixZone } from "@/hooks/use-risk-state";
+import { Skeleton } from "./ui/skeleton";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "./ui/drawer";
+
 
 interface RiskCenterModuleProps {
     onSetModule: (module: any, context?: any) => void;
@@ -55,76 +58,50 @@ const mockEvents = [
     { time: "Tomorrow 8:30 AM EST", event: "Non-Farm Payrolls", impact: "High" },
 ];
 
-const getTradeDecision = ({
-  vixZone,
-  disciplineScore,
-  lossStreak,
-}: {
-  vixZone: "Calm" | "Normal" | "Elevated" | "Extreme";
-  disciplineScore: number;
-  lossStreak: number;
-}) => {
-  if (vixZone === "Extreme" && disciplineScore < 50) {
-    return {
-      status: "Red / No-Go",
-      message: "Extreme volatility and low recent discipline. Arjun's analysis strongly suggests reviewing and planning, not trading.",
-      chipColor: "bg-red-500/20 text-red-400",
-      glowColor: "shadow-[0_0_10px_rgba(239,68,68,0.3)]",
-    };
-  }
-  if (lossStreak >= 3) {
-    return {
-      status: "Red / No-Go",
-      message: `You are on a ${lossStreak}-trade losing streak. Your rules require a cooldown. Today is for review, not trading.`,
-      chipColor: "bg-red-500/20 text-red-400",
-      glowColor: "shadow-[0_0_10px_rgba(239,68,68,0.3)]",
-    };
-  }
+function TradeDecisionBar({ decision }: { decision: RiskState['decision'] | null }) {
+    const [isWhyOpen, setIsWhyOpen] = useState(false);
+    
+    if (!decision) return <Skeleton className="h-20 w-full" />;
 
-  if (vixZone === "Elevated" || disciplineScore < 60) {
-    return {
-      status: "Amber / Caution",
-      message: "Conditions are challenging. Reduce size, be selective, and stick strictly to your A+ setups.",
-      chipColor: "bg-amber-500/20 text-amber-400",
-      glowColor: "shadow-[0_0_10px_rgba(245,158,11,0.3)]",
+    const decisionConfig = {
+        green: { status: "Green / Go", icon: CheckCircle, className: "border-green-500/30 text-green-400" },
+        yellow: { status: "Amber / Caution", icon: AlertTriangle, className: "border-amber-500/30 text-amber-400" },
+        red: { status: "Red / No-Go", icon: XCircle, className: "border-red-500/30 text-red-400" },
     };
-  }
 
-  return {
-    status: "Green / Go",
-    message: "Market conditions and your personal risk posture are aligned. Execute your plan.",
-    chipColor: "bg-green-500/20 text-green-400",
-    glowColor: "shadow-[0_0_10px_rgba(34,197,94,0.3)]",
-  };
-};
-
-function TradeDecisionBar({ vixZone, disciplineScore, lossStreak }: { vixZone: any, disciplineScore: any, lossStreak: any}) {
-    const decision = getTradeDecision({ vixZone, disciplineScore, lossStreak });
+    const config = decisionConfig[decision.level];
+    const Icon = config.icon;
 
     return (
-        <Card className={cn("border-2", 
-            decision.status.startsWith("Green") && "border-green-500/30",
-            decision.status.startsWith("Amber") && "border-amber-500/30",
-            decision.status.startsWith("Red") && "border-red-500/30"
-        )}>
-            <CardContent className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
-                    <div className={cn("p-2 rounded-full", decision.chipColor)}>
-                        {decision.status.startsWith("Green") && <CheckCircle className="h-6 w-6 text-green-400" />}
-                        {decision.status.startsWith("Amber") && <AlertTriangle className="h-6 w-6 text-amber-400" />}
-                        {decision.status.startsWith("Red") && <XCircle className="h-6 w-6 text-red-400" />}
+        <>
+            <Drawer open={isWhyOpen} onOpenChange={setIsWhyOpen}>
+                <DrawerContent>
+                    <DrawerHeader>
+                        <DrawerTitle>Reasoning for Today's Decision</DrawerTitle>
+                        <DrawerDescription>Arjun aggregated these risk factors to form the recommendation.</DrawerDescription>
+                    </DrawerHeader>
+                    <div className="px-4 pb-4">
+                        <ul className="space-y-2 list-disc list-inside text-sm text-muted-foreground">
+                            {decision.reasons.map((reason, i) => <li key={i}>{reason}</li>)}
+                        </ul>
                     </div>
-                    <div>
-                        <h3 className="font-semibold text-foreground">Today's Trading Decision: <span className={cn("font-bold",
-                             decision.status.startsWith("Green") && "text-green-400",
-                             decision.status.startsWith("Amber") && "text-amber-400",
-                             decision.status.startsWith("Red") && "text-red-400"
-                        )}>{decision.status}</span></h3>
-                        <p className="text-sm text-muted-foreground">{decision.message}</p>
+                </DrawerContent>
+            </Drawer>
+            <Card className={cn("border-2", config.className)}>
+                <CardContent className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                        <div className={cn("p-2 rounded-full", config.className.replace('border-', 'bg-').replace('/30', '/20'))}>
+                            <Icon className={cn("h-6 w-6", config.className.replace('border-', 'text-'))} />
+                        </div>
+                        <div>
+                            <h3 className="font-semibold text-foreground">Today's Trading Decision: <span className={cn("font-bold", config.className.replace('border-', 'text-'))}>{config.status}</span></h3>
+                            <p className="text-sm text-muted-foreground">{decision.message}</p>
+                        </div>
                     </div>
-                </div>
-            </CardContent>
-        </Card>
+                    <Button variant="link" onClick={() => setIsWhyOpen(true)}>Why?</Button>
+                </CardContent>
+            </Card>
+        </>
     );
 }
 
@@ -134,17 +111,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
     const [rules, setRules] = useState<RiskRule[]>(defaultRules);
     const [editingRule, setEditingRule] = useState<RiskRule | null>(null);
     const [editValue, setEditValue] = useState<string>("");
-    
-    // Mocked data that would come from other services
-    const [marketContext, setMarketContext] = useState({
-        vixValue: 45,
-        vixZone: 'Normal' as "Calm" | "Normal" | "Elevated" | "Extreme"
-    });
-    const [personalPosture, setPersonalPosture] = useState({
-        disciplineScore: 75,
-        lossStreak: 0,
-        topBreach: "Max trades per day"
-    });
+    const { riskState, isLoading, refresh } = useRiskState();
 
      useEffect(() => {
         if (typeof window !== "undefined") {
@@ -152,31 +119,6 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
             if (savedRules) {
                 setRules(JSON.parse(savedRules));
             }
-            
-            const scenario = localStorage.getItem('ec_demo_scenario') as DemoScenario;
-            let vixValue = 45;
-            let disciplineScore = 75;
-            let lossStreak = 0;
-            let topBreach = "None";
-
-            if (scenario === 'high_vol') {
-                vixValue = 82;
-            } else if (scenario === 'drawdown') {
-                vixValue = 65;
-                disciplineScore = 58;
-                lossStreak = 3;
-                topBreach = "Max consecutive losses";
-            }
-
-            const getVixZone = (vix: number): "Calm" | "Normal" | "Elevated" | "Extreme" => {
-                if (vix > 75) return "Extreme";
-                if (vix > 50) return "Elevated";
-                if (vix > 25) return "Normal";
-                return "Calm";
-            };
-
-            setMarketContext({ vixValue, vixZone: getVixZone(vixValue) });
-            setPersonalPosture({ disciplineScore, lossStreak, topBreach });
         }
     }, []);
     
@@ -202,26 +144,51 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
     }
 
 
+    if (isLoading || !riskState) {
+        return (
+            <div className="space-y-8 animate-pulse">
+                <Skeleton className="h-8 w-1/3" />
+                <Skeleton className="h-20 w-full" />
+                <div className="grid lg:grid-cols-3 gap-8">
+                    <div className="lg:col-span-2 space-y-8">
+                        <Skeleton className="h-48 w-full" />
+                        <Skeleton className="h-48 w-full" />
+                    </div>
+                    <div className="lg:col-span-1 space-y-8">
+                        <Skeleton className="h-64 w-full" />
+                        <Skeleton className="h-48 w-full" />
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    const { marketRisk, personalRisk, todaysLimits, decision } = riskState;
+
+
     return (
         <div className="space-y-8">
-            <div>
-                <h1 className="text-2xl font-bold tracking-tight text-foreground">Risk Center</h1>
-                <p className="text-muted-foreground flex items-center gap-2">
-                    A single view of market risk + your personal risk posture. Answer: Should I trade today?
-                    <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger>
-                                <Info className="h-4 w-4 text-muted-foreground/80 cursor-help" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p className="max-w-xs">Scope note: Risk Center aggregates data from Strategy, Planning, Analytics, and VIX.</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
-                </p>
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-2xl font-bold tracking-tight text-foreground">Risk Center</h1>
+                    <p className="text-muted-foreground flex items-center gap-2">
+                        A single view of market risk + your personal risk posture. Answer: Should I trade today?
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger>
+                                    <Info className="h-4 w-4 text-muted-foreground/80 cursor-help" />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p className="max-w-xs">Risk Center aggregates data from your Persona, Journal, Strategies, and market context.</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    </p>
+                </div>
+                <Button variant="ghost" size="sm" onClick={refresh}><RefreshCw className="mr-2 h-4 w-4" /> Refresh State</Button>
             </div>
             
-            <TradeDecisionBar vixZone={marketContext.vixZone} disciplineScore={personalPosture.disciplineScore} lossStreak={personalPosture.lossStreak} />
+            <TradeDecisionBar decision={decision} />
             
             <div className="grid lg:grid-cols-3 gap-8 items-start">
                 <div className="lg:col-span-2 space-y-8">
@@ -232,13 +199,13 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                         <CardContent className="grid md:grid-cols-2 gap-6">
                             <div className="flex flex-col items-center justify-center p-6 bg-muted rounded-lg">
                                 <p className="text-sm text-muted-foreground">Crypto VIX</p>
-                                <p className="text-5xl font-bold font-mono">{marketContext.vixValue}</p>
+                                <p className="text-5xl font-bold font-mono">{marketRisk.vixValue}</p>
                                 <Badge className={cn("text-base", 
-                                    marketContext.vixZone === "Extreme" && "bg-red-500/20 text-red-300 border-red-500/30",
-                                    marketContext.vixZone === "Elevated" && "bg-amber-500/20 text-amber-300 border-amber-500/30",
-                                    marketContext.vixZone === "Normal" && "bg-blue-500/20 text-blue-300 border-blue-500/30",
-                                    marketContext.vixZone === "Calm" && "bg-green-500/20 text-green-300 border-green-500/30"
-                                )}>{marketContext.vixZone}</Badge>
+                                    marketRisk.vixZone === "Extreme" && "bg-red-500/20 text-red-300 border-red-500/30",
+                                    marketRisk.vixZone === "Elevated" && "bg-amber-500/20 text-amber-300 border-amber-500/30",
+                                    marketRisk.vixZone === "Normal" && "bg-blue-500/20 text-blue-300 border-blue-500/30",
+                                    marketRisk.vixZone === "Calm" && "bg-green-500/20 text-green-300 border-green-500/30"
+                                )}>{marketRisk.vixZone}</Badge>
                             </div>
                             <div className="space-y-3">
                                <p className="text-sm text-muted-foreground">High volatility means larger price swings and more risk. It’s easier to get stopped out on noise. Low volatility means smaller moves and requires more patience.</p>
@@ -287,15 +254,15 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                             <div className="flex justify-around text-center">
                                 <div>
                                     <p className="text-xs text-muted-foreground">Discipline Score</p>
-                                    <p className="text-2xl font-bold">{personalPosture.disciplineScore}</p>
+                                    <p className="text-2xl font-bold">{personalRisk.disciplineScore}</p>
                                 </div>
                                 <div>
                                     <p className="text-xs text-muted-foreground">Losing Streak</p>
-                                    <p className="text-2xl font-bold">{personalPosture.lossStreak}</p>
+                                    <p className="text-2xl font-bold">{todaysLimits.lossStreak}</p>
                                 </div>
                             </div>
                             <div className="text-sm">
-                                <p className="text-muted-foreground">Top recent breach: <Badge variant="destructive">{personalPosture.topBreach}</Badge></p>
+                                <p className="text-muted-foreground">Trades Today: <Badge variant="secondary">{todaysLimits.tradesExecuted} / {todaysLimits.maxTrades}</Badge></p>
                             </div>
                             <Button variant="link" className="p-0 h-auto" onClick={() => onSetModule('analytics')}>
                                 Open Performance Analytics <ArrowRight className="ml-2 h-4 w-4" />
