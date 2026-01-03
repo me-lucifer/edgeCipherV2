@@ -21,6 +21,13 @@ export type RiskEvent = {
     level: 'green' | 'yellow' | 'red';
 };
 
+export type ActiveNudge = {
+    id: string;
+    title: string;
+    message: string;
+    severity: 'warn' | 'info';
+};
+
 export type RiskState = {
     marketRisk: {
         vixValue: number;
@@ -57,6 +64,7 @@ export type RiskState = {
     };
     decision: RiskDecision;
     riskEventsToday: RiskEvent[];
+    activeNudge: ActiveNudge | null;
 };
 
 // Helper to get VIX zone from value
@@ -93,7 +101,7 @@ export function useRiskState() {
             const guardrails = JSON.parse(localStorage.getItem("ec_guardrails") || "{}");
             const assumedCapital = parseFloat(localStorage.getItem("ec_assumed_capital") || "10000");
             const sensitivitySetting = localStorage.getItem("ec_risk_sensitivity") || 'balanced';
-
+            const lastNudgeId = localStorage.getItem('ec_last_risk_nudge_id');
 
             const riskEventsToday: RiskEvent[] = [];
             const now = new Date();
@@ -271,6 +279,34 @@ export function useRiskState() {
                 reasons.push("No major risk factors detected.");
             }
 
+            // 6. Generate Active Nudge
+            let activeNudge: ActiveNudge | null = null;
+            const nudgeCandidates: {id: string, condition: boolean, nudge: Omit<ActiveNudge, 'id'>}[] = [
+                {
+                    id: 'loss_streak_2',
+                    condition: todaysLimits.lossStreak === 2,
+                    nudge: { title: "You're on a 2-trade losing streak.", message: "This is a critical point. Your brain will try to 'get it back'. Stop trading now, review your journal, and reset for the next session.", severity: 'warn' }
+                },
+                {
+                    id: 'override_used',
+                    condition: dailyCounters.overrideCount > 0,
+                    nudge: { title: "Rule Override Detected", message: "You consciously broke your rules today. Ensure you've journaled the 'why'. Overrides are a red flag for discipline decay.", severity: 'warn' }
+                },
+                {
+                    id: 'vix_elevated',
+                    condition: vixZone === 'Elevated',
+                    nudge: { title: "Volatility is Elevated", message: "Today is choppy. Consider reducing your trade size by 50% or only taking your absolute A+ setups.", severity: 'info' }
+                },
+            ];
+
+            for (const candidate of nudgeCandidates) {
+                if (candidate.condition && candidate.id !== lastNudgeId) {
+                    activeNudge = { ...candidate.nudge, id: candidate.id };
+                    break; 
+                }
+            }
+
+
             const computedState: RiskState = {
                 marketRisk,
                 personalRisk,
@@ -281,6 +317,7 @@ export function useRiskState() {
                     reasons
                 },
                 riskEventsToday,
+                activeNudge,
             };
             
             setRiskState(computedState);

@@ -28,7 +28,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { useRiskState, type RiskState, type VixZone, type RiskDecision } from "@/hooks/use-risk-state";
+import { useRiskState, type RiskState, type VixZone, type RiskDecision, type ActiveNudge } from "@/hooks/use-risk-state";
 import { Skeleton } from "./ui/skeleton";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "./ui/drawer";
 import { Slider } from "./ui/slider";
@@ -1017,7 +1017,6 @@ function VolatilityPolicyCard() {
     );
 }
 
-
 function PersonaFitAnalysis({ onSetModule }: { onSetModule: (module: any) => void }) {
     const [sensitivity, setSensitivity] = useState(50); // 0=conservative, 50=balanced, 100=aggressive
 
@@ -1080,6 +1079,45 @@ function PersonaFitAnalysis({ onSetModule }: { onSetModule: (module: any) => voi
     );
 }
 
+function RiskNudge({ nudge }: { nudge: ActiveNudge | null }) {
+    const [isVisible, setIsVisible] = useState(false);
+
+    useEffect(() => {
+        if (nudge) {
+            setIsVisible(true);
+            localStorage.setItem('ec_last_risk_nudge_id', nudge.id);
+        }
+    }, [nudge]);
+
+    if (!nudge || !isVisible) {
+        return null;
+    }
+
+    const severityConfig = {
+        warn: {
+            icon: AlertTriangle,
+            className: "bg-amber-950/40 border-amber-500/20 text-amber-300",
+            titleClass: "text-amber-400"
+        },
+        info: {
+            icon: Info,
+            className: "bg-blue-950/40 border-blue-500/20 text-blue-300",
+            titleClass: "text-blue-400"
+        },
+    };
+    
+    const config = severityConfig[nudge.severity];
+    const Icon = config.icon;
+
+    return (
+        <Alert variant="default" className={cn(config.className, "animate-in fade-in")}>
+            <Icon className="h-4 w-4" />
+            <AlertTitle className={config.titleClass}>{nudge.title}</AlertTitle>
+            <AlertDescription>{nudge.message}</AlertDescription>
+        </Alert>
+    );
+}
+
 export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
     const { riskState, isLoading, refresh } = useRiskState();
 
@@ -1102,7 +1140,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
         );
     }
 
-    const { marketRisk, personalRisk, todaysLimits, decision, riskEventsToday } = riskState;
+    const { marketRisk, personalRisk, todaysLimits, decision, riskEventsToday, activeNudge } = riskState;
 
 
     return (
@@ -1127,6 +1165,8 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                 <Button variant="ghost" size="sm" onClick={refresh}><RefreshCw className="mr-2 h-4 w-4" /> Refresh State</Button>
             </div>
             
+            <RiskNudge nudge={activeNudge} />
+
             <TradeDecisionBar decision={decision} />
             
             <div className="grid lg:grid-cols-3 gap-8 items-start">

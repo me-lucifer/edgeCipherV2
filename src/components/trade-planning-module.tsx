@@ -34,7 +34,7 @@ import { useDailyCounters } from "@/hooks/use-daily-counters";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Check } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
-import { useRiskState, type RiskDecision } from "@/hooks/use-risk-state";
+import { useRiskState, type RiskDecision, type ActiveNudge } from "@/hooks/use-risk-state";
 
 
 interface TradePlanningModuleProps {
@@ -2018,6 +2018,45 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
             <p className={cn("font-mono font-semibold", className)}>{value}</p>
         </div>
     );
+
+    function RiskNudge({ nudge }: { nudge: ActiveNudge | null }) {
+        const [isVisible, setIsVisible] = useState(false);
+    
+        useEffect(() => {
+            if (nudge) {
+                setIsVisible(true);
+                localStorage.setItem('ec_last_risk_nudge_id', nudge.id);
+            }
+        }, [nudge]);
+    
+        if (!nudge || !isVisible) {
+            return null;
+        }
+    
+        const severityConfig = {
+            warn: {
+                icon: AlertTriangle,
+                className: "bg-amber-950/40 border-amber-500/20 text-amber-300",
+                titleClass: "text-amber-400"
+            },
+            info: {
+                icon: Info,
+                className: "bg-blue-950/40 border-blue-500/20 text-blue-300",
+                titleClass: "text-blue-400"
+            },
+        };
+        
+        const config = severityConfig[nudge.severity];
+        const Icon = config.icon;
+    
+        return (
+            <Alert variant="default" className={cn(config.className, "animate-in fade-in")}>
+                <Icon className="h-4 w-4" />
+                <AlertTitle className={config.titleClass}>{nudge.title}</AlertTitle>
+                <AlertDescription>{nudge.message}</AlertDescription>
+            </Alert>
+        );
+    }
     
     
     export function TradePlanningModule({ onSetModule, planContext }: TradePlanningModuleProps) {
@@ -2391,6 +2430,8 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
                     </Alert>
                 )}
     
+                {riskState?.activeNudge && <RiskNudge nudge={riskState.activeNudge} />}
+
                 {riskDecisionLevel === 'red' && (
                      <Alert variant="destructive">
                         <XCircle className="h-4 w-4" />
@@ -2622,4 +2663,5 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
     
     
     
+
 
