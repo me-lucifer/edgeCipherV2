@@ -251,20 +251,6 @@ function MarketRiskCard({ marketRisk, onSetModule }: { marketRisk: RiskState['ma
     );
 }
 
-const DeltaIndicator = ({ delta, unit = "" }: { delta: number; unit?: string }) => {
-    if (delta === 0) return null;
-    const isPositive = delta > 0;
-    return (
-        <span className={cn(
-            "text-xs font-mono flex items-center ml-2",
-            isPositive ? "text-green-400" : "text-red-400"
-        )}>
-            {isPositive ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
-            {isPositive ? '+' : ''}{delta.toFixed(0)}{unit}
-        </span>
-    );
-};
-
 const ScoreGauge = ({ score, label, interpretation, delta, colorClass }: { score: number; label: string; interpretation: string; delta?: number; colorClass: string; }) => {
     const conicGradient = `conic-gradient(${colorClass} 0deg, ${colorClass} calc(${score} * 1.8deg), hsl(var(--muted)) calc(${score} * 1.8deg), hsl(var(--muted)) 180deg)`;
 
@@ -1200,16 +1186,18 @@ const TelemetryCard = ({ title, value, hint, children, className }: { title: str
 );
 
 const SLDisciplineChart = ({ data }: { data: SLDisciplineData[] }) => (
-    <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} layout="vertical" stackOffset="expand">
-            <XAxis type="number" hide />
-            <YAxis type="category" dataKey="name" hide />
-            <ChartTooltip content={<ChartTooltipContent />} />
-            <Bar dataKey="respected" fill="hsl(var(--chart-2))" stackId="a" radius={[4, 0, 0, 4]} />
-            <Bar dataKey="moved" fill="hsl(var(--chart-4))" stackId="a" />
-            <Bar dataKey="removed" fill="hsl(var(--chart-5))" stackId="a" radius={[0, 4, 4, 0]} />
-        </BarChart>
-    </ResponsiveContainer>
+    <ChartContainer config={{}} className="h-full w-full">
+        <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={data} layout="vertical" stackOffset="expand">
+                <XAxis type="number" hide />
+                <YAxis type="category" dataKey="name" hide />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Bar dataKey="respected" fill="hsl(var(--chart-2))" stackId="a" radius={[4, 0, 0, 4]} />
+                <Bar dataKey="moved" fill="hsl(var(--chart-4))" stackId="a" />
+                <Bar dataKey="removed" fill="hsl(var(--chart-5))" stackId="a" radius={[0, 4, 4, 0]} />
+            </BarChart>
+        </ResponsiveContainer>
+    </ChartContainer>
 );
 
 const LeverageHistogram = ({ data }: { data: LeverageDistributionData[] }) => (
@@ -1380,3 +1368,5 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
 }
 
 const dailyCounters = { overrideCount: 0 };
+
+    
