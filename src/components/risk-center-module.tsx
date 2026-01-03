@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Pencil, ShieldAlert, BarChart, Info, CheckCircle, XCircle, AlertTriangle, Gauge, Calendar, Zap, Sun, Moon, Waves, User, ArrowRight, RefreshCw, SlidersHorizontal } from "lucide-react";
+import { Bot, Pencil, ShieldAlert, BarChart, Info, CheckCircle, XCircle, AlertTriangle, Gauge, Calendar, Zap, Sun, Moon, Waves, User, ArrowRight, RefreshCw, SlidersHorizontal, TrendingUp, Sparkles, Droplets } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -32,6 +32,7 @@ import { useRiskState, type RiskState, type VixZone } from "@/hooks/use-risk-sta
 import { Skeleton } from "./ui/skeleton";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "./ui/drawer";
 import { Slider } from "./ui/slider";
+import { Separator } from "./ui/separator";
 
 
 interface RiskCenterModuleProps {
@@ -108,16 +109,11 @@ function TradeDecisionBar({ decision }: { decision: RiskState['decision'] | null
 
 function MarketRiskCard({ marketRisk, onSetModule }: { marketRisk: RiskState['marketRisk'], onSetModule: (module: any) => void }) {
     const { vixValue, vixZone } = marketRisk;
-    const [simulatedVix, setSimulatedVix] = useState(vixValue);
     
-    useEffect(() => {
-        setSimulatedVix(vixValue);
-    }, [vixValue]);
-
     const handleSliderChange = (value: number[]) => {
         const newVix = value[0];
-        setSimulatedVix(newVix);
         localStorage.setItem("ec_vix_override", String(newVix));
+        // The useRiskState hook will automatically pick up this change and update the state
     };
 
     const zoneInfo = {
@@ -136,11 +132,15 @@ function MarketRiskCard({ marketRisk, onSetModule }: { marketRisk: RiskState['ma
         hsl(var(--muted)) 180deg
     )`;
 
+    // Mocked conditions based on VIX for demo purposes
+    const fundingRateStatus = vixZone === 'Extreme' ? 'High' : 'Neutral';
+    const newsSentimentStatus = vixZone === 'Extreme' ? 'Fear' : vixZone === 'Elevated' ? 'Mixed' : 'Neutral';
+
 
     return (
         <Card className="bg-muted/30 border-border/50">
             <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Gauge className="h-5 w-5" /> Market Volatility (Crypto VIX)</CardTitle>
+                <CardTitle className="flex items-center gap-2"><Gauge className="h-5 w-5" /> Market Risk</CardTitle>
             </CardHeader>
             <CardContent className="grid md:grid-cols-2 gap-6 items-center">
                 <div 
@@ -168,7 +168,35 @@ function MarketRiskCard({ marketRisk, onSetModule }: { marketRisk: RiskState['ma
                    </Button>
                 </div>
             </CardContent>
-            <CardFooter className="border-t pt-4">
+            <Separator className="my-4" />
+            <CardContent>
+                <h4 className="font-semibold text-foreground mb-3 text-sm">Today's Conditions</h4>
+                <div className="flex flex-wrap gap-2">
+                    <Badge variant="outline" className={cn(
+                        "text-xs",
+                        vixZone === 'Extreme' || vixZone === 'Elevated' ? 'border-amber-500/50 text-amber-400' : 'border-border'
+                    )}>
+                        <Sparkles className="mr-1.5 h-3 w-3" />
+                        Volatility: {vixZone}
+                    </Badge>
+                     <Badge variant="outline" className={cn(
+                        "text-xs",
+                        fundingRateStatus === 'High' ? 'border-red-500/50 text-red-400' : 'border-border'
+                    )}>
+                        <Droplets className="mr-1.5 h-3 w-3" />
+                        Funding: {fundingRateStatus} (prototype)
+                    </Badge>
+                    <Badge variant="outline" className={cn(
+                        "text-xs",
+                        newsSentimentStatus === 'Fear' ? 'border-red-500/50 text-red-400' : 
+                        newsSentimentStatus === 'Mixed' ? 'border-amber-500/50 text-amber-400' : 'border-border'
+                    )}>
+                        <TrendingUp className="mr-1.5 h-3 w-3" />
+                        News Sentiment: {newsSentimentStatus} (prototype)
+                    </Badge>
+                </div>
+            </CardContent>
+            <CardFooter className="border-t pt-4 mt-4">
                 <div className="w-full space-y-3">
                     <Label className="text-xs text-muted-foreground flex items-center gap-2"><SlidersHorizontal className="h-3 w-3" /> Simulate VIX (Prototype)</Label>
                     <Slider
@@ -230,7 +258,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                 <Skeleton className="h-20 w-full" />
                 <div className="grid lg:grid-cols-3 gap-8">
                     <div className="lg:col-span-2 space-y-8">
-                        <Skeleton className="h-48 w-full" />
+                        <Skeleton className="h-64 w-full" />
                         <Skeleton className="h-48 w-full" />
                     </div>
                     <div className="lg:col-span-1 space-y-8">
@@ -247,7 +275,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
 
     return (
         <div className="space-y-8">
-            <div className="flex items-center justify-between">
+            <div className="flex items-start justify-between">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight text-foreground">Risk Center</h1>
                     <p className="text-muted-foreground flex items-center gap-2">
