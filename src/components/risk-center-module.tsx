@@ -651,36 +651,37 @@ function ArjunRiskAlerts({ onSetModule }: { onSetModule: (module: any, context?:
         if (!riskState) return [];
 
         const generatedAlerts = riskState.decision.reasons.map(reason => {
-            if (reason.toLowerCase().includes('leverage')) {
+            const lowerReason = reason.toLowerCase();
+            if (lowerReason.includes('leverage')) {
                 return {
                     severity: 'red' as 'red',
                     title: 'High Leverage Detected',
                     suggestion: "High leverage + high volatility increases liquidation probability. Review open positions.",
-                    action: { label: 'Review Exposure', module: 'riskCenter' }
+                    action: { label: 'Reduce Leverage', module: 'tradePlanning', context: { instrument: 'BTC-PERP', source: 'RiskCenter' } }
                 };
             }
-             if (reason.toLowerCase().includes('cooldown')) {
+             if (lowerReason.includes('cooldown')) {
                 return {
                     severity: 'red' as 'red',
                     title: `You're on a ${riskState.todaysLimits.lossStreak}-trade losing streak`,
                     suggestion: "This is a critical moment for your discipline. Pause trading and review these losses to understand the pattern.",
-                    action: { label: 'Go to Journal', module: 'tradeJournal' }
+                    action: { label: 'Open Pending Journals', module: 'tradeJournal' }
                 };
             }
-            if (reason.toLowerCase().includes('discipline score')) {
+            if (lowerReason.includes('discipline score')) {
                 return {
                     severity: 'warn' as 'warn',
                     title: 'Your discipline score is low',
                     suggestion: "This indicates recent rule-breaking. Focus on following your plan to the letter on your next trade.",
-                    action: { label: 'Review Analytics', module: 'analytics' }
+                    action: { label: 'See Why in Analytics', module: 'analytics' }
                 };
             }
-            if (reason.toLowerCase().includes('volatility')) {
+            if (lowerReason.includes('volatility')) {
                  return {
                     severity: 'warn' as 'warn',
                     title: `Market volatility is '${riskState.marketRisk.vixZone}'`,
                     suggestion: "Risk of sharp, unpredictable moves is high. Consider if any trade is truly an A+ setup right now.",
-                    action: { label: 'Go to Trade Planning', module: 'tradePlanning' }
+                    action: { label: 'Plan Trade in Safe Mode', module: 'tradePlanning', context: { safeMode: true } }
                 };
             }
             return null;
