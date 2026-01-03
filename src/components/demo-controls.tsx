@@ -12,7 +12,7 @@ import {
   DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "./ui/button"
-import { Paintbrush, Check, SlidersHorizontal, Sun, Moon, Waves, User, TrendingUp, BarChartHorizontal, Activity, Zap } from "lucide-react"
+import { Paintbrush, Check, SlidersHorizontal, Sun, Moon, Waves, User, TrendingUp, BarChartHorizontal, Activity, Zap, AlertTriangle } from "lucide-react"
 import { useTheme, type Theme } from "./theme-provider"
 import { cn } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip"
@@ -38,6 +38,7 @@ type ScenarioData = {
     lossStreak: number;
     tradesExecuted: number;
     overrideCount: number;
+    recoveryMode?: boolean;
     growthPlan: string[];
     riskEvents: { time: string; description: string; level: 'green' | 'yellow' | 'red' }[];
 };
@@ -45,61 +46,83 @@ type ScenarioData = {
 const scenarios: ScenarioData[] = [
     { 
         id: "normal", 
-        name: "Normal Day", 
-        description: "Balanced results, normal volatility.", 
+        name: "Green Day: Calm & Disciplined", 
+        description: "Normal VIX, no losses, high discipline.", 
         icon: Sun,
-        vixValue: 45,
+        vixValue: 35,
         lossStreak: 0,
-        tradesExecuted: 2,
+        tradesExecuted: 0,
         overrideCount: 0,
-        growthPlan: ["Limit yourself to 5 trades per day.", "Only trade your best A+ setup for the next 2 weeks.", "Complete a daily journal review for at least 10 days."],
+        growthPlan: ["Stick to your A+ setups.", "Journal trades promptly.", "Review yesterday's session."],
         riskEvents: [
-            { time: "09:05", description: "Trade plan for BTC-PERP validated. Status: PASS", level: 'green' },
-            { time: "09:31", description: "Trade executed: Long BTC-PERP", level: 'green' }
+            { time: "09:01", description: "Market VIX is 'Normal'. Conditions are stable.", level: 'green' },
+            { time: "09:05", description: "Trade plan for BTC-PERP validated. Status: PASS", level: 'green' }
         ]
     },
     { 
         id: "high_vol", 
-        name: "High Volatility", 
-        description: "Extreme Crypto VIX, wild swings.", 
+        name: "Yellow Day: Elevated VIX", 
+        description: "VIX is up, risk is higher. Caution needed.", 
         icon: Waves,
-        vixValue: 82,
-        lossStreak: 1,
-        tradesExecuted: 4,
-        overrideCount: 1,
+        vixValue: 65,
+        lossStreak: 0,
+        tradesExecuted: 1,
+        overrideCount: 0,
         growthPlan: ["Reduce size by 50% in high VIX.", "Widen stops to account for volatility.", "Wait for clear A+ setups; avoid chasing wicks."],
         riskEvents: [
-            { time: "10:15", description: "VIX entered 'Extreme' zone.", level: 'red' },
-            { time: "10:20", description: "Leverage cap warning triggered on SOL-PERP plan.", level: 'yellow' },
-            { time: "10:22", description: "Rule override used for high leverage.", level: 'red' }
+            { time: "10:00", description: "VIX entered 'Elevated' zone. Risk posture updated.", level: 'yellow' },
+            { time: "10:15", description: "Leverage cap warning triggered on SOL-PERP plan.", level: 'yellow' },
+            { time: "10:22", description: "Trade executed: Long SOL-PERP with reduced size.", level: 'green' }
+        ]
+    },
+    { 
+        id: "extreme_vix", 
+        name: "Red Day: Extreme VIX", 
+        description: "Execution locked due to extreme volatility.", 
+        icon: AlertTriangle,
+        vixValue: 85,
+        lossStreak: 1,
+        tradesExecuted: 2,
+        overrideCount: 1,
+        growthPlan: ["Do not trade. Review market from the sidelines.", "Work on strategy backtesting.", "Read one chapter on trading psychology."],
+        riskEvents: [
+            { time: "14:00", description: "Market VIX entered 'Extreme' zone. All executions locked.", level: 'red' },
+            { time: "14:05", description: "Execution blocked: Market is in 'Extreme' volatility.", level: 'red' },
+            { time: "14:10", description: "Execution blocked: Market is in 'Extreme' volatility.", level: 'red' },
         ]
     },
     { 
         id: "drawdown", 
-        name: "In Drawdown", 
-        description: "Recent losses, tight risk required.", 
+        name: "Revenge Trap", 
+        description: "On a loss streak, Revenge Risk is high.", 
         icon: Moon,
-        vixValue: 65,
-        lossStreak: 3,
-        tradesExecuted: 3,
+        vixValue: 60,
+        lossStreak: 2,
+        tradesExecuted: 2,
         overrideCount: 0,
-        growthPlan: ["Enable Recovery Mode.", "Focus on capital preservation, not making back losses.", "Only trade your single most profitable setup."],
+        growthPlan: ["Take a mandatory 1-hour break.", "Only trade your single most profitable setup.", "Reduce risk per trade to 0.5%."],
         riskEvents: [
-            { time: "08:45", description: "Loss streak limit of 2 reached. Cooldown rule is now active.", level: 'red' },
-            { time: "08:50", description: "Execution blocked: Cooldown active.", level: 'red' }
+            { time: "11:00", description: "Trade closed: -1R loss. Loss streak at 1.", level: 'yellow' },
+            { time: "11:30", description: "Trade closed: -1R loss. Loss streak at 2. Cooldown warning active.", level: 'red' },
+            { time: "11:32", description: "Revenge Risk Index is now 'High'.", level: 'yellow' },
         ]
     },
     { 
-        id: "no_positions", 
-        name: "New User / No Data", 
-        description: "No broker / no history – learning mode.", 
+        id: "recovery_mode", 
+        name: "Recovery Mode", 
+        description: "In a drawdown, enforcing strict risk rules.", 
         icon: User,
-        vixValue: 30,
-        lossStreak: 0,
-        tradesExecuted: 0,
-        overrideCount: 0,
-        growthPlan: ["Connect your broker or start logging trades manually.", "Draft your initial trading plan.", "Watch the 'Intro to Journaling' video."],
-        riskEvents: []
+        vixValue: 55,
+        lossStreak: 3,
+        tradesExecuted: 3,
+        overrideCount: 1,
+        recoveryMode: true,
+        growthPlan: ["Focus on capital preservation, not making back losses.", "Strictly adhere to Recovery Mode risk limits.", "Journal every thought before entering a trade."],
+        riskEvents: [
+            { time: "09:45", description: "Loss streak limit of 3 reached. Recovery Mode is now recommended.", level: 'red' },
+            { time: "09:50", description: "Recovery Mode enabled by user.", level: 'green' },
+            { time: "10:15", description: "Execution blocked: Risk per trade exceeds Recovery Mode limit.", level: 'red' },
+        ]
     },
 ];
 
@@ -120,7 +143,7 @@ export function DemoControls() {
     useEffect(() => {
         if (typeof window !== "undefined") {
             const savedScenario = localStorage.getItem('ec_demo_scenario') as DemoScenario;
-            if (savedScenario) {
+            if (savedScenario && scenarios.some(s => s.id === savedScenario)) {
                 setScenario(savedScenario);
             }
             const savedMarketMode = localStorage.getItem('ec_chart_market_mode') as ChartMarketMode;
@@ -141,6 +164,8 @@ export function DemoControls() {
         localStorage.setItem('ec_vix_override', String(scenarioData.vixValue));
         localStorage.setItem('ec_growth_plan_today', JSON.stringify(scenarioData.growthPlan));
         localStorage.setItem('ec_risk_events_today', JSON.stringify(scenarioData.riskEvents));
+        localStorage.setItem('ec_recovery_mode', String(!!scenarioData.recoveryMode));
+
 
         const todayKey = format(new Date(), 'yyyy-MM-dd');
         const allCounters = JSON.parse(localStorage.getItem("ec_daily_counters") || '{}');
@@ -157,9 +182,10 @@ export function DemoControls() {
         localStorage.removeItem("ec_simulated_pnl_today");
 
         // Manually dispatch storage events to ensure all hooks react
-        window.dispatchEvent(new StorageEvent('storage', { key: 'ec_demo_scenario' }));
-        window.dispatchEvent(new StorageEvent('storage', { key: 'ec_vix_override' }));
-        window.dispatchEvent(new StorageEvent('storage', { key: 'ec_daily_counters' }));
+        window.dispatchEvent(new StorageEvent('storage', { key: 'ec_demo_scenario', newValue: scenarioData.id }));
+        window.dispatchEvent(new StorageEvent('storage', { key: 'ec_vix_override', newValue: String(scenarioData.vixValue) }));
+        window.dispatchEvent(new StorageEvent('storage', { key: 'ec_daily_counters', newValue: JSON.stringify(allCounters) }));
+        window.dispatchEvent(new StorageEvent('storage', { key: 'ec_recovery_mode', newValue: String(!!scenarioData.recoveryMode) }));
         
         setScenario(scenarioData.id);
         addLog(`Demo Scenario Engine: Set to "${scenarioData.name}". State updated.`);
@@ -173,9 +199,11 @@ export function DemoControls() {
         const mode = newMarketMode as ChartMarketMode;
         localStorage.setItem('ec_chart_market_mode', mode);
         setMarketMode(mode);
+        window.dispatchEvent(new StorageEvent('storage', { key: 'ec_chart_market_mode', newValue: mode }));
     };
 
     const handleRunDisciplineDemo = () => {
+        handleScenarioChange('drawdown');
         localStorage.setItem('ec_discipline_demo_flow', 'start');
         window.dispatchEvent(new CustomEvent('start-discipline-demo'));
     }
@@ -252,7 +280,7 @@ export function DemoControls() {
                         </TooltipContent>
                     </Tooltip>
                 </TooltipProvider>
-                <DropdownMenuContent align="end" className="w-64">
+                <DropdownMenuContent align="end" className="w-80">
                     <DropdownMenuLabel>Account Scenario</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuRadioGroup value={scenario} onValueChange={handleScenarioChange}>
@@ -315,5 +343,3 @@ export function DemoControls() {
         </div>
     )
 }
-
-    
