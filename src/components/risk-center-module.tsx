@@ -1,5 +1,4 @@
 
-
       "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -30,7 +29,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { useRiskState, type RiskState, type VixZone, type RiskDecision, type ActiveNudge, type SLDisciplineData } from "@/hooks/use-risk-state";
+import { useRiskState, type RiskState, type VixZone, type RiskDecision, type ActiveNudge, type SLDisciplineData, type LeverageDistributionData } from "@/hooks/use-risk-state";
 import { Skeleton } from "./ui/skeleton";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "./ui/drawer";
 import { Slider } from "./ui/slider";
@@ -941,65 +940,61 @@ function VolatilityPolicyCard() {
 }
 
 function PersonaFitAnalysis({ onSetModule }: { onSetModule: (module: any) => void }) {
-    const [sensitivity, setSensitivity] = useState(50); // 0=conservative, 50=balanced, 100=aggressive
+    const [persona, setPersona] = useState<{ primaryPersonaName?: string } | null>(null);
 
     useEffect(() => {
-        const saved = localStorage.getItem("ec_risk_sensitivity_value");
-        if (saved) {
-            setSensitivity(parseInt(saved, 10));
+        if (typeof window !== "undefined") {
+            const personaData = localStorage.getItem("ec_persona_final") || localStorage.getItem("ec_persona_base");
+            if (personaData) {
+                setPersona(JSON.parse(personaData));
+            }
         }
     }, []);
 
-    const handleSensitivityChange = (value: number[]) => {
-        const val = value[0];
-        setSensitivity(val);
-        let setting: 'conservative' | 'balanced' | 'aggressive' = 'balanced';
-        if (val < 33) setting = 'conservative';
-        else if (val > 66) setting = 'aggressive';
-        
-        localStorage.setItem("ec_risk_sensitivity", setting);
-        localStorage.setItem("ec_risk_sensitivity_value", String(val));
-        
-        // This will trigger the useRiskState hook to recompute
-        window.dispatchEvent(new StorageEvent('storage', { key: 'ec_risk_sensitivity' }));
-    };
+    const analysis = useMemo(() => {
+        if (!persona) return null;
 
-    const getSensitivityLabel = (value: number) => {
-        if (value < 33) return 'Conservative';
-        if (value > 66) return 'Aggressive';
-        return 'Balanced';
-    };
+        const results: { status: 'Caution' | 'Good', reasons: string[] } = { status: 'Good', reasons: [] };
+        const personaName = persona.primaryPersonaName || '';
+
+        if (personaName.includes("Impulsive") || personaName.includes("Sprinter")) {
+            results.status = 'Caution';
+            results.reasons.push("High daily trade limits may enable overtrading.");
+            results.reasons.push("High leverage can amplify losses, risky for this style.");
+        }
+        
+        if (results.status === 'Good') {
+            results.reasons.push("Strategy risk parameters seem well-suited to your trading persona.");
+        }
+
+        return results;
+    }, [persona]);
+
+    if (!analysis) return null;
+
+    const isCaution = analysis.status === 'Caution';
 
     return (
-        <Card className="bg-muted/30 border-border/50">
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                    <User className="h-5 w-5" /> Persona Risk Sensitivity
+        <Card className={cn("bg-muted/30 border-border/50", isCaution && "border-amber-500/30 bg-amber-950/20")}>
+            <CardHeader className="pb-4">
+                <CardTitle className={cn("text-base flex items-center gap-2", isCaution && "text-amber-400")}>
+                    <User className="h-5 w-5" />
+                    Persona-Strategy Fit
                 </CardTitle>
-                <CardDescription className="text-xs">
-                    This is a personal overlay that tunes Arjun's firewall to your risk tolerance for today's session.
-                </CardDescription>
             </CardHeader>
             <CardContent>
-                <div className="space-y-4">
-                    <Slider
-                        value={[sensitivity]}
-                        onValueChange={handleSensitivityChange}
-                        max={100}
-                        step={1}
-                    />
-                    <div className="flex justify-between items-center">
-                        <span className="text-xs font-semibold text-blue-400">Conservative</span>
-                        <Badge variant="secondary">{getSensitivityLabel(sensitivity)}</Badge>
-                        <span className="text-xs font-semibold text-red-400">Aggressive</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground text-center">
-                        This adjusts VIX and leverage thresholds. It does not change your saved strategy rules.
-                    </p>
+                <div className="flex items-center gap-2 mb-3">
+                    <Badge variant={isCaution ? "destructive" : "secondary"} className={cn(
+                        isCaution && "bg-amber-500/20 text-amber-300 border-amber-500/30"
+                    )}>{analysis.status}</Badge>
+                    <p className="text-xs text-muted-foreground">vs. <span className="font-semibold text-foreground">{persona?.primaryPersonaName || "Your Persona"}</span></p>
                 </div>
+                 <ul className="space-y-2 text-sm text-muted-foreground list-disc list-inside">
+                    {analysis.reasons.map((reason, i) => <li key={i}>{reason}</li>)}
+                </ul>
             </CardContent>
         </Card>
-    );
+    )
 }
 
 function RiskNudge({ nudge }: { nudge: ActiveNudge | null }) {
@@ -1217,6 +1212,18 @@ const SLDisciplineChart = ({ data }: { data: SLDisciplineData[] }) => (
     </ResponsiveContainer>
 );
 
+const LeverageHistogram = ({ data }: { data: LeverageDistributionData[] }) => (
+    <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data}>
+            <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+            <YAxis tick={{ fontSize: 10 }} />
+            <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
+            <Bar dataKey="count" fill="hsl(var(--primary))" radius={2} />
+        </BarChart>
+    </ResponsiveContainer>
+);
+
+
 export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
     const { riskState, isLoading, refresh } = useRiskState();
     const [activeTab, setActiveTab] = useState("today");
@@ -1300,21 +1307,24 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                                 </div>
                            )}
                         </TelemetryCard>
+                        <TelemetryCard title="Leverage Stability" value={personalRisk.mostCommonLeverageBucket} hint="Most Common Leverage">
+                             <LeverageHistogram data={personalRisk.leverageDistribution} />
+                             {personalRisk.leverageDistributionWarning && (
+                                <Alert variant="destructive" className="mt-4">
+                                    <AlertTriangle className="h-4 w-4" />
+                                    <AlertTitle>Warning</AlertTitle>
+                                    <AlertDescription>
+                                        High leverage ({personalRisk.highLeverageTradesToday} trades > 20x) detected in Elevated/Extreme volatility.
+                                    </AlertDescription>
+                                </Alert>
+                             )}
+                        </TelemetryCard>
                         <TelemetryCard title="Risk-per-Trade Drift" value={`${personalRisk.riskLeakageRate.toFixed(1)}x`} hint="Actual loss vs. planned risk">
                              <ChartContainer config={{}} className="h-full w-full">
                                 <LineChart data={personalRisk.overridesTrend7d} margin={{ top: 5, right: 10, left: -30, bottom: 0 }}>
                                     <YAxis domain={[0,2]} tickFormatter={(v) => `${v.toFixed(1)}x`} tick={{fontSize: 10}}/>
                                     <ChartTooltip content={<ChartTooltipContent formatter={(v) => `${Number(v).toFixed(1)}x`}/>} />
                                     <Line type="monotone" dataKey="value" stroke="hsl(var(--chart-4))" strokeWidth={2} dot={false} />
-                                </LineChart>
-                            </ChartContainer>
-                        </TelemetryCard>
-                        <TelemetryCard title="Overrides & Breaches" value={`${todaysLimits.tradesExecuted > 0 ? (dailyCounters.overrideCount / todaysLimits.tradesExecuted * 100).toFixed(0) : 0}%`} hint="Trades that broke a rule">
-                            <ChartContainer config={{}} className="h-full w-full">
-                                <LineChart data={personalRisk.overridesTrend7d} margin={{ top: 5, right: 10, left: -30, bottom: 0 }}>
-                                     <YAxis domain={[0, 5]} tickFormatter={(v) => v.toFixed(0)} tick={{fontSize: 10}} />
-                                     <ChartTooltip content={<ChartTooltipContent />} />
-                                    <Line type="step" dataKey="value" stroke="hsl(var(--chart-5))" strokeWidth={2} dot={false} />
                                 </LineChart>
                             </ChartContainer>
                         </TelemetryCard>

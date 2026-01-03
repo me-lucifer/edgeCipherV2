@@ -36,6 +36,11 @@ export type SLDisciplineData = {
     removed: number;
 };
 
+export type LeverageDistributionData = {
+    name: string;
+    count: number;
+};
+
 
 export type RiskState = {
     marketRisk: {
@@ -59,6 +64,10 @@ export type RiskState = {
         overridesTrend7d: { value: number }[];
         slDisciplineToday: SLDisciplineData[];
         slDiscipline7d: SLDisciplineData[];
+        leverageDistribution: LeverageDistributionData[];
+        mostCommonLeverageBucket: string;
+        highLeverageTradesToday: number;
+        leverageDistributionWarning: boolean;
     };
     todaysLimits: {
         maxTrades: number;
@@ -173,6 +182,15 @@ export function useRiskState() {
                 return { name: format(day, 'MMM d'), respected, moved, removed };
             });
 
+            const leverageDistribution = [
+                { name: '1-5x', count: scenario === 'drawdown' ? 15 : 8 },
+                { name: '6-10x', count: scenario === 'drawdown' ? 8 : 15 },
+                { name: '11-20x', count: scenario === 'high_vol' ? 5 : 10 },
+                { name: '20x+', count: scenario === 'high_vol' ? 8 : 2 },
+            ];
+            
+            const highLeverageTradesToday = leverageDistribution.find(b => b.name === '20x+')?.count || 0;
+
             const personalRisk = {
                 disciplineScore: personaData.disciplineScore || 70,
                 disciplineScoreDelta: -5, // Mock data
@@ -189,6 +207,10 @@ export function useRiskState() {
                 overridesTrend7d: Array.from({ length: 7 }, () => ({ value: Math.random() > 0.8 ? 1 : 0 })),
                 slDisciplineToday: slDisciplineTodayData,
                 slDiscipline7d: slDiscipline7dData,
+                leverageDistribution,
+                mostCommonLeverageBucket: '6-10x',
+                highLeverageTradesToday,
+                leverageDistributionWarning: highLeverageTradesToday > 5 && (vixZone === 'Elevated' || vixZone === 'Extreme'),
             };
 
             // 4. Compute Today's Limits & Risk Budget
@@ -359,7 +381,6 @@ export function useRiskState() {
             };
             
             setRiskState(computedState);
-            localStorage.setItem("ec_risk_state", JSON.stringify(computedState));
 
         } catch (error) {
             console.error("Failed to compute risk state:", error);
