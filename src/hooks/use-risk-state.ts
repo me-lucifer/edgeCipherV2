@@ -60,9 +60,15 @@ export function useRiskState() {
             const activeStrategy = strategies.find((s: any) => s.status === 'active'); // Simplified: gets first active
             
             // 2. Compute Market Risk
+            const vixOverride = localStorage.getItem("ec_vix_override");
             let vixValue = 45;
-            if (scenario === 'high_vol') vixValue = 82;
-            if (scenario === 'drawdown') vixValue = 65;
+            if (vixOverride) {
+                vixValue = parseInt(vixOverride, 10);
+            } else if (scenario === 'high_vol') {
+                vixValue = 82;
+            } else if (scenario === 'drawdown') {
+                vixValue = 65;
+            }
             const vixZone = getVixZone(vixValue);
             const marketRisk = {
                 vixValue,

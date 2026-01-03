@@ -1,12 +1,12 @@
 
-"use client";
+      "use client";
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Pencil, ShieldAlert, BarChart, Info, CheckCircle, XCircle, AlertTriangle, Gauge, Calendar, Zap, Sun, Moon, Waves, User, ArrowRight, RefreshCw } from "lucide-react";
+import { Bot, Pencil, ShieldAlert, BarChart, Info, CheckCircle, XCircle, AlertTriangle, Gauge, Calendar, Zap, Sun, Moon, Waves, User, ArrowRight, RefreshCw, SlidersHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -31,6 +31,7 @@ import {
 import { useRiskState, type RiskState, type VixZone } from "@/hooks/use-risk-state";
 import { Skeleton } from "./ui/skeleton";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "./ui/drawer";
+import { Slider } from "./ui/slider";
 
 
 interface RiskCenterModuleProps {
@@ -64,9 +65,9 @@ function TradeDecisionBar({ decision }: { decision: RiskState['decision'] | null
     if (!decision) return <Skeleton className="h-20 w-full" />;
 
     const decisionConfig = {
-        green: { status: "Green / Go", icon: CheckCircle, className: "border-green-500/30 text-green-400" },
-        yellow: { status: "Amber / Caution", icon: AlertTriangle, className: "border-amber-500/30 text-amber-400" },
-        red: { status: "Red / No-Go", icon: XCircle, className: "border-red-500/30 text-red-400" },
+        green: { status: "Green: OK to trade", icon: CheckCircle, className: "border-green-500/30 text-green-400" },
+        yellow: { status: "Amber: Trade only A+ setups", icon: AlertTriangle, className: "border-amber-500/30 text-amber-400" },
+        red: { status: "Red: Don't trade", icon: XCircle, className: "border-red-500/30 text-red-400" },
     };
 
     const config = decisionConfig[decision.level];
@@ -104,6 +105,84 @@ function TradeDecisionBar({ decision }: { decision: RiskState['decision'] | null
         </>
     );
 }
+
+function MarketRiskCard({ marketRisk, onSetModule }: { marketRisk: RiskState['marketRisk'], onSetModule: (module: any) => void }) {
+    const { vixValue, vixZone } = marketRisk;
+    const [simulatedVix, setSimulatedVix] = useState(vixValue);
+    
+    useEffect(() => {
+        setSimulatedVix(vixValue);
+    }, [vixValue]);
+
+    const handleSliderChange = (value: number[]) => {
+        const newVix = value[0];
+        setSimulatedVix(newVix);
+        localStorage.setItem("ec_vix_override", String(newVix));
+    };
+
+    const zoneInfo = {
+        Calm: { color: 'green', impact: 'Markets are quiet. Setups may take longer to play out; be patient.' },
+        Normal: { color: 'blue', impact: 'Standard conditions. Follow your plan as designed.' },
+        Elevated: { color: 'amber', impact: 'Expect whipsaws and spikes. Consider reducing size.' },
+        Extreme: { color: 'red', impact: 'High risk of erratic moves. Many pros sit out.' }
+    };
+    
+    const { color, impact } = zoneInfo[vixZone] || zoneInfo.Normal;
+    const colorClass = `hsl(var(--chart-${color === 'green' ? 2 : color === 'blue' ? 1 : color === 'amber' ? 4 : 5}))`;
+    const conicGradient = `conic-gradient(
+        ${colorClass} 0deg,
+        ${colorClass} calc(${vixValue} * 1.8deg),
+        hsl(var(--muted)) calc(${vixValue} * 1.8deg),
+        hsl(var(--muted)) 180deg
+    )`;
+
+
+    return (
+        <Card className="bg-muted/30 border-border/50">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Gauge className="h-5 w-5" /> Market Volatility (Crypto VIX)</CardTitle>
+            </CardHeader>
+            <CardContent className="grid md:grid-cols-2 gap-6 items-center">
+                <div 
+                    className="relative flex items-center justify-center w-full h-24 overflow-hidden rounded-t-full bg-muted"
+                >
+                    <div 
+                        className="absolute top-0 left-0 w-full h-full rounded-t-full"
+                        style={{ background: conicGradient }}
+                    />
+                    <div className="absolute w-[85%] h-[85%] bg-muted/80 backdrop-blur-sm rounded-t-full" />
+                     <div className="relative flex flex-col items-center justify-center z-10 -mt-2">
+                        <p className="text-4xl font-bold text-foreground">{vixValue}</p>
+                        <Badge className={cn("text-base", 
+                            vixZone === "Extreme" && "bg-red-500/20 text-red-300 border-red-500/30",
+                            vixZone === "Elevated" && "bg-amber-500/20 text-amber-300 border-amber-500/30",
+                            vixZone === "Normal" && "bg-blue-500/20 text-blue-300 border-blue-500/30",
+                            vixZone === "Calm" && "bg-green-500/20 text-green-300 border-green-500/30"
+                        )}>{vixZone}</Badge>
+                    </div>
+                </div>
+                <div className="space-y-3">
+                   <p className="text-sm text-muted-foreground"><span className="font-semibold text-foreground">Impact:</span> {impact}</p>
+                   <Button variant="link" className="p-0 h-auto" onClick={() => onSetModule('cryptoVix')}>
+                       Open Crypto VIX Module <ArrowRight className="ml-2 h-4 w-4" />
+                   </Button>
+                </div>
+            </CardContent>
+            <CardFooter className="border-t pt-4">
+                <div className="w-full space-y-3">
+                    <Label className="text-xs text-muted-foreground flex items-center gap-2"><SlidersHorizontal className="h-3 w-3" /> Simulate VIX (Prototype)</Label>
+                    <Slider
+                        defaultValue={[vixValue]}
+                        max={100}
+                        step={1}
+                        onValueChange={handleSliderChange}
+                    />
+                </div>
+            </CardFooter>
+        </Card>
+    );
+}
+
 
 export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
     const { toast } = useToast();
@@ -192,29 +271,8 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
             
             <div className="grid lg:grid-cols-3 gap-8 items-start">
                 <div className="lg:col-span-2 space-y-8">
-                    <Card className="bg-muted/30 border-border/50">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2"><Gauge className="h-5 w-5" /> Market Volatility</CardTitle>
-                        </CardHeader>
-                        <CardContent className="grid md:grid-cols-2 gap-6">
-                            <div className="flex flex-col items-center justify-center p-6 bg-muted rounded-lg">
-                                <p className="text-sm text-muted-foreground">Crypto VIX</p>
-                                <p className="text-5xl font-bold font-mono">{marketRisk.vixValue}</p>
-                                <Badge className={cn("text-base", 
-                                    marketRisk.vixZone === "Extreme" && "bg-red-500/20 text-red-300 border-red-500/30",
-                                    marketRisk.vixZone === "Elevated" && "bg-amber-500/20 text-amber-300 border-amber-500/30",
-                                    marketRisk.vixZone === "Normal" && "bg-blue-500/20 text-blue-300 border-blue-500/30",
-                                    marketRisk.vixZone === "Calm" && "bg-green-500/20 text-green-300 border-green-500/30"
-                                )}>{marketRisk.vixZone}</Badge>
-                            </div>
-                            <div className="space-y-3">
-                               <p className="text-sm text-muted-foreground">High volatility means larger price swings and more risk. It’s easier to get stopped out on noise. Low volatility means smaller moves and requires more patience.</p>
-                               <Button variant="link" className="p-0 h-auto" onClick={() => onSetModule('cryptoVix')}>
-                                   Open Crypto VIX Module <ArrowRight className="ml-2 h-4 w-4" />
-                               </Button>
-                            </div>
-                        </CardContent>
-                    </Card>
+                   
+                    <MarketRiskCard marketRisk={marketRisk} onSetModule={onSetModule} />
 
                     <Card className="bg-muted/30 border-border/50">
                         <CardHeader>
