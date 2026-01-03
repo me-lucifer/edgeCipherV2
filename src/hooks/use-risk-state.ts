@@ -146,8 +146,8 @@ export function useRiskState() {
             const accountCapital = assumedCapital;
             const currentPnLToday = scenario === 'drawdown' ? -450 : (dailyCounters.tradesExecuted > 0 ? 150 : 0); // Mock PnL
             
-            const maxDailyLossPct = baseRules?.maxDailyLossPct || 3;
-            const riskPerTradePct = baseRules?.riskPerTradePct || 1;
+            const maxDailyLossPct = recoveryMode ? Math.min(baseRules?.maxDailyLossPct || 3, 2) : (baseRules?.maxDailyLossPct || 3);
+            const riskPerTradePct = recoveryMode ? Math.min(baseRules?.riskPerTradePct || 1, 0.5) : (baseRules?.riskPerTradePct || 1);
             
             const maxDailyLossValue = accountCapital * (maxDailyLossPct / 100);
             const dailyBudgetRemaining = Math.max(0, maxDailyLossValue - Math.abs(Math.min(0, currentPnLToday)));
@@ -155,13 +155,13 @@ export function useRiskState() {
             const maxSafeTradesRemaining = riskPerTradeValue > 0 ? Math.floor(dailyBudgetRemaining / riskPerTradeValue) : 0;
             
             const todaysLimits = {
-                maxTrades: baseRules?.maxDailyTrades || 5,
+                maxTrades: recoveryMode ? 2 : (baseRules?.maxDailyTrades || 5),
                 tradesExecuted: dailyCounters.tradesExecuted || 0,
                 maxDailyLossPct,
                 lossStreak: dailyCounters.lossStreak || 0,
-                cooldownActive: (guardrails.cooldownAfterLosses !== false && (dailyCounters.lossStreak || 0) >= 2),
+                cooldownActive: recoveryMode || (guardrails.cooldownAfterLosses !== false && (dailyCounters.lossStreak || 0) >= 2),
                 riskPerTradePct,
-                leverageCap: baseRules?.leverageCap || 20,
+                leverageCap: recoveryMode ? 10 : (baseRules?.leverageCap || 20),
                 recoveryMode: recoveryMode,
                 dailyBudgetRemaining,
                 maxSafeTradesRemaining,
@@ -180,6 +180,11 @@ export function useRiskState() {
             // 5. Compute Final Decision
             const reasons: string[] = [];
             let level: "green" | "yellow" | "red" = "green";
+            
+            if (recoveryMode && level !== 'red') {
+                level = 'yellow';
+                reasons.push("Recovery Mode is active, enforcing stricter risk protocols.");
+            }
 
             if (todaysLimits.cooldownActive) {
                 level = "red";
@@ -212,7 +217,7 @@ export function useRiskState() {
 
             // Leverage Check from open positions
             const maxLeverage = Math.max(...mockPositions.map(p => p.leverage));
-            if (maxLeverage >= 20 || (maxLeverage >= 15 && (vixZone === 'Elevated' || vixZone === 'Extreme'))) {
+            if (maxLeverage >= todaysLimits.leverageCap || (maxLeverage >= 15 && (vixZone === 'Elevated' || vixZone === 'Extreme'))) {
                 level = 'red';
                 reasons.push(`Excessive Leverage: High leverage (${maxLeverage}x) detected in high volatility (${vixZone}), increasing liquidation risk.`);
             } else if (maxLeverage >= 15) {
