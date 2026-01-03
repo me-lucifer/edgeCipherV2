@@ -16,6 +16,7 @@ import {
   DialogDescription,
   DialogFooter,
   DialogClose,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -1108,7 +1109,7 @@ function ReportDialog({ reportType }: { reportType: ReportType }) {
         const title = `### ${reportType} Trading Report ###`;
         const performance = `**Performance:** PnL ${reportData.pnl} | Win Rate ${reportData.winRate}`;
         if (short) {
-            return `${title}\n${performance}\n**Focus:** ${reportData.recommendations[0]}`;
+            return `${title}\\n${performance}\\n**Focus:** ${reportData.recommendations[0]}`;
         }
         return `
 ${title}
@@ -1130,7 +1131,7 @@ ${title}
 - Worst: ${reportData.worstCondition}
 
 **Recommended Next Actions**
-${reportData.recommendations.map(r => `- ${r}`).join('\n')}
+${reportData.recommendations.map(r => `- ${r}`).join('\\n')}
         `.trim();
     };
 
@@ -1334,3 +1335,5 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
         </div>
     );
 }
+
+    
