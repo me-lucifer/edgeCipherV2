@@ -1018,6 +1018,68 @@ function VolatilityPolicyCard() {
 }
 
 
+function PersonaFitAnalysis({ onSetModule }: { onSetModule: (module: any) => void }) {
+    const [sensitivity, setSensitivity] = useState(50); // 0=conservative, 50=balanced, 100=aggressive
+
+    useEffect(() => {
+        const saved = localStorage.getItem("ec_risk_sensitivity_value");
+        if (saved) {
+            setSensitivity(parseInt(saved, 10));
+        }
+    }, []);
+
+    const handleSensitivityChange = (value: number[]) => {
+        const val = value[0];
+        setSensitivity(val);
+        let setting: 'conservative' | 'balanced' | 'aggressive' = 'balanced';
+        if (val < 33) setting = 'conservative';
+        else if (val > 66) setting = 'aggressive';
+        
+        localStorage.setItem("ec_risk_sensitivity", setting);
+        localStorage.setItem("ec_risk_sensitivity_value", String(val));
+        
+        // This will trigger the useRiskState hook to recompute
+        window.dispatchEvent(new StorageEvent('storage', { key: 'ec_risk_sensitivity' }));
+    };
+
+    const getSensitivityLabel = (value: number) => {
+        if (value < 33) return 'Conservative';
+        if (value > 66) return 'Aggressive';
+        return 'Balanced';
+    };
+
+    return (
+        <Card className="bg-muted/30 border-border/50">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                    <User className="h-5 w-5" /> Persona Risk Sensitivity
+                </CardTitle>
+                <CardDescription className="text-xs">
+                    This is an overlay that tunes Arjun's firewall to your personal risk tolerance for today's session.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="space-y-4">
+                    <Slider
+                        value={[sensitivity]}
+                        onValueChange={handleSensitivityChange}
+                        max={100}
+                        step={1}
+                    />
+                    <div className="flex justify-between items-center">
+                        <span className="text-xs font-semibold text-blue-400">Conservative</span>
+                        <Badge variant="secondary">{getSensitivityLabel(sensitivity)}</Badge>
+                        <span className="text-xs font-semibold text-red-400">Aggressive</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground text-center">
+                        This adjusts VIX and leverage thresholds. It does not change your saved strategy rules.
+                    </p>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
 export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
     const { riskState, isLoading, refresh } = useRiskState();
 
@@ -1079,6 +1141,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
 
                 <div className="lg:col-span-1 space-y-8 sticky top-24">
                      <RevengeRiskCard revengeRiskIndex={personalRisk.revengeRiskIndex} revengeRiskLevel={personalRisk.revengeRiskLevel} />
+                     <PersonaFitAnalysis onSetModule={onSetModule} />
                      <PersonalRiskCard personalRisk={personalRisk} onSetModule={onSetModule} />
                      <TodaysLimitsCard limits={todaysLimits} onSetModule={onSetModule} />
                      <RiskBudgetCard limits={todaysLimits} decision={decision} refreshState={refresh} pnlTrend7d={personalRisk.pnlTrend7d}/>

@@ -92,6 +92,8 @@ export function useRiskState() {
             const recoveryMode = localStorage.getItem('ec_recovery_mode') === 'true';
             const guardrails = JSON.parse(localStorage.getItem("ec_guardrails") || "{}");
             const assumedCapital = parseFloat(localStorage.getItem("ec_assumed_capital") || "10000");
+            const sensitivitySetting = localStorage.getItem("ec_risk_sensitivity") || 'balanced';
+
 
             const riskEventsToday: RiskEvent[] = [];
             const now = new Date();
@@ -196,6 +198,25 @@ export function useRiskState() {
             const reasons: string[] = [];
             let level: "green" | "yellow" | "red" = "green";
             
+            // Apply sensitivity modifiers
+            let vixYellowThreshold = 50;
+            let vixRedThreshold = 75;
+            let leverageWarnThreshold = 15;
+            let leverageFailThreshold = 20;
+
+            if (sensitivitySetting === 'conservative') {
+                vixYellowThreshold = 45;
+                vixRedThreshold = 65;
+                leverageWarnThreshold = 12;
+                leverageFailThreshold = 18;
+            } else if (sensitivitySetting === 'aggressive') {
+                vixYellowThreshold = 60;
+                vixRedThreshold = 85;
+                leverageWarnThreshold = 20;
+                leverageFailThreshold = 30;
+            }
+
+
             if (recoveryMode && level !== 'red') {
                 level = 'yellow';
                 reasons.push("Recovery Mode is active, enforcing stricter risk protocols.");
@@ -209,10 +230,14 @@ export function useRiskState() {
                 level = "red";
                 reasons.push(`Daily Budget Exceeded: Daily loss limit of ${maxDailyLossPct}% has been reached.`);
             }
-            if (vixZone === "Extreme") {
+             if (vixValue > vixRedThreshold) {
                 level = "red";
-                reasons.push("Extreme Volatility: Market VIX is in the 'Extreme' zone.");
+                reasons.push(`Extreme Volatility: Market VIX is in the 'Extreme' zone (Threshold: >${vixRedThreshold}).`);
+            } else if (vixValue > vixYellowThreshold) {
+                if (level !== 'red') level = 'yellow';
+                reasons.push(`Elevated Volatility: Market VIX is '${vixZone}' (Threshold: >${vixYellowThreshold}).`);
             }
+
             if (revengeRiskLevel === 'Critical') {
                 level = "red";
                 reasons.push("Critical Revenge Risk: Index is at a critical level, indicating high probability of emotional trading.");
@@ -225,17 +250,13 @@ export function useRiskState() {
                 if (level !== 'red') level = "yellow";
                 reasons.push(`Low Discipline Score: Recent score of ${personalRisk.disciplineScore} suggests rule-breaking tendency.`);
             }
-             if (guardrails.warnOnHighVIX && vixZone === "Elevated") {
-                if (level !== 'red') level = "yellow";
-                reasons.push("Elevated Volatility: Your guardrails warn against trading in 'Elevated' VIX.");
-            }
-
+            
             // Leverage Check from open positions
             const maxLeverage = Math.max(...mockPositions.map(p => p.leverage));
-            if (maxLeverage >= todaysLimits.leverageCap || (maxLeverage >= 15 && (vixZone === 'Elevated' || vixZone === 'Extreme'))) {
+            if (maxLeverage >= leverageFailThreshold || (maxLeverage >= leverageWarnThreshold && (vixZone === 'Elevated' || vixZone === 'Extreme'))) {
                 level = 'red';
                 reasons.push(`Excessive Leverage: High leverage (${maxLeverage}x) detected in high volatility (${vixZone}), increasing liquidation risk.`);
-            } else if (maxLeverage >= 15) {
+            } else if (maxLeverage >= leverageWarnThreshold) {
                 if (level !== 'red') level = 'yellow';
                 reasons.push(`High Leverage: Open position with ${maxLeverage}x leverage detected.`);
             }
