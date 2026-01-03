@@ -21,7 +21,11 @@ export type RiskState = {
     };
     personalRisk: {
         disciplineScore: number;
+        disciplineScoreDelta: number;
         emotionalScore: number;
+        emotionalScoreDelta: number;
+        consistencyScore: number;
+        consistencyScoreDelta: number;
         // Mocked for now
         slMovedRate: number;
         riskLeakageRate: number;
@@ -79,7 +83,11 @@ export function useRiskState() {
             // 3. Compute Personal Risk
             const personalRisk = {
                 disciplineScore: personaData.disciplineScore || 70,
+                disciplineScoreDelta: -5, // Mock data
                 emotionalScore: personaData.emotionScore || 50,
+                emotionalScoreDelta: 10, // Mock data
+                consistencyScore: 65, // Mock data
+                consistencyScoreDelta: 2, // Mock data
                 slMovedRate: scenario === 'drawdown' ? 25 : 8, // Mock
                 riskLeakageRate: scenario === 'drawdown' ? 1.5 : 0.2, // Mock
             };

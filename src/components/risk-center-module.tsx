@@ -211,6 +211,119 @@ function MarketRiskCard({ marketRisk, onSetModule }: { marketRisk: RiskState['ma
     );
 }
 
+const DeltaIndicator = ({ delta, unit = "" }: { delta: number; unit?: string }) => {
+    if (delta === 0) return null;
+    const isPositive = delta > 0;
+    return (
+        <span className={cn(
+            "text-xs font-mono flex items-center ml-2",
+            isPositive ? "text-green-400" : "text-red-400"
+        )}>
+            {isPositive ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
+            {isPositive ? '+' : ''}{delta.toFixed(0)}{unit}
+        </span>
+    );
+};
+
+const ScoreGauge = ({ score, label, interpretation, delta, colorClass }: { score: number; label: string; interpretation: string; delta?: number; colorClass: string; }) => {
+    const conicGradient = `conic-gradient(
+        ${colorClass} 0deg,
+        ${colorClass} calc(${score} * 1.8deg),
+        hsl(var(--muted)) calc(${score} * 1.8deg),
+        hsl(var(--muted)) 180deg
+    )`;
+
+    return (
+        <div className="flex flex-col items-center gap-2 text-center">
+            <div 
+                className="relative flex items-center justify-center w-32 h-16 overflow-hidden rounded-t-full bg-muted"
+            >
+                <div 
+                    className="absolute top-0 left-0 w-full h-full rounded-t-full"
+                    style={{ background: conicGradient }}
+                />
+                <div className="absolute w-[85%] h-[85%] bg-muted/80 backdrop-blur-sm rounded-t-full" />
+                 <div className="relative flex flex-col items-center justify-center z-10 -mt-2">
+                    <p className="text-3xl font-bold text-foreground">{score}</p>
+                </div>
+            </div>
+            <p className="text-sm font-medium text-foreground -mt-3">{label}</p>
+            <div className="flex items-baseline h-4">
+                 <p className="text-xs font-semibold" style={{ color: colorClass }}>{interpretation}</p>
+                {delta !== undefined && <DeltaIndicator delta={delta} />}
+            </div>
+        </div>
+    );
+};
+
+function PersonalRiskCard({ personalRisk, onSetModule }: { personalRisk: RiskState['personalRisk'], onSetModule: (module: any) => void }) {
+    const { disciplineScore, disciplineScoreDelta, emotionalScore, emotionalScoreDelta, consistencyScore, consistencyScoreDelta } = personalRisk;
+
+    const getInterpretation = (score: number, type: 'discipline' | 'emotion' | 'consistency') => {
+        if (type === 'discipline') {
+            if (score > 75) return 'Consistent';
+            if (score > 50) return 'Inconsistent';
+            return 'Poor';
+        }
+        if (type === 'emotion') {
+            if (score > 75) return 'Impulsive';
+            if (score > 50) return 'Reactive';
+            return 'Controlled';
+        }
+        if (type === 'consistency') {
+            if (score > 75) return 'High';
+            if (score > 50) return 'Medium';
+            return 'Low';
+        }
+        return '';
+    }
+    
+    const getColor = (score: number, type: 'discipline' | 'emotion' | 'consistency') => {
+        if (type === 'discipline' || type === 'consistency') {
+            if (score > 75) return 'hsl(var(--chart-2))';
+            if (score > 50) return 'hsl(var(--chart-4))';
+            return 'hsl(var(--chart-5))';
+        }
+        if (type === 'emotion') {
+            if (score > 75) return 'hsl(var(--chart-5))';
+            if (score > 50) return 'hsl(var(--chart-4))';
+            return 'hsl(var(--chart-2))';
+        }
+        return 'hsl(var(--foreground))';
+    };
+
+
+    return (
+         <Card className="bg-muted/30 border-border/50 sticky top-24">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><User className="h-5 w-5" /> Your Risk Posture</CardTitle>
+                <CardDescription>A snapshot of your psychological state.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                <div className="flex justify-around">
+                     <ScoreGauge 
+                        score={disciplineScore} 
+                        label="Discipline" 
+                        interpretation={getInterpretation(disciplineScore, 'discipline')}
+                        delta={disciplineScoreDelta}
+                        colorClass={getColor(disciplineScore, 'discipline')}
+                    />
+                    <ScoreGauge 
+                        score={emotionalScore} 
+                        label="Emotional Control" 
+                        interpretation={getInterpretation(emotionalScore, 'emotion')}
+                        delta={emotionalScoreDelta}
+                        colorClass={getColor(emotionalScore, 'emotion')}
+                    />
+                </div>
+                 <Button variant="link" className="p-0 h-auto w-full justify-center" onClick={() => onSetModule('analytics')}>
+                    Open Performance Analytics <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+            </CardContent>
+        </Card>
+    );
+}
+
 
 export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
     const { toast } = useToast();
@@ -332,29 +445,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                 </div>
 
                 <div className="lg:col-span-1 space-y-8">
-                     <Card className="bg-muted/30 border-border/50 sticky top-24">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2"><User className="h-5 w-5" /> Personal Risk Posture</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="flex justify-around text-center">
-                                <div>
-                                    <p className="text-xs text-muted-foreground">Discipline Score</p>
-                                    <p className="text-2xl font-bold">{personalRisk.disciplineScore}</p>
-                                </div>
-                                <div>
-                                    <p className="text-xs text-muted-foreground">Losing Streak</p>
-                                    <p className="text-2xl font-bold">{todaysLimits.lossStreak}</p>
-                                </div>
-                            </div>
-                            <div className="text-sm">
-                                <p className="text-muted-foreground">Trades Today: <Badge variant="secondary">{todaysLimits.tradesExecuted} / {todaysLimits.maxTrades}</Badge></p>
-                            </div>
-                            <Button variant="link" className="p-0 h-auto" onClick={() => onSetModule('analytics')}>
-                                Open Performance Analytics <ArrowRight className="ml-2 h-4 w-4" />
-                            </Button>
-                        </CardContent>
-                    </Card>
+                     <PersonalRiskCard personalRisk={personalRisk} onSetModule={onSetModule} />
                     <Card className="bg-muted/30 border-border/50">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2"><ShieldAlert className="h-5 w-5" /> Your Risk Rules</CardTitle>
