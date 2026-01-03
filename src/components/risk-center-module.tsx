@@ -37,6 +37,7 @@ import { Switch } from "./ui/switch";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { Progress } from "./ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { format } from 'date-fns';
 
 
 interface RiskCenterModuleProps {
@@ -56,12 +57,6 @@ const defaultRules: RiskRule[] = [
     { id: 'maxDailyLoss', label: "Max daily loss", value: 3, unit: '%', description: "Your 'circuit breaker'. If your account is down this much, you stop for the day." },
     { id: 'maxTradesPerDay', label: "Max trades per day", value: 5, unit: 'trades', description: "Helps prevent overtrading and decision fatigue." },
     { id: 'maxConsecutiveLosses', label: "Max consecutive losses", value: 3, unit: 'trades', description: "A hard stop to prevent a losing streak from becoming a blown account." },
-];
-
-const mockEvents = [
-    { time: "1:30 PM EST", event: "Fed Chair Speaks", impact: "High" },
-    { time: "4:00 PM EST", event: "BTC Options Expiry", impact: "Medium" },
-    { time: "Tomorrow 8:30 AM EST", event: "Non-Farm Payrolls", impact: "High" },
 ];
 
 const mockPositions = [
@@ -839,6 +834,52 @@ function RiskBudgetCard({ limits, decision, refreshState }: { limits: RiskState[
     );
 }
 
+function RiskEventsTimeline({ events }: { events: RiskState['riskEventsToday'] }) {
+    if (events.length === 0) {
+        return (
+            <Card className="bg-muted/30 border-border/50">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Calendar className="h-5 w-5" /> Today's Risk Events</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-center text-muted-foreground text-sm py-8">No significant risk events logged for today yet.</p>
+                </CardContent>
+            </Card>
+        );
+    }
+    return (
+        <Card className="bg-muted/30 border-border/50">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Calendar className="h-5 w-5" /> Today's Risk Events</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <ScrollArea className="h-64 pr-4">
+                    <div className="relative">
+                        <div className="absolute left-3 top-0 bottom-0 w-px bg-border -z-10" />
+                        <div className="space-y-6">
+                            {events.map((event, index) => (
+                                <div key={index} className="flex items-start gap-4">
+                                    <div className="relative">
+                                        <div className={cn("absolute top-1 left-3 -translate-x-1/2 w-3 h-3 rounded-full border-2 border-background",
+                                            event.level === 'red' && 'bg-red-500',
+                                            event.level === 'yellow' && 'bg-amber-500',
+                                            event.level === 'green' && 'bg-green-500'
+                                        )} />
+                                    </div>
+                                    <div className="pl-6">
+                                        <p className="text-xs text-muted-foreground">{event.time}</p>
+                                        <p className="text-sm font-medium text-foreground">{event.description}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </ScrollArea>
+            </CardContent>
+        </Card>
+    );
+}
+
 
 export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
     const { riskState, isLoading, refresh } = useRiskState();
@@ -862,7 +903,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
         );
     }
 
-    const { marketRisk, personalRisk, todaysLimits, decision } = riskState;
+    const { marketRisk, personalRisk, todaysLimits, decision, riskEventsToday } = riskState;
 
 
     return (
@@ -894,34 +935,8 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                    
                     <MarketRiskCard marketRisk={marketRisk} onSetModule={onSetModule} />
 
-                    <Card className="bg-muted/30 border-border/50">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2"><Calendar className="h-5 w-5" /> Key Events</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow><TableHead>Time</TableHead><TableHead>Event</TableHead><TableHead>Impact</TableHead></TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {mockEvents.map((event, i) => (
-                                        <TableRow key={i}>
-                                            <TableCell>{event.time}</TableCell>
-                                            <TableCell>{event.event}</TableCell>
-                                            <TableCell><Badge variant="outline" className={cn(
-                                                event.impact === "High" && "border-red-500/50 text-red-400",
-                                                event.impact === "Medium" && "border-amber-500/50 text-amber-400"
-                                            )}>{event.impact}</Badge></TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                             <Button variant="link" className="p-0 h-auto mt-4" onClick={() => onSetModule('news')}>
-                                Open News Module <ArrowRight className="ml-2 h-4 w-4" />
-                            </Button>
-                        </CardContent>
-                    </Card>
-
+                    <RiskEventsTimeline events={riskEventsToday} />
+                    
                     <ExposureSnapshotCard onSetModule={onSetModule} />
                 </div>
 

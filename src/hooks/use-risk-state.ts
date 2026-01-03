@@ -3,6 +3,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import type { DemoScenario } from '@/components/dashboard-module';
+import { format } from 'date-fns';
+
 
 // Types for the consolidated risk state
 export type VixZone = "Calm" | "Normal" | "Elevated" | "Extreme";
@@ -11,6 +13,12 @@ export type RiskDecision = {
     level: "green" | "yellow" | "red";
     message: string;
     reasons: string[];
+};
+
+export type RiskEvent = {
+    time: string;
+    description: string;
+    level: 'green' | 'yellow' | 'red';
 };
 
 export type RiskState = {
@@ -45,6 +53,7 @@ export type RiskState = {
         maxSafeTradesRemaining: number;
     };
     decision: RiskDecision;
+    riskEventsToday: RiskEvent[];
 };
 
 // Helper to get VIX zone from value
@@ -77,8 +86,10 @@ export function useRiskState() {
             const activeStrategy = strategies.find((s: any) => s.status === 'active'); // Simplified: gets first active
             const recoveryMode = localStorage.getItem('ec_recovery_mode') === 'true';
             const guardrails = JSON.parse(localStorage.getItem("ec_guardrails") || "{}");
-            
             const assumedCapital = parseFloat(localStorage.getItem("ec_assumed_capital") || "10000");
+
+            const riskEventsToday: RiskEvent[] = [];
+            const now = new Date();
 
             // 2. Compute Market Risk
             const vixOverride = localStorage.getItem("ec_vix_override");
@@ -96,6 +107,10 @@ export function useRiskState() {
                 vixZone,
                 message: `Volatility is ${vixZone}.`,
             };
+            if (vixZone === 'Elevated' || vixZone === 'Extreme') {
+                riskEventsToday.push({ time: format(now, 'HH:mm'), description: `VIX entered ${vixZone} zone`, level: 'yellow'});
+            }
+
 
             // 3. Compute Personal Risk & Revenge Risk
             let revengeRiskIndex = 0;
@@ -151,6 +166,16 @@ export function useRiskState() {
                 dailyBudgetRemaining,
                 maxSafeTradesRemaining,
             };
+
+             if (todaysLimits.lossStreak >= 2) {
+                riskEventsToday.push({ time: format(now, 'HH:mm'), description: `Loss streak reached ${todaysLimits.lossStreak}, cooldown recommended`, level: 'yellow' });
+            }
+             const overrideUsed = localStorage.getItem('ec_override_used_flag');
+            if (overrideUsed) {
+                riskEventsToday.push({ time: format(now, 'HH:mm'), description: `Rule override used: ${overrideUsed}`, level: 'yellow' });
+                localStorage.removeItem('ec_override_used_flag');
+            }
+
 
             // 5. Compute Final Decision
             const reasons: string[] = [];
@@ -213,7 +238,8 @@ export function useRiskState() {
                     level,
                     message: decisionMessages[level],
                     reasons
-                }
+                },
+                riskEventsToday,
             };
             
             setRiskState(computedState);

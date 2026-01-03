@@ -1078,7 +1078,7 @@ function PlanSummary({ control, setPlanStatus, onSetModule, entryChecklist, sess
                 {validationResult && (
                     <>
                         <Separator />
-                        <RuleChecks checks={validationResult.validations} onFix={onFix} />
+                        <RuleChecks checks={validationResult.validations} onFix={handleFix} />
                     </>
                 )}
                 
@@ -1597,6 +1597,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
 
             if(justification && justification.length > 0){
                 incrementOverrides();
+                localStorage.setItem('ec_override_used_flag', justification);
             }
     
             // Update strategy usage
@@ -2552,6 +2553,3 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
     
     
     
-
-
-
