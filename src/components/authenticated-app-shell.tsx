@@ -48,6 +48,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ChartModule } from './chart-module';
+import { useRiskState } from '@/hooks/use-risk-state';
 
 export type Module = 
   | 'dashboard' 
@@ -234,6 +235,14 @@ function AppHeader({ onSetModule, onOpenMobileNav }: { onSetModule: (module: Mod
   const [persona, setPersona] = useState<{ primaryPersonaName?: string }>({});
   const [greeting, setGreeting] = useState("Welcome");
   const { toggleEventLog } = useEventLog();
+  const { riskState } = useRiskState();
+
+  const riskLevel = riskState?.decision.level || 'green';
+  const riskConfig = {
+    green: { label: 'Normal', color: 'bg-green-500' },
+    yellow: { label: 'Elevated', color: 'bg-amber-500' },
+    red: { label: 'Critical', color: 'bg-red-500' }
+  };
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -270,6 +279,28 @@ function AppHeader({ onSetModule, onOpenMobileNav }: { onSetModule: (module: Mod
                     </TooltipTrigger>
                     <TooltipContent side="bottom" className="max-w-xs">
                         <p>This is a non-production prototype. Data is mocked or stored only in your browser. No real trading or live API calls happen here.</p>
+                    </TooltipContent>
+                </Tooltip>
+            </TooltipProvider>
+
+            <TooltipProvider>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                         <Button
+                            variant="outline"
+                            size="sm"
+                            className="hidden items-center gap-2 md:flex"
+                            onClick={() => onSetModule('riskCenter')}
+                        >
+                            <span className="relative flex h-2 w-2">
+                                <span className={cn("animate-ping absolute inline-flex h-full w-full rounded-full opacity-75", riskConfig[riskLevel].color)}></span>
+                                <span className={cn("relative inline-flex rounded-full h-2 w-2", riskConfig[riskLevel].color)}></span>
+                            </span>
+                            Risk: {riskConfig[riskLevel].label}
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p>Open Risk Center</p>
                     </TooltipContent>
                 </Tooltip>
             </TooltipProvider>
