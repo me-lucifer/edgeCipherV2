@@ -41,6 +41,14 @@ export type LeverageDistributionData = {
     count: number;
 };
 
+export type DisciplineLeaksData = {
+    overridesToday: number;
+    overrides7d: number;
+    breachesToday: number;
+    breaches7d: number;
+    topBreachTypes: string[];
+};
+
 
 export type RiskState = {
     marketRisk: {
@@ -68,6 +76,7 @@ export type RiskState = {
         mostCommonLeverageBucket: string;
         highLeverageTradesToday: number;
         leverageDistributionWarning: boolean;
+        disciplineLeaks: DisciplineLeaksData;
     };
     todaysLimits: {
         maxTrades: number;
@@ -191,6 +200,14 @@ export function useRiskState() {
             
             const highLeverageTradesToday = leverageDistribution.find(b => b.name === '20x+')?.count || 0;
 
+             const disciplineLeaks: DisciplineLeaksData = {
+                overridesToday: dailyCounters.overrideCount || 0,
+                overrides7d: (dailyCounters.overrideCount || 0) + (scenario === 'drawdown' ? 5 : 2),
+                breachesToday: (dailyCounters.tradesExecuted || 0) > 3 ? 1 : 0,
+                breaches7d: (scenario === 'drawdown' ? 8 : 3),
+                topBreachTypes: ['RR below min', 'Risk too high', 'VIX policy violated'],
+            };
+
             const personalRisk = {
                 disciplineScore: personaData.disciplineScore || 70,
                 disciplineScoreDelta: -5, // Mock data
@@ -211,6 +228,7 @@ export function useRiskState() {
                 mostCommonLeverageBucket: '6-10x',
                 highLeverageTradesToday,
                 leverageDistributionWarning: highLeverageTradesToday > 5 && (vixZone === 'Elevated' || vixZone === 'Extreme'),
+                disciplineLeaks,
             };
 
             // 4. Compute Today's Limits & Risk Budget

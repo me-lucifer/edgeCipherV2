@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Pencil, ShieldAlert, BarChart as BarChartIcon, Info, CheckCircle, XCircle, AlertTriangle, Gauge, Calendar, Zap, Sun, Moon, Waves, User, ArrowRight, RefreshCw, SlidersHorizontal, TrendingUp, Sparkles, Droplets, TrendingDown, BookOpen, Layers, Settings, ShieldCheck, MoreHorizontal, Copy, Edit, Archive, Trash2, Scale, HeartPulse, HardHat, Globe, FileText, Clipboard } from "lucide-react";
+import { Bot, Pencil, ShieldAlert, BarChart as BarChartIcon, Info, CheckCircle, XCircle, AlertTriangle, Gauge, Calendar, Zap, Sun, Moon, Waves, User, ArrowRight, RefreshCw, SlidersHorizontal, TrendingUp, Sparkles, Droplets, TrendingDown, BookOpen, Layers, Settings, ShieldCheck, MoreHorizontal, Copy, Edit, Archive, Trash2, Scale, HeartPulse, HardHat, Globe, FileText, Clipboard, Flag } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "./ui/input";
@@ -20,7 +20,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { useRiskState, type RiskState, type VixZone, type RiskDecision, type ActiveNudge, type SLDisciplineData, type LeverageDistributionData } from "@/hooks/use-risk-state";
+import { useRiskState, type RiskState, type VixZone, type RiskDecision, type ActiveNudge, type SLDisciplineData, type LeverageDistributionData, type DisciplineLeaksData } from "@/hooks/use-risk-state";
 import { Skeleton } from "./ui/skeleton";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "./ui/drawer";
 import { Slider } from "./ui/slider";
@@ -1157,7 +1157,7 @@ ${reportData.recommendations.map(r => `- ${r}`).join('\\n')}
     );
 }
 
-const TelemetryCard = ({ title, value, hint, children, className }: { title: string, value: string | React.ReactNode, hint: string, children: React.ReactNode, className?: string }) => (
+const TelemetryCard = ({ title, value, hint, children, className }: { title: string, value?: string | React.ReactNode, hint: string, children: React.ReactNode, className?: string }) => (
     <Card className={cn(className)}>
         <CardHeader>
             <CardTitle className="text-base">{title}</CardTitle>
@@ -1199,6 +1199,39 @@ const LeverageHistogram = ({ data }: { data: LeverageDistributionData[] }) => (
         </ResponsiveContainer>
     </ChartContainer>
 );
+
+const DisciplineLeaksCard = ({ disciplineLeaks, onSetModule }: { disciplineLeaks: DisciplineLeaksData, onSetModule: (module: any) => void }) => {
+    return (
+        <TelemetryCard
+            title="Discipline Leaks"
+            hint="Rule overrides and validation failures."
+        >
+            <div className="grid grid-cols-2 h-full gap-4">
+                <div className="flex flex-col items-center justify-center text-center p-2 bg-muted/50 rounded-lg">
+                    <p className="text-4xl font-bold font-mono">{disciplineLeaks.overridesToday}</p>
+                    <p className="text-xs text-muted-foreground">Overrides Today</p>
+                    <p className="text-xs text-muted-foreground font-mono mt-1">({disciplineLeaks.overrides7d} in 7d)</p>
+                </div>
+                <div className="flex flex-col items-center justify-center text-center p-2 bg-muted/50 rounded-lg">
+                     <p className="text-4xl font-bold font-mono">{disciplineLeaks.breachesToday}</p>
+                    <p className="text-xs text-muted-foreground">Breaches Today</p>
+                    <p className="text-xs text-muted-foreground font-mono mt-1">({disciplineLeaks.breaches7d} in 7d)</p>
+                </div>
+                <div className="col-span-2 space-y-2">
+                    <h4 className="text-xs font-semibold text-muted-foreground">Top Breach Types:</h4>
+                    <div className="flex flex-wrap gap-1">
+                        {disciplineLeaks.topBreachTypes.map(breach => (
+                             <Badge key={breach} variant="destructive" className="bg-red-500/10 border-red-500/20 text-red-300 font-normal">{breach}</Badge>
+                        ))}
+                    </div>
+                    <Button size="sm" variant="link" className="p-0 h-auto text-xs" onClick={() => onSetModule('analytics')}>
+                        Open Analytics for breakdown <ArrowRight className="ml-1 h-3 w-3" />
+                    </Button>
+                </div>
+            </div>
+        </TelemetryCard>
+    );
+};
 
 
 export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
@@ -1305,6 +1338,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                                 </LineChart>
                             </ChartContainer>
                         </TelemetryCard>
+                        <DisciplineLeaksCard disciplineLeaks={personalRisk.disciplineLeaks} onSetModule={onSetModule} />
                     </div>
                     <div className="grid lg:grid-cols-2 gap-8 items-start">
                            <RevengeRiskCard revengeRiskIndex={personalRisk.revengeRiskIndex} revengeRiskLevel={personalRisk.revengeRiskLevel} />
@@ -1373,6 +1407,7 @@ const DeltaIndicator = ({ delta, unit = "" }: { delta: number; unit?: string }) 
 };
     
     
+
 
 
 
