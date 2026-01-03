@@ -1,4 +1,5 @@
 
+
       "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -20,7 +21,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { useRiskState, type RiskState, type VixZone, type RiskDecision, type ActiveNudge, type SLDisciplineData, type LeverageDistributionData, type DisciplineLeaksData, type RiskHeatmapData } from "@/hooks/use-risk-state";
+import { useRiskState, type RiskState, type VixZone, type RiskDecision, type ActiveNudge, type SLDisciplineData, type LeverageDistributionData, type DisciplineLeaksData, type RiskHeatmapData, type TopRiskDriver } from "@/hooks/use-risk-state";
 import { Skeleton } from "./ui/skeleton";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "./ui/drawer";
 import { Slider } from "./ui/slider";
@@ -862,8 +863,6 @@ function RiskEventsTimeline({ events }: { events: RiskState['riskEventsToday'] }
     );
 }
 
-type VolatilityPolicy = 'follow' | 'conservative' | 'strict';
-
 function VolatilityPolicyCard() {
     const [policy, setPolicy] = useState<VolatilityPolicy>('follow');
     const { refresh } = useRiskState();
@@ -1068,7 +1067,7 @@ function ReportDialog({ reportType }: { reportType: ReportType }) {
         const title = `### ${reportType} Trading Report ###`;
         const performance = `**Performance:** PnL ${reportData.pnl} | Win Rate ${reportData.winRate}`;
         if (short) {
-            return `${title}\n${performance}\n**Focus:** ${reportData.recommendations[0]}`;
+            return `${title}\\n${performance}\\n**Focus:** ${reportData.recommendations[0]}`;
         }
         return `
 ${title}
@@ -1090,7 +1089,7 @@ ${title}
 - Worst: ${reportData.worstCondition}
 
 **Recommended Next Actions**
-${reportData.recommendations.map(r => `- ${r}`).join('\n')}
+${reportData.recommendations.map(r => `- ${r}`).join('\\n')}
         `.trim();
     };
 
@@ -1312,6 +1311,63 @@ const RiskHeatmapCard = ({ heatmapData }: { heatmapData: RiskHeatmapData | undef
     );
 };
 
+function TopRiskDriversCard({ drivers, onSetModule }: { drivers: TopRiskDriver[]; onSetModule: (module: any, context?: any) => void; }) {
+    if (!drivers || drivers.length === 0) {
+        return (
+            <Card className="bg-muted/30 border-border/50">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Flag className="h-5 w-5" /> Top Risk Drivers Today</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="text-center py-8 text-sm text-muted-foreground">
+                        <CheckCircle className="h-8 w-8 text-green-500 mx-auto mb-2" />
+                        <p>No major risk drivers detected. Conditions are clear.</p>
+                    </div>
+                </CardContent>
+            </Card>
+        );
+    }
+    
+    const severityConfig = {
+        High: { icon: AlertTriangle, className: 'text-red-400 border-red-500/30' },
+        Medium: { icon: AlertTriangle, className: 'text-amber-400 border-amber-500/30' },
+        Low: { icon: Info, className: 'text-blue-400 border-blue-500/30' },
+    };
+
+    return (
+        <Card className="bg-muted/30 border-border/50">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Flag className="h-5 w-5" /> Top Risk Drivers Today</CardTitle>
+                <CardDescription>Your most critical risk factors right now.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+                {drivers.map(driver => {
+                    const config = severityConfig[driver.severity];
+                    return (
+                        <Card key={driver.id} className={cn("bg-muted/50", config.className)}>
+                            <CardContent className="p-3">
+                                <div className="flex items-start justify-between gap-2">
+                                    <div>
+                                        <h4 className={cn("font-semibold flex items-center gap-2", config.className)}>
+                                            <config.icon className="h-4 w-4" />
+                                            {driver.title}
+                                        </h4>
+                                        <p className="text-xs text-muted-foreground mt-1">{driver.why}</p>
+                                    </div>
+                                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => onSetModule(driver.action.module, driver.action.context)}>
+                                        {driver.action.label}
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    );
+                })}
+            </CardContent>
+        </Card>
+    );
+}
+
+
 
 export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
     const { riskState, isLoading, refresh } = useRiskState();
@@ -1328,7 +1384,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
         );
     }
 
-    const { marketRisk, personalRisk, todaysLimits, decision, riskEventsToday, activeNudge } = riskState;
+    const { marketRisk, personalRisk, todaysLimits, decision, riskEventsToday, activeNudge, topRiskDrivers } = riskState;
     const slDisciplineData = disciplineTimeframe === 'today' ? personalRisk.slDisciplineToday : personalRisk.slDiscipline7d;
     const totalSLTrades = slDisciplineData.reduce((acc, d) => acc + d.respected + d.moved + d.removed, 0);
 
@@ -1361,6 +1417,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                         </div>
 
                         <div className="lg:col-span-1 space-y-8 sticky top-24">
+                             <TopRiskDriversCard drivers={topRiskDrivers} onSetModule={onSetModule} />
                              <RiskBudgetCard limits={todaysLimits} decision={decision} refreshState={refresh} pnlTrend7d={personalRisk.pnlTrend7d}/>
                              <VolatilityPolicyCard />
                              <RiskControlsCard />
@@ -1487,6 +1544,7 @@ const DeltaIndicator = ({ delta, unit = "" }: { delta: number; unit?: string }) 
 };
     
     
+
 
 
 

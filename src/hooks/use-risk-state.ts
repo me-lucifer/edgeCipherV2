@@ -67,6 +67,18 @@ export type RiskHeatmapData = {
     timeBlocks: string[];
 };
 
+export type TopRiskDriver = {
+    id: string;
+    title: string;
+    severity: 'High' | 'Medium' | 'Low';
+    why: string;
+    action: {
+        label: string;
+        module: string;
+        context?: any;
+    };
+};
+
 
 export type RiskState = {
     marketRisk: {
@@ -112,6 +124,7 @@ export type RiskState = {
     decision: RiskDecision;
     riskEventsToday: RiskEvent[];
     activeNudge: ActiveNudge | null;
+    topRiskDrivers: TopRiskDriver[];
 };
 
 // Helper to get VIX zone from value
@@ -418,6 +431,50 @@ export function useRiskState() {
                 }
             }
 
+            // 7. Compute Top Risk Drivers
+            const drivers: TopRiskDriver[] = [];
+            if (todaysLimits.lossStreak >= 2) {
+                drivers.push({
+                    id: 'loss_streak',
+                    title: 'Consecutive Losses',
+                    severity: 'High',
+                    why: 'Increases chance of revenge trading & further losses.',
+                    action: { label: 'Review Journal', module: 'tradeJournal' }
+                });
+            }
+            if (vixZone === 'Extreme') {
+                drivers.push({
+                    id: 'vix_extreme',
+                    title: 'Extreme Volatility',
+                    severity: 'High',
+                    why: 'Market is highly unpredictable, risk of slippage is high.',
+                    action: { label: 'View VIX', module: 'cryptoVix' }
+                });
+            } else if (vixZone === 'Elevated') {
+                 drivers.push({
+                    id: 'vix_elevated',
+                    title: 'Elevated Volatility',
+                    severity: 'Medium',
+                    why: 'Increased chop & risk of stop-hunts.',
+                    action: { label: 'View VIX', module: 'cryptoVix' }
+                });
+            }
+            if (dailyCounters.overrideCount > 0) {
+                 drivers.push({
+                    id: 'overrides',
+                    title: 'Rule Overrides Used',
+                    severity: 'Medium',
+                    why: 'Consciously breaking your plan is a discipline leak.',
+                    action: { label: 'Review Breaches', module: 'analytics' }
+                });
+            }
+
+            const sortedDrivers = drivers.sort((a,b) => {
+                const severityOrder = { High: 1, Medium: 2, Low: 3 };
+                return severityOrder[a.severity] - severityOrder[b.severity];
+            }).slice(0, 3);
+
+
             const finalEvents = riskEventsToday.sort((a, b) => {
                 const timeA = a.time.split(':').map(Number);
                 const timeB = b.time.split(':').map(Number);
@@ -438,6 +495,7 @@ export function useRiskState() {
                 },
                 riskEventsToday: finalEvents,
                 activeNudge,
+                topRiskDrivers: sortedDrivers,
             };
             
             setRiskState(computedState);
@@ -461,4 +519,3 @@ export function useRiskState() {
 
     return { riskState, isLoading, refresh: computeRiskState };
 }
-
