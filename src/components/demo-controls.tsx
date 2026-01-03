@@ -16,10 +16,11 @@ import { Paintbrush, Check, SlidersHorizontal, Sun, Moon, Waves, User, TrendingU
 import { useTheme, type Theme } from "./theme-provider"
 import { cn } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import type { DemoScenario, ChartMarketMode } from "./dashboard-module"
 import { useEventLog } from "@/context/event-log-provider"
 import { useToast } from "@/hooks/use-toast"
+import { format } from "date-fns"
 
 const themes: { name: string, id: Theme, color: string }[] = [
     { name: "Aurora Teal", id: "teal", color: "bg-[#22d3ee]" },
@@ -28,11 +29,78 @@ const themes: { name: string, id: Theme, color: string }[] = [
     { name: "Steel Gold", id: "gold", color: "bg-[#fbbf24]" },
 ]
 
-const scenarios: {id: DemoScenario, label: string, description: string, icon: React.ElementType }[] = [
-    { id: "normal", label: "Normal Day", description: "Balanced results, normal volatility.", icon: Sun },
-    { id: "high_vol", label: "High Volatility", description: "Extreme Crypto VIX, wild swings.", icon: Waves },
-    { id: "drawdown", label: "In Drawdown", description: "Recent losses, tight risk required.", icon: Moon },
-    { id: "no_positions", label: "New User / No Data", description: "No broker / no history – learning mode.", icon: User },
+type ScenarioData = {
+    id: DemoScenario;
+    name: string;
+    description: string;
+    icon: React.ElementType;
+    vixValue: number;
+    lossStreak: number;
+    tradesExecuted: number;
+    overrideCount: number;
+    growthPlan: string[];
+    riskEvents: { time: string; description: string; level: 'green' | 'yellow' | 'red' }[];
+};
+
+const scenarios: ScenarioData[] = [
+    { 
+        id: "normal", 
+        name: "Normal Day", 
+        description: "Balanced results, normal volatility.", 
+        icon: Sun,
+        vixValue: 45,
+        lossStreak: 0,
+        tradesExecuted: 2,
+        overrideCount: 0,
+        growthPlan: ["Limit yourself to 5 trades per day.", "Only trade your best A+ setup for the next 2 weeks.", "Complete a daily journal review for at least 10 days."],
+        riskEvents: [
+            { time: "09:05", description: "Trade plan for BTC-PERP validated. Status: PASS", level: 'green' },
+            { time: "09:31", description: "Trade executed: Long BTC-PERP", level: 'green' }
+        ]
+    },
+    { 
+        id: "high_vol", 
+        name: "High Volatility", 
+        description: "Extreme Crypto VIX, wild swings.", 
+        icon: Waves,
+        vixValue: 82,
+        lossStreak: 1,
+        tradesExecuted: 4,
+        overrideCount: 1,
+        growthPlan: ["Reduce size by 50% in high VIX.", "Widen stops to account for volatility.", "Wait for clear A+ setups; avoid chasing wicks."],
+        riskEvents: [
+            { time: "10:15", description: "VIX entered 'Extreme' zone.", level: 'red' },
+            { time: "10:20", description: "Leverage cap warning triggered on SOL-PERP plan.", level: 'yellow' },
+            { time: "10:22", description: "Rule override used for high leverage.", level: 'red' }
+        ]
+    },
+    { 
+        id: "drawdown", 
+        name: "In Drawdown", 
+        description: "Recent losses, tight risk required.", 
+        icon: Moon,
+        vixValue: 65,
+        lossStreak: 3,
+        tradesExecuted: 3,
+        overrideCount: 0,
+        growthPlan: ["Enable Recovery Mode.", "Focus on capital preservation, not making back losses.", "Only trade your single most profitable setup."],
+        riskEvents: [
+            { time: "08:45", description: "Loss streak limit of 2 reached. Cooldown rule is now active.", level: 'red' },
+            { time: "08:50", description: "Execution blocked: Cooldown active.", level: 'red' }
+        ]
+    },
+    { 
+        id: "no_positions", 
+        name: "New User / No Data", 
+        description: "No broker / no history – learning mode.", 
+        icon: User,
+        vixValue: 30,
+        lossStreak: 0,
+        tradesExecuted: 0,
+        overrideCount: 0,
+        growthPlan: ["Connect your broker or start logging trades manually.", "Draft your initial trading plan.", "Watch the 'Intro to Journaling' video."],
+        riskEvents: []
+    },
 ];
 
 const chartModes: { id: ChartMarketMode, label: string, description: string, icon: React.ElementType }[] = [
@@ -47,6 +115,7 @@ export function DemoControls() {
     const [scenario, setScenario] = useState<DemoScenario>('normal');
     const [marketMode, setMarketMode] = useState<ChartMarketMode>('trend');
     const { toast } = useToast();
+    const { addLog } = useEventLog();
     
     useEffect(() => {
         if (typeof window !== "undefined") {
@@ -61,24 +130,44 @@ export function DemoControls() {
         }
     }, []);
 
-    const handleScenarioChange = (newScenario: string) => {
-        const scenario = newScenario as DemoScenario;
-        // The event listener in DashboardModule will pick this up
-        localStorage.setItem('ec_demo_scenario', scenario);
-        
-        // Reset simulation counters when scenario changes
-        localStorage.removeItem("ec_simulated_pnl_today");
-        const todayKey = new Date().toISOString().split('T')[0];
-        const allCounters = JSON.parse(localStorage.getItem("ec_daily_counters") || '{}');
-        if (allCounters[todayKey]) {
-            allCounters[todayKey].lossStreak = 0;
-            allCounters[todayKey].tradesExecuted = 0;
-            localStorage.setItem("ec_daily_counters", JSON.stringify(allCounters));
-        }
+    const handleScenarioChange = useCallback((newScenarioId: string) => {
+        const scenarioData = scenarios.find(s => s.id === newScenarioId);
+        if (!scenarioData) return;
 
-        // We also need to manually update state here for the radio group to reflect the change
-        setScenario(scenario);
-    };
+        // 1. Update primary scenario ID
+        localStorage.setItem('ec_demo_scenario', scenarioData.id);
+        
+        // 2. Update dependent localStorage values
+        localStorage.setItem('ec_vix_override', String(scenarioData.vixValue));
+        localStorage.setItem('ec_growth_plan_today', JSON.stringify(scenarioData.growthPlan));
+        localStorage.setItem('ec_risk_events_today', JSON.stringify(scenarioData.riskEvents));
+
+        const todayKey = format(new Date(), 'yyyy-MM-dd');
+        const allCounters = JSON.parse(localStorage.getItem("ec_daily_counters") || '{}');
+        allCounters[todayKey] = {
+            lossStreak: scenarioData.lossStreak,
+            tradesExecuted: scenarioData.tradesExecuted,
+            overrideCount: scenarioData.overrideCount,
+            totalTradesPlanned: (allCounters[todayKey]?.totalTradesPlanned || 0),
+            tradesByStrategyId: (allCounters[todayKey]?.tradesByStrategyId || {}),
+        };
+        localStorage.setItem("ec_daily_counters", JSON.stringify(allCounters));
+        
+        // Reset simulation PnL when scenario changes
+        localStorage.removeItem("ec_simulated_pnl_today");
+
+        // Manually dispatch storage events to ensure all hooks react
+        window.dispatchEvent(new StorageEvent('storage', { key: 'ec_demo_scenario' }));
+        window.dispatchEvent(new StorageEvent('storage', { key: 'ec_vix_override' }));
+        window.dispatchEvent(new StorageEvent('storage', { key: 'ec_daily_counters' }));
+        
+        setScenario(scenarioData.id);
+        addLog(`Demo Scenario Engine: Set to "${scenarioData.name}". State updated.`);
+        toast({
+            title: "Scenario Changed",
+            description: `Switched to "${scenarioData.name}" scenario.`
+        });
+    }, [addLog, toast]);
 
     const handleMarketModeChange = (newMarketMode: string) => {
         const mode = newMarketMode as ChartMarketMode;
@@ -88,12 +177,11 @@ export function DemoControls() {
 
     const handleRunDisciplineDemo = () => {
         localStorage.setItem('ec_discipline_demo_flow', 'start');
-        // Trigger a custom event that the AuthenticatedAppShell can listen for
         window.dispatchEvent(new CustomEvent('start-discipline-demo'));
     }
 
     const handleSimulateLoss = () => {
-        const todayKey = new Date().toISOString().split('T')[0];
+        const todayKey = format(new Date(), 'yyyy-MM-dd');
         const allCounters = JSON.parse(localStorage.getItem("ec_daily_counters") || '{}');
         const todayCounters = allCounters[todayKey] || { lossStreak: 0, tradesExecuted: 0 };
         
@@ -104,15 +192,13 @@ export function DemoControls() {
         localStorage.setItem("ec_daily_counters", JSON.stringify(allCounters));
 
         const assumedCapital = parseFloat(localStorage.getItem("ec_assumed_capital") || "10000");
-        const riskPerTradePct = parseFloat(localStorage.getItem("ec_active_risk_pct") || "1"); // Assuming 1% risk per trade
+        const riskPerTradePct = parseFloat(localStorage.getItem("ec_active_risk_pct") || "1");
         const lossAmount = assumedCapital * (riskPerTradePct / 100);
 
         const currentPnl = parseFloat(localStorage.getItem("ec_simulated_pnl_today") || "0");
         const newPnl = currentPnl - lossAmount;
         localStorage.setItem("ec_simulated_pnl_today", String(newPnl));
 
-        // The 'storage' event will trigger the useRiskState hook to re-compute.
-        // We need to manually dispatch it because changes in the same window don't always fire it.
         window.dispatchEvent(new StorageEvent('storage', { key: 'ec_daily_counters' }));
         window.dispatchEvent(new StorageEvent('storage', { key: 'ec_simulated_pnl_today' }));
 
@@ -174,7 +260,7 @@ export function DemoControls() {
                             <DropdownMenuRadioItem key={s.id} value={s.id} className="gap-2">
                                 <s.icon className="h-4 w-4 text-muted-foreground" />
                                 <div className="flex flex-col">
-                                    <span>{s.label}</span>
+                                    <span>{s.name}</span>
                                     <span className="text-xs text-muted-foreground">{s.description}</span>
                                 </div>
                             </DropdownMenuRadioItem>
@@ -229,3 +315,5 @@ export function DemoControls() {
         </div>
     )
 }
+
+    
