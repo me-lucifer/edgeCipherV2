@@ -983,7 +983,7 @@ function PersonaFitAnalysis({ onSetModule }: { onSetModule: (module: any) => voi
                     <User className="h-5 w-5" /> Persona Risk Sensitivity
                 </CardTitle>
                 <CardDescription className="text-xs">
-                    This is an overlay that tunes Arjun's firewall to your personal risk tolerance for today's session.
+                    This is a personal overlay that tunes Arjun's firewall to your risk tolerance for today's session.
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -1079,16 +1079,6 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                     <h1 className="text-2xl font-bold tracking-tight text-foreground">Risk Center</h1>
                      <p className="text-muted-foreground flex items-center gap-2">
                         A single view of market risk + your personal risk posture. Answer: Should I trade today?
-                        <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger>
-                                    <Info className="h-4 w-4 text-muted-foreground/80 cursor-help" />
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    <p className="max-w-xs">Risk Center aggregates data from your Strategy, Planning, Analytics, and VIX.</p>
-                                </TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
                     </p>
                 </div>
                 <Button variant="ghost" size="sm" onClick={refresh}><RefreshCw className="mr-2 h-4 w-4" /> Refresh State</Button>
@@ -1119,6 +1109,22 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                 </div>
             </div>
              <ArjunRiskAlerts onSetModule={onSetModule} riskState={riskState} />
+
+             <div className="text-center text-xs text-muted-foreground pt-4">
+                <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger className="cursor-help border-b border-dashed border-muted-foreground/50">
+                            <span className="flex items-center justify-center gap-1.5">
+                                <Info className="h-3 w-3" />
+                                How is this calculated?
+                            </span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                           <p className="max-w-xs">Risk signals come from Strategy rules, Planning validations, Journal behavior, Analytics discipline, and VIX.</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
+             </div>
         </div>
     );
 }
