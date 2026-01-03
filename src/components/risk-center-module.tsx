@@ -731,35 +731,42 @@ function ArjunRiskAlerts({ onSetModule }: { onSetModule: (module: any, context?:
             </CardHeader>
             <CardContent className="space-y-4">
                 {alerts.map((alert, index) => (
-                    <div key={index} className={cn("p-4 rounded-lg border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4", 
-                        alert.severity === 'red' && 'bg-red-950/40 border-red-500/20',
-                        alert.severity === 'warn' && 'bg-amber-950/40 border-amber-500/20',
-                        alert.severity === 'info' && 'bg-blue-950/40 border-blue-500/20'
-                    )}>
-                        <div className="flex-1">
-                            <h4 className={cn("font-semibold flex items-center gap-2", 
-                                alert.severity === 'red' && 'text-red-400',
-                                alert.severity === 'warn' && 'text-amber-400',
-                                alert.severity === 'info' && 'text-blue-400'
-                            )}>
-                                {alert.severity === 'red' && <XCircle />}
-                                {alert.severity === 'warn' && <AlertTriangle />}
-                                {alert.severity === 'info' && <Info />}
-                                {alert.title}
-                            </h4>
-                            <p className="text-sm text-muted-foreground mt-1">
-                                <span className="font-semibold text-foreground">What to do now:</span> {alert.suggestion}
-                            </p>
+                    <Alert
+                        key={index}
+                        variant="default"
+                        className={cn(
+                            alert.severity === 'red' && 'bg-red-950/40 border-red-500/20 text-red-300',
+                            alert.severity === 'warn' && 'bg-amber-950/40 border-amber-500/20 text-amber-300',
+                            alert.severity === 'info' && 'bg-blue-950/40 border-blue-500/20 text-blue-300'
+                        )}
+                    >
+                        {alert.severity === 'red' && <XCircle className="h-4 w-4 text-red-400" />}
+                        {alert.severity === 'warn' && <AlertTriangle className="h-4 w-4 text-amber-400" />}
+                        {alert.severity === 'info' && <Info className="h-4 w-4 text-blue-400" />}
+                        
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                            <div className="flex-1">
+                                <AlertTitle className={cn(
+                                    alert.severity === 'red' && 'text-red-400',
+                                    alert.severity === 'warn' && 'text-amber-400',
+                                    alert.severity === 'info' && 'text-blue-400'
+                                )}>
+                                    {alert.title}
+                                </AlertTitle>
+                                <AlertDescription>
+                                    <span className="font-semibold text-foreground">What to do now:</span> {alert.suggestion}
+                                </AlertDescription>
+                            </div>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="bg-background/20 border-border/50 whitespace-nowrap self-start sm:self-center"
+                                onClick={() => onSetModule(alert.action.module, alert.action.context)}
+                            >
+                                {alert.action.label} <ArrowRight className="ml-2 h-4 w-4" />
+                            </Button>
                         </div>
-                        <Button 
-                            variant="outline" 
-                            size="sm"
-                            className="bg-background/20 border-border/50 whitespace-nowrap"
-                            onClick={() => onSetModule(alert.action.module, alert.action.context)}
-                        >
-                            {alert.action.label} <ArrowRight className="ml-2 h-4 w-4" />
-                        </Button>
-                    </div>
+                    </Alert>
                 ))}
                 <div className="pt-4 border-t border-border/50 text-center">
                     <Button onClick={handlePlanSafeTrade}>
