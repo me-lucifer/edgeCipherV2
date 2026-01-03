@@ -3,10 +3,10 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Pencil, ShieldAlert, BarChart, Info, CheckCircle, XCircle, AlertTriangle, Gauge, Calendar, Zap, Sun, Moon, Waves, User, ArrowRight, RefreshCw, SlidersHorizontal, TrendingUp, Sparkles, Droplets, TrendingDown } from "lucide-react";
+import { Bot, Pencil, ShieldAlert, BarChart, Info, CheckCircle, XCircle, AlertTriangle, Gauge, Calendar, Zap, Sun, Moon, Waves, User, ArrowRight, RefreshCw, SlidersHorizontal, TrendingUp, Sparkles, Droplets, TrendingDown, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -66,9 +66,9 @@ function TradeDecisionBar({ decision }: { decision: RiskState['decision'] | null
     if (!decision) return <Skeleton className="h-20 w-full" />;
 
     const decisionConfig = {
-        green: { status: "Green: OK to trade", icon: CheckCircle, className: "border-green-500/30 text-green-400" },
-        yellow: { status: "Amber: Trade only A+ setups", icon: AlertTriangle, className: "border-amber-500/30 text-amber-400" },
-        red: { status: "Red: Don't trade", icon: XCircle, className: "border-red-500/30 text-red-400" },
+        green: { status: "OK to trade", icon: CheckCircle, className: "border-green-500/30 text-green-400" },
+        yellow: { status: "Trade only A+ setups", icon: AlertTriangle, className: "border-amber-500/30 text-amber-400" },
+        red: { status: "Don't trade", icon: XCircle, className: "border-red-500/30 text-red-400" },
     };
 
     const config = decisionConfig[decision.level];
@@ -294,7 +294,7 @@ function PersonalRiskCard({ personalRisk, onSetModule }: { personalRisk: RiskSta
 
 
     return (
-         <Card className="bg-muted/30 border-border/50 sticky top-24">
+         <Card className="bg-muted/30 border-border/50">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2"><User className="h-5 w-5" /> Your Risk Posture</CardTitle>
                 <CardDescription>A snapshot of your psychological state.</CardDescription>
@@ -324,45 +324,57 @@ function PersonalRiskCard({ personalRisk, onSetModule }: { personalRisk: RiskSta
     );
 }
 
+function TodaysLimitsCard({ limits, onSetModule }: { limits: RiskState['todaysLimits'], onSetModule: (module: any) => void }) {
+    
+    const StatusRow = ({ label, value, valueClass }: { label: string; value: React.ReactNode; valueClass?: string }) => (
+        <div className="flex justify-between items-center text-sm">
+            <p className="text-muted-foreground">{label}</p>
+            <p className={cn("font-mono font-semibold text-foreground", valueClass)}>{value}</p>
+        </div>
+    );
+    
+    return (
+        <Card className="bg-muted/30 border-border/50">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><ShieldAlert className="h-5 w-5" /> Today's Limits</CardTitle>
+                <CardDescription>Hard constraints from your active strategy.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                <div>
+                    <h4 className="text-sm font-semibold text-foreground mb-3">Strategy Rules</h4>
+                    <div className="space-y-2">
+                        <StatusRow label="Max risk / trade" value={`${limits.riskPerTradePct.toFixed(2)}%`} />
+                        <StatusRow label="Max daily trades" value={limits.maxTrades} />
+                        <StatusRow label="Max daily loss" value={`${limits.maxDailyLoss}%`} />
+                        <StatusRow label="Leverage cap" value={`${limits.leverageCap}x`} />
+                        <StatusRow label="Cooldown rule" value={limits.cooldownActive ? "ON" : "OFF"} valueClass={limits.cooldownActive ? "text-amber-400" : ""} />
+                    </div>
+                </div>
+                <Separator />
+                 <div>
+                    <h4 className="text-sm font-semibold text-foreground mb-3">Live Status</h4>
+                    <div className="space-y-2">
+                        <StatusRow label="Trades executed" value={`${limits.tradesExecuted} / ${limits.maxTrades}`} valueClass={limits.tradesExecuted >= limits.maxTrades ? "text-red-400" : ""} />
+                        <StatusRow label="Current loss streak" value={limits.lossStreak} valueClass={limits.lossStreak >= 2 ? "text-amber-400" : ""} />
+                        <StatusRow label="Cooldown active" value={limits.cooldownActive ? "Yes" : "No"} valueClass={limits.cooldownActive ? "text-red-400" : ""} />
+                         <StatusRow label="Recovery Mode" value={limits.recoveryMode ? "ON" : "OFF"} valueClass={limits.recoveryMode ? "text-amber-400" : ""} />
+                    </div>
+                </div>
+                <div className="flex flex-col gap-2 pt-2">
+                     <Button variant="outline" size="sm" onClick={() => onSetModule('strategyManagement')}>
+                        <BookOpen className="mr-2 h-4 w-4" /> Open Strategy Rules
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => onSetModule('tradePlanning')}>
+                        <Zap className="mr-2 h-4 w-4" /> Open Trade Planning
+                    </Button>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
 
 export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
-    const { toast } = useToast();
-    const { addLog } = useEventLog();
-    const [rules, setRules] = useState<RiskRule[]>(defaultRules);
-    const [editingRule, setEditingRule] = useState<RiskRule | null>(null);
-    const [editValue, setEditValue] = useState<string>("");
     const { riskState, isLoading, refresh } = useRiskState();
-
-     useEffect(() => {
-        if (typeof window !== "undefined") {
-            const savedRules = localStorage.getItem("ec_risk_rules");
-            if (savedRules) {
-                setRules(JSON.parse(savedRules));
-            }
-        }
-    }, []);
-    
-    const handleSaveRule = () => {
-        if (!editingRule || isNaN(parseFloat(editValue))) return;
-        const newRules = rules.map(r => r.id === editingRule.id ? { ...r, value: parseFloat(editValue) } : r);
-        setRules(newRules);
-        if (typeof window !== "undefined") {
-            localStorage.setItem("ec_risk_rules", JSON.stringify(newRules));
-        }
-        setEditingRule(null);
-        const logMessage = `Risk rule updated: ${editingRule.label} set to ${editValue}${editingRule.unit}.`;
-        addLog(logMessage);
-        toast({
-            title: "Risk rule updated",
-            description: `Your ${editingRule.label} rule has been set to ${editValue}${editingRule.unit}.`,
-        });
-    }
-    
-    const handleEditClick = (rule: RiskRule) => {
-        setEditingRule(rule);
-        setEditValue(String(rule.value));
-    }
-
 
     if (isLoading || !riskState) {
         return (
@@ -399,7 +411,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                                     <Info className="h-4 w-4 text-muted-foreground/80 cursor-help" />
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                    <p className="max-w-xs">Risk Center aggregates data from your Persona, Journal, Strategies, and market context.</p>
+                                    <p className="max-w-xs">Risk Center aggregates data from your Strategy, Planning, Analytics, and market context (VIX).</p>
                                 </TooltipContent>
                             </Tooltip>
                         </TooltipProvider>
@@ -446,62 +458,12 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
 
                 <div className="lg:col-span-1 space-y-8">
                      <PersonalRiskCard personalRisk={personalRisk} onSetModule={onSetModule} />
-                    <Card className="bg-muted/30 border-border/50">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2"><ShieldAlert className="h-5 w-5" /> Your Risk Rules</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <ScrollArea className="w-full whitespace-nowrap">
-                                <Table>
-                                    <TableBody>
-                                        {rules.map(rule => (
-                                            <TableRow key={rule.id}>
-                                                <TableCell className="font-medium">{rule.label}</TableCell>
-                                                <TableCell className="text-right">{rule.value}{rule.unit}</TableCell>
-                                                <TableCell className="text-right">
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditClick(rule)}>
-                                                        <Pencil className="h-4 w-4" />
-                                                    </Button>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </ScrollArea>
-                        </CardContent>
-                    </Card>
+                     <TodaysLimitsCard limits={todaysLimits} onSetModule={onSetModule} />
                 </div>
             </div>
-
-            <Dialog open={!!editingRule} onOpenChange={(open) => !open && setEditingRule(null)}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Edit Rule: {editingRule?.label}</DialogTitle>
-                        <DialogDescription>
-                            {editingRule?.description}
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="py-4 space-y-2">
-                        <Label htmlFor="rule-value">New Value ({editingRule?.unit})</Label>
-                        <Input 
-                            id="rule-value" 
-                            type="number" 
-                            value={editValue} 
-                            onChange={(e) => setEditValue(e.target.value)} 
-                            className="font-mono"
-                        />
-                    </div>
-                    <DialogFooter>
-                        <DialogClose asChild>
-                            <Button type="button" variant="secondary">Cancel</Button>
-                        </DialogClose>
-                        <Button type="button" onClick={handleSaveRule}>Save Changes</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
         </div>
     );
 }
+
 
 

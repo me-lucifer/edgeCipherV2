@@ -36,6 +36,9 @@ export type RiskState = {
         maxDailyLoss: number;
         lossStreak: number;
         cooldownActive: boolean;
+        riskPerTradePct: number;
+        leverageCap: number;
+        recoveryMode: boolean;
     };
     decision: RiskDecision;
 };
@@ -62,6 +65,7 @@ export function useRiskState() {
             const dailyCounters = JSON.parse(localStorage.getItem("ec_daily_counters") || '{}')[new Date().toISOString().split('T')[0]] || { lossStreak: 0, tradesExecuted: 0 };
             const strategies = JSON.parse(localStorage.getItem("ec_strategies") || "[]");
             const activeStrategy = strategies.find((s: any) => s.status === 'active'); // Simplified: gets first active
+            const recoveryMode = localStorage.getItem('ec_recovery_mode') === 'true';
             
             // 2. Compute Market Risk
             const vixOverride = localStorage.getItem("ec_vix_override");
@@ -93,12 +97,16 @@ export function useRiskState() {
             };
 
             // 4. Compute Today's Limits
+            const baseRules = activeStrategy?.versions.find((v:any) => v.isActiveVersion)?.ruleSet?.riskRules;
             const todaysLimits = {
-                maxTrades: activeStrategy?.ruleSet?.riskRules?.maxDailyTrades || 5,
+                maxTrades: baseRules?.maxDailyTrades || 5,
                 tradesExecuted: dailyCounters.tradesExecuted || 0,
-                maxDailyLoss: activeStrategy?.ruleSet?.riskRules?.maxDailyLossPct || 3,
+                maxDailyLoss: baseRules?.maxDailyLossPct || 3,
                 lossStreak: dailyCounters.lossStreak || 0,
-                cooldownActive: (activeStrategy?.ruleSet?.riskRules?.cooldownAfterLosses && (dailyCounters.lossStreak || 0) >= 2),
+                cooldownActive: (baseRules?.cooldownAfterLosses && (dailyCounters.lossStreak || 0) >= 2),
+                riskPerTradePct: baseRules?.riskPerTradePct || 1,
+                leverageCap: baseRules?.leverageCap || 20,
+                recoveryMode: recoveryMode,
             };
 
             // 5. Compute Final Decision
