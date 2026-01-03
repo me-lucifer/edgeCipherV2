@@ -2039,6 +2039,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
         
         const { riskState } = useRiskState();
         const [riskDecisionLevel, setRiskDecisionLevel] = useState<RiskDecision['level'] | null>(null);
+        const [riskReasons, setRiskReasons] = useState<string[]>([]);
         const [justificationOverride, setJustificationOverride] = useState(false);
         const [yellowAcknowledge, setYellowAcknowledge] = useState(false);
 
@@ -2078,6 +2079,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
         useEffect(() => {
             if (riskState) {
                 setRiskDecisionLevel(riskState.decision.level);
+                setRiskReasons(riskState.decision.reasons || []);
             }
         }, [riskState]);
         
@@ -2390,11 +2392,14 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
                 )}
     
                 {riskDecisionLevel === 'red' && (
-                    <Alert variant="destructive">
+                     <Alert variant="destructive">
                         <XCircle className="h-4 w-4" />
                         <AlertTitle>Execution Locked by Risk Center</AlertTitle>
                         <AlertDescription>
-                            Your current risk state is RED. Resolve the blockers in the Risk Center or provide a justification to override.
+                            Your current risk state is RED. The following rules are blocking execution:
+                            <ul className="list-disc list-inside mt-2 text-xs">
+                                {riskReasons.map((reason, i) => <li key={i}>{reason}</li>)}
+                            </ul>
                         </AlertDescription>
                         <div className="mt-4 flex gap-2">
                              <Button variant="outline" size="sm" onClick={() => onSetModule('riskCenter')}>Open Risk Center</Button>
@@ -2617,4 +2622,4 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
     
     
     
-    
+
