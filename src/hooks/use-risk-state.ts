@@ -68,9 +68,9 @@ const getVixZone = (vix: number): VixZone => {
 };
 
 const mockPositions = [
-    { symbol: 'BTC-PERP', direction: 'Long', size: 0.5, pnl: 234.50, leverage: 10, risk: 'Medium' },
-    { symbol: 'ETH-PERP', direction: 'Short', size: 12, pnl: -88.12, leverage: 50, risk: 'High' },
-    { symbol: 'SOL-PERP', direction: 'Long', size: 100, pnl: 45.20, leverage: 5, risk: 'Low' },
+    { symbol: 'BTC-PERP', direction: 'Long', size: 0.5, pnl: 234.50, leverage: 10, risk: 'Medium', price: 68500 },
+    { symbol: 'ETH-PERP', direction: 'Short', size: 12, pnl: -88.12, leverage: 50, risk: 'High', price: 3600 },
+    { symbol: 'SOL-PERP', direction: 'Long', size: 100, pnl: 45.20, leverage: 5, risk: 'Low', price: 150 },
 ];
 
 export function useRiskState() {
@@ -84,7 +84,9 @@ export function useRiskState() {
             // 1. Gather data from various localStorage sources
             const scenario = localStorage.getItem('ec_demo_scenario') as DemoScenario || 'normal';
             const personaData = JSON.parse(localStorage.getItem("ec_persona_final") || localStorage.getItem("ec_persona_base") || "{}");
-            const dailyCounters = JSON.parse(localStorage.getItem("ec_daily_counters") || '{}')[new Date().toISOString().split('T')[0]] || { lossStreak: 0, tradesExecuted: 0, overrideCount: 0 };
+            const todayKey = new Date().toISOString().split('T')[0];
+            const allCounters = JSON.parse(localStorage.getItem("ec_daily_counters") || '{}');
+            const dailyCounters = allCounters[todayKey] || { lossStreak: 0, tradesExecuted: 0, overrideCount: 0 };
             const strategies = JSON.parse(localStorage.getItem("ec_strategies") || "[]");
             const activeStrategy = strategies.find((s: any) => s.status === 'active'); // Simplified: gets first active
             const recoveryMode = localStorage.getItem('ec_recovery_mode') === 'true';
@@ -152,13 +154,18 @@ export function useRiskState() {
             // 4. Compute Today's Limits & Risk Budget
             const baseRules = activeStrategy?.versions.find((v:any) => v.isActiveVersion)?.ruleSet?.riskRules;
             const accountCapital = assumedCapital;
-            const currentPnLToday = scenario === 'drawdown' ? -450 : (dailyCounters.tradesExecuted > 0 ? 150 : 0); // Mock PnL
+            
+            const currentPnlToday = parseFloat(localStorage.getItem('ec_simulated_pnl_today') || '0');
             
             const maxDailyLossPct = recoveryMode ? Math.min(baseRules?.maxDailyLossPct || 3, 2) : (baseRules?.maxDailyLossPct || 3);
+            
+            // Persist the active risk % so simulation can use it
             const riskPerTradePct = recoveryMode ? Math.min(baseRules?.riskPerTradePct || 1, 0.5) : (baseRules?.riskPerTradePct || 1);
+            localStorage.setItem("ec_active_risk_pct", String(riskPerTradePct));
+
             
             const maxDailyLossValue = accountCapital * (maxDailyLossPct / 100);
-            const dailyBudgetRemaining = Math.max(0, maxDailyLossValue - Math.abs(Math.min(0, currentPnLToday)));
+            const dailyBudgetRemaining = Math.max(0, maxDailyLossValue + Math.min(0, currentPnlToday));
             const riskPerTradeValue = accountCapital * (riskPerTradePct / 100);
             const maxSafeTradesRemaining = riskPerTradeValue > 0 ? Math.floor(dailyBudgetRemaining / riskPerTradeValue) : 0;
             

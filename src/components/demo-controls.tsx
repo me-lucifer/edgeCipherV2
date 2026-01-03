@@ -19,6 +19,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/t
 import { useState, useEffect } from "react"
 import type { DemoScenario, ChartMarketMode } from "./dashboard-module"
 import { useEventLog } from "@/context/event-log-provider"
+import { useToast } from "@/hooks/use-toast"
 
 const themes: { name: string, id: Theme, color: string }[] = [
     { name: "Aurora Teal", id: "teal", color: "bg-[#22d3ee]" },
@@ -45,6 +46,7 @@ export function DemoControls() {
     const { theme: activeTheme, setTheme } = useTheme();
     const [scenario, setScenario] = useState<DemoScenario>('normal');
     const [marketMode, setMarketMode] = useState<ChartMarketMode>('trend');
+    const { toast } = useToast();
     
     useEffect(() => {
         if (typeof window !== "undefined") {
@@ -63,6 +65,17 @@ export function DemoControls() {
         const scenario = newScenario as DemoScenario;
         // The event listener in DashboardModule will pick this up
         localStorage.setItem('ec_demo_scenario', scenario);
+        
+        // Reset simulation counters when scenario changes
+        localStorage.removeItem("ec_simulated_pnl_today");
+        const todayKey = new Date().toISOString().split('T')[0];
+        const allCounters = JSON.parse(localStorage.getItem("ec_daily_counters") || '{}');
+        if (allCounters[todayKey]) {
+            allCounters[todayKey].lossStreak = 0;
+            allCounters[todayKey].tradesExecuted = 0;
+            localStorage.setItem("ec_daily_counters", JSON.stringify(allCounters));
+        }
+
         // We also need to manually update state here for the radio group to reflect the change
         setScenario(scenario);
     };
@@ -79,9 +92,52 @@ export function DemoControls() {
         window.dispatchEvent(new CustomEvent('start-discipline-demo'));
     }
 
+    const handleSimulateLoss = () => {
+        const todayKey = new Date().toISOString().split('T')[0];
+        const allCounters = JSON.parse(localStorage.getItem("ec_daily_counters") || '{}');
+        const todayCounters = allCounters[todayKey] || { lossStreak: 0, tradesExecuted: 0 };
+        
+        todayCounters.lossStreak = (todayCounters.lossStreak || 0) + 1;
+        todayCounters.tradesExecuted = (todayCounters.tradesExecuted || 0) + 1;
+        allCounters[todayKey] = todayCounters;
+        
+        localStorage.setItem("ec_daily_counters", JSON.stringify(allCounters));
+
+        const assumedCapital = parseFloat(localStorage.getItem("ec_assumed_capital") || "10000");
+        const riskPerTradePct = parseFloat(localStorage.getItem("ec_active_risk_pct") || "1"); // Assuming 1% risk per trade
+        const lossAmount = assumedCapital * (riskPerTradePct / 100);
+
+        const currentPnl = parseFloat(localStorage.getItem("ec_simulated_pnl_today") || "0");
+        const newPnl = currentPnl - lossAmount;
+        localStorage.setItem("ec_simulated_pnl_today", String(newPnl));
+
+        // The 'storage' event will trigger the useRiskState hook to re-compute.
+        // We need to manually dispatch it because changes in the same window don't always fire it.
+        window.dispatchEvent(new StorageEvent('storage', { key: 'ec_daily_counters' }));
+        window.dispatchEvent(new StorageEvent('storage', { key: 'ec_simulated_pnl_today' }));
+
+        toast({
+            title: "Simulated a -1R Loss",
+            description: `Loss streak is now ${todayCounters.lossStreak}. Daily budget has been reduced.`,
+            variant: "destructive"
+        });
+    }
 
     return (
         <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
+            <TooltipProvider>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                         <Button onClick={handleSimulateLoss} variant="destructive" aria-label="Simulate 1R Loss">
+                           <Zap className="h-[1.2rem] w-[1.2rem] mr-2" />
+                           Simulate -1R Loss
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="left">
+                        <p>Simulate a losing trade to see how the risk center reacts.</p>
+                    </TooltipContent>
+                </Tooltip>
+            </TooltipProvider>
             <TooltipProvider>
                 <Tooltip>
                     <TooltipTrigger asChild>
