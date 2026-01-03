@@ -1836,6 +1836,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
                     }
                     if (contextToUse.safeMode || recovery) {
                         form.setValue('riskPercent', 0.5);
+                        form.setValue('leverage', 10);
                         toast({ title: 'Safe Mode Activated', description: "Default risk has been reduced to 0.5%." });
                     }
                 }
@@ -2084,19 +2085,16 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
                     </div>
                 </div>
     
-                {initialContext && (
-                     <Alert variant="default" className={cn("border-primary/20", initialContext.safeMode ? "bg-blue-950/40" : "bg-primary/10 text-primary")}>
-                        {initialContext.safeMode ? <ShieldCheck className="h-4 w-4 text-blue-400" /> : <Sparkles className="h-4 w-4 text-primary" />}
-                        <AlertTitle>{initialContext.safeMode ? "Safe Mode Activated" : `Context from ${initialContext.origin}`}</AlertTitle>
-                        <AlertDescription className={initialContext.safeMode ? "text-blue-300/80" : ""}>
-                           {initialContext.safeMode 
-                            ? "You're planning this trade from the Risk Center in a heightened risk state. Default risk has been reduced."
-                            : `You've been sent here to plan a trade for ${initialContext.instrument}.`
-                           }
+                {initialContext?.safeMode && (
+                     <Alert variant="default" className={cn("border-blue-500/30", "bg-blue-950/40")}>
+                        <ShieldCheck className="h-4 w-4 text-blue-400" />
+                        <AlertTitle className="text-blue-400">Safe Mode Activated</AlertTitle>
+                        <AlertDescription className={"text-blue-300/80"}>
+                            You've entered this plan from a heightened risk state. Default risk has been automatically reduced to 0.5% and leverage capped at 10x.
                         </AlertDescription>
                     </Alert>
                 )}
-    
+
                 {riskState?.activeNudge && <RiskNudge nudge={riskState.activeNudge} />}
 
                 {riskDecisionLevel === 'red' && (
@@ -2330,6 +2328,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
     
     
     
+
 
 
 
