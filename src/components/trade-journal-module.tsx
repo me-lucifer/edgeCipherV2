@@ -492,7 +492,7 @@ function JournalReviewForm({ entry, onSubmit, onSetModule, onSaveDraft }: { entr
 
                     {/* Context */}
                     <div>
-                        <h4 className="font-semibold text-foreground mb-3">News &amp; Context</h4>
+                        <h4 className="font-semibold text-foreground mb-3">News & Context</h4>
                          <FormField
                             control={form.control}
                             name="review.newsContextTags"

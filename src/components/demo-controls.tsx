@@ -21,6 +21,8 @@ import type { DemoScenario, ChartMarketMode } from "./dashboard-module"
 import { useEventLog } from "@/context/event-log-provider"
 import { useToast } from "@/hooks/use-toast"
 import { format } from "date-fns"
+import type { RiskEvent } from "@/hooks/use-risk-state"
+
 
 const themes: { name: string, id: Theme, color: string }[] = [
     { name: "Aurora Teal", id: "teal", color: "bg-[#22d3ee]" },
@@ -40,7 +42,7 @@ type ScenarioData = {
     overrideCount: number;
     recoveryMode?: boolean;
     growthPlan: string[];
-    riskEvents: { time: string; description: string; level: 'green' | 'yellow' | 'red' }[];
+    riskEvents: RiskEvent[];
 };
 
 const scenarios: ScenarioData[] = [

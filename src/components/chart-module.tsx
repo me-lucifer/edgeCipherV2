@@ -457,14 +457,18 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
         const planningContext: ModuleContext['planContext'] = {
             instrument: selectedProduct.id,
             origin: 'Chart Module',
-            safeMode,
         };
 
         if (typeof window !== 'undefined') {
+            const isDemoFlow = localStorage.getItem('ec_discipline_demo_flow') === 'start_chart';
+            if (isDemoFlow) {
+                planningContext.origin = 'Discipline Demo';
+                localStorage.setItem('ec_discipline_demo_flow', 'plan');
+            }
             localStorage.setItem("ec_trade_planning_context", JSON.stringify(planningContext));
         }
         
-        onSetModule('tradePlanning', { planContext });
+        onSetModule('tradePlanning', { planContext: { ...planningContext, safeMode } });
     };
 
     const handleSendToPlanning = () => {
@@ -477,10 +481,8 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
 
         if (riskLevel === 'red') {
             setIsRiskConfirmOpen(true);
-        } else if (riskLevel === 'yellow') {
-            navigateToTradePlanning(true);
         } else {
-            navigateToTradePlanning(false);
+            navigateToTradePlanning(riskLevel === 'yellow');
         }
     };
     
