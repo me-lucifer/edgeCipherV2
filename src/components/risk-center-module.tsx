@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Pencil, ShieldAlert, BarChart } from "lucide-react";
+import { Bot, Pencil, ShieldAlert, BarChart, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -22,6 +22,13 @@ import { Label } from "./ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useEventLog } from "@/context/event-log-provider";
 import { ScrollArea } from "./ui/scroll-area";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+
 
 interface RiskCenterModuleProps {
     onSetModule: (module: any, context?: any) => void;
@@ -90,7 +97,19 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
         <div className="space-y-8">
             <div>
                 <h1 className="text-2xl font-bold tracking-tight text-foreground">Risk Center</h1>
-                <p className="text-muted-foreground">Define your limits. Protect your capital.</p>
+                 <p className="text-muted-foreground flex items-center gap-2">
+                    A single view of market risk + your personal risk posture. Answer: Should I trade today?
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger>
+                                <Info className="h-4 w-4 text-muted-foreground/80 cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p className="max-w-xs">Scope note: Risk Center aggregates data from Strategy, Planning, Analytics, and VIX.</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                </p>
             </div>
             
             <div className="grid lg:grid-cols-3 gap-8">
