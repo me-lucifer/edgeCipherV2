@@ -28,13 +28,15 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { useRiskState, type RiskState, type VixZone } from "@/hooks/use-risk-state";
+import { useRiskState, type RiskState, type VixZone, type RiskDecision } from "@/hooks/use-risk-state";
 import { Skeleton } from "./ui/skeleton";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "./ui/drawer";
 import { Slider } from "./ui/slider";
 import { Separator } from "./ui/separator";
 import { Switch } from "./ui/switch";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
+import { Progress } from "./ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
 
 interface RiskCenterModuleProps {
@@ -674,6 +676,96 @@ function ArjunRiskAlerts({ onSetModule }: { onSetModule: (module: any, context?:
     );
 }
 
+function RiskBudgetCard({ limits, decision }: { limits: RiskState['todaysLimits'], decision: RiskState['decision'] | null }) {
+    const [simulatedLossR, setSimulatedLossR] = useState<number | null>(null);
+
+    const { maxDailyLossPct, dailyBudgetRemaining, maxSafeTradesRemaining, riskPerTradePct } = limits;
+    const accountCapital = 10000; // Mock capital
+    const maxDailyLossValue = accountCapital * (maxDailyLossPct / 100);
+    const currentDrawdown = maxDailyLossValue - dailyBudgetRemaining;
+    
+    const progress = maxDailyLossValue > 0 ? (currentDrawdown / maxDailyLossValue) * 100 : 0;
+    
+    // Simulation logic
+    const riskPerR = accountCapital * (riskPerTradePct / 100);
+    const simulatedLoss = simulatedLossR !== null ? riskPerR * simulatedLossR : 0;
+    const budgetAfterLoss = dailyBudgetRemaining - simulatedLoss;
+    
+    const getSimulatedDecisionLevel = (): RiskDecision['level'] => {
+        if (!decision) return 'green';
+        if (budgetAfterLoss <= 0) return 'red';
+        if (decision.level === 'red') return 'red';
+        if (simulatedLossR !== null && simulatedLossR > 1) return 'yellow';
+        return decision.level;
+    }
+
+    const simulatedDecisionLevel = getSimulatedDecisionLevel();
+
+    return (
+        <Card className="bg-muted/30 border-border/50">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Scale className="h-5 w-5" /> Risk Budget (Today)</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                 <div>
+                    <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                        <span>$0</span>
+                        <span>Max Daily Loss: ${maxDailyLossValue.toFixed(0)}</span>
+                    </div>
+                    <Progress value={progress} indicatorClassName="bg-destructive" />
+                    <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                        <span>Current drawdown: ${currentDrawdown.toFixed(0)}</span>
+                    </div>
+                </div>
+
+                <div className="p-3 rounded-lg bg-muted border space-y-2">
+                    <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Budget Remaining:</span>
+                        <span className="font-mono font-semibold text-foreground">${dailyBudgetRemaining.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Max Safe Trades:</span>
+                        <span className="font-mono font-semibold text-foreground">{maxSafeTradesRemaining} <span className="text-xs text-muted-foreground">(at {riskPerTradePct}% risk)</span></span>
+                    </div>
+                </div>
+            </CardContent>
+            <Separator />
+            <CardContent className="pt-6">
+                <div className="space-y-3">
+                    <Label className="font-semibold text-foreground">Simulate Next Trade</Label>
+                    <Select onValueChange={(v) => setSimulatedLossR(parseFloat(v))}>
+                        <SelectTrigger>
+                            <SelectValue placeholder="If next trade loses..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="0.5">-0.5R</SelectItem>
+                            <SelectItem value="1">-1.0R</SelectItem>
+                            <SelectItem value="2">-2.0R</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    {simulatedLossR !== null && (
+                         <div className="p-3 rounded-lg bg-muted border space-y-2 animate-in fade-in">
+                            <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">Budget after loss:</span>
+                                <span className="font-mono font-semibold text-foreground">${budgetAfterLoss.toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between text-sm items-center">
+                                <span className="text-muted-foreground">Decision changes to:</span>
+                                <Badge className={cn(
+                                    simulatedDecisionLevel === 'red' && 'bg-red-500/20 text-red-300 border-red-500/30',
+                                    simulatedDecisionLevel === 'yellow' && 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+                                    simulatedDecisionLevel === 'green' && 'bg-green-500/20 text-green-300 border-green-500/30'
+                                )}>{simulatedDecisionLevel.toUpperCase()}</Badge>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
+
 export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
     const { riskState, isLoading, refresh } = useRiskState();
 
@@ -762,6 +854,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                 <div className="lg:col-span-1 space-y-8 sticky top-24">
                      <PersonalRiskCard personalRisk={personalRisk} onSetModule={onSetModule} />
                      <TodaysLimitsCard limits={todaysLimits} onSetModule={onSetModule} />
+                     <RiskBudgetCard limits={todaysLimits} decision={decision} />
                      <RiskControlsCard />
                 </div>
             </div>
