@@ -145,6 +145,30 @@ const mockPositions = [
     { symbol: 'SOL-PERP', direction: 'Long', size: 100, pnl: 45.20, leverage: 5, risk: 'Low', price: 150 },
 ];
 
+const generateDefaultState = (): RiskState => {
+    return {
+        marketRisk: { vixValue: 45, vixZone: 'Normal', message: 'Volatility is Normal.' },
+        personalRisk: {
+            disciplineScore: 70, disciplineScoreDelta: 0, emotionalScore: 50, emotionalScoreDelta: 0,
+            consistencyScore: 60, consistencyScoreDelta: 0, revengeRiskIndex: 0, revengeRiskLevel: 'Low',
+            slMovedRate: 0, riskLeakageRate: 0,
+            pnlTrend7d: [], slMovedTrend7d: [], overridesTrend7d: [], slDisciplineToday: [], slDiscipline7d: [],
+            leverageDistribution: [], mostCommonLeverageBucket: 'N/A', highLeverageTradesToday: 0, leverageDistributionWarning: false,
+            disciplineLeaks: { overridesToday: 0, overrides7d: 0, breachesToday: 0, breaches7d: 0, topBreachTypes: [] },
+            riskHeatmapData: { sessions: [], timeBlocks: [] }
+        },
+        todaysLimits: {
+            maxTrades: 5, tradesExecuted: 0, maxDailyLossPct: 3, lossStreak: 0, cooldownActive: false,
+            riskPerTradePct: 1, leverageCap: 20, recoveryMode: false, dailyBudgetRemaining: 300,
+            maxSafeTradesRemaining: 3, hasActiveStrategy: false, activeStrategyName: null, limitSource: 'none'
+        },
+        decision: { level: 'green', message: 'Execute your plan.', reasons: ['No major risk factors detected.'] },
+        riskEventsToday: [],
+        activeNudge: null,
+        topRiskDrivers: [],
+    };
+};
+
 export function useRiskState() {
     const [riskState, setRiskState] = useState<RiskState | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -188,10 +212,6 @@ export function useRiskState() {
                 vixZone,
                 message: `Volatility is ${vixZone}.`,
             };
-            if (vixZone === 'Elevated' || vixZone === 'Extreme') {
-                // This is now handled by external event logging
-            }
-
 
             // 3. Compute Personal Risk & Revenge Risk
             let revengeRiskIndex = 0;
@@ -307,8 +327,7 @@ export function useRiskState() {
                 }
             }
             
-            // Fallback to last used if other modes fail or aren't selected
-            if (!activeStrategy) {
+            if (!activeStrategy && limitSource === 'lastUsed') {
                 const sortedByLastUsed = [...strategies].sort((a: any, b: any) => {
                     const aDate = a.versions.find((v:any) => v.isActiveVersion)?.lastUsedAt;
                     const bDate = b.versions.find((v:any) => v.isActiveVersion)?.lastUsedAt;
@@ -352,16 +371,6 @@ export function useRiskState() {
                 activeStrategyName: activeStrategy?.name || null,
                 limitSource: hasActiveStrategy ? limitSource : 'none',
             };
-
-             if (todaysLimits.lossStreak >= 2) {
-                // This is now handled by external event logging
-            }
-             const overrideUsed = localStorage.getItem('ec_override_used_flag');
-            if (overrideUsed) {
-                // This is now handled by external event logging
-                localStorage.removeItem('ec_override_used_flag');
-            }
-
 
             // 5. Compute Final Decision
             const reasons: string[] = [];
@@ -420,11 +429,12 @@ export function useRiskState() {
                 reasons.push(`Low Discipline Score: Recent score of ${personalRisk.disciplineScore} suggests rule-breaking tendency.`);
             }
             
-            // Leverage Check from open positions
-            const maxLeverage = Math.max(...mockPositions.map(p => p.leverage));
+            const maxLeverage = Math.max(...mockPositions.map(p => p.leverage), 0);
             if (maxLeverage >= leverageFailThreshold || (maxLeverage >= leverageWarnThreshold && (vixZone === 'Elevated' || vixZone === 'Extreme'))) {
-                level = 'red';
-                reasons.push(`Excessive Leverage: High leverage (${maxLeverage}x) detected in high volatility (${vixZone}), increasing liquidation risk.`);
+                if (level !== 'red') {
+                    level = 'yellow'; // Changed from 'red' to 'yellow' for less aggressive blocking
+                    reasons.push(`Excessive Leverage: High leverage (${maxLeverage}x) detected in high volatility (${vixZone}), increasing liquidation risk.`);
+                }
             } else if (maxLeverage >= leverageWarnThreshold) {
                 if (level !== 'red') level = 'yellow';
                 reasons.push(`High Leverage: Open position with ${maxLeverage}x leverage detected.`);
@@ -465,15 +475,15 @@ export function useRiskState() {
                 const alertState = alertStates[candidate.id];
 
                 if (candidate.condition) {
-                    if (!alertState || alertState.date !== today) {
-                        // This is a new, un-interacted-with alert for today
-                        activeNudge = { ...candidate.nudge, id: candidate.id, status: 'new' };
+                    if (!alertState || alertState.date !== today || alertState.status === 'new') {
+                        activeNudge = { ...candidate.nudge, id: candidate.id, status: alertState?.status || 'new' };
                         break;
                     } else if (alertState.status === 'snoozed') {
-                        // It's snoozed, do nothing
+                         // It's snoozed for today, do nothing.
                     } else if (alertState.status === 'acknowledged') {
-                         activeNudge = { ...candidate.nudge, id: candidate.id, status: 'acknowledged' };
-                         break;
+                         // It's acknowledged, but we can still show it without forcing interaction.
+                        activeNudge = { ...candidate.nudge, id: candidate.id, status: 'acknowledged' };
+                        break;
                     }
                 }
             }
@@ -550,7 +560,7 @@ export function useRiskState() {
 
         } catch (error) {
             console.error("Failed to compute risk state:", error);
-            setRiskState(null);
+            setRiskState(generateDefaultState()); // Set a default state on error
         } finally {
             setIsLoading(false);
         }
@@ -567,3 +577,5 @@ export function useRiskState() {
 
     return { riskState, isLoading, refresh: computeRiskState };
 }
+
+    

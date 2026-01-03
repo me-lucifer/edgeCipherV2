@@ -78,22 +78,6 @@ const scenarios: ScenarioData[] = [
         ]
     },
     { 
-        id: "extreme_vix", 
-        name: "Red Day: Extreme VIX", 
-        description: "Execution locked due to extreme volatility.", 
-        icon: AlertTriangle,
-        vixValue: 85,
-        lossStreak: 1,
-        tradesExecuted: 2,
-        overrideCount: 1,
-        growthPlan: ["Do not trade. Review market from the sidelines.", "Work on strategy backtesting.", "Read one chapter on trading psychology."],
-        riskEvents: [
-            { time: "14:00", description: "Market VIX entered 'Extreme' zone. All executions locked.", level: 'red' },
-            { time: "14:05", description: "Execution blocked: Market is in 'Extreme' volatility.", level: 'red' },
-            { time: "14:10", description: "Execution blocked: Market is in 'Extreme' volatility.", level: 'red' },
-        ]
-    },
-    { 
         id: "drawdown", 
         name: "Revenge Trap", 
         description: "On a loss streak, Revenge Risk is high.", 
@@ -155,6 +139,10 @@ export function DemoControls() {
         }
     }, []);
 
+    const dispatchStorageEvent = (key: string, newValue: string | null) => {
+        window.dispatchEvent(new StorageEvent('storage', { key, newValue }));
+    };
+
     const handleScenarioChange = useCallback((newScenarioId: string) => {
         const scenarioData = scenarios.find(s => s.id === newScenarioId);
         if (!scenarioData) return;
@@ -184,10 +172,11 @@ export function DemoControls() {
         localStorage.removeItem("ec_simulated_pnl_today");
 
         // Manually dispatch storage events to ensure all hooks react
-        window.dispatchEvent(new StorageEvent('storage', { key: 'ec_demo_scenario', newValue: scenarioData.id }));
-        window.dispatchEvent(new StorageEvent('storage', { key: 'ec_vix_override', newValue: String(scenarioData.vixValue) }));
-        window.dispatchEvent(new StorageEvent('storage', { key: 'ec_daily_counters', newValue: JSON.stringify(allCounters) }));
-        window.dispatchEvent(new StorageEvent('storage', { key: 'ec_recovery_mode', newValue: String(!!scenarioData.recoveryMode) }));
+        dispatchStorageEvent('ec_demo_scenario', scenarioData.id);
+        dispatchStorageEvent('ec_vix_override', String(scenarioData.vixValue));
+        dispatchStorageEvent('ec_daily_counters', JSON.stringify(allCounters));
+        dispatchStorageEvent('ec_recovery_mode', String(!!scenarioData.recoveryMode));
+        dispatchStorageEvent('ec_simulated_pnl_today', null);
         
         setScenario(scenarioData.id);
         addLog(`Demo Scenario Engine: Set to "${scenarioData.name}". State updated.`);
@@ -201,7 +190,7 @@ export function DemoControls() {
         const mode = newMarketMode as ChartMarketMode;
         localStorage.setItem('ec_chart_market_mode', mode);
         setMarketMode(mode);
-        window.dispatchEvent(new StorageEvent('storage', { key: 'ec_chart_market_mode', newValue: mode }));
+        dispatchStorageEvent('ec_chart_market_mode', mode);
     };
 
     const handleRunDisciplineDemo = () => {
@@ -229,8 +218,8 @@ export function DemoControls() {
         const newPnl = currentPnl - lossAmount;
         localStorage.setItem("ec_simulated_pnl_today", String(newPnl));
 
-        window.dispatchEvent(new StorageEvent('storage', { key: 'ec_daily_counters' }));
-        window.dispatchEvent(new StorageEvent('storage', { key: 'ec_simulated_pnl_today' }));
+        dispatchStorageEvent('ec_daily_counters', JSON.stringify(allCounters));
+        dispatchStorageEvent('ec_simulated_pnl_today', String(newPnl));
 
         toast({
             title: "Simulated a -1R Loss",
@@ -345,3 +334,5 @@ export function DemoControls() {
         </div>
     )
 }
+
+    
