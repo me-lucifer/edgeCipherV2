@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Pencil, ShieldAlert, BarChart as BarChartIcon, Info, CheckCircle, XCircle, AlertTriangle, Gauge, Calendar, Zap, Sun, Moon, Waves, User, ArrowRight, RefreshCw, SlidersHorizontal, TrendingUp, Sparkles, Droplets, TrendingDown, BookOpen, Layers, Settings, ShieldCheck, MoreHorizontal, Copy, Edit, Archive, Trash2, Scale, HeartPulse, HardHat, Globe, FileText, Clipboard, Flag, Flame, NotebookPen, BrainCircuit } from "lucide-react";
+import { Bot, Pencil, ShieldAlert, BarChart as BarChartIcon, Info, CheckCircle, XCircle, AlertTriangle, Gauge, Calendar, Zap, Sun, Moon, Waves, User, ArrowRight, RefreshCw, SlidersHorizontal, TrendingUp, Sparkles, Droplets, TrendingDown, BookOpen, Layers, Settings, ShieldCheck, MoreHorizontal, Copy, Edit, Archive, Trash2, Scale, HeartPulse, HardHat, Globe, FileText, Clipboard, Flag, Flame, NotebookPen, BrainCircuit, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "./ui/input";
@@ -33,6 +33,7 @@ import { format } from 'date-fns';
 import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, CartesianGrid, BarChart, Bar, Legend } from 'recharts';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "./ui/chart";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
 
 
 interface RiskCenterModuleProps {
@@ -183,8 +184,8 @@ function MarketRiskCard({ marketRisk, onSetModule }: { marketRisk: RiskState['ma
                     />
                     <div className="absolute w-[85%] h-[85%] bg-muted/80 backdrop-blur-sm rounded-t-full" />
                      <div className="relative flex flex-col items-center justify-center z-10 -mt-2">
-                        <p className="text-4xl font-bold text-foreground">{vixValue}</p>
-                        <Badge className={cn("text-base", 
+                        <p className="text-4xl font-bold font-mono text-foreground">{vixValue}</p>
+                        <Badge className={cn("text-base font-semibold", 
                             vixZone === "Extreme" && "bg-red-500/20 text-red-300 border-red-500/30",
                             vixZone === "Elevated" && "bg-amber-500/20 text-amber-300 border-amber-500/30",
                             vixZone === "Normal" && "bg-blue-500/20 text-blue-300 border-blue-500/30",
@@ -256,7 +257,7 @@ const ScoreGauge = ({ score, label, interpretation, delta, colorClass }: { score
                 />
                 <div className="absolute w-[85%] h-[85%] bg-muted/80 backdrop-blur-sm rounded-t-full" />
                  <div className="relative flex flex-col items-center justify-center z-10 -mt-2">
-                    <p className="text-3xl font-bold text-foreground">{score}</p>
+                    <p className="text-3xl font-bold font-mono text-foreground">{score}</p>
                 </div>
             </div>
             <p className="text-sm font-medium text-foreground -mt-3">{label}</p>
@@ -453,12 +454,13 @@ function TodaysLimitsCard({ limits, onSetModule }: { limits: RiskState['todaysLi
 
 function RiskControlsCard() {
     const [controls, setControls] = useState({
-        warnOnLowRR: true,
         warnOnHighRisk: true,
         warnOnHighVIX: false,
         cooldownAfterLosses: true,
     });
     const [isRecoveryMode, setIsRecoveryMode] = useState(false);
+    const [volatilityPolicy, setVolatilityPolicy] = useState<'follow' | 'conservative' | 'strict'>('follow');
+
 
     const { refresh } = useRiskState(); // To trigger a re-computation
 
@@ -466,8 +468,10 @@ function RiskControlsCard() {
         // Load initial state from localStorage
         const guardrails = JSON.parse(localStorage.getItem("ec_guardrails") || "{}");
         const recoveryMode = localStorage.getItem("ec_recovery_mode") === 'true';
+        const volPolicy = localStorage.getItem("ec_temp_vol_policy") as any || 'follow';
         setControls(prev => ({ ...prev, ...guardrails }));
         setIsRecoveryMode(recoveryMode);
+        setVolatilityPolicy(volPolicy);
     }, []);
 
     const handleGuardrailChange = (key: keyof typeof controls, value: boolean) => {
@@ -490,6 +494,13 @@ function RiskControlsCard() {
         refresh();
     };
 
+    const handlePolicyChange = (newPolicy: typeof volatilityPolicy) => {
+        setVolatilityPolicy(newPolicy);
+        localStorage.setItem("ec_temp_vol_policy", newPolicy);
+        refresh();
+    };
+
+
     const ControlSwitch = ({ id, label, description }: { id: keyof typeof controls, label: string, description: string }) => (
         <div className="flex items-center justify-between">
             <div className="space-y-0.5">
@@ -508,15 +519,24 @@ function RiskControlsCard() {
         <Card className="bg-muted/30 border-border/50">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2"><Settings className="h-5 w-5" /> Risk Controls</CardTitle>
-                <CardDescription>Toggle real-time guardrails.</CardDescription>
+                <CardDescription>Global overrides and guardrail toggles.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-                <ControlSwitch id="warnOnHighRisk" label="Warn if risk > strategy" description="Alerts if trade risk % exceeds strategy default." />
-                <ControlSwitch id="warnOnHighVIX" label="Warn in high VIX" description="Alerts when trading in Elevated/Extreme VIX." />
-                <ControlSwitch id="cooldownAfterLosses" label="Stop after 2 losses" description="Enforces a daily cooldown after 2 losses." />
-                
+                 <div className="space-y-2">
+                    <Label className="text-sm flex items-center gap-2"><Globe className="h-4 w-4" /> Volatility Policy</Label>
+                     <Select value={volatilityPolicy} onValueChange={(v) => handlePolicyChange(v as any)}>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select a policy" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="follow">Follow Strategy Rules</SelectItem>
+                            <SelectItem value="conservative">Conservative</SelectItem>
+                            <SelectItem value="strict">Strict</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">Temporary override for today's session.</p>
+                </div>
                 <Separator />
-                
                 <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
                         <Label htmlFor="recovery-mode" className="text-sm text-amber-400">Recovery Mode</Label>
@@ -529,6 +549,10 @@ function RiskControlsCard() {
                         className="data-[state=checked]:bg-amber-500"
                     />
                 </div>
+                <Separator />
+                <ControlSwitch id="warnOnHighRisk" label="Warn if risk > strategy" description="Alerts if trade risk % exceeds strategy default." />
+                <ControlSwitch id="warnOnHighVIX" label="Warn in high VIX" description="Alerts when trading in Elevated/Extreme VIX." />
+                <ControlSwitch id="cooldownAfterLosses" label="Stop after 2 losses" description="Enforces a daily cooldown after 2 losses." />
             </CardContent>
         </Card>
     );
@@ -620,11 +644,11 @@ function ExposureSnapshotCard({ onSetModule, vixZone }: { onSetModule: (module: 
                         <div className="grid grid-cols-2 gap-4">
                              <Card className="bg-muted/50 text-center p-4">
                                 <p className="text-xs text-muted-foreground">Net Exposure</p>
-                                <p className="text-lg font-bold">{netExposure}</p>
+                                <p className="text-lg font-bold font-mono">{netExposure}</p>
                             </Card>
                             <Card className={cn("bg-muted/50 text-center p-4", hasHighConcentration && "border-destructive/50")}>
                                 <p className="text-xs text-muted-foreground">Concentration Risk</p>
-                                <p className={cn("text-lg font-bold", hasHighConcentration && "text-destructive")}>{concentrationRisk.toFixed(0)}%</p>
+                                <p className={cn("text-lg font-bold font-mono", hasHighConcentration && "text-destructive")}>{concentrationRisk.toFixed(0)}%</p>
                             </Card>
                         </div>
                         <Table>
@@ -886,152 +910,6 @@ function RiskEventsTimeline({ events }: { events: RiskState['riskEventsToday'] }
     );
 }
 
-type VolatilityPolicy = 'follow' | 'conservative' | 'strict';
-
-function VolatilityPolicyCard() {
-    const [policy, setPolicy] = useState<VolatilityPolicy>('follow');
-    const { refresh } = useRiskState();
-
-    useEffect(() => {
-        const savedPolicy = localStorage.getItem("ec_temp_vol_policy") as VolatilityPolicy | null;
-        if (savedPolicy) {
-            setPolicy(savedPolicy);
-        }
-    }, []);
-
-    const handlePolicyChange = (newPolicy: VolatilityPolicy) => {
-        setPolicy(newPolicy);
-        localStorage.setItem("ec_temp_vol_policy", newPolicy);
-        refresh();
-    };
-
-    const descriptions = {
-        follow: "Use the VIX policy defined in the selected strategy.",
-        conservative: "Warn on 'Elevated' VIX, Fail on 'Extreme' VIX.",
-        strict: "Fail on any VIX level above 'Normal'.",
-    };
-
-    return (
-        <Card className="bg-muted/30 border-border/50">
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <Globe className="h-5 w-5" /> Volatility Policy
-                </CardTitle>
-                <CardDescription>Temporary override for today's session.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <Select value={policy} onValueChange={(v) => handlePolicyChange(v as VolatilityPolicy)}>
-                    <SelectTrigger>
-                        <SelectValue placeholder="Select a policy" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="follow">Follow Strategy Rules</SelectItem>
-                        <SelectItem value="conservative">Conservative</SelectItem>
-                        <SelectItem value="strict">Strict</SelectItem>
-                    </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground mt-2">{descriptions[policy]}</p>
-            </CardContent>
-        </Card>
-    );
-}
-
-function PersonaFitAnalysis({ onSetModule }: { onSetModule: (module: any) => void }) {
-    const [persona, setPersona] = useState<{ primaryPersonaName?: string } | null>(null);
-
-    useEffect(() => {
-        if (typeof window !== "undefined") {
-            const personaData = localStorage.getItem("ec_persona_final") || localStorage.getItem("ec_persona_base");
-            if (personaData) {
-                setPersona(JSON.parse(personaData));
-            }
-        }
-    }, []);
-
-    const analysis = useMemo(() => {
-        if (!persona) return null;
-
-        const results: { status: 'Caution' | 'Good', reasons: string[] } = { status: 'Good', reasons: [] };
-        const personaName = persona.primaryPersonaName || '';
-
-        if (personaName.includes("Impulsive") || personaName.includes("Sprinter")) {
-            results.status = 'Caution';
-            results.reasons.push("High daily trade limits may enable overtrading.");
-            results.reasons.push("High leverage can amplify losses, risky for this style.");
-        }
-        
-        if (results.status === 'Good') {
-            results.reasons.push("Strategy risk parameters seem well-suited to your trading persona.");
-        }
-
-        return results;
-    }, [persona]);
-
-    if (!analysis) return null;
-
-    const isCaution = analysis.status === 'Caution';
-
-    return (
-        <Card className={cn("bg-muted/30 border-border/50", isCaution && "border-amber-500/30 bg-amber-950/20")}>
-            <CardHeader className="pb-4">
-                <CardTitle className={cn("text-base flex items-center gap-2", isCaution && "text-amber-400")}>
-                    <User className="h-5 w-5" />
-                    Persona-Strategy Fit
-                </CardTitle>
-            </CardHeader>
-            <CardContent>
-                <div className="flex items-center gap-2 mb-3">
-                    <Badge variant={isCaution ? "destructive" : "secondary"} className={cn(
-                        isCaution && "bg-amber-500/20 text-amber-300 border-amber-500/30"
-                    )}>{analysis.status}</Badge>
-                    <p className="text-xs text-muted-foreground">vs. <span className="font-semibold text-foreground">{persona?.primaryPersonaName || "Your Persona"}</span></p>
-                </div>
-                 <ul className="space-y-2 text-sm text-muted-foreground list-disc list-inside">
-                    {analysis.reasons.map((reason, i) => <li key={i}>{reason}</li>)}
-                </ul>
-            </CardContent>
-        </Card>
-    )
-}
-
-function RiskNudge({ nudge, onDismiss, onAcknowledge }: { nudge: ActiveNudge | null, onDismiss: (id: string) => void, onAcknowledge: (id: string) => void }) {
-    if (!nudge) return null;
-
-    const severityConfig = {
-        warn: { icon: AlertTriangle, className: "bg-amber-950/40 border-amber-500/20 text-amber-300", titleClass: "text-amber-400" },
-        info: { icon: Info, className: "bg-blue-950/40 border-blue-500/20 text-blue-300", titleClass: "text-blue-400" },
-    };
-    
-    const config = severityConfig[nudge.severity];
-    const Icon = config.icon;
-
-    if (nudge.status === 'acknowledged') {
-        return (
-            <Alert variant="default" className="bg-muted/30 border-border/50">
-                <CheckCircle className="h-4 w-4 text-green-500" />
-                <AlertTitle className="text-xs font-semibold">Acknowledged: {nudge.title}</AlertTitle>
-                <AlertDescription className="text-xs text-muted-foreground">{nudge.message}</AlertDescription>
-            </Alert>
-        );
-    }
-
-    return (
-        <Alert variant="default" className={cn(config.className, "animate-in fade-in")}>
-            <Icon className="h-4 w-4" />
-            <AlertTitle className={config.titleClass}>{nudge.title}</AlertTitle>
-            <AlertDescription>{nudge.message}</AlertDescription>
-            <div className="mt-4 flex gap-2">
-                <Button variant="outline" size="sm" className="bg-transparent border-current/50 text-current hover:bg-current/10 h-7 text-xs" onClick={() => onAcknowledge(nudge.id)}>
-                    Acknowledge
-                </Button>
-                <Button variant="ghost" size="sm" className="text-current/80 hover:text-current h-7 text-xs" onClick={() => onDismiss(nudge.id)}>
-                    Snooze for today
-                </Button>
-            </div>
-        </Alert>
-    );
-}
-
 const SummaryRow = ({ label, value, className }: { label: string, value: React.ReactNode, className?: string }) => (
     <div className="flex justify-between items-center text-sm">
         <p className="text-muted-foreground">{label}</p>
@@ -1140,7 +1018,7 @@ function ReportDialog({ reportType, riskState }: { reportType: ReportType, riskS
             const title = `### Weekly Risk & Discipline Report ###`;
             
             if (short) {
-                return `${title}\\n- **Top Leak**: ${reportData.risk.topDisciplineLeak}\\n- **Focus**: ${reportData.recommendations[0]}`;
+                return `${title}\n- **Top Leak**: ${reportData.risk.topDisciplineLeak}\n- **Focus**: ${reportData.recommendations[0]}`;
             }
             return `
 ${title}
@@ -1148,24 +1026,24 @@ ${title}
 - Discipline Score: ${riskState?.personalRisk.disciplineScore || 'N/A'} (${riskState?.personalRisk.disciplineScoreDelta.toFixed(0) || '0'} pts)
 - Emotional Control: ${riskState?.personalRisk.emotionalScore || 'N/A'} (${riskState?.personalRisk.emotionalScoreDelta.toFixed(0) || '0'} pts)
 **Key Risk Events This Period**
-${(riskState?.riskEventsToday.slice(0, 3) || []).map(e => `- ${e.description}`).join('\\n') || "- None recorded."}
+${(riskState?.riskEventsToday.slice(0, 3) || []).map(e => `- ${e.description}`).join('\n') || "- None recorded."}
 **Top Discipline Leak**
 - ${reportData.risk.topDisciplineLeak}
 **Recommended Next Actions**
-${reportData.recommendations.map(r => `- ${r}`).join('\\n')}
+${reportData.recommendations.map(r => `- ${r}`).join('\n')}
             `.trim();
         } else { // Monthly
              const title = `### Monthly Risk Review ###`;
              if (short) {
-                return `${title}\\n- **Improvement**: ${reportData.improvements[0]}\\n- **Next Focus**: ${reportData.fixNext[0]}`;
+                return `${title}\n- **Improvement**: ${reportData.improvements[0]}\n- **Next Focus**: ${reportData.fixNext[0]}`;
              }
              return `
 ${title}
 **Summary of Improvements**
-${reportData.improvements.map(item => `- ${item}`).join('\\n')}
+${reportData.improvements.map(item => `- ${item}`).join('\n')}
 
 **Priorities for Next Month**
-${reportData.fixNext.map(item => `- ${item}`).join('\\n')}
+${reportData.fixNext.map(item => `- ${item}`).join('\n')}
 
 **Trend Data**
 - SL Discipline: ${reportData.slDisciplineTrend.slice(-1)[0]?.value.toFixed(0)}% (final)
@@ -1265,6 +1143,7 @@ ${reportData.fixNext.map(item => `- ${item}`).join('\\n')}
                     <TelemetryCard title="Leverage Stability" hint="Avg. leverage per week" value={`${reportData.leverageTrend.slice(-1)[0]?.value.toFixed(0)}x`}>
                         <ChartContainer config={{value: {color: "hsl(var(--chart-1))"}}} className="h-full w-full">
                             <BarChart data={reportData.leverageTrend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                <CartesianGrid vertical={false} strokeDasharray="3 3" />
                                 <YAxis tickFormatter={(v) => `${v}x`} tick={{fontSize: 10}} />
                                 <Bar dataKey="value" radius={2} />
                             </BarChart>
@@ -1273,6 +1152,7 @@ ${reportData.fixNext.map(item => `- ${item}`).join('\\n')}
                      <TelemetryCard title="SL Discipline" hint="SL Respected Rate (%)" value={`${reportData.slDisciplineTrend.slice(-1)[0]?.value.toFixed(0)}%`}>
                         <ChartContainer config={{value: {color: "hsl(var(--chart-2))"}}} className="h-full w-full">
                              <LineChart data={reportData.slDisciplineTrend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                <CartesianGrid vertical={false} strokeDasharray="3 3" />
                                 <YAxis domain={[50, 100]} tickFormatter={(v) => `${v}%`} tick={{fontSize: 10}} />
                                 <Line type="monotone" dataKey="value" stroke="hsl(var(--chart-2))" strokeWidth={2} dot={false} />
                             </LineChart>
@@ -1281,6 +1161,7 @@ ${reportData.fixNext.map(item => `- ${item}`).join('\\n')}
                      <TelemetryCard title="Override Rate" hint="Rule overrides per week" value={`${reportData.overrideRateTrend.slice(-1)[0]?.value.toFixed(0)}`}>
                         <ChartContainer config={{value: {color: "hsl(var(--chart-5))"}}} className="h-full w-full">
                             <BarChart data={reportData.overrideRateTrend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                <CartesianGrid vertical={false} strokeDasharray="3 3" />
                                 <YAxis domain={[0, 10]} tick={{fontSize: 10}} />
                                 <Bar dataKey="value" fill="hsl(var(--chart-5))" radius={2} />
                             </BarChart>
@@ -1339,6 +1220,7 @@ const LeverageHistogram = ({ data }: { data: LeverageDistributionData[] }) => (
     <ChartContainer config={{count: {color: "hsl(var(--primary))"}}} className="h-full w-full">
         <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data}>
+                 <CartesianGrid vertical={false} strokeDasharray="3 3" />
                 <XAxis dataKey="name" tick={{ fontSize: 12 }} />
                 <YAxis tick={{ fontSize: 10 }} />
                 <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
@@ -1643,7 +1525,6 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                         <div className="lg:col-span-1 space-y-8 sticky top-24">
                              <TopRiskDriversCard drivers={topRiskDrivers} onSetModule={onSetModule} />
                              <RiskBudgetCard limits={todaysLimits} decision={decision} refreshState={refresh} pnlTrend7d={personalRisk.pnlTrend7d}/>
-                             <VolatilityPolicyCard />
                              <RiskControlsCard />
                         </div>
                     </div>
@@ -1694,6 +1575,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                                 <TelemetryCard title="Risk-per-Trade Drift" value={`${personalRisk.riskLeakageRate.toFixed(1)}x`} hint="Actual loss vs. planned risk">
                                     <ChartContainer config={{value: {color: "hsl(var(--chart-4))"}}} className="w-full h-full">
                                         <LineChart data={personalRisk.overridesTrend7d} margin={{ top: 5, right: 10, left: -30, bottom: 0 }}>
+                                            <CartesianGrid vertical={false} strokeDasharray="3 3" />
                                             <YAxis domain={[0,2]} tickFormatter={(v) => `${v.toFixed(1)}x`} tick={{fontSize: 10}}/>
                                             <ChartTooltip content={<ChartTooltipContent formatter={(v) => `${Number(v).toFixed(1)}x`}/>} />
                                             <Line type="monotone" dataKey="value" stroke="hsl(var(--chart-4))" strokeWidth={2} dot={false} />
@@ -1761,8 +1643,6 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
     );
 }
 
-const dailyCounters = { overrideCount: 0 };
-
 const DeltaIndicator = ({ delta, unit = "" }: { delta: number; unit?: string }) => {
     if (delta === 0) return null;
     const isPositive = delta > 0;
@@ -1778,16 +1658,3 @@ const DeltaIndicator = ({ delta, unit = "" }: { delta: number; unit?: string }) 
 };
     
     
-
-
-
-
-
-
-
-
-
-
-
-
-
