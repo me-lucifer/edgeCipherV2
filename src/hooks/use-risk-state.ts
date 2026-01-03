@@ -27,7 +27,7 @@ export type ActiveNudge = {
     title: string;
     message: string;
     severity: 'warn' | 'info';
-    status: 'new' | 'acknowledged';
+    status: 'new' | 'acknowledged' | 'snoozed';
 };
 
 export type SLDisciplineData = {
@@ -121,6 +121,7 @@ export type RiskState = {
         recoveryMode: boolean;
         dailyBudgetRemaining: number;
         maxSafeTradesRemaining: number;
+        hasActiveStrategy: boolean;
     };
     decision: RiskDecision;
     riskEventsToday: RiskEvent[];
@@ -289,15 +290,17 @@ export function useRiskState() {
             };
 
             // 4. Compute Today's Limits & Risk Budget
+            const hasActiveStrategy = !!activeStrategy;
             const baseRules = activeStrategy?.versions.find((v:any) => v.isActiveVersion)?.ruleSet?.riskRules;
             const accountCapital = assumedCapital;
             
             const currentPnlToday = parseFloat(localStorage.getItem('ec_simulated_pnl_today') || '0');
             
-            const maxDailyLossPct = recoveryMode ? Math.min(baseRules?.maxDailyLossPct || 3, 2) : (baseRules?.maxDailyLossPct || 3);
+            const defaultRules = { maxDailyLossPct: 3, riskPerTradePct: 1, maxDailyTrades: 5, leverageCap: 20 };
             
-            // Persist the active risk % so simulation can use it
-            const riskPerTradePct = recoveryMode ? Math.min(baseRules?.riskPerTradePct || 1, 0.5) : (baseRules?.riskPerTradePct || 1);
+            const maxDailyLossPct = recoveryMode ? Math.min(baseRules?.maxDailyLossPct || defaultRules.maxDailyLossPct, 2) : (baseRules?.maxDailyLossPct || defaultRules.maxDailyLossPct);
+            
+            const riskPerTradePct = recoveryMode ? Math.min(baseRules?.riskPerTradePct || defaultRules.riskPerTradePct, 0.5) : (baseRules?.riskPerTradePct || defaultRules.riskPerTradePct);
             localStorage.setItem("ec_active_risk_pct", String(riskPerTradePct));
 
             
@@ -307,16 +310,17 @@ export function useRiskState() {
             const maxSafeTradesRemaining = riskPerTradeValue > 0 ? Math.floor(dailyBudgetRemaining / riskPerTradeValue) : 0;
             
             const todaysLimits = {
-                maxTrades: recoveryMode ? 2 : (baseRules?.maxDailyTrades || 5),
+                maxTrades: recoveryMode ? 2 : (baseRules?.maxDailyTrades || defaultRules.maxDailyTrades),
                 tradesExecuted: dailyCounters.tradesExecuted || 0,
                 maxDailyLossPct,
                 lossStreak: dailyCounters.lossStreak || 0,
                 cooldownActive: recoveryMode || (guardrails.cooldownAfterLosses !== false && (dailyCounters.lossStreak || 0) >= 2),
                 riskPerTradePct,
-                leverageCap: recoveryMode ? 10 : (baseRules?.leverageCap || 20),
+                leverageCap: recoveryMode ? 10 : (baseRules?.leverageCap || defaultRules.leverageCap),
                 recoveryMode: recoveryMode,
                 dailyBudgetRemaining,
                 maxSafeTradesRemaining,
+                hasActiveStrategy,
             };
 
              if (todaysLimits.lossStreak >= 2) {
@@ -435,11 +439,12 @@ export function useRiskState() {
                         // This is a new, un-interacted-with alert for today
                         activeNudge = { ...candidate.nudge, id: candidate.id, status: 'new' };
                         break;
+                    } else if (alertState.status === 'snoozed') {
+                        // It's snoozed, do nothing
                     } else if (alertState.status === 'acknowledged') {
                          activeNudge = { ...candidate.nudge, id: candidate.id, status: 'acknowledged' };
                          break;
                     }
-                    // If snoozed, we just skip and don't set it as the activeNudge
                 }
             }
             

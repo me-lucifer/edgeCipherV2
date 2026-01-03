@@ -1,4 +1,5 @@
 
+
       "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
@@ -198,7 +199,7 @@ function MarketRiskCard({ marketRisk, onSetModule }: { marketRisk: RiskState['ma
                 <div className="space-y-3">
                    <p className="text-sm text-muted-foreground"><span className="font-semibold text-foreground">Impact:</span> {impact}</p>
                    <Button variant="link" className="p-0 h-auto" onClick={() => onSetModule('cryptoVix')}>
-                       Open Crypto VIX Module <ArrowRight className="ml-2 h-4 w-4" />
+                       Open Crypto VIX details <ArrowRight className="ml-2 h-4 w-4" />
                    </Button>
                 </div>
             </CardContent>
@@ -418,19 +419,27 @@ function TodaysLimitsCard({ limits, onSetModule }: { limits: RiskState['todaysLi
         <Card id="todays-limits" className="bg-muted/30 border-border/50">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2"><ShieldAlert className="h-5 w-5" /> Today's Limits</CardTitle>
-                <CardDescription>Hard constraints from your active strategy.</CardDescription>
+                <CardDescription>{limits.hasActiveStrategy ? "Hard constraints from your active strategy." : "Global default risk limits are active."}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-                <div>
-                    <h4 className="text-sm font-semibold text-foreground mb-3">Strategy Rules</h4>
-                    <div className="space-y-2">
-                        <StatusRow label="Max risk / trade" value={`${limits.riskPerTradePct.toFixed(2)}%`} tooltipText="The maximum percentage of your account to risk on a single trade." />
-                        <StatusRow label="Max daily trades" value={limits.maxTrades} />
-                        <StatusRow label="Max daily loss" value={`${limits.maxDailyLossPct}%`} />
-                        <StatusRow label="Leverage cap" value={`${limits.leverageCap}x`} />
-                        <StatusRow label="Cooldown rule" value={limits.cooldownActive ? "ON" : "OFF"} valueClass={limits.cooldownActive ? "text-amber-400" : ""} tooltipText="A mandatory break from trading after a set number of consecutive losses to prevent revenge trading." />
+                {!limits.hasActiveStrategy ? (
+                    <div className="text-center p-4 border-2 border-dashed rounded-lg">
+                        <h4 className="font-semibold text-foreground">No Strategy Active</h4>
+                        <p className="text-xs text-muted-foreground mt-1 mb-3">Risk limits are based on global defaults. Create or activate a strategy to enable specific rule enforcement.</p>
+                        <Button size="sm" onClick={() => onSetModule('strategyManagement')}>Create a Strategy</Button>
                     </div>
-                </div>
+                ) : (
+                    <div>
+                        <h4 className="text-sm font-semibold text-foreground mb-3">Strategy Rules</h4>
+                        <div className="space-y-2">
+                            <StatusRow label="Max risk / trade" value={`${limits.riskPerTradePct.toFixed(2)}%`} tooltipText="The maximum percentage of your account to risk on a single trade." />
+                            <StatusRow label="Max daily trades" value={limits.maxTrades} />
+                            <StatusRow label="Max daily loss" value={`${limits.maxDailyLossPct}%`} />
+                            <StatusRow label="Leverage cap" value={`${limits.leverageCap}x`} />
+                            <StatusRow label="Cooldown rule" value={limits.cooldownActive ? "ON" : "OFF"} valueClass={limits.cooldownActive ? "text-amber-400" : ""} tooltipText="A mandatory break from trading after a set number of consecutive losses to prevent revenge trading." />
+                        </div>
+                    </div>
+                )}
                 <Separator />
                  <div>
                     <h4 className="text-sm font-semibold text-foreground mb-3">Live Status</h4>
@@ -441,14 +450,16 @@ function TodaysLimitsCard({ limits, onSetModule }: { limits: RiskState['todaysLi
                          <StatusRow label="Recovery Mode" value={limits.recoveryMode ? "ON" : "OFF"} valueClass={limits.recoveryMode ? "text-amber-400" : ""} />
                     </div>
                 </div>
-                <div className="flex flex-col gap-2 pt-2">
-                     <Button variant="outline" size="sm" onClick={() => onSetModule('strategyManagement')}>
-                        <BookOpen className="mr-2 h-4 w-4" /> Open Strategy Rules
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => onSetModule('tradePlanning')}>
-                        <Zap className="mr-2 h-4 w-4" /> Open Trade Planning
-                    </Button>
-                </div>
+                {limits.hasActiveStrategy && (
+                    <div className="flex flex-col gap-2 pt-2">
+                        <Button variant="outline" size="sm" onClick={() => onSetModule('strategyManagement')}>
+                            <BookOpen className="mr-2 h-4 w-4" /> Open Strategy Rules
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => onSetModule('tradePlanning')}>
+                            <Zap className="mr-2 h-4 w-4" /> Open Trade Planning
+                        </Button>
+                    </div>
+                )}
             </CardContent>
         </Card>
     );
@@ -1790,6 +1801,7 @@ const DeltaIndicator = ({ delta, unit = "" }: { delta: number; unit?: string }) 
 };
     
     
+
 
 
 
