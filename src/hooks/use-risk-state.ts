@@ -33,12 +33,14 @@ export type RiskState = {
     todaysLimits: {
         maxTrades: number;
         tradesExecuted: number;
-        maxDailyLoss: number;
+        maxDailyLossPct: number;
         lossStreak: number;
         cooldownActive: boolean;
         riskPerTradePct: number;
         leverageCap: number;
         recoveryMode: boolean;
+        dailyBudgetRemaining: number;
+        maxSafeTradesRemaining: number;
     };
     decision: RiskDecision;
 };
@@ -97,17 +99,30 @@ export function useRiskState() {
                 riskLeakageRate: scenario === 'drawdown' ? 1.5 : 0.2, // Mock
             };
 
-            // 4. Compute Today's Limits
+            // 4. Compute Today's Limits & Risk Budget
             const baseRules = activeStrategy?.versions.find((v:any) => v.isActiveVersion)?.ruleSet?.riskRules;
+            const accountCapital = 10000; // Mock capital
+            const currentPnLToday = scenario === 'drawdown' ? -450 : (dailyCounters.tradesExecuted > 0 ? 150 : 0); // Mock PnL
+            
+            const maxDailyLossPct = baseRules?.maxDailyLossPct || 3;
+            const riskPerTradePct = baseRules?.riskPerTradePct || 1;
+            
+            const maxDailyLossValue = accountCapital * (maxDailyLossPct / 100);
+            const dailyBudgetRemaining = Math.max(0, maxDailyLossValue - Math.abs(Math.min(0, currentPnLToday)));
+            const riskPerTradeValue = accountCapital * (riskPerTradePct / 100);
+            const maxSafeTradesRemaining = riskPerTradeValue > 0 ? Math.floor(dailyBudgetRemaining / riskPerTradeValue) : 0;
+            
             const todaysLimits = {
                 maxTrades: baseRules?.maxDailyTrades || 5,
                 tradesExecuted: dailyCounters.tradesExecuted || 0,
-                maxDailyLoss: baseRules?.maxDailyLossPct || 3,
+                maxDailyLossPct,
                 lossStreak: dailyCounters.lossStreak || 0,
                 cooldownActive: (guardrails.cooldownAfterLosses !== false && (dailyCounters.lossStreak || 0) >= 2),
-                riskPerTradePct: baseRules?.riskPerTradePct || 1,
+                riskPerTradePct,
                 leverageCap: baseRules?.leverageCap || 20,
                 recoveryMode: recoveryMode,
+                dailyBudgetRemaining,
+                maxSafeTradesRemaining,
             };
 
             // 5. Compute Final Decision
@@ -117,6 +132,10 @@ export function useRiskState() {
             if (todaysLimits.cooldownActive) {
                 level = "red";
                 reasons.push(`Cooldown is active due to a ${todaysLimits.lossStreak}-trade losing streak.`);
+            }
+             if (dailyBudgetRemaining <= 0) {
+                level = "red";
+                reasons.push(`Daily loss limit of ${maxDailyLossPct}% has been reached.`);
             }
             if (vixZone === "Extreme") {
                 level = "red";
