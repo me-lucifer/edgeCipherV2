@@ -821,7 +821,7 @@ function SessionChecklist({ currentStep }: { currentStep: TradePlanStep }) {
     return (
         <Card className="bg-muted/30 border-border/50 mb-8">
             <CardHeader>
-                <CardTitle className="text-base">Session Checklist</CardTitle>
+                <CardTitle className="text-base">Pre-flight Checklist</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
                 <div className="space-y-2">
@@ -1585,7 +1585,6 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
     
     // ... other components remain the same ...
     
-    // The rest of the file needs to be included...
     // Re-adding the full file content with the change integrated.
     
     function ExecutionOptions({ form, onSetModule, executionHeadingRef, validationResult, entryChecklist }: { form: any, onSetModule: (module: any, context?: any) => void; executionHeadingRef: React.Ref<HTMLDivElement>; validationResult: ValidationOutput | null, entryChecklist: Record<string, boolean> }) {
@@ -2567,5 +2566,4 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
     
     
     
-
 
