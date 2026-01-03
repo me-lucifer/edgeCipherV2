@@ -671,119 +671,41 @@ function ExposureSnapshotCard({ onSetModule }: { onSetModule: (module: any) => v
     );
 }
 
-function ArjunRiskAlerts({ onSetModule }: { onSetModule: (module: any, context?: any) => void }) {
-    const { riskState } = useRiskState();
+function ArjunRiskAlerts({ onSetModule, riskState }: { onSetModule: (module: any, context?: any) => void; riskState: RiskState | null; }) {
 
-    const alerts = useMemo(() => {
-        if (!riskState) return [];
+    const handleAskArjun = () => {
+        if (!riskState) return;
+        const { decision, todaysLimits, marketRisk } = riskState;
+        const sensitivity = localStorage.getItem("ec_risk_sensitivity") || 'balanced';
 
-        const generatedAlerts = riskState.decision.reasons.map(reason => {
-            const lowerReason = reason.toLowerCase();
-            if (lowerReason.includes('leverage')) {
-                return {
-                    severity: 'red' as 'red',
-                    title: 'High Leverage Detected',
-                    suggestion: "High leverage + high volatility increases liquidation probability. Review open positions.",
-                    action: { label: 'Review Open Positions', module: 'tradePlanning', context: { instrument: 'BTC-PERP', source: 'RiskCenter' } }
-                };
-            }
-             if (lowerReason.includes('cooldown')) {
-                return {
-                    severity: 'red' as 'red',
-                    title: `You're on a ${riskState.todaysLimits.lossStreak}-trade losing streak`,
-                    suggestion: "This is a critical moment for your discipline. Pause trading and review these losses to understand the pattern.",
-                    action: { label: 'Open Pending Journals', module: 'tradeJournal' }
-                };
-            }
-            if (lowerReason.includes('discipline score')) {
-                return {
-                    severity: 'warn' as 'warn',
-                    title: 'Your discipline score is low',
-                    suggestion: "This indicates recent rule-breaking. Focus on following your plan to the letter on your next trade.",
-                    action: { label: 'See Why in Analytics', module: 'analytics' }
-                };
-            }
-            if (lowerReason.includes('volatility')) {
-                 return {
-                    severity: 'warn' as 'warn',
-                    title: `Market volatility is '${riskState.marketRisk.vixZone}'`,
-                    suggestion: "Risk of sharp, unpredictable moves is high. Consider if any trade is truly an A+ setup right now.",
-                    action: { label: 'Plan Trade in Safe Mode', module: 'tradePlanning', context: { safeMode: true } }
-                };
-            }
-            return null;
-        }).filter((alert): alert is NonNullable<typeof alert> => alert !== null);
-        
-        if (generatedAlerts.length === 0) {
-            return [{
-                severity: 'info' as 'info',
-                title: 'No critical alerts',
-                suggestion: 'All systems are currently within your defined risk parameters. Focus on executing your plan.',
-                action: { label: 'Plan next trade', module: 'tradePlanning' }
-            }];
-        }
-        return generatedAlerts;
-    }, [riskState]);
+        const prompt = `
+Arjun, can we create a plan for today's session? Here's my current risk state:
 
-    const handlePlanSafeTrade = () => {
-        onSetModule('tradePlanning', {
-            planContext: { instrument: 'BTC-PERP', source: 'riskCenter', safeMode: true }
-        });
+- **Decision Level**: ${decision.level.toUpperCase()}
+- **Key Reasons**: ${decision.reasons.join(', ')}
+- **Today's Stats**: ${todaysLimits.tradesExecuted} trades taken, ${todaysLimits.lossStreak}-trade loss streak.
+- **Market Context**: VIX is ${marketRisk.vixValue} (${marketRisk.vixZone}) and my sensitivity is set to '${sensitivity}'.
+
+What should my primary focus be?
+`;
+        onSetModule('aiCoaching', { initialMessage: prompt.trim() });
     };
 
     return (
-        <Card className="bg-muted/30 border-border/50">
+        <Card className="bg-muted/30 border-primary/20">
             <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Bot className="h-5 w-5" /> Arjun Risk Alerts</CardTitle>
+                <CardTitle className="flex items-center gap-2"><Bot className="h-5 w-5 text-primary" /> Arjun's Risk Handoff</CardTitle>
+                 <CardDescription>
+                    Summarize your current risk posture and discuss it with your AI coach to build a concrete plan for today.
+                </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-                {alerts.map((alert, index) => (
-                    <Alert
-                        key={index}
-                        variant="default"
-                        className={cn(
-                            alert.severity === 'red' && 'bg-red-950/40 border-red-500/20 text-red-300',
-                            alert.severity === 'warn' && 'bg-amber-950/40 border-amber-500/20 text-amber-300',
-                            alert.severity === 'info' && 'bg-blue-950/40 border-blue-500/20 text-blue-300'
-                        )}
-                    >
-                        {alert.severity === 'red' && <XCircle className="h-4 w-4 text-red-400" />}
-                        {alert.severity === 'warn' && <AlertTriangle className="h-4 w-4 text-amber-400" />}
-                        {alert.severity === 'info' && <Info className="h-4 w-4 text-blue-400" />}
-                        
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                            <div className="flex-1">
-                                <AlertTitle className={cn(
-                                    alert.severity === 'red' && 'text-red-400',
-                                    alert.severity === 'warn' && 'text-amber-400',
-                                    alert.severity === 'info' && 'text-blue-400'
-                                )}>
-                                    {alert.title}
-                                </AlertTitle>
-                                <AlertDescription>
-                                    <span className="font-semibold text-foreground">What to do now:</span> {alert.suggestion}
-                                </AlertDescription>
-                            </div>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                className="bg-background/20 border-border/50 whitespace-nowrap self-start sm:self-center"
-                                onClick={() => onSetModule(alert.action.module, alert.action.context)}
-                            >
-                                {alert.action.label} <ArrowRight className="ml-2 h-4 w-4" />
-                            </Button>
-                        </div>
-                    </Alert>
-                ))}
-                <div className="pt-4 border-t border-border/50 text-center">
-                    <Button onClick={handlePlanSafeTrade}>
-                        <ShieldCheck className="mr-2 h-4 w-4" />
-                        Plan a trade (Safe Mode)
-                    </Button>
-                    <p className="text-xs text-muted-foreground mt-2">
-                        This pre-selects a conservative strategy and reduced risk.
-                    </p>
-                </div>
+            <CardContent>
+                <p className="text-sm text-muted-foreground mb-4">
+                    This will package your current risk status (decision level, VIX, loss streaks, etc.) into a detailed prompt for Arjun.
+                </p>
+                <Button className="w-full" onClick={handleAskArjun}>
+                    Ask Arjun about today's risk
+                </Button>
             </CardContent>
         </Card>
     );
@@ -973,6 +895,8 @@ function RiskEventsTimeline({ events }: { events: RiskState['riskEventsToday'] }
         </Card>
     );
 }
+
+type VolatilityPolicy = 'follow' | 'conservative' | 'strict';
 
 function VolatilityPolicyCard() {
     const [policy, setPolicy] = useState<VolatilityPolicy>('follow');
@@ -1194,7 +1118,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                      <RiskControlsCard />
                 </div>
             </div>
-             <ArjunRiskAlerts onSetModule={onSetModule} />
+             <ArjunRiskAlerts onSetModule={onSetModule} riskState={riskState} />
         </div>
     );
 }
