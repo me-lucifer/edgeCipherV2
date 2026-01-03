@@ -1189,7 +1189,7 @@ ${reportData.fixNext.map(item => `- ${item}`).join('\n')}
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <TelemetryCard title="Leverage Stability" hint="Avg. leverage per week" value={`${reportData.leverageTrend.slice(-1)[0]?.value.toFixed(0)}x`}>
+                    <TelemetryCard title="Leverage Stability" hint="Avg. leverage per week" value={`${reportData.leverageTrend.slice(-1)[0]?.value.toFixed(0)}x`} onSetModule={() => {}}>
                         <ChartContainer config={{value: {color: "hsl(var(--chart-1))"}}} className="h-full w-full">
                             <BarChart data={reportData.leverageTrend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                                 <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50" />
@@ -1198,7 +1198,7 @@ ${reportData.fixNext.map(item => `- ${item}`).join('\n')}
                             </BarChart>
                         </ChartContainer>
                     </TelemetryCard>
-                     <TelemetryCard title="SL Discipline" hint="SL Respected Rate (%)" value={`${reportData.slDisciplineTrend.slice(-1)[0]?.value.toFixed(0)}%`}>
+                     <TelemetryCard title="SL Discipline" hint="SL Respected Rate (%)" value={`${reportData.slDisciplineTrend.slice(-1)[0]?.value.toFixed(0)}%`} onSetModule={() => {}}>
                         <ChartContainer config={{value: {color: "hsl(var(--chart-2))"}}} className="h-full w-full">
                              <LineChart data={reportData.slDisciplineTrend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                                 <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50" />
@@ -1207,7 +1207,7 @@ ${reportData.fixNext.map(item => `- ${item}`).join('\n')}
                             </LineChart>
                         </ChartContainer>
                     </TelemetryCard>
-                     <TelemetryCard title="Override Rate" hint="Rule overrides per week" value={`${reportData.overrideRateTrend.slice(-1)[0]?.value.toFixed(0)}`}>
+                     <TelemetryCard title="Override Rate" hint="Rule overrides per week" value={`${reportData.overrideRateTrend.slice(-1)[0]?.value.toFixed(0)}`} onSetModule={() => {}}>
                         <ChartContainer config={{value: {color: "hsl(var(--chart-5))"}}} className="h-full w-full">
                             <BarChart data={reportData.overrideRateTrend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                                 <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50" />
@@ -1708,61 +1708,59 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                 </TabsContent>
                 <TabsContent value="insights" className="mt-6 space-y-8">
                      {hasSufficientData ? (
-                        <>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                                <TelemetryCard title="SL Discipline" value={`${totalSLTrades > 0 ? (slDisciplineData.reduce((sum, d) => sum + d.respected, 0) / totalSLTrades * 100).toFixed(0) : 'N/A'}%`} hint="SL Respected Rate" className="lg:col-span-1" onSetModule={onSetModule}>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                            <TelemetryCard title="SL Discipline" value={`${totalSLTrades > 0 ? (slDisciplineData.reduce((sum, d) => sum + d.respected, 0) / totalSLTrades * 100).toFixed(0) : 'N/A'}%`} hint="SL Respected Rate" className="lg:col-span-1" onSetModule={onSetModule}>
                                 {totalSLTrades > 0 ? (
-                                        <>
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <Tabs value={disciplineTimeframe} onValueChange={(v) => setDisciplineTimeframe(v as any)} className="w-full">
-                                                <TabsList className="grid w-full grid-cols-2 h-8 text-xs">
-                                                    <TabsTrigger value="today">Today</TabsTrigger>
-                                                    <TabsTrigger value="7d">Last 7 Days</TabsTrigger>
-                                                </TabsList>
-                                            </Tabs>
-                                        </div>
-                                        <div className="h-28">
-                                            <SLDisciplineChart data={slDisciplineData} />
-                                        </div>
-                                        <div className="flex justify-center gap-4 text-xs mt-2">
-                                            <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[hsl(var(--chart-2))]"></div>Respected</div>
-                                            <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[hsl(var(--chart-4))]"></div>Moved</div>
-                                            <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[hsl(var(--chart-5))]"></div>Removed</div>
-                                        </div>
-                                        <p className="text-xs text-muted-foreground text-center mt-4">SL behavior is a top predictor of drawdowns.</p>
-                                        </>
+                                    <>
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <Tabs value={disciplineTimeframe} onValueChange={(v) => setDisciplineTimeframe(v as any)} className="w-full">
+                                            <TabsList className="grid w-full grid-cols-2 h-8 text-xs">
+                                                <TabsTrigger value="today">Today</TabsTrigger>
+                                                <TabsTrigger value="7d">Last 7 Days</TabsTrigger>
+                                            </TabsList>
+                                        </Tabs>
+                                    </div>
+                                    <div className="h-28">
+                                        <SLDisciplineChart data={slDisciplineData} />
+                                    </div>
+                                    <div className="flex justify-center gap-4 text-xs mt-2">
+                                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[hsl(var(--chart-2))]"></div>Respected</div>
+                                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[hsl(var(--chart-4))]"></div>Moved</div>
+                                        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[hsl(var(--chart-5))]"></div>Removed</div>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground text-center mt-4">SL behavior is a top predictor of drawdowns.</p>
+                                    </>
                                 ) : (
-                                        <div className="h-full flex items-center justify-center text-center">
-                                            <p className="text-sm text-muted-foreground">Complete journals to unlock discipline telemetry.</p>
-                                        </div>
+                                    <div className="h-full flex items-center justify-center text-center">
+                                        <p className="text-sm text-muted-foreground">Complete journals to unlock discipline telemetry.</p>
+                                    </div>
                                 )}
-                                </TelemetryCard>
-                                <TelemetryCard title="Leverage Stability" value={personalRisk.mostCommonLeverageBucket} hint="Most Common Leverage" className="lg:col-span-1" onSetModule={onSetModule}>
-                                    <LeverageHistogram data={personalRisk.leverageDistribution} />
-                                    {personalRisk.leverageDistributionWarning && (
-                                        <Alert variant="destructive" className="mt-4">
-                                            <AlertTriangle className="h-4 w-4" />
-                                            <AlertTitle>Warning</AlertTitle>
-                                            <AlertDescription>
-                                                High leverage ({personalRisk.highLeverageTradesToday} trades > 20x) detected in Elevated/Extreme volatility.
-                                            </AlertDescription>
-                                        </Alert>
-                                    )}
-                                </TelemetryCard>
-                                <TelemetryCard title="Risk-per-Trade Drift" value={`${personalRisk.riskLeakageRate.toFixed(1)}x`} hint="Actual loss vs. planned risk" onSetModule={onSetModule}>
-                                    <ChartContainer config={{value: {color: "hsl(var(--chart-4))"}}} className="w-full h-full">
-                                        <LineChart data={personalRisk.overridesTrend7d} margin={{ top: 5, right: 10, left: -30, bottom: 0 }}>
-                                            <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50" />
-                                            <YAxis domain={[0,2]} tickFormatter={(v) => `${v.toFixed(1)}x`} tick={{fontSize: 10}}/>
-                                            <ChartTooltip content={<ChartTooltipContent formatter={(v) => `${Number(v).toFixed(1)}x`}/>} />
-                                            <Line type="monotone" dataKey="value" stroke="hsl(var(--chart-4))" strokeWidth={2} dot={false} />
-                                        </LineChart>
-                                    </ChartContainer>
-                                </TelemetryCard>
-                                <DisciplineLeaksCard disciplineLeaks={personalRisk.disciplineLeaks} onSetModule={onSetModule} />
-                                <RiskHeatmapCard heatmapData={personalRisk.riskHeatmapData} />
-                            </div>
-                        </>
+                            </TelemetryCard>
+                            <TelemetryCard title="Leverage Stability" value={personalRisk.mostCommonLeverageBucket} hint="Most Common Leverage" className="lg:col-span-1" onSetModule={onSetModule}>
+                                <LeverageHistogram data={personalRisk.leverageDistribution} />
+                                {personalRisk.leverageDistributionWarning && (
+                                    <Alert variant="destructive" className="mt-4">
+                                        <AlertTriangle className="h-4 w-4" />
+                                        <AlertTitle>Warning</AlertTitle>
+                                        <AlertDescription>
+                                            High leverage ({personalRisk.highLeverageTradesToday} trades > 20x) detected in Elevated/Extreme volatility.
+                                        </AlertDescription>
+                                    </Alert>
+                                )}
+                            </TelemetryCard>
+                            <TelemetryCard title="Risk-per-Trade Drift" value={`${personalRisk.riskLeakageRate.toFixed(1)}x`} hint="Actual loss vs. planned risk" onSetModule={onSetModule}>
+                                <ChartContainer config={{value: {color: "hsl(var(--chart-4))"}}} className="w-full h-full">
+                                    <LineChart data={personalRisk.overridesTrend7d} margin={{ top: 5, right: 10, left: -30, bottom: 0 }}>
+                                        <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50" />
+                                        <YAxis domain={[0,2]} tickFormatter={(v) => `${v.toFixed(1)}x`} tick={{fontSize: 10}}/>
+                                        <ChartTooltip content={<ChartTooltipContent formatter={(v) => `${Number(v).toFixed(1)}x`}/>} />
+                                        <Line type="monotone" dataKey="value" stroke="hsl(var(--chart-4))" strokeWidth={2} dot={false} />
+                                    </LineChart>
+                                </ChartContainer>
+                            </TelemetryCard>
+                            <DisciplineLeaksCard disciplineLeaks={personalRisk.disciplineLeaks} onSetModule={onSetModule} />
+                            <RiskHeatmapCard heatmapData={personalRisk.riskHeatmapData} />
+                        </div>
                     ) : (
                         <EmptyState onAction={handleEmptyStateAction} />
                     )}
@@ -1831,6 +1829,7 @@ const DeltaIndicator = ({ delta, unit = "" }: { delta: number; unit?: string }) 
 };
     
     
+
 
 
 
