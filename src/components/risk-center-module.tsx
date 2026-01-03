@@ -1068,7 +1068,7 @@ function ReportDialog({ reportType }: { reportType: ReportType }) {
         const title = `### ${reportType} Trading Report ###`;
         const performance = `**Performance:** PnL ${reportData.pnl} | Win Rate ${reportData.winRate}`;
         if (short) {
-            return `${title}\n${performance}\n**Focus:** ${reportData.recommendations[0]}`;
+            return `${title}\\n${performance}\\n**Focus:** ${reportData.recommendations[0]}`;
         }
         return `
 ${title}
@@ -1090,7 +1090,7 @@ ${title}
 - Worst: ${reportData.worstCondition}
 
 **Recommended Next Actions**
-${reportData.recommendations.map(r => `- ${r}`).join('\n')}
+${reportData.recommendations.map(r => `- ${r}`).join('\\n')}
         `.trim();
     };
 
@@ -1157,7 +1157,7 @@ ${reportData.recommendations.map(r => `- ${r}`).join('\n')}
     );
 }
 
-const TelemetryCard = ({ title, value, hint, children, className }: { title: string, value: string, hint: string, children: React.ReactNode, className?: string }) => (
+const TelemetryCard = ({ title, value, hint, children, className }: { title: string, value: string | React.ReactNode, hint: string, children: React.ReactNode, className?: string }) => (
     <Card className={cn(className)}>
         <CardHeader>
             <CardTitle className="text-base">{title}</CardTitle>
@@ -1358,7 +1358,22 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
 
 const dailyCounters = { overrideCount: 0 };
 
+const DeltaIndicator = ({ delta, unit = "" }: { delta: number; unit?: string }) => {
+    if (delta === 0) return null;
+    const isPositive = delta > 0;
+    return (
+        <span className={cn(
+            "text-xs font-mono flex items-center ml-2 motion-reduce:animate-none",
+            isPositive ? "text-green-400" : "text-red-400"
+        )}>
+            {isPositive ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
+            {isPositive ? '+' : ''}{delta.toFixed(1)}{unit}
+        </span>
+    );
+};
+    
     
 
 
-    
+
+
