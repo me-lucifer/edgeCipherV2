@@ -380,7 +380,7 @@ function TodaysLimitsCard({ limits, onSetModule }: { limits: RiskState['todaysLi
                 <div>
                     <h4 className="text-sm font-semibold text-foreground mb-3">Strategy Rules</h4>
                     <div className="space-y-2">
-                        <StatusRow label="Max risk / trade" value={`${limits.riskPerTradePct.toFixed(2)}%`} tooltipText="The maximum percentage of your total account capital you've committed to not exceed on any single trade." />
+                        <StatusRow label="Max risk / trade" value={`${limits.riskPerTradePct.toFixed(2)}%`} tooltipText="The maximum percentage of your account to risk on a single trade." />
                         <StatusRow label="Max daily trades" value={limits.maxTrades} />
                         <StatusRow label="Max daily loss" value={`${limits.maxDailyLossPct}%`} />
                         <StatusRow label="Leverage cap" value={`${limits.leverageCap}x`} />
@@ -676,11 +676,35 @@ function ArjunRiskAlerts({ onSetModule }: { onSetModule: (module: any, context?:
     );
 }
 
-function RiskBudgetCard({ limits, decision }: { limits: RiskState['todaysLimits'], decision: RiskState['decision'] | null }) {
+function RiskBudgetCard({ limits, decision, refreshState }: { limits: RiskState['todaysLimits'], decision: RiskState['decision'] | null, refreshState: () => void }) {
     const [simulatedLossR, setSimulatedLossR] = useState<number | null>(null);
+    const [assumedCapital, setAssumedCapital] = useState(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem("ec_assumed_capital") || "10000";
+        }
+        return "10000";
+    });
+
+    useEffect(() => {
+        const handleStorage = () => {
+            const stored = localStorage.getItem("ec_assumed_capital");
+            if (stored) setAssumedCapital(stored);
+        };
+        window.addEventListener('storage', handleStorage);
+        return () => window.removeEventListener('storage', handleStorage);
+    }, []);
+
+    const handleCapitalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setAssumedCapital(e.target.value);
+    };
+
+    const handleCapitalBlur = () => {
+        localStorage.setItem("ec_assumed_capital", assumedCapital);
+        refreshState(); // Trigger a full re-computation
+    };
 
     const { maxDailyLossPct, dailyBudgetRemaining, maxSafeTradesRemaining, riskPerTradePct } = limits;
-    const accountCapital = 10000; // Mock capital
+    const accountCapital = parseFloat(assumedCapital) || 10000;
     const maxDailyLossValue = accountCapital * (maxDailyLossPct / 100);
     const currentDrawdown = maxDailyLossValue - dailyBudgetRemaining;
     
@@ -700,6 +724,7 @@ function RiskBudgetCard({ limits, decision }: { limits: RiskState['todaysLimits'
     }
 
     const simulatedDecisionLevel = getSimulatedDecisionLevel();
+    const isBrokerConnected = typeof window !== 'undefined' ? localStorage.getItem('ec_broker_connected') === 'true' : false;
 
     return (
         <Card className="bg-muted/30 border-border/50">
@@ -730,7 +755,22 @@ function RiskBudgetCard({ limits, decision }: { limits: RiskState['todaysLimits'
                 </div>
             </CardContent>
             <Separator />
-            <CardContent className="pt-6">
+            <CardContent className="pt-6 space-y-4">
+                <div className="space-y-2">
+                    <Label htmlFor="assumed-capital" className="text-sm font-semibold text-foreground">Assumed Capital</Label>
+                    <Input
+                        id="assumed-capital"
+                        type="number"
+                        value={assumedCapital}
+                        onChange={handleCapitalChange}
+                        onBlur={handleCapitalBlur}
+                        disabled={isBrokerConnected}
+                    />
+                    {!isBrokerConnected && (
+                         <p className="text-xs text-muted-foreground">Using assumed capital (prototype). Connect broker for live balance.</p>
+                    )}
+                </div>
+                <Separator />
                 <div className="space-y-3">
                     <Label className="font-semibold text-foreground">Simulate Next Trade</Label>
                     <Select onValueChange={(v) => setSimulatedLossR(parseFloat(v))}>
@@ -854,7 +894,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                 <div className="lg:col-span-1 space-y-8 sticky top-24">
                      <PersonalRiskCard personalRisk={personalRisk} onSetModule={onSetModule} />
                      <TodaysLimitsCard limits={todaysLimits} onSetModule={onSetModule} />
-                     <RiskBudgetCard limits={todaysLimits} decision={decision} />
+                     <RiskBudgetCard limits={todaysLimits} decision={decision} refreshState={refresh} />
                      <RiskControlsCard />
                 </div>
             </div>

@@ -70,6 +70,8 @@ export function useRiskState() {
             const recoveryMode = localStorage.getItem('ec_recovery_mode') === 'true';
             const guardrails = JSON.parse(localStorage.getItem("ec_guardrails") || "{}");
             
+            const assumedCapital = parseFloat(localStorage.getItem("ec_assumed_capital") || "10000");
+
             // 2. Compute Market Risk
             const vixOverride = localStorage.getItem("ec_vix_override");
             let vixValue = 45;
@@ -101,7 +103,7 @@ export function useRiskState() {
 
             // 4. Compute Today's Limits & Risk Budget
             const baseRules = activeStrategy?.versions.find((v:any) => v.isActiveVersion)?.ruleSet?.riskRules;
-            const accountCapital = 10000; // Mock capital
+            const accountCapital = assumedCapital;
             const currentPnLToday = scenario === 'drawdown' ? -450 : (dailyCounters.tradesExecuted > 0 ? 150 : 0); // Mock PnL
             
             const maxDailyLossPct = baseRules?.maxDailyLossPct || 3;
