@@ -34,6 +34,7 @@ import { useDailyCounters } from "@/hooks/use-daily-counters";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Check } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
+import { useRiskState, type RiskDecision } from "@/hooks/use-risk-state";
 
 
 interface TradePlanningModuleProps {
@@ -2036,6 +2037,11 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
         const [isRecoveryMode, setIsRecoveryMode] = useState(false);
         const [entryChecklist, setEntryChecklist] = useState<Record<string, boolean>>({});
         
+        const { riskState } = useRiskState();
+        const [riskDecisionLevel, setRiskDecisionLevel] = useState<RiskDecision['level'] | null>(null);
+        const [justificationOverride, setJustificationOverride] = useState(false);
+        const [yellowAcknowledge, setYellowAcknowledge] = useState(false);
+
         // Context states
         const [session, setSession] = useState<'Asia' | 'London' | 'New York'>('New York');
         const [vixZone, setVixZone] = useState<VixZone>('Normal');
@@ -2068,8 +2074,19 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
             control: form.control,
             name: 'justification'
         });
+
+        useEffect(() => {
+            if (riskState) {
+                setRiskDecisionLevel(riskState.decision.level);
+            }
+        }, [riskState]);
         
-        const canProceedToReview = planStatus !== 'incomplete' && (planStatus !== 'FAIL' || (justificationValue && justificationValue.length > 0));
+        const canProceedToReview = planStatus !== 'incomplete' && 
+            (riskDecisionLevel === 'green') ||
+            (riskDecisionLevel === 'yellow' && yellowAcknowledge) ||
+            (riskDecisionLevel === 'red' && justificationOverride && justificationValue && justificationValue.length > 0) ||
+            (planStatus !== 'FAIL' || (justificationValue && justificationValue.length > 0));
+        
         const canProceedToExecution = canProceedToReview && arjunFeedbackAccepted;
     
         useEffect(() => {
@@ -2293,10 +2310,18 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
         }
     
         
-        const isProceedDisabled = currentStep === 'plan' ? !canProceedToReview :
+        let isProceedDisabled = currentStep === 'plan' ? !canProceedToReview :
                                   currentStep === 'review' ? !canProceedToExecution :
                                   false;
         
+        if (riskDecisionLevel === 'red' && !justificationOverride) {
+            isProceedDisabled = true;
+        }
+
+        if (riskDecisionLevel === 'yellow' && !yellowAcknowledge) {
+            isProceedDisabled = true;
+        }
+
         const isBannerVisible = showBanner && (planStatus === 'FAIL' || planStatus === 'overridden');
     
         const stepConfig = {
@@ -2364,6 +2389,34 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
                     </Alert>
                 )}
     
+                {riskDecisionLevel === 'red' && (
+                    <Alert variant="destructive">
+                        <XCircle className="h-4 w-4" />
+                        <AlertTitle>Execution Locked by Risk Center</AlertTitle>
+                        <AlertDescription>
+                            Your current risk state is RED. Resolve the blockers in the Risk Center or provide a justification to override.
+                        </AlertDescription>
+                        <div className="mt-4 flex gap-2">
+                             <Button variant="outline" size="sm" onClick={() => onSetModule('riskCenter')}>Open Risk Center</Button>
+                             <Button variant="destructive" size="sm" onClick={() => setJustificationOverride(true)}>Override</Button>
+                        </div>
+                    </Alert>
+                )}
+
+                 {riskDecisionLevel === 'yellow' && (
+                    <Alert variant="default" className="bg-amber-950/40 border-amber-500/20 text-amber-300">
+                        <AlertTriangle className="h-4 w-4 text-amber-400" />
+                        <AlertTitle className="text-amber-400">Risk Warning</AlertTitle>
+                        <AlertDescription>
+                           The Risk Center has identified warnings for this trade. Please acknowledge before proceeding.
+                        </AlertDescription>
+                         <div className="flex items-center space-x-2 mt-4">
+                            <Checkbox id="yellow-ack" checked={yellowAcknowledge} onCheckedChange={c => setYellowAcknowledge(c as boolean)} />
+                            <Label htmlFor="yellow-ack" className="text-sm font-normal text-amber-300">I acknowledge the risks.</Label>
+                        </div>
+                    </Alert>
+                )}
+
                 {showValidationBanner && (
                      <Alert variant="destructive">
                         <AlertTriangle className="h-4 w-4" />
@@ -2460,7 +2513,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
                                                 <p className="flex items-center gap-2">
                                                     <AlertTriangle className="h-4 w-4 text-amber-500" />
                                                     {currentStep === 'plan' 
-                                                        ? "Add a justification to override your rules."
+                                                        ? (riskDecisionLevel === 'red' ? 'Justification required to override RED status.' : 'Fix validation errors or acknowledge warnings.')
                                                         : "Acknowledge Arjun's feedback to proceed."
                                                     }
                                                 </p>
@@ -2565,5 +2618,3 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
     
     
     
-    
-
