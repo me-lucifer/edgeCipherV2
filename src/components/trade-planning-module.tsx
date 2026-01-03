@@ -1,4 +1,5 @@
 
+
       "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -2049,7 +2050,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                     <div>
                         <div className="flex items-center gap-4">
-                            {initialContext?.origin === 'chart' && (
+                            {initialContext?.origin === 'Chart Module' && (
                                 <Button variant="ghost" size="sm" className="text-muted-foreground -ml-4" onClick={() => onSetModule('chart')}>
                                     <ArrowLeft className="mr-2 h-4 w-4"/>
                                     Back to Chart
@@ -2086,11 +2087,11 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
                 </div>
     
                 {initialContext?.safeMode && (
-                     <Alert variant="default" className={cn("border-blue-500/30", "bg-blue-950/40")}>
+                    <Alert variant="default" className={cn("border-blue-500/30", "bg-blue-950/40")}>
                         <ShieldCheck className="h-4 w-4 text-blue-400" />
-                        <AlertTitle className="text-blue-400">Safe Mode Activated</AlertTitle>
+                        <AlertTitle className="text-blue-400">Entering in Safe Mode</AlertTitle>
                         <AlertDescription className={"text-blue-300/80"}>
-                            You've entered this plan from a heightened risk state. Default risk has been automatically reduced to 0.5% and leverage capped at 10x.
+                            The Risk Center detected elevated risk. Your default risk parameters have been reduced for this plan.
                         </AlertDescription>
                     </Alert>
                 )}
@@ -2328,6 +2329,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
     
     
     
+
 
 
 

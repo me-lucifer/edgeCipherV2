@@ -1,4 +1,5 @@
 
+
 /*
   ================================================================================
   DEVELOPER NOTE: PHASE 1 CHART MODULE IMPLEMENTATION
@@ -64,6 +65,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { useRiskState } from "@/hooks/use-risk-state";
 
 interface ChartModuleProps {
     onSetModule: (module: any, context?: ModuleContext) => void;
@@ -278,6 +280,7 @@ function WorkflowHintBar({ isVisible, onDismiss }: { isVisible: boolean, onDismi
 
 export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
     const { products, isLoading: isProductsLoading, error: productsError, loadProducts, cacheInfo } = useDeltaProducts();
+    const { riskState } = useRiskState();
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
     const [tvSymbol, setTvSymbol] = useState<string>("");
     const [interval, setInterval] = useState<string>("60");
@@ -294,6 +297,7 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
     const [pendingTheme, setPendingTheme] = useState<"dark" | "light" | null>(null);
     const instrumentSelectorRef = useRef<HTMLButtonElement>(null);
     const [isWalkthroughOpen, setIsWalkthroughOpen] = useState(false);
+    const [isRiskConfirmOpen, setIsRiskConfirmOpen] = useState(false);
 
 
     useEffect(() => {
@@ -351,7 +355,6 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
             });
             setTimeout(() => {
                 handleSendToPlanning();
-                localStorage.setItem('ec_discipline_demo_flow', 'planning');
             }, 2000);
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -448,17 +451,44 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
         return true;
     }
 
-    const handleSendToPlanning = () => {
+    const navigateToTradePlanning = (safeMode = false) => {
         if (!selectedProduct) return;
-        const planningContext = {
-            source: 'chart',
-            instrument: selectedProduct.id,
-        };
         
-        if (typeof window !== 'undefined') localStorage.setItem("ec_trade_planning_context", JSON.stringify(planningContext));
-        onSetModule('tradePlanning', { planContext: planningContext });
+        const planningContext: ModuleContext['planContext'] = {
+            instrument: selectedProduct.id,
+            origin: 'Chart Module',
+            safeMode,
+        };
+
+        if (typeof window !== 'undefined') {
+            localStorage.setItem("ec_trade_planning_context", JSON.stringify(planningContext));
+        }
+        
+        onSetModule('tradePlanning', { planContext });
+    };
+
+    const handleSendToPlanning = () => {
+        if (!riskState) {
+            navigateToTradePlanning();
+            return;
+        }
+
+        const riskLevel = riskState.decision.level;
+
+        if (riskLevel === 'red') {
+            setIsRiskConfirmOpen(true);
+        } else if (riskLevel === 'yellow') {
+            navigateToTradePlanning(true);
+        } else {
+            navigateToTradePlanning(false);
+        }
     };
     
+    const handleConfirmProceedToPlanning = () => {
+        navigateToTradePlanning(true);
+        setIsRiskConfirmOpen(false);
+    };
+
     const handleSelectDefault = () => {
         const btcProduct = products.find(p => p.id === 'BTC-PERP');
         if (btcProduct) handleProductSelect(btcProduct);
@@ -534,6 +564,7 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
     return (
         <div className={cn("flex flex-col h-full space-y-4 transition-all duration-300", isFullscreen && "fixed inset-0 bg-background z-50 p-4")}>
             <ChartWalkthrough isOpen={isWalkthroughOpen} onOpenChange={setIsWalkthroughOpen} onDemoSelect={handleDemoSelect} />
+            
             <AlertDialog open={showThemeChangeDialog} onOpenChange={setShowThemeChangeDialog}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
@@ -548,6 +579,27 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+            
+             <AlertDialog open={isRiskConfirmOpen} onOpenChange={setIsRiskConfirmOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="flex items-center gap-2">
+                           <AlertTriangle className="h-5 w-5 text-destructive" />
+                            Risk Warning
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            The Risk Center recommends NO TRADING due to your current risk state (e.g., extreme volatility, max loss reached). Proceeding is a rule override.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleConfirmProceedToPlanning}>
+                            Continue to planning anyway
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
             <div className={cn("flex items-center justify-between", !isFullscreen && "hidden")}>
                 {selectedProduct && (
                     <div className="text-left">
