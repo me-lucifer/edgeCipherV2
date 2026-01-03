@@ -29,6 +29,14 @@ export type ActiveNudge = {
     severity: 'warn' | 'info';
 };
 
+export type SLDisciplineData = {
+    name: string;
+    respected: number;
+    moved: number;
+    removed: number;
+};
+
+
 export type RiskState = {
     marketRisk: {
         vixValue: number;
@@ -44,12 +52,13 @@ export type RiskState = {
         consistencyScoreDelta: number;
         revengeRiskIndex: number;
         revengeRiskLevel: 'Low' | 'Medium' | 'High' | 'Critical';
-        // Mocked for now
         slMovedRate: number;
         riskLeakageRate: number;
         pnlTrend7d: { value: number }[];
         slMovedTrend7d: { value: number }[];
         overridesTrend7d: { value: number }[];
+        slDisciplineToday: SLDisciplineData[];
+        slDiscipline7d: SLDisciplineData[];
     };
     todaysLimits: {
         maxTrades: number;
@@ -147,6 +156,22 @@ export function useRiskState() {
             else if (revengeRiskIndex >= 25) revengeRiskLevel = 'Medium';
             
             const pnlTrendBase = scenario === 'drawdown' ? -200 : 100;
+            
+            const slDisciplineTodayData = (() => {
+                if(scenario === 'drawdown') return [{ name: 'Today', respected: 1, moved: 2, removed: 1 }];
+                if(scenario === 'high_vol') return [{ name: 'Today', respected: 3, moved: 1, removed: 0 }];
+                return [{ name: 'Today', respected: 4, moved: 0, removed: 0 }];
+            })();
+
+            const slDiscipline7dData = Array.from({ length: 7 }, (_, i) => {
+                const day = new Date();
+                day.setDate(day.getDate() - (6 - i));
+                const total = 5 + Math.floor(Math.random() * 5);
+                const moved = Math.floor(Math.random() * (scenario === 'drawdown' ? 4 : 2));
+                const removed = Math.random() > 0.8 ? 1 : 0;
+                const respected = total - moved - removed;
+                return { name: format(day, 'MMM d'), respected, moved, removed };
+            });
 
             const personalRisk = {
                 disciplineScore: personaData.disciplineScore || 70,
@@ -162,6 +187,8 @@ export function useRiskState() {
                 pnlTrend7d: Array.from({ length: 7 }, (_, i) => ({ value: pnlTrendBase + (Math.random() - 0.5) * 150 * (i + 1) })),
                 slMovedTrend7d: Array.from({ length: 7 }, () => ({ value: Math.random() > 0.7 ? 1 : 0 })),
                 overridesTrend7d: Array.from({ length: 7 }, () => ({ value: Math.random() > 0.8 ? 1 : 0 })),
+                slDisciplineToday: slDisciplineTodayData,
+                slDiscipline7d: slDiscipline7dData,
             };
 
             // 4. Compute Today's Limits & Risk Budget

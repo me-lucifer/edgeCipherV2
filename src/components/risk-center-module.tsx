@@ -1,4 +1,5 @@
 
+
       "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -6,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Pencil, ShieldAlert, BarChart, Info, CheckCircle, XCircle, AlertTriangle, Gauge, Calendar, Zap, Sun, Moon, Waves, User, ArrowRight, RefreshCw, SlidersHorizontal, TrendingUp, Sparkles, Droplets, TrendingDown, BookOpen, Layers, Settings, ShieldCheck, MoreHorizontal, Copy, Edit, Archive, Trash2, Scale, HeartPulse, HardHat, Globe, FileText, Clipboard } from "lucide-react";
+import { Bot, Pencil, ShieldAlert, BarChart as BarChartIcon, Info, CheckCircle, XCircle, AlertTriangle, Gauge, Calendar, Zap, Sun, Moon, Waves, User, ArrowRight, RefreshCw, SlidersHorizontal, TrendingUp, Sparkles, Droplets, TrendingDown, BookOpen, Layers, Settings, ShieldCheck, MoreHorizontal, Copy, Edit, Archive, Trash2, Scale, HeartPulse, HardHat, Globe, FileText, Clipboard } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -29,7 +30,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { useRiskState, type RiskState, type VixZone, type RiskDecision, type ActiveNudge } from "@/hooks/use-risk-state";
+import { useRiskState, type RiskState, type VixZone, type RiskDecision, type ActiveNudge, type SLDisciplineData } from "@/hooks/use-risk-state";
 import { Skeleton } from "./ui/skeleton";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "./ui/drawer";
 import { Slider } from "./ui/slider";
@@ -39,7 +40,7 @@ import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { Progress } from "./ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { format } from 'date-fns';
-import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, CartesianGrid, BarChart, Bar, Legend } from 'recharts';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "./ui/chart";
 
@@ -1188,24 +1189,38 @@ ${reportData.recommendations.map(r => `- ${r}`).join('\\n')}
     );
 }
 
-const TelemetryCard = ({ title, value, hint, children }: { title: string, value: string, hint: string, children: React.ReactNode }) => (
-    <Card>
+const TelemetryCard = ({ title, value, hint, children, className }: { title: string, value: string, hint: string, children: React.ReactNode, className?: string }) => (
+    <Card className={cn(className)}>
         <CardHeader>
             <CardTitle className="text-base">{title}</CardTitle>
             <CardDescription>{hint}</CardDescription>
         </CardHeader>
         <CardContent>
-            <p className="text-3xl font-bold font-mono mb-4">{value}</p>
-            <div className="h-20">
+            {value && <p className="text-3xl font-bold font-mono mb-4">{value}</p>}
+            <div className="h-40">
                 {children}
             </div>
         </CardContent>
     </Card>
 );
 
+const SLDisciplineChart = ({ data }: { data: SLDisciplineData[] }) => (
+    <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data} layout="vertical" stackOffset="expand">
+            <XAxis type="number" hide />
+            <YAxis type="category" dataKey="name" hide />
+            <ChartTooltip content={<ChartTooltipContent />} />
+            <Bar dataKey="respected" fill="hsl(var(--chart-2))" stackId="a" radius={[4, 0, 0, 4]} />
+            <Bar dataKey="moved" fill="hsl(var(--chart-4))" stackId="a" />
+            <Bar dataKey="removed" fill="hsl(var(--chart-5))" stackId="a" radius={[0, 4, 4, 0]} />
+        </BarChart>
+    </ResponsiveContainer>
+);
+
 export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
     const { riskState, isLoading, refresh } = useRiskState();
     const [activeTab, setActiveTab] = useState("today");
+    const [disciplineTimeframe, setDisciplineTimeframe] = useState<'today' | '7d'>('today');
 
     if (isLoading || !riskState) {
         return (
@@ -1218,6 +1233,8 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
     }
 
     const { marketRisk, personalRisk, todaysLimits, decision, riskEventsToday, activeNudge } = riskState;
+    const slDisciplineData = disciplineTimeframe === 'today' ? personalRisk.slDisciplineToday : personalRisk.slDiscipline7d;
+    const totalSLTrades = slDisciplineData.reduce((acc, d) => acc + d.respected + d.moved + d.removed, 0);
 
     return (
         <div className="space-y-8">
@@ -1256,16 +1273,34 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                 </TabsContent>
                 <TabsContent value="insights" className="mt-6 space-y-8">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <TelemetryCard title="SL Discipline" value={`${(100 - personalRisk.slMovedRate).toFixed(0)}%`} hint="Trades where SL was NOT moved">
-                            <ChartContainer config={{}} className="h-full w-full">
-                                <LineChart data={personalRisk.slMovedTrend7d.map(d => ({...d, value: 1 - d.value}))} margin={{ top: 5, right: 10, left: -30, bottom: 0 }}>
-                                    <YAxis domain={[0,1]} tickFormatter={(v) => `${v*100}%`} tick={{fontSize: 10}} />
-                                    <ChartTooltip content={<ChartTooltipContent formatter={(v) => `${(Number(v)*100).toFixed(0)}%`}/>} />
-                                    <Line type="monotone" dataKey="value" stroke="hsl(var(--chart-2))" strokeWidth={2} dot={false} />
-                                </LineChart>
-                            </ChartContainer>
+                        <TelemetryCard title="SL Discipline" value={`${totalSLTrades > 0 ? (slDisciplineData.reduce((sum, d) => sum + d.respected, 0) / totalSLTrades * 100).toFixed(0) : 'N/A'}%`} hint="Trades where SL was NOT moved" className="md:col-span-2">
+                           {totalSLTrades > 0 ? (
+                                <>
+                                <div className="flex items-center gap-2 mb-2">
+                                     <Tabs value={disciplineTimeframe} onValueChange={(v) => setDisciplineTimeframe(v as any)} className="w-full">
+                                        <TabsList className="grid w-full grid-cols-2 h-8 text-xs">
+                                            <TabsTrigger value="today">Today</TabsTrigger>
+                                            <TabsTrigger value="7d">Last 7 Days</TabsTrigger>
+                                        </TabsList>
+                                    </Tabs>
+                                </div>
+                                <div className="h-28">
+                                    <SLDisciplineChart data={slDisciplineData} />
+                                </div>
+                                <div className="flex justify-center gap-4 text-xs mt-2">
+                                    <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[hsl(var(--chart-2))]"></div>Respected</div>
+                                    <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[hsl(var(--chart-4))]"></div>Moved</div>
+                                    <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[hsl(var(--chart-5))]"></div>Removed</div>
+                                </div>
+                                <p className="text-xs text-muted-foreground text-center mt-4">SL behavior is a top predictor of drawdowns.</p>
+                               </>
+                           ) : (
+                                <div className="h-full flex items-center justify-center text-center">
+                                    <p className="text-sm text-muted-foreground">Complete journals to unlock discipline telemetry.</p>
+                                </div>
+                           )}
                         </TelemetryCard>
-                        <TelemetryCard title="Risk per Trade Drift" value={`${personalRisk.riskLeakageRate.toFixed(1)}x`} hint="Actual loss vs. planned risk">
+                        <TelemetryCard title="Risk-per-Trade Drift" value={`${personalRisk.riskLeakageRate.toFixed(1)}x`} hint="Actual loss vs. planned risk">
                              <ChartContainer config={{}} className="h-full w-full">
                                 <LineChart data={personalRisk.overridesTrend7d} margin={{ top: 5, right: 10, left: -30, bottom: 0 }}>
                                     <YAxis domain={[0,2]} tickFormatter={(v) => `${v.toFixed(1)}x`} tick={{fontSize: 10}}/>
@@ -1274,16 +1309,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                                 </LineChart>
                             </ChartContainer>
                         </TelemetryCard>
-                        <TelemetryCard title="Leverage Stability" value="18.5x" hint="Average leverage used">
-                           <ChartContainer config={{}} className="h-full w-full">
-                                <LineChart data={Array.from({ length: 7 }, () => ({ value: 15 + Math.random() * 10 }))} margin={{ top: 5, right: 10, left: -30, bottom: 0 }}>
-                                     <YAxis domain={[0, 50]} tickFormatter={(v) => `${v}x`} tick={{fontSize: 10}} />
-                                     <ChartTooltip content={<ChartTooltipContent formatter={(v) => `${Number(v).toFixed(1)}x`}/>} />
-                                    <Line type="monotone" dataKey="value" stroke="hsl(var(--chart-1))" strokeWidth={2} dot={false} />
-                                </LineChart>
-                            </ChartContainer>
-                        </TelemetryCard>
-                        <TelemetryCard title="Overrides & Breaches" value={`${todaysLimits.tradesExecuted > 0 ? (todaysLimits.lossStreak / todaysLimits.tradesExecuted * 100).toFixed(0) : 0}%`} hint="Trades that broke a rule">
+                        <TelemetryCard title="Overrides & Breaches" value={`${todaysLimits.tradesExecuted > 0 ? (dailyCounters.overrideCount / todaysLimits.tradesExecuted * 100).toFixed(0) : 0}%`} hint="Trades that broke a rule">
                             <ChartContainer config={{}} className="h-full w-full">
                                 <LineChart data={personalRisk.overridesTrend7d} margin={{ top: 5, right: 10, left: -30, bottom: 0 }}>
                                      <YAxis domain={[0, 5]} tickFormatter={(v) => v.toFixed(0)} tick={{fontSize: 10}} />
@@ -1342,3 +1368,5 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
         </div>
     );
 }
+
+const dailyCounters = { overrideCount: 0 };
