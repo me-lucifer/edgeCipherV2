@@ -3,10 +3,10 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Pencil, ShieldAlert, BarChart, Info, CheckCircle, XCircle, AlertTriangle, Gauge, Calendar, Zap, Sun, Moon, Waves, User, ArrowRight, RefreshCw, SlidersHorizontal, TrendingUp, Sparkles, Droplets, TrendingDown, BookOpen } from "lucide-react";
+import { Bot, Pencil, ShieldAlert, BarChart, Info, CheckCircle, XCircle, AlertTriangle, Gauge, Calendar, Zap, Sun, Moon, Waves, User, ArrowRight, RefreshCw, SlidersHorizontal, TrendingUp, Sparkles, Droplets, TrendingDown, BookOpen, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -58,6 +58,12 @@ const mockEvents = [
     { time: "1:30 PM EST", event: "Fed Chair Speaks", impact: "High" },
     { time: "4:00 PM EST", event: "BTC Options Expiry", impact: "Medium" },
     { time: "Tomorrow 8:30 AM EST", event: "Non-Farm Payrolls", impact: "High" },
+];
+
+const mockPositions = [
+    { symbol: 'BTC-PERP', direction: 'Long', size: 0.5, pnl: 234.50, leverage: 10, risk: 'Medium' },
+    { symbol: 'ETH-PERP', direction: 'Short', size: 12, pnl: -88.12, leverage: 50, risk: 'High' },
+    { symbol: 'SOL-PERP', direction: 'Long', size: 100, pnl: 45.20, leverage: 5, risk: 'Low' },
 ];
 
 function TradeDecisionBar({ decision }: { decision: RiskState['decision'] | null }) {
@@ -373,6 +379,87 @@ function TodaysLimitsCard({ limits, onSetModule }: { limits: RiskState['todaysLi
     );
 }
 
+function ExposureSnapshotCard({ onSetModule }: { onSetModule: (module: any) => void }) {
+    const [brokerConnected, setBrokerConnected] = useState(false);
+    const [positions, setPositions] = useState<any[]>([]);
+
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            const connected = localStorage.getItem('ec_broker_connected') === 'true';
+            setBrokerConnected(connected);
+            if (connected) {
+                // In a real app, you'd fetch this. For now, use mock.
+                setPositions(mockPositions);
+            }
+        }
+    }, []);
+
+    const hasHighRisk = positions.some(p => p.risk === 'High');
+
+    return (
+        <Card className="bg-muted/30 border-border/50">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Layers className="h-5 w-5" /> Exposure Snapshot</CardTitle>
+            </CardHeader>
+            <CardContent>
+                {!brokerConnected ? (
+                    <div className="text-center p-8 border-2 border-dashed border-border/50 rounded-lg">
+                        <h3 className="text-lg font-semibold text-foreground">No Broker Connected</h3>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                            Connect your broker to see your live exposure and open positions.
+                        </p>
+                        <Button className="mt-4" onClick={() => onSetModule('settings')}>Go to Broker Integration</Button>
+                    </div>
+                ) : positions.length === 0 ? (
+                     <div className="text-center p-8 border-2 border-dashed border-border/50 rounded-lg">
+                        <h3 className="text-lg font-semibold text-foreground">No Open Positions</h3>
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        {hasHighRisk && (
+                            <Alert variant="destructive">
+                                <Bot className="h-4 w-4" />
+                                <AlertTitle>Arjun's Warning</AlertTitle>
+                                <AlertDescription>
+                                    One or more of your open positions has a high-risk rating. Review your SL and position size.
+                                </AlertDescription>
+                            </Alert>
+                        )}
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Symbol</TableHead>
+                                    <TableHead>PnL</TableHead>
+                                    <TableHead>Risk</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {positions.map(pos => (
+                                    <TableRow key={pos.symbol}>
+                                        <TableCell>
+                                            <div className="font-semibold">{pos.symbol}</div>
+                                            <div className={cn("text-xs", pos.direction === 'Long' ? 'text-green-400' : 'text-red-400')}>{pos.direction}</div>
+                                        </TableCell>
+                                        <TableCell className={cn("font-mono", pos.pnl >= 0 ? "text-green-400" : "text-red-400")}>
+                                            {pos.pnl >= 0 ? '+' : ''}${pos.pnl.toFixed(2)}
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge variant="outline" className={cn(
+                                                pos.risk === "High" && "border-red-500/50 text-red-400",
+                                                pos.risk === "Medium" && "border-amber-500/50 text-amber-400"
+                                            )}>{pos.risk}</Badge>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+
 export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
     const { riskState, isLoading, refresh } = useRiskState();
 
@@ -411,7 +498,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                                     <Info className="h-4 w-4 text-muted-foreground/80 cursor-help" />
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                    <p className="max-w-xs">Risk Center aggregates data from your Strategy, Planning, Analytics, and market context (VIX).</p>
+                                    <p className="max-w-xs">Risk Center aggregates data from your Strategy, Planning, Analytics, and VIX.</p>
                                 </TooltipContent>
                             </Tooltip>
                         </TooltipProvider>
@@ -454,9 +541,11 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                             </Button>
                         </CardContent>
                     </Card>
+
+                    <ExposureSnapshotCard onSetModule={onSetModule} />
                 </div>
 
-                <div className="lg:col-span-1 space-y-8">
+                <div className="lg:col-span-1 space-y-8 sticky top-24">
                      <PersonalRiskCard personalRisk={personalRisk} onSetModule={onSetModule} />
                      <TodaysLimitsCard limits={todaysLimits} onSetModule={onSetModule} />
                 </div>
@@ -464,6 +553,3 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
         </div>
     );
 }
-
-
-
