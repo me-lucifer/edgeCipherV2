@@ -366,7 +366,7 @@ function PersonalRiskCard({ personalRisk, onSetModule }: { personalRisk: RiskSta
                     />
                 </div>
                  <Button variant="link" className="p-0 h-auto w-full justify-center" onClick={() => onSetModule('analytics')}>
-                    Open Performance Analytics <ArrowRight className="ml-2 h-4 w-4" />
+                    View deeper in Analytics <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
             </CardContent>
             <CardFooter className="flex-col items-start gap-4 text-xs text-muted-foreground border-t pt-4">
@@ -374,6 +374,7 @@ function PersonalRiskCard({ personalRisk, onSetModule }: { personalRisk: RiskSta
                 <div className="w-full h-10">
                     <ChartContainer config={{value: {color: "hsl(var(--chart-4))"}}} className="w-full h-full">
                         <LineChart data={slMovedTrend7d} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
+                             <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50" />
                             <Line type="monotone" dataKey="value" stroke="hsl(var(--chart-4))" strokeWidth={2} dot={false} />
                         </LineChart>
                     </ChartContainer>
@@ -382,6 +383,7 @@ function PersonalRiskCard({ personalRisk, onSetModule }: { personalRisk: RiskSta
                 <div className="w-full h-10">
                     <ChartContainer config={{value: {color: "hsl(var(--chart-5))"}}} className="w-full h-full">
                          <LineChart data={overridesTrend7d} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
+                             <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50" />
                             <Line type="monotone" dataKey="value" stroke="hsl(var(--chart-5))" strokeWidth={2} dot={false} />
                         </LineChart>
                     </ChartContainer>
@@ -393,7 +395,12 @@ function PersonalRiskCard({ personalRisk, onSetModule }: { personalRisk: RiskSta
 }
 
 function TodaysLimitsCard({ limits, onSetModule }: { limits: RiskState['todaysLimits'], onSetModule: (module: any) => void }) {
-    
+    const { refresh } = useRiskState();
+    const handleLimitSourceChange = (source: string) => {
+        localStorage.setItem("ec_limits_source_mode", source);
+        refresh();
+    };
+
     const StatusRow = ({ label, value, valueClass, tooltipText }: { label: string; value: React.ReactNode; valueClass?: string, tooltipText?: string }) => (
         <div className="flex justify-between items-center text-sm">
             <div className="text-muted-foreground flex items-center gap-2">
@@ -418,13 +425,29 @@ function TodaysLimitsCard({ limits, onSetModule }: { limits: RiskState['todaysLi
     return (
         <Card id="todays-limits" className="bg-muted/30 border-border/50">
             <CardHeader>
-                <CardTitle className="flex items-center gap-2"><ShieldAlert className="h-5 w-5" /> Today's Limits</CardTitle>
-                <CardDescription>{limits.hasActiveStrategy ? "Hard constraints from your active strategy." : "Global default risk limits are active."}</CardDescription>
+                <div className="flex justify-between items-start">
+                    <CardTitle className="flex items-center gap-2"><ShieldAlert className="h-5 w-5" /> Today's Limits</CardTitle>
+                     <Select value={limits.limitSource} onValueChange={handleLimitSourceChange}>
+                        <SelectTrigger className="w-[180px] h-8 text-xs">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="default">Default Strategy</SelectItem>
+                            <SelectItem value="lastUsed">Last Used Strategy</SelectItem>
+                            <SelectItem value="draft">From Plan Draft</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+                 <CardDescription>
+                    {limits.limitSource === 'none' ? 'Global default risk limits are active.' :
+                     `Limits from: ${limits.activeStrategyName || 'Unknown Strategy'}`
+                    }
+                </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
                 {!limits.hasActiveStrategy ? (
                     <div className="text-center p-4 border-2 border-dashed rounded-lg">
-                        <h4 className="font-semibold text-foreground">No Strategy Active</h4>
+                        <h4 className="font-semibold text-foreground">No Strategy Selected</h4>
                         <p className="text-xs text-muted-foreground mt-1 mb-3">Risk limits are based on global defaults. Create or activate a strategy to enable specific rule enforcement.</p>
                         <Button size="sm" onClick={() => onSetModule('strategyManagement')}>Create a Strategy</Button>
                     </div>
@@ -697,6 +720,12 @@ function ExposureSnapshotCard({ onSetModule, vixZone }: { onSetModule: (module: 
                     </div>
                 )}
             </CardContent>
+             <CardFooter>
+                <Button variant="link" size="sm" className="p-0 h-auto text-xs text-muted-foreground" onClick={() => onSetModule('analytics')}>
+                    View deeper in Analytics
+                    <ArrowRight className="ml-1 h-3 w-3" />
+                </Button>
+            </CardFooter>
         </Card>
     );
 }
@@ -872,6 +901,7 @@ function RiskBudgetCard({ limits, decision, refreshState, pnlTrend7d }: { limits
                     <ChartContainer config={{value: {color: "hsl(var(--primary))"}}} className="w-full h-full">
                         <ResponsiveContainer>
                             <LineChart data={pnlTrend7d} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
+                                <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50" />
                                 <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
                             </LineChart>
                         </ResponsiveContainer>
@@ -1219,7 +1249,7 @@ const TelemetryCard = ({ title, value, hint, children, className, onSetModule }:
         </CardContent>
          <CardFooter className="pt-4 border-t">
             <Button variant="link" size="sm" className="p-0 h-auto text-xs text-muted-foreground" onClick={() => onSetModule('analytics')}>
-                View in Analytics
+                View deeper in Analytics
                 <ArrowRight className="ml-1 h-3 w-3" />
             </Button>
         </CardFooter>
@@ -1801,6 +1831,7 @@ const DeltaIndicator = ({ delta, unit = "" }: { delta: number; unit?: string }) 
 };
     
     
+
 
 
 

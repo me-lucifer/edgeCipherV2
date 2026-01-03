@@ -122,6 +122,8 @@ export type RiskState = {
         dailyBudgetRemaining: number;
         maxSafeTradesRemaining: number;
         hasActiveStrategy: boolean;
+        activeStrategyName: string | null;
+        limitSource: 'default' | 'lastUsed' | 'draft' | 'none';
     };
     decision: RiskDecision;
     riskEventsToday: RiskEvent[];
@@ -158,7 +160,6 @@ export function useRiskState() {
             const allCounters = JSON.parse(localStorage.getItem("ec_daily_counters") || '{}');
             const dailyCounters = allCounters[todayKey] || { lossStreak: 0, tradesExecuted: 0, overrideCount: 0 };
             const strategies = JSON.parse(localStorage.getItem("ec_strategies") || "[]");
-            const activeStrategy = strategies.find((s: any) => s.status === 'active'); // Simplified: gets first active
             const recoveryMode = localStorage.getItem('ec_recovery_mode') === 'true';
             const guardrails = JSON.parse(localStorage.getItem("ec_guardrails") || "{}");
             const assumedCapital = parseFloat(localStorage.getItem("ec_assumed_capital") || "10000");
@@ -197,7 +198,7 @@ export function useRiskState() {
             if (dailyCounters.lossStreak >= 2) revengeRiskIndex += 30;
             if (dailyCounters.lossStreak >= 3) revengeRiskIndex += 20; // Additional penalty
             if (dailyCounters.overrideCount > 0) revengeRiskIndex += 25;
-            if (dailyCounters.tradesExecuted >= (activeStrategy?.versions.find((v:any) => v.isActiveVersion)?.ruleSet?.riskRules.maxDailyTrades || 5) - 1) revengeRiskIndex += 15;
+            if (dailyCounters.tradesExecuted >= ((strategies.find((s: any) => s.status === 'active')?.versions.find((v:any) => v.isActiveVersion)?.ruleSet?.riskRules.maxDailyTrades || 5) - 1)) revengeRiskIndex += 15;
             if (vixZone === 'Elevated') revengeRiskIndex += 10;
             if (vixZone === 'Extreme') revengeRiskIndex += 25;
 
@@ -290,6 +291,33 @@ export function useRiskState() {
             };
 
             // 4. Compute Today's Limits & Risk Budget
+            const limitSource = (localStorage.getItem("ec_limits_source_mode") as RiskState['todaysLimits']['limitSource']) || 'lastUsed';
+            let activeStrategy: any = null;
+
+            if (limitSource === 'draft') {
+                const draftString = localStorage.getItem("ec_trade_plan_draft");
+                if (draftString) {
+                    const draft = JSON.parse(draftString);
+                    activeStrategy = strategies.find((s:any) => s.strategyId === draft.formData.strategyId);
+                }
+            } else if (limitSource === 'default') {
+                const defaultId = localStorage.getItem("ec_default_strategy_id");
+                if (defaultId) {
+                    activeStrategy = strategies.find((s:any) => s.strategyId === defaultId);
+                }
+            }
+            
+            // Fallback to last used if other modes fail or aren't selected
+            if (!activeStrategy) {
+                const sortedByLastUsed = [...strategies].sort((a: any, b: any) => {
+                    const aDate = a.versions.find((v:any) => v.isActiveVersion)?.lastUsedAt;
+                    const bDate = b.versions.find((v:any) => v.isActiveVersion)?.lastUsedAt;
+                    if (aDate && bDate) return new Date(bDate).getTime() - new Date(aDate).getTime();
+                    return aDate ? -1 : 1;
+                });
+                activeStrategy = sortedByLastUsed[0];
+            }
+
             const hasActiveStrategy = !!activeStrategy;
             const baseRules = activeStrategy?.versions.find((v:any) => v.isActiveVersion)?.ruleSet?.riskRules;
             const accountCapital = assumedCapital;
@@ -321,6 +349,8 @@ export function useRiskState() {
                 dailyBudgetRemaining,
                 maxSafeTradesRemaining,
                 hasActiveStrategy,
+                activeStrategyName: activeStrategy?.name || null,
+                limitSource: hasActiveStrategy ? limitSource : 'none',
             };
 
              if (todaysLimits.lossStreak >= 2) {
