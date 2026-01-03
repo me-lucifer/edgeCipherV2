@@ -573,44 +573,45 @@ function ArjunRiskAlerts({ onSetModule }: { onSetModule: (module: any, context?:
     const alerts = useMemo(() => {
         if (!riskState) return [];
 
-        const generatedAlerts = [];
-
-        if (riskState.todaysLimits.lossStreak >= 2) {
-            generatedAlerts.push({
-                severity: 'stop',
-                title: `You're on a ${riskState.todaysLimits.lossStreak}-trade losing streak`,
-                suggestion: "This is a critical moment for your discipline. Pause trading and review these losses to understand the pattern.",
-                action: { label: 'Go to Journal', module: 'tradeJournal' }
-            });
-        }
-        if (riskState.marketRisk.vixZone === 'Extreme') {
-            generatedAlerts.push({
-                severity: 'warn',
-                title: "Market volatility is 'Extreme'",
-                suggestion: "Risk of sharp, unpredictable moves is very high. Consider if any trade is truly an A+ setup right now.",
-                action: { label: 'Go to Trade Planning', module: 'tradePlanning' }
-            });
-        }
-        if (riskState.personalRisk.disciplineScore < 50) {
-            generatedAlerts.push({
-                severity: 'warn',
-                title: 'Your discipline score is low',
-                suggestion: "This indicates recent rule-breaking. Focus on following your plan to the letter on your next trade.",
-                action: { label: 'Review Analytics', module: 'analytics' }
-            });
-        }
-        if (riskState.todaysLimits.tradesExecuted >= riskState.todaysLimits.maxTrades) {
-             generatedAlerts.push({
-                severity: 'info',
-                title: 'Daily trade limit reached',
-                suggestion: "You've hit your max trades for the day. Good discipline. Time to close the charts and review.",
-                action: { label: 'View Today\'s Trades', module: 'tradeJournal', context: { filters: { timeRange: 'today' } } }
-            });
-        }
-
+        const generatedAlerts = riskState.decision.reasons.map(reason => {
+            if (reason.toLowerCase().includes('leverage')) {
+                return {
+                    severity: 'red' as 'red',
+                    title: 'High Leverage Detected',
+                    suggestion: "High leverage + high volatility increases liquidation probability. Review open positions.",
+                    action: { label: 'Review Exposure', module: 'riskCenter' }
+                };
+            }
+             if (reason.toLowerCase().includes('cooldown')) {
+                return {
+                    severity: 'red' as 'red',
+                    title: `You're on a ${riskState.todaysLimits.lossStreak}-trade losing streak`,
+                    suggestion: "This is a critical moment for your discipline. Pause trading and review these losses to understand the pattern.",
+                    action: { label: 'Go to Journal', module: 'tradeJournal' }
+                };
+            }
+            if (reason.toLowerCase().includes('discipline score')) {
+                return {
+                    severity: 'warn' as 'warn',
+                    title: 'Your discipline score is low',
+                    suggestion: "This indicates recent rule-breaking. Focus on following your plan to the letter on your next trade.",
+                    action: { label: 'Review Analytics', module: 'analytics' }
+                };
+            }
+            if (reason.toLowerCase().includes('volatility')) {
+                 return {
+                    severity: 'warn' as 'warn',
+                    title: `Market volatility is '${riskState.marketRisk.vixZone}'`,
+                    suggestion: "Risk of sharp, unpredictable moves is high. Consider if any trade is truly an A+ setup right now.",
+                    action: { label: 'Go to Trade Planning', module: 'tradePlanning' }
+                };
+            }
+            return null;
+        }).filter((alert): alert is NonNullable<typeof alert> => alert !== null);
+        
         if (generatedAlerts.length === 0) {
             return [{
-                severity: 'info',
+                severity: 'info' as 'info',
                 title: 'No critical alerts',
                 suggestion: 'All systems are currently within your defined risk parameters. Focus on executing your plan.',
                 action: { label: 'Plan next trade', module: 'tradePlanning' }
@@ -633,17 +634,17 @@ function ArjunRiskAlerts({ onSetModule }: { onSetModule: (module: any, context?:
             <CardContent className="space-y-4">
                 {alerts.map((alert, index) => (
                     <div key={index} className={cn("p-4 rounded-lg border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4", 
-                        alert.severity === 'stop' && 'bg-red-950/40 border-red-500/20',
+                        alert.severity === 'red' && 'bg-red-950/40 border-red-500/20',
                         alert.severity === 'warn' && 'bg-amber-950/40 border-amber-500/20',
                         alert.severity === 'info' && 'bg-blue-950/40 border-blue-500/20'
                     )}>
                         <div className="flex-1">
                             <h4 className={cn("font-semibold flex items-center gap-2", 
-                                alert.severity === 'stop' && 'text-red-400',
+                                alert.severity === 'red' && 'text-red-400',
                                 alert.severity === 'warn' && 'text-amber-400',
                                 alert.severity === 'info' && 'text-blue-400'
                             )}>
-                                {alert.severity === 'stop' && <XCircle />}
+                                {alert.severity === 'red' && <XCircle />}
                                 {alert.severity === 'warn' && <AlertTriangle />}
                                 {alert.severity === 'info' && <Info />}
                                 {alert.title}

@@ -53,6 +53,12 @@ const getVixZone = (vix: number): VixZone => {
     return "Calm";
 };
 
+const mockPositions = [
+    { symbol: 'BTC-PERP', direction: 'Long', size: 0.5, pnl: 234.50, leverage: 10, risk: 'Medium' },
+    { symbol: 'ETH-PERP', direction: 'Short', size: 12, pnl: -88.12, leverage: 50, risk: 'High' },
+    { symbol: 'SOL-PERP', direction: 'Long', size: 100, pnl: 45.20, leverage: 5, risk: 'Low' },
+];
+
 export function useRiskState() {
     const [riskState, setRiskState] = useState<RiskState | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -130,6 +136,16 @@ export function useRiskState() {
             // 5. Compute Final Decision
             const reasons: string[] = [];
             let level: "green" | "yellow" | "red" = "green";
+
+            // Leverage Check from open positions
+            const maxLeverage = Math.max(...mockPositions.map(p => p.leverage));
+            if (maxLeverage >= 20 || (maxLeverage >= 15 && (vixZone === 'Elevated' || vixZone === 'Extreme'))) {
+                level = 'red';
+                reasons.push(`High leverage (${maxLeverage}x) detected in high volatility (${vixZone}), increasing liquidation risk.`);
+            } else if (maxLeverage >= 15) {
+                if (level !== 'red') level = 'yellow';
+                reasons.push(`Leverage of ${maxLeverage}x is high; be cautious.`);
+            }
 
             if (todaysLimits.cooldownActive) {
                 level = "red";
