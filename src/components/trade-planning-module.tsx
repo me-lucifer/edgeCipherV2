@@ -32,7 +32,6 @@ import type { JournalEntry } from "./trade-journal-module";
 import type { StrategyGroup as Strategy, RuleSet } from './strategy-management-module';
 import { useDailyCounters } from "@/hooks/use-daily-counters";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "./ui/command";
 import { Check } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
 
@@ -134,6 +133,7 @@ type ValidationContext = {
     lossStreak: number;
     vixZone: VixZone;
     allEntryRulesChecked: boolean;
+    tempVolatilityPolicy: "follow" | "conservative" | "strict" | null;
 };
 
 type ValidationCheck = {
@@ -249,29 +249,39 @@ const validatePlanAgainstStrategy = (plan: PlanInputs, strategy: RuleSet, contex
         });
     }
 
-    // F) VIX policy
-    if (contextRules.vixPolicy) {
-        let vixStatus: ValidationStatus = 'PASS';
-        let message = "Volatility is within strategy parameters.";
-        let fix: ValidationCheck['fix'] | undefined;
-        if (contextRules.vixPolicy === 'avoidHigh' && (context.vixZone === 'Elevated' || context.vixZone === 'Extreme')) {
-            vixStatus = 'WARN';
-            message = `Current VIX is '${context.vixZone}', which this strategy suggests avoiding.`;
-            fix = { type: 'SHOW_HINT', payload: { toastMessage: 'Consider switching to a strategy that performs better in high volatility.' } };
-        } else if (contextRules.vixPolicy === 'onlyLowNormal' && (context.vixZone === 'Elevated' || context.vixZone === 'Extreme')) {
-            vixStatus = 'FAIL';
-            message = `Strategy requires 'Calm' or 'Normal' VIX, but it is currently '${context.vixZone}'.`;
-            fix = { type: 'SHOW_HINT', payload: { toastMessage: 'Switch to a strategy suitable for high volatility or wait for calmer markets.' } };
-        }
-        validations.push({
-            ruleId: 'vixPolicy',
-            title: `VIX Policy: ${contextRules.vixPolicy}`,
-            status: vixStatus,
-            message: message,
-            category: 'Context',
-            fix,
-        });
+    // F) VIX policy with temporary override
+    const finalVixPolicy = context.tempVolatilityPolicy !== 'follow' && context.tempVolatilityPolicy !== null ? context.tempVolatilityPolicy : (contextRules.vixPolicy || 'allowAll');
+    let vixStatus: ValidationStatus = 'PASS';
+    let message = "Volatility is within strategy parameters.";
+    let fix: ValidationCheck['fix'] | undefined;
+    
+    if (finalVixPolicy === 'conservative' && (context.vixZone === 'Elevated' || context.vixZone === 'Extreme')) {
+        vixStatus = 'WARN';
+        message = `Current VIX is '${context.vixZone}', which the 'Conservative' policy suggests avoiding.`;
+        fix = { type: 'SHOW_HINT', payload: { toastMessage: 'Consider switching to a strategy that performs better in high volatility.' } };
+    } else if (finalVixPolicy === 'strict' && (context.vixZone !== 'Calm' && context.vixZone !== 'Normal')) {
+        vixStatus = 'FAIL';
+        message = `The 'Strict' policy only allows trading in 'Calm' or 'Normal' VIX, but it is currently '${context.vixZone}'.`;
+        fix = { type: 'SHOW_HINT', payload: { toastMessage: 'Switch to a different strategy or wait for calmer markets.' } };
+    } else if (contextRules.vixPolicy === 'avoidHigh' && (context.vixZone === 'Elevated' || context.vixZone === 'Extreme')) {
+        vixStatus = 'WARN';
+        message = `Strategy suggests avoiding high VIX, and current VIX is '${context.vixZone}'.`;
+        fix = { type: 'SHOW_HINT', payload: { toastMessage: 'Consider switching to a strategy that performs better in high volatility.' } };
+    } else if (contextRules.vixPolicy === 'onlyLowNormal' && (context.vixZone === 'Elevated' || context.vixZone === 'Extreme')) {
+        vixStatus = 'FAIL';
+        message = `Strategy requires 'Calm' or 'Normal' VIX, but it is currently '${context.vixZone}'.`;
+        fix = { type: 'SHOW_HINT', payload: { toastMessage: 'Switch to a different strategy or wait for calmer markets.' } };
     }
+
+    validations.push({
+        ruleId: 'vixPolicy',
+        title: `VIX Policy: ${finalVixPolicy}`,
+        status: vixStatus,
+        message: message,
+        category: 'Context',
+        fix,
+    });
+
 
     // G) Session restriction
     if (contextRules.allowedSessions && contextRules.allowedSessions.length > 0) {
@@ -997,6 +1007,9 @@ function PlanSummary({ control, setPlanStatus, onSetModule, entryChecklist, sess
         if (!activeRuleset) return null;
         
         const allEntryRulesChecked = (activeRuleset.entryRules.conditions || []).every(rule => entryChecklist[rule]);
+        
+        const tempVolatilityPolicy = typeof window !== 'undefined' ? localStorage.getItem("ec_temp_vol_policy") as "follow" | "conservative" | "strict" | null : null;
+
 
         const planInputs: PlanInputs = {
             leverage: values.leverage,
@@ -1009,6 +1022,7 @@ function PlanSummary({ control, setPlanStatus, onSetModule, entryChecklist, sess
             lossStreak,
             vixZone,
             allEntryRulesChecked,
+            tempVolatilityPolicy,
         };
         return validatePlanAgainstStrategy(planInputs, activeRuleset, validationContext);
     }, [values, activeRuleset, rrr, entryChecklist, totalTradesExecuted, lossStreak, session, vixZone]);
@@ -1852,6 +1866,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
                 lossStreak,
                 vixZone,
                 allEntryRulesChecked: true, // Assume checked for snapshot
+                tempVolatilityPolicy: "follow", // Assume default
             };
             return validatePlanAgainstStrategy(planInputs, activeRuleset, validationContext);
         }, [values, activeRuleset, rrr]);
@@ -2552,4 +2567,4 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
     
     
     
-    
+

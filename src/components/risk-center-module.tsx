@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Pencil, ShieldAlert, BarChart, Info, CheckCircle, XCircle, AlertTriangle, Gauge, Calendar, Zap, Sun, Moon, Waves, User, ArrowRight, RefreshCw, SlidersHorizontal, TrendingUp, Sparkles, Droplets, TrendingDown, BookOpen, Layers, Settings, ShieldCheck, MoreHorizontal, Copy, Edit, Archive, Trash2, Scale, HeartPulse, HardHat } from "lucide-react";
+import { Bot, Pencil, ShieldAlert, BarChart, Info, CheckCircle, XCircle, AlertTriangle, Gauge, Calendar, Zap, Sun, Moon, Waves, User, ArrowRight, RefreshCw, SlidersHorizontal, TrendingUp, Sparkles, Droplets, TrendingDown, BookOpen, Layers, Settings, ShieldCheck, MoreHorizontal, Copy, Edit, Archive, Trash2, Scale, HeartPulse, HardHat, Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -81,7 +81,7 @@ function TradeDecisionBar({ decision }: { decision: RiskState['decision'] | null
 
     const blocks = decision.reasons.filter(reason => {
         const lowerReason = reason.toLowerCase();
-        return lowerReason.includes('exceeded') || lowerReason.includes('cooldown') || lowerReason.includes('extreme') || lowerReason.includes('critical') || lowerReason.includes('excessive');
+        return lowerReason.includes('exceeded') || lowerReason.includes('cooldown') || lowerReason.includes('extreme') || lowerReason.includes('critical') || lowerReason.includes('leverage');
     });
     const warnings = decision.reasons.filter(reason => !blocks.includes(reason));
 
@@ -903,6 +903,56 @@ function RiskEventsTimeline({ events }: { events: RiskState['riskEventsToday'] }
     );
 }
 
+type VolatilityPolicy = "follow" | "conservative" | "strict";
+
+function VolatilityPolicyCard() {
+    const [policy, setPolicy] = useState<VolatilityPolicy>('follow');
+    const { refresh } = useRiskState();
+
+    useEffect(() => {
+        const savedPolicy = localStorage.getItem("ec_temp_vol_policy") as VolatilityPolicy | null;
+        if (savedPolicy) {
+            setPolicy(savedPolicy);
+        }
+    }, []);
+
+    const handlePolicyChange = (newPolicy: VolatilityPolicy) => {
+        setPolicy(newPolicy);
+        localStorage.setItem("ec_temp_vol_policy", newPolicy);
+        refresh();
+    };
+
+    const descriptions = {
+        follow: "Use the VIX policy defined in the selected strategy.",
+        conservative: "Warn on 'Elevated' VIX, Fail on 'Extreme' VIX.",
+        strict: "Fail on any VIX level above 'Normal'.",
+    };
+
+    return (
+        <Card className="bg-muted/30 border-border/50">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <Globe className="h-5 w-5" /> Volatility Policy
+                </CardTitle>
+                <CardDescription>Temporary override for today's session.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Select value={policy} onValueChange={(v) => handlePolicyChange(v as VolatilityPolicy)}>
+                    <SelectTrigger>
+                        <SelectValue placeholder="Select a policy" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="follow">Follow Strategy Rules</SelectItem>
+                        <SelectItem value="conservative">Conservative</SelectItem>
+                        <SelectItem value="strict">Strict</SelectItem>
+                    </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-2">{descriptions[policy]}</p>
+            </CardContent>
+        </Card>
+    );
+}
+
 
 export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
     const { riskState, isLoading, refresh } = useRiskState();
@@ -968,6 +1018,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                      <PersonalRiskCard personalRisk={personalRisk} onSetModule={onSetModule} />
                      <TodaysLimitsCard limits={todaysLimits} onSetModule={onSetModule} />
                      <RiskBudgetCard limits={todaysLimits} decision={decision} refreshState={refresh} />
+                     <VolatilityPolicyCard />
                      <RiskControlsCard />
                 </div>
             </div>
