@@ -35,6 +35,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "./ui/chart";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
 import { useJournal, type JournalEntry } from "./trade-journal-module";
+import { RiskCenterTour } from "./risk-center-tour";
 
 
 interface RiskCenterModuleProps {
@@ -114,7 +115,7 @@ function TradeDecisionBar({ decision }: { decision: RiskState['decision'] | null
                     </div>
                 </DrawerContent>
             </Drawer>
-            <Card className={cn("border-2", config.className)}>
+            <Card id="risk-decision-bar" className={cn("border-2", config.className)}>
                 <CardContent className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
                         <div className={cn("p-2 rounded-full", config.className.replace('border-', 'bg-').replace('/30', '/20'))}>
@@ -158,7 +159,7 @@ function MarketRiskCard({ marketRisk, onSetModule }: { marketRisk: RiskState['ma
 
 
     return (
-        <Card className="bg-muted/30 border-border/50">
+        <Card id="vix-gauge" className="bg-muted/30 border-border/50">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                     <Gauge className="h-5 w-5" />
@@ -281,7 +282,7 @@ function RevengeRiskCard({ revengeRiskIndex, revengeRiskLevel }: { revengeRiskIn
     const config = levelConfig[revengeRiskLevel];
     
     return (
-        <Card className={cn("bg-muted/30 border-border/50", (revengeRiskLevel === 'High' || revengeRiskLevel === 'Critical') && 'border-amber-500/30')}>
+        <Card id="revenge-risk" className={cn("bg-muted/30 border-border/50", (revengeRiskLevel === 'High' || revengeRiskLevel === 'Critical') && 'border-amber-500/30')}>
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                     <HeartPulse className="h-5 w-5" /> Revenge Risk Index
@@ -414,7 +415,7 @@ function TodaysLimitsCard({ limits, onSetModule }: { limits: RiskState['todaysLi
     );
     
     return (
-        <Card className="bg-muted/30 border-border/50">
+        <Card id="todays-limits" className="bg-muted/30 border-border/50">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2"><ShieldAlert className="h-5 w-5" /> Today's Limits</CardTitle>
                 <CardDescription>Hard constraints from your active strategy.</CardDescription>
@@ -453,7 +454,7 @@ function TodaysLimitsCard({ limits, onSetModule }: { limits: RiskState['todaysLi
     );
 }
 
-function RiskControlsCard() {
+function RiskControlsCard({ onSetModule }: { onSetModule: (module: any) => void }) {
     const [controls, setControls] = useState({
         warnOnHighRisk: true,
         warnOnHighVIX: false,
@@ -517,7 +518,7 @@ function RiskControlsCard() {
     );
     
     return (
-        <Card className="bg-muted/30 border-border/50">
+        <Card id="risk-controls" className="bg-muted/30 border-border/50">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2"><Settings className="h-5 w-5" /> Risk Controls</CardTitle>
                 <CardDescription>Global overrides and guardrail toggles.</CardDescription>
@@ -555,6 +556,11 @@ function RiskControlsCard() {
                 <ControlSwitch id="warnOnHighVIX" label="Warn in high VIX" description="Alerts when trading in Elevated/Extreme VIX." />
                 <ControlSwitch id="cooldownAfterLosses" label="Stop after 2 losses" description="Enforces a daily cooldown after 2 losses." />
             </CardContent>
+            <CardFooter>
+                <Button variant="link" size="sm" className="p-0 h-auto" onClick={() => onSetModule('settings')}>
+                    Manage all guardrails
+                </Button>
+            </CardFooter>
         </Card>
     );
 }
@@ -705,7 +711,7 @@ What should my primary focus be?
     };
 
     return (
-        <Card className="bg-muted/30 border-primary/20">
+        <Card id="arjun-alerts" className="bg-muted/30 border-primary/20">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2"><Bot className="h-5 w-5 text-primary" /> Arjun's Risk Handoff</CardTitle>
                  <CardDescription>
@@ -775,7 +781,7 @@ function RiskBudgetCard({ limits, decision, refreshState, pnlTrend7d }: { limits
     const isBrokerConnected = typeof window !== 'undefined' ? localStorage.getItem('ec_broker_connected') === 'true' : false;
 
     return (
-        <Card className="bg-muted/30 border-border/50">
+        <Card id="risk-budget" className="bg-muted/30 border-border/50">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2"><Scale className="h-5 w-5" /> Risk Budget (Today)</CardTitle>
             </CardHeader>
@@ -1521,6 +1527,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
     const [disciplineTimeframe, setDisciplineTimeframe] = useState<'today' | '7d'>('today');
     const [hasSufficientData, setHasSufficientData] = useState(false);
     const { entries: journalEntries } = useJournal();
+    const [isTourOpen, setIsTourOpen] = useState(false);
 
     const hasPendingJournals = useMemo(() => {
         return journalEntries.some(e => e.status === 'pending');
@@ -1533,6 +1540,12 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                 setHasSufficientData(true);
             } else {
                 setHasSufficientData(false);
+            }
+            
+            const tourSeen = localStorage.getItem('ec_risk_tour_seen');
+            if (!tourSeen) {
+                setIsTourOpen(true);
+                localStorage.setItem('ec_risk_tour_seen', 'true');
             }
         }
     }, [riskState]);
@@ -1596,6 +1609,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
 
     return (
         <div className="space-y-8">
+            <RiskCenterTour isOpen={isTourOpen} onOpenChange={setIsTourOpen} />
             <div className="flex items-start justify-between">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight text-foreground">Risk Center</h1>
@@ -1603,7 +1617,10 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                         Your single view of market risk + your personal risk posture.
                     </p>
                 </div>
-                <Button variant="ghost" size="sm" onClick={refresh}><RefreshCw className="mr-2 h-4 w-4" /> Refresh State</Button>
+                <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setIsTourOpen(true)}>Demo Tour</Button>
+                    <Button variant="ghost" size="sm" onClick={refresh}><RefreshCw className="mr-2 h-4 w-4" /> Refresh State</Button>
+                </div>
             </div>
 
             {hasPendingJournals && (
@@ -1643,7 +1660,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                              <LastPlanDraftCard onSetModule={onSetModule} />
                              <TopRiskDriversCard drivers={topRiskDrivers} onSetModule={onSetModule} />
                              <RiskBudgetCard limits={todaysLimits} decision={decision} refreshState={refresh} pnlTrend7d={personalRisk.pnlTrend7d}/>
-                             <RiskControlsCard />
+                             <RiskControlsCard onSetModule={onSetModule} />
                         </div>
                     </div>
                 </TabsContent>
@@ -1772,6 +1789,7 @@ const DeltaIndicator = ({ delta, unit = "" }: { delta: number; unit?: string }) 
 };
     
     
+
 
 
 
