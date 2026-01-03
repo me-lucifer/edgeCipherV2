@@ -157,12 +157,7 @@ function MarketRiskCard({ marketRisk, onSetModule }: { marketRisk: RiskState['ma
     
     const { color, impact } = zoneInfo[vixZone] || zoneInfo.Normal;
     const colorClass = `hsl(var(--chart-${color === 'green' ? 2 : color === 'blue' ? 1 : color === 'amber' ? 4 : 5}))`;
-    const conicGradient = `conic-gradient(
-        ${colorClass} 0deg,
-        ${colorClass} calc(${vixValue} * 1.8deg),
-        hsl(var(--muted)) calc(${vixValue} * 1.8deg),
-        hsl(var(--muted)) 180deg
-    )`;
+    const conicGradient = `conic-gradient(${colorClass} 0deg, ${colorClass} calc(${vixValue} * 1.8deg), hsl(var(--muted)) calc(${vixValue} * 1.8deg), hsl(var(--muted)) 180deg)`;
 
     // Mocked conditions based on VIX for demo purposes
     const fundingRateStatus = vixZone === 'Extreme' ? 'High' : 'Neutral';
@@ -271,12 +266,7 @@ const DeltaIndicator = ({ delta, unit = "" }: { delta: number; unit?: string }) 
 };
 
 const ScoreGauge = ({ score, label, interpretation, delta, colorClass }: { score: number; label: string; interpretation: string; delta?: number; colorClass: string; }) => {
-    const conicGradient = `conic-gradient(
-        ${colorClass} 0deg,
-        ${colorClass} calc(${score} * 1.8deg),
-        hsl(var(--muted)) calc(${score} * 1.8deg),
-        hsl(var(--muted)) 180deg
-    )`;
+    const conicGradient = `conic-gradient(${colorClass} 0deg, ${colorClass} calc(${score} * 1.8deg), hsl(var(--muted)) calc(${score} * 1.8deg), hsl(var(--muted)) 180deg)`;
 
     return (
         <div className="flex flex-col items-center gap-2 text-center">
@@ -1198,6 +1188,21 @@ ${reportData.recommendations.map(r => `- ${r}`).join('\\n')}
     );
 }
 
+const TelemetryCard = ({ title, value, hint, children }: { title: string, value: string, hint: string, children: React.ReactNode }) => (
+    <Card>
+        <CardHeader>
+            <CardTitle className="text-base">{title}</CardTitle>
+            <CardDescription>{hint}</CardDescription>
+        </CardHeader>
+        <CardContent>
+            <p className="text-3xl font-bold font-mono mb-4">{value}</p>
+            <div className="h-20">
+                {children}
+            </div>
+        </CardContent>
+    </Card>
+);
+
 export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
     const { riskState, isLoading, refresh } = useRiskState();
     const [activeTab, setActiveTab] = useState("today");
@@ -1250,45 +1255,47 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                     </div>
                 </TabsContent>
                 <TabsContent value="insights" className="mt-6 space-y-8">
-                    <div className="grid lg:grid-cols-3 gap-8 items-start">
-                        <div className="lg:col-span-2 space-y-8">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Risk Telemetry (7D)</CardTitle>
-                                    <CardDescription>Visualizing your behavioral trends over time.</CardDescription>
-                                </CardHeader>
-                                <CardContent className="space-y-8">
-                                    <div>
-                                        <h4 className="font-semibold text-sm mb-2">Revenge Risk Index Trend</h4>
-                                        <ChartContainer config={{}} className="h-40 w-full">
-                                            <LineChart data={Array.from({ length: 7 }, (_, i) => ({ day: `Day ${i+1}`, value: Math.min(100, (personalRisk.revengeRiskIndex - 20) + (Math.random() * 40))}))}>
-                                                <CartesianGrid vertical={false} />
-                                                <XAxis dataKey="day" tick={{fontSize: 12}} />
-                                                <YAxis domain={[0,100]} tick={{fontSize: 12}} />
-                                                <ChartTooltip content={<ChartTooltipContent />} />
-                                                <Line type="monotone" dataKey="value" stroke="hsl(var(--chart-5))" strokeWidth={2} dot={false} />
-                                            </LineChart>
-                                        </ChartContainer>
-                                    </div>
-                                    <div>
-                                        <h4 className="font-semibold text-sm mb-2">SL Moved Rate Trend</h4>
-                                        <ChartContainer config={{}} className="h-40 w-full">
-                                            <LineChart data={personalRisk.slMovedTrend7d}>
-                                                <CartesianGrid vertical={false} />
-                                                <XAxis dataKey="day" tick={{fontSize: 12}} />
-                                                <YAxis domain={[0,1]} tick={{fontSize: 12}} />
-                                                <ChartTooltip content={<ChartTooltipContent />} />
-                                                <Line type="step" dataKey="value" stroke="hsl(var(--chart-4))" strokeWidth={2} dot={false} />
-                                            </LineChart>
-                                        </ChartContainer>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </div>
-                        <div className="lg:col-span-1 space-y-8 sticky top-24">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <TelemetryCard title="SL Discipline" value={`${(100 - personalRisk.slMovedRate).toFixed(0)}%`} hint="Trades where SL was NOT moved">
+                            <ChartContainer config={{}} className="h-full w-full">
+                                <LineChart data={personalRisk.slMovedTrend7d.map(d => ({...d, value: 1 - d.value}))} margin={{ top: 5, right: 10, left: -30, bottom: 0 }}>
+                                    <YAxis domain={[0,1]} tickFormatter={(v) => `${v*100}%`} tick={{fontSize: 10}} />
+                                    <ChartTooltip content={<ChartTooltipContent formatter={(v) => `${(Number(v)*100).toFixed(0)}%`}/>} />
+                                    <Line type="monotone" dataKey="value" stroke="hsl(var(--chart-2))" strokeWidth={2} dot={false} />
+                                </LineChart>
+                            </ChartContainer>
+                        </TelemetryCard>
+                        <TelemetryCard title="Risk per Trade Drift" value={`${personalRisk.riskLeakageRate.toFixed(1)}x`} hint="Actual loss vs. planned risk">
+                             <ChartContainer config={{}} className="h-full w-full">
+                                <LineChart data={personalRisk.overridesTrend7d} margin={{ top: 5, right: 10, left: -30, bottom: 0 }}>
+                                    <YAxis domain={[0,2]} tickFormatter={(v) => `${v.toFixed(1)}x`} tick={{fontSize: 10}}/>
+                                    <ChartTooltip content={<ChartTooltipContent formatter={(v) => `${Number(v).toFixed(1)}x`}/>} />
+                                    <Line type="monotone" dataKey="value" stroke="hsl(var(--chart-4))" strokeWidth={2} dot={false} />
+                                </LineChart>
+                            </ChartContainer>
+                        </TelemetryCard>
+                        <TelemetryCard title="Leverage Stability" value="18.5x" hint="Average leverage used">
+                           <ChartContainer config={{}} className="h-full w-full">
+                                <LineChart data={Array.from({ length: 7 }, () => ({ value: 15 + Math.random() * 10 }))} margin={{ top: 5, right: 10, left: -30, bottom: 0 }}>
+                                     <YAxis domain={[0, 50]} tickFormatter={(v) => `${v}x`} tick={{fontSize: 10}} />
+                                     <ChartTooltip content={<ChartTooltipContent formatter={(v) => `${Number(v).toFixed(1)}x`}/>} />
+                                    <Line type="monotone" dataKey="value" stroke="hsl(var(--chart-1))" strokeWidth={2} dot={false} />
+                                </LineChart>
+                            </ChartContainer>
+                        </TelemetryCard>
+                        <TelemetryCard title="Overrides & Breaches" value={`${todaysLimits.tradesExecuted > 0 ? (todaysLimits.lossStreak / todaysLimits.tradesExecuted * 100).toFixed(0) : 0}%`} hint="Trades that broke a rule">
+                            <ChartContainer config={{}} className="h-full w-full">
+                                <LineChart data={personalRisk.overridesTrend7d} margin={{ top: 5, right: 10, left: -30, bottom: 0 }}>
+                                     <YAxis domain={[0, 5]} tickFormatter={(v) => v.toFixed(0)} tick={{fontSize: 10}} />
+                                     <ChartTooltip content={<ChartTooltipContent />} />
+                                    <Line type="step" dataKey="value" stroke="hsl(var(--chart-5))" strokeWidth={2} dot={false} />
+                                </LineChart>
+                            </ChartContainer>
+                        </TelemetryCard>
+                    </div>
+                    <div className="grid lg:grid-cols-2 gap-8 items-start">
                            <RevengeRiskCard revengeRiskIndex={personalRisk.revengeRiskIndex} revengeRiskLevel={personalRisk.revengeRiskLevel} />
                            <PersonaFitAnalysis onSetModule={onSetModule} />
-                        </div>
                     </div>
                 </TabsContent>
                 <TabsContent value="reports" className="mt-6 space-y-8">
@@ -1335,5 +1342,3 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
         </div>
     );
 }
-
-    
