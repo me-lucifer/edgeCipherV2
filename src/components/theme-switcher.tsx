@@ -30,7 +30,7 @@ const themes: { name: string, id: Theme, color: string }[] = [
 export function ThemeSwitcher() {
     const { theme: activeTheme, setTheme } = useTheme()
     return (
-        <div className="fixed bottom-4 right-4 z-50">
+        <div className="fixed bottom-16 right-4 z-50">
             <DropdownMenu>
                 <TooltipProvider>
                     <Tooltip>
