@@ -148,7 +148,20 @@ function MarketRiskCard({ marketRisk, onSetModule }: { marketRisk: RiskState['ma
     return (
         <Card className="bg-muted/30 border-border/50">
             <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Gauge className="h-5 w-5" /> Market Risk</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                    <Gauge className="h-5 w-5" />
+                    Market Risk
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger>
+                                <Info className="h-4 w-4 text-muted-foreground/80 cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p className="max-w-xs">An indicator of current market volatility (0-100). Higher values mean larger price swings and more risk.</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                </CardTitle>
             </CardHeader>
             <CardContent className="grid md:grid-cols-2 gap-6 items-center">
                 <div 
@@ -334,9 +347,23 @@ function PersonalRiskCard({ personalRisk, onSetModule }: { personalRisk: RiskSta
 
 function TodaysLimitsCard({ limits, onSetModule }: { limits: RiskState['todaysLimits'], onSetModule: (module: any) => void }) {
     
-    const StatusRow = ({ label, value, valueClass }: { label: string; value: React.ReactNode; valueClass?: string }) => (
+    const StatusRow = ({ label, value, valueClass, tooltipText }: { label: string; value: React.ReactNode; valueClass?: string, tooltipText?: string }) => (
         <div className="flex justify-between items-center text-sm">
-            <p className="text-muted-foreground">{label}</p>
+            <div className="text-muted-foreground flex items-center gap-2">
+                <span>{label}</span>
+                {tooltipText && (
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger>
+                                <Info className="h-3 w-3 text-muted-foreground/80 cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p className="max-w-xs">{tooltipText}</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                )}
+            </div>
             <p className={cn("font-mono font-semibold text-foreground", valueClass)}>{value}</p>
         </div>
     );
@@ -351,11 +378,11 @@ function TodaysLimitsCard({ limits, onSetModule }: { limits: RiskState['todaysLi
                 <div>
                     <h4 className="text-sm font-semibold text-foreground mb-3">Strategy Rules</h4>
                     <div className="space-y-2">
-                        <StatusRow label="Max risk / trade" value={`${limits.riskPerTradePct.toFixed(2)}%`} />
+                        <StatusRow label="Max risk / trade" value={`${limits.riskPerTradePct.toFixed(2)}%`} tooltipText="The maximum percentage of your total account capital you've committed to not exceed on any single trade." />
                         <StatusRow label="Max daily trades" value={limits.maxTrades} />
                         <StatusRow label="Max daily loss" value={`${limits.maxDailyLoss}%`} />
                         <StatusRow label="Leverage cap" value={`${limits.leverageCap}x`} />
-                        <StatusRow label="Cooldown rule" value={limits.cooldownActive ? "ON" : "OFF"} valueClass={limits.cooldownActive ? "text-amber-400" : ""} />
+                        <StatusRow label="Cooldown rule" value={limits.cooldownActive ? "ON" : "OFF"} valueClass={limits.cooldownActive ? "text-amber-400" : ""} tooltipText="A mandatory break from trading after a set number of consecutive losses to prevent revenge trading." />
                     </div>
                 </div>
                 <Separator />
@@ -541,45 +568,58 @@ function ExposureSnapshotCard({ onSetModule }: { onSetModule: (module: any) => v
 function ArjunRiskAlerts({ onSetModule }: { onSetModule: (module: any, context?: any) => void }) {
     const { riskState } = useRiskState();
 
-    const alerts = [
-        ...(riskState?.todaysLimits.lossStreak && riskState.todaysLimits.lossStreak >= 2 ? [{
-            severity: 'stop',
-            title: `You're on a ${riskState.todaysLimits.lossStreak}-trade losing streak`,
-            suggestion: "This is a critical moment for your discipline. Pause trading and review these losses to understand the pattern.",
-            action: { label: 'Go to Journal', module: 'tradeJournal' }
-        }] : []),
-        ...(riskState?.marketRisk.vixZone === 'Extreme' ? [{
-            severity: 'warn',
-            title: "Market volatility is 'Extreme'",
-            suggestion: "Risk of sharp, unpredictable moves is very high. Consider if any trade is truly an A+ setup right now.",
-            action: { label: 'Go to Trade Planning', module: 'tradePlanning' }
-        }] : []),
-        ...(riskState?.personalRisk.disciplineScore && riskState.personalRisk.disciplineScore < 50 ? [{
-            severity: 'warn',
-            title: 'Your discipline score is low',
-            suggestion: "This indicates recent rule-breaking. Focus on following your plan to the letter on your next trade.",
-            action: { label: 'Review Analytics', module: 'analytics' }
-        }] : []),
-        ...(riskState?.todaysLimits.tradesExecuted && riskState.todaysLimits.maxTrades && riskState.todaysLimits.tradesExecuted >= riskState.todaysLimits.maxTrades ? [{
-            severity: 'info',
-            title: 'Daily trade limit reached',
-            suggestion: "You've hit your max trades for the day. Good discipline. Time to close the charts and review.",
-            action: { label: 'View Today\'s Trades', module: 'tradeJournal', context: { filters: { timeRange: 'today' } } }
-        }] : []),
-    ];
+    const alerts = useMemo(() => {
+        if (!riskState) return [];
 
-    if (alerts.length === 0) {
-        alerts.push({
-            severity: 'info',
-            title: 'No critical alerts',
-            suggestion: 'All systems are currently within your defined risk parameters. Focus on executing your plan.',
-            action: { label: 'Plan next trade', module: 'tradePlanning' }
-        });
-    }
+        const generatedAlerts = [];
+
+        if (riskState.todaysLimits.lossStreak >= 2) {
+            generatedAlerts.push({
+                severity: 'stop',
+                title: `You're on a ${riskState.todaysLimits.lossStreak}-trade losing streak`,
+                suggestion: "This is a critical moment for your discipline. Pause trading and review these losses to understand the pattern.",
+                action: { label: 'Go to Journal', module: 'tradeJournal' }
+            });
+        }
+        if (riskState.marketRisk.vixZone === 'Extreme') {
+            generatedAlerts.push({
+                severity: 'warn',
+                title: "Market volatility is 'Extreme'",
+                suggestion: "Risk of sharp, unpredictable moves is very high. Consider if any trade is truly an A+ setup right now.",
+                action: { label: 'Go to Trade Planning', module: 'tradePlanning' }
+            });
+        }
+        if (riskState.personalRisk.disciplineScore < 50) {
+            generatedAlerts.push({
+                severity: 'warn',
+                title: 'Your discipline score is low',
+                suggestion: "This indicates recent rule-breaking. Focus on following your plan to the letter on your next trade.",
+                action: { label: 'Review Analytics', module: 'analytics' }
+            });
+        }
+        if (riskState.todaysLimits.tradesExecuted >= riskState.todaysLimits.maxTrades) {
+             generatedAlerts.push({
+                severity: 'info',
+                title: 'Daily trade limit reached',
+                suggestion: "You've hit your max trades for the day. Good discipline. Time to close the charts and review.",
+                action: { label: 'View Today\'s Trades', module: 'tradeJournal', context: { filters: { timeRange: 'today' } } }
+            });
+        }
+
+        if (generatedAlerts.length === 0) {
+            return [{
+                severity: 'info',
+                title: 'No critical alerts',
+                suggestion: 'All systems are currently within your defined risk parameters. Focus on executing your plan.',
+                action: { label: 'Plan next trade', module: 'tradePlanning' }
+            }];
+        }
+        return generatedAlerts;
+    }, [riskState]);
 
     const handlePlanSafeTrade = () => {
         onSetModule('tradePlanning', {
-            planContext: { source: 'riskCenter', safeMode: true }
+            planContext: { instrument: 'BTC-PERP', source: 'riskCenter', safeMode: true }
         });
     };
 
@@ -729,4 +769,3 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
         </div>
     );
 }
-
