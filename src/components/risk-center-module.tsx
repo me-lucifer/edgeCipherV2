@@ -1,3 +1,4 @@
+
       "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
@@ -993,41 +994,40 @@ function PersonaFitAnalysis({ onSetModule }: { onSetModule: (module: any) => voi
     )
 }
 
-function RiskNudge({ nudge }: { nudge: ActiveNudge | null }) {
-    const [isVisible, setIsVisible] = useState(false);
-
-    useEffect(() => {
-        if (nudge) {
-            setIsVisible(true);
-            localStorage.setItem('ec_last_risk_nudge_id', nudge.id);
-        }
-    }, [nudge]);
-
-    if (!nudge || !isVisible) {
-        return null;
-    }
+function RiskNudge({ nudge, onDismiss, onAcknowledge }: { nudge: ActiveNudge | null, onDismiss: (id: string) => void, onAcknowledge: (id: string) => void }) {
+    if (!nudge) return null;
 
     const severityConfig = {
-        warn: {
-            icon: AlertTriangle,
-            className: "bg-amber-950/40 border-amber-500/20 text-amber-300",
-            titleClass: "text-amber-400"
-        },
-        info: {
-            icon: Info,
-            className: "bg-blue-950/40 border-blue-500/20 text-blue-300",
-            titleClass: "text-blue-400"
-        },
+        warn: { icon: AlertTriangle, className: "bg-amber-950/40 border-amber-500/20 text-amber-300", titleClass: "text-amber-400" },
+        info: { icon: Info, className: "bg-blue-950/40 border-blue-500/20 text-blue-300", titleClass: "text-blue-400" },
     };
     
     const config = severityConfig[nudge.severity];
     const Icon = config.icon;
+
+    if (nudge.status === 'acknowledged') {
+        return (
+            <Alert variant="default" className="bg-muted/30 border-border/50">
+                <CheckCircle className="h-4 w-4 text-green-500" />
+                <AlertTitle className="text-xs font-semibold">Acknowledged: {nudge.title}</AlertTitle>
+                <AlertDescription className="text-xs text-muted-foreground">{nudge.message}</AlertDescription>
+            </Alert>
+        );
+    }
 
     return (
         <Alert variant="default" className={cn(config.className, "animate-in fade-in")}>
             <Icon className="h-4 w-4" />
             <AlertTitle className={config.titleClass}>{nudge.title}</AlertTitle>
             <AlertDescription>{nudge.message}</AlertDescription>
+            <div className="mt-4 flex gap-2">
+                <Button variant="outline" size="sm" className="bg-transparent border-current/50 text-current hover:bg-current/10 h-7 text-xs" onClick={() => onAcknowledge(nudge.id)}>
+                    Acknowledge
+                </Button>
+                <Button variant="ghost" size="sm" className="text-current/80 hover:text-current h-7 text-xs" onClick={() => onDismiss(nudge.id)}>
+                    Snooze for today
+                </Button>
+            </div>
         </Alert>
     );
 }
@@ -1538,6 +1538,22 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
     const slDisciplineData = disciplineTimeframe === 'today' ? personalRisk.slDisciplineToday : personalRisk.slDiscipline7d;
     const totalSLTrades = slDisciplineData.reduce((acc, d) => acc + d.respected + d.moved + d.removed, 0);
 
+    const handleDismissNudge = (id: string) => {
+        const today = format(new Date(), 'yyyy-MM-dd');
+        const states = JSON.parse(localStorage.getItem('ec_risk_alert_states') || '{}');
+        states[id] = { status: 'snoozed', date: today };
+        localStorage.setItem('ec_risk_alert_states', JSON.stringify(states));
+        refresh();
+    };
+
+    const handleAcknowledgeNudge = (id: string) => {
+        const today = format(new Date(), 'yyyy-MM-dd');
+        const states = JSON.parse(localStorage.getItem('ec_risk_alert_states') || '{}');
+        states[id] = { status: 'acknowledged', date: today };
+        localStorage.setItem('ec_risk_alert_states', JSON.stringify(states));
+        refresh();
+    };
+
     return (
         <div className="space-y-8">
             <div className="flex items-start justify-between">
@@ -1557,7 +1573,7 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                     <TabsTrigger value="reports">Reports</TabsTrigger>
                 </TabsList>
                 <TabsContent value="today" className="mt-6 space-y-8">
-                    <RiskNudge nudge={activeNudge} />
+                    <RiskNudge nudge={activeNudge} onDismiss={handleDismissNudge} onAcknowledge={handleAcknowledgeNudge} />
                     <TradeDecisionBar decision={decision} />
                     <div className="grid lg:grid-cols-3 gap-8 items-start">
                         <div className="lg:col-span-2 space-y-8">
@@ -1694,6 +1710,7 @@ const DeltaIndicator = ({ delta, unit = "" }: { delta: number; unit?: string }) 
 };
     
     
+
 
 
 

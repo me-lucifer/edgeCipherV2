@@ -27,6 +27,7 @@ export type ActiveNudge = {
     title: string;
     message: string;
     severity: 'warn' | 'info';
+    status: 'new' | 'acknowledged';
 };
 
 export type SLDisciplineData = {
@@ -161,7 +162,8 @@ export function useRiskState() {
             const guardrails = JSON.parse(localStorage.getItem("ec_guardrails") || "{}");
             const assumedCapital = parseFloat(localStorage.getItem("ec_assumed_capital") || "10000");
             const sensitivitySetting = localStorage.getItem("ec_risk_sensitivity") || 'balanced';
-            const lastNudgeId = localStorage.getItem('ec_last_risk_nudge_id');
+            
+            const alertStates = JSON.parse(localStorage.getItem('ec_risk_alert_states') || '{}');
 
             const storedEvents = JSON.parse(localStorage.getItem('ec_risk_events_today') || '[]');
             const riskEventsToday: RiskEvent[] = [...storedEvents];
@@ -406,7 +408,7 @@ export function useRiskState() {
 
             // 6. Generate Active Nudge
             let activeNudge: ActiveNudge | null = null;
-            const nudgeCandidates: {id: string, condition: boolean, nudge: Omit<ActiveNudge, 'id'>}[] = [
+            const nudgeCandidates: {id: string, condition: boolean, nudge: Omit<ActiveNudge, 'id' | 'status'>}[] = [
                 {
                     id: 'loss_streak_2',
                     condition: todaysLimits.lossStreak === 2,
@@ -425,11 +427,22 @@ export function useRiskState() {
             ];
 
             for (const candidate of nudgeCandidates) {
-                if (candidate.condition && candidate.id !== lastNudgeId) {
-                    activeNudge = { ...candidate.nudge, id: candidate.id };
-                    break; 
+                const today = format(new Date(), 'yyyy-MM-dd');
+                const alertState = alertStates[candidate.id];
+
+                if (candidate.condition) {
+                    if (!alertState || alertState.date !== today) {
+                        // This is a new, un-interacted-with alert for today
+                        activeNudge = { ...candidate.nudge, id: candidate.id, status: 'new' };
+                        break;
+                    } else if (alertState.status === 'acknowledged') {
+                         activeNudge = { ...candidate.nudge, id: candidate.id, status: 'acknowledged' };
+                         break;
+                    }
+                    // If snoozed, we just skip and don't set it as the activeNudge
                 }
             }
+            
 
             // 7. Compute Top Risk Drivers
             const drivers: TopRiskDriver[] = [];
