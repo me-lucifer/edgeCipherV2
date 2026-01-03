@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -308,7 +309,14 @@ export function useRiskState() {
                 }
             }
 
-            const finalEvents = riskEventsToday.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+            const finalEvents = riskEventsToday.sort((a, b) => {
+                const timeA = a.time.split(':').map(Number);
+                const timeB = b.time.split(':').map(Number);
+                if (timeA[0] !== timeB[0]) return timeB[0] - timeA[0];
+                if (timeA[1] !== timeB[1]) return timeB[1] - timeA[1];
+                return 0; // Or compare seconds if available
+            });
+
 
             const computedState: RiskState = {
                 marketRisk,
