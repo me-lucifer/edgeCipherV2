@@ -510,6 +510,13 @@ function RiskControlsCard() {
     const handleRecoveryModeChange = (value: boolean) => {
         setIsRecoveryMode(value);
         localStorage.setItem("ec_recovery_mode", String(value));
+        const event = {
+            time: format(new Date(), 'HH:mm'),
+            description: `Recovery Mode ${value ? 'enabled' : 'disabled'}`,
+            level: value ? 'yellow' : 'green'
+        };
+        const events = JSON.parse(localStorage.getItem('ec_risk_events_today') || '[]');
+        localStorage.setItem('ec_risk_events_today', JSON.stringify([...events, event]));
         refresh();
     };
 
@@ -966,8 +973,6 @@ function RiskEventsTimeline({ events }: { events: RiskState['riskEventsToday'] }
         </Card>
     );
 }
-
-type VolatilityPolicy = "follow" | "conservative" | "strict";
 
 function VolatilityPolicyCard() {
     const [policy, setPolicy] = useState<VolatilityPolicy>('follow');

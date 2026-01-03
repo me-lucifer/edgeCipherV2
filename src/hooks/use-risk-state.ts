@@ -103,7 +103,9 @@ export function useRiskState() {
             const sensitivitySetting = localStorage.getItem("ec_risk_sensitivity") || 'balanced';
             const lastNudgeId = localStorage.getItem('ec_last_risk_nudge_id');
 
-            const riskEventsToday: RiskEvent[] = [];
+            const storedEvents = JSON.parse(localStorage.getItem('ec_risk_events_today') || '[]');
+            const riskEventsToday: RiskEvent[] = [...storedEvents];
+            
             const now = new Date();
 
             // 2. Compute Market Risk
@@ -123,7 +125,7 @@ export function useRiskState() {
                 message: `Volatility is ${vixZone}.`,
             };
             if (vixZone === 'Elevated' || vixZone === 'Extreme') {
-                riskEventsToday.push({ time: format(now, 'HH:mm'), description: `VIX entered ${vixZone} zone`, level: 'yellow'});
+                // This is now handled by external event logging
             }
 
 
@@ -193,11 +195,11 @@ export function useRiskState() {
             };
 
              if (todaysLimits.lossStreak >= 2) {
-                riskEventsToday.push({ time: format(now, 'HH:mm'), description: `Loss streak reached ${todaysLimits.lossStreak}, cooldown recommended`, level: 'yellow' });
+                // This is now handled by external event logging
             }
              const overrideUsed = localStorage.getItem('ec_override_used_flag');
             if (overrideUsed) {
-                riskEventsToday.push({ time: format(now, 'HH:mm'), description: `Rule override used: ${overrideUsed}`, level: 'yellow' });
+                // This is now handled by external event logging
                 localStorage.removeItem('ec_override_used_flag');
             }
 
@@ -306,6 +308,7 @@ export function useRiskState() {
                 }
             }
 
+            const finalEvents = riskEventsToday.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
 
             const computedState: RiskState = {
                 marketRisk,
@@ -316,7 +319,7 @@ export function useRiskState() {
                     message: decisionMessages[level],
                     reasons
                 },
-                riskEventsToday,
+                riskEventsToday: finalEvents,
                 activeNudge,
             };
             
