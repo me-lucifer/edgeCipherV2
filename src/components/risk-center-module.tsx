@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Pencil, ShieldAlert, BarChart, Info, CheckCircle, XCircle, AlertTriangle, Gauge, Calendar, Zap, Sun, Moon, Waves, User, ArrowRight, RefreshCw, SlidersHorizontal, TrendingUp, Sparkles, Droplets, TrendingDown, BookOpen, Layers, Settings, ShieldCheck, MoreHorizontal, Copy, Edit, Archive, Trash2, Scale, HeartPulse, HardHat, Globe } from "lucide-react";
+import { Bot, Pencil, ShieldAlert, BarChart, Info, CheckCircle, XCircle, AlertTriangle, Gauge, Calendar, Zap, Sun, Moon, Waves, User, ArrowRight, RefreshCw, SlidersHorizontal, TrendingUp, Sparkles, Droplets, TrendingDown, BookOpen, Layers, Settings, ShieldCheck, MoreHorizontal, Copy, Edit, Archive, Trash2, Scale, HeartPulse, HardHat, Globe, FileText, Clipboard } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -38,7 +38,9 @@ import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { Progress } from "./ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { format } from 'date-fns';
-import { LineChart, Line, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "./ui/chart";
 
 
 interface RiskCenterModuleProps {
@@ -1047,30 +1049,169 @@ function RiskNudge({ nudge }: { nudge: ActiveNudge | null }) {
     );
 }
 
+const SummaryRow = ({ label, value, className }: { label: string, value: React.ReactNode, className?: string }) => (
+    <div className="flex justify-between items-center text-sm">
+        <p className="text-muted-foreground">{label}</p>
+        <p className={cn("font-semibold font-mono text-foreground", className)}>{value}</p>
+    </div>
+);
+
+
+const MetricCard = ({ title, value, hint }: { title: string; value: string | React.ReactNode; hint: string }) => (
+    <Card className="bg-muted/50 border-border/50">
+        <CardHeader className="pb-2">
+            <CardTitle className="text-base">{title}</CardTitle>
+        </CardHeader>
+        <CardContent>
+            <div className="flex items-baseline">
+                <p className="text-3xl font-bold font-mono">{value}</p>
+            </div>
+            <p className="text-xs text-muted-foreground">{hint}</p>
+        </CardContent>
+    </Card>
+);
+
+type ReportType = 'Weekly' | 'Monthly';
+
+function ReportDialog({ reportType }: { reportType: ReportType }) {
+    const { toast } = useToast();
+    const reportData = {
+        'Weekly': {
+            pnl: "+$850.25",
+            winRate: "55%",
+            discipline: { journalingRate: "92%", slMovedPct: "8%" },
+            psychology: { topEmotion: "FOMO", topMistake: "Exited early" },
+            bestCondition: "NY Session / Normal VIX",
+            worstCondition: "London Open / High VIX",
+            recommendations: [
+                "Try a partial take-profit to let winners run.",
+                "Review trades where you exited early; what was the trigger?",
+                "Avoid trading the first 30 mins of London if feeling anxious.",
+            ]
+        },
+        'Monthly': {
+            pnl: "+$6,430.80",
+            winRate: "49%",
+            discipline: { journalingRate: "85%", slMovedPct: "18%" },
+            psychology: { topEmotion: "Anxiety", topMistake: "Moved SL" },
+            bestCondition: "Trend following strategies",
+            worstCondition: "Range plays in high volatility",
+            recommendations: [
+                "Reduce size by 50% when VIX is 'Elevated' or higher.",
+                "Review all trades where you moved your stop loss.",
+                "Focus on your 'Breakout' strategy, as it's your most profitable.",
+            ]
+        }
+    }[reportType];
+
+    const generateReportText = (short = false) => {
+        const title = `### ${reportType} Trading Report ###`;
+        const performance = `**Performance:** PnL ${reportData.pnl} | Win Rate ${reportData.winRate}`;
+        if (short) {
+            return `${title}\n${performance}\n**Focus:** ${reportData.recommendations[0]}`;
+        }
+        return `
+${title}
+
+**Performance Summary**
+- Overall PnL: ${reportData.pnl}
+- Win Rate: ${reportData.winRate}
+
+**Discipline Summary**
+- Journaling Rate: ${reportData.discipline.journalingRate}
+- Stop Loss Moved: ${reportData.discipline.slMovedPct} of trades
+
+**Psychology Summary**
+- Top Emotion: ${reportData.psychology.topEmotion}
+- Top Mistake: ${reportData.psychology.topMistake}
+
+**Conditions**
+- Best: ${reportData.bestCondition}
+- Worst: ${reportData.worstCondition}
+
+**Recommended Next Actions**
+${reportData.recommendations.map(r => `- ${r}`).join('\n')}
+        `.trim();
+    };
+
+    const handleCopy = (short: boolean) => {
+        navigator.clipboard.writeText(generateReportText(short));
+        toast({ title: short ? "Short summary copied" : "Full report copied" });
+    }
+
+    return (
+        <DialogContent className="max-w-2xl">
+            <DialogHeader>
+                <DialogTitle>{reportType} Report Card</DialogTitle>
+                <DialogDescription>
+                    Your performance summarized into actionable insights for the period.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="py-4 space-y-6 max-h-[70vh] overflow-y-auto pr-2">
+                <div className="p-4 bg-muted rounded-lg border grid grid-cols-2 gap-4">
+                    <SummaryRow label="Overall PnL" value={reportData.pnl} className={reportData.pnl.startsWith('+') ? 'text-green-400' : 'text-red-400'} />
+                    <SummaryRow label="Win Rate" value={reportData.winRate} />
+                </div>
+                 <div className="space-y-4">
+                    <h4 className="font-semibold text-foreground">Discipline Summary</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                        <MetricCard title="Journaling Rate" value={reportData.discipline.journalingRate} hint="Completed journals" />
+                        <MetricCard title="SL Moved" value={reportData.discipline.slMovedPct} hint="Trades with moved stops" />
+                    </div>
+                </div>
+                <div className="space-y-4">
+                    <h4 className="font-semibold text-foreground">Psychology Summary</h4>
+                     <div className="grid grid-cols-2 gap-4">
+                        <MetricCard title="Top Emotion" value={reportData.psychology.topEmotion} hint="Most tagged emotion" />
+                        <MetricCard title="Top Mistake" value={<Badge variant="destructive">{reportData.psychology.topMistake}</Badge>} hint="Costliest mistake" />
+                    </div>
+                </div>
+                <div className="space-y-4">
+                    <h4 className="font-semibold text-foreground">Conditions</h4>
+                    <Card className="bg-muted/50">
+                        <CardContent className="p-4 space-y-2">
+                            <SummaryRow label="Best Condition" value={reportData.bestCondition} />
+                            <SummaryRow label="Worst Condition" value={reportData.worstCondition} />
+                        </CardContent>
+                    </Card>
+                </div>
+                <div className="space-y-4">
+                     <h4 className="font-semibold text-foreground">Recommended Next Actions</h4>
+                     <ul className="list-disc list-inside text-sm text-muted-foreground space-y-2">
+                        {reportData.recommendations.map((rec, i) => <li key={i}>{rec}</li>)}
+                    </ul>
+                </div>
+            </div>
+             <DialogFooter className="sm:justify-between gap-2 border-t pt-4">
+                <DialogClose asChild><Button variant="ghost">Close</Button></DialogClose>
+                <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => handleCopy(true)}>
+                        <Clipboard className="mr-2 h-4 w-4" /> Copy Short Summary
+                    </Button>
+                    <Button variant="outline" onClick={() => handleCopy(false)}>
+                        <Copy className="mr-2 h-4 w-4" /> Copy Full Report
+                    </Button>
+                </div>
+            </DialogFooter>
+        </DialogContent>
+    );
+}
+
 export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
     const { riskState, isLoading, refresh } = useRiskState();
+    const [activeTab, setActiveTab] = useState("today");
 
     if (isLoading || !riskState) {
         return (
             <div className="space-y-8 animate-pulse">
                 <Skeleton className="h-8 w-1/3" />
-                <Skeleton className="h-20 w-full" />
-                <div className="grid lg:grid-cols-3 gap-8">
-                    <div className="lg:col-span-2 space-y-8">
-                        <Skeleton className="h-64 w-full" />
-                        <Skeleton className="h-48 w-full" />
-                    </div>
-                    <div className="lg:col-span-1 space-y-8">
-                        <Skeleton className="h-64 w-full" />
-                        <Skeleton className="h-48 w-full" />
-                    </div>
-                </div>
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-64 w-full" />
             </div>
         );
     }
 
     const { marketRisk, personalRisk, todaysLimits, decision, riskEventsToday, activeNudge } = riskState;
-
 
     return (
         <div className="space-y-8">
@@ -1078,37 +1219,102 @@ export function RiskCenterModule({ onSetModule }: RiskCenterModuleProps) {
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight text-foreground">Risk Center</h1>
                      <p className="text-muted-foreground flex items-center gap-2">
-                        A single view of market risk + your personal risk posture. Answer: Should I trade today?
+                        Your single view of market risk + your personal risk posture.
                     </p>
                 </div>
                 <Button variant="ghost" size="sm" onClick={refresh}><RefreshCw className="mr-2 h-4 w-4" /> Refresh State</Button>
             </div>
             
-            <RiskNudge nudge={activeNudge} />
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <TabsList className="grid w-full grid-cols-3 max-w-lg">
+                    <TabsTrigger value="today">Today's Risk</TabsTrigger>
+                    <TabsTrigger value="insights">Insights</TabsTrigger>
+                    <TabsTrigger value="reports">Reports</TabsTrigger>
+                </TabsList>
+                <TabsContent value="today" className="mt-6 space-y-8">
+                    <RiskNudge nudge={activeNudge} />
+                    <TradeDecisionBar decision={decision} />
+                    <div className="grid lg:grid-cols-3 gap-8 items-start">
+                        <div className="lg:col-span-2 space-y-8">
+                           <MarketRiskCard marketRisk={marketRisk} onSetModule={onSetModule} />
+                           <RiskEventsTimeline events={riskEventsToday} />
+                           <ExposureSnapshotCard onSetModule={onSetModule} />
+                        </div>
 
-            <TradeDecisionBar decision={decision} />
+                        <div className="lg:col-span-1 space-y-8 sticky top-24">
+                             <RiskBudgetCard limits={todaysLimits} decision={decision} refreshState={refresh} pnlTrend7d={personalRisk.pnlTrend7d}/>
+                             <VolatilityPolicyCard />
+                             <RiskControlsCard />
+                        </div>
+                    </div>
+                </TabsContent>
+                <TabsContent value="insights" className="mt-6 space-y-8">
+                    <div className="grid lg:grid-cols-3 gap-8 items-start">
+                        <div className="lg:col-span-2 space-y-8">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Risk Telemetry (7D)</CardTitle>
+                                    <CardDescription>Visualizing your behavioral trends over time.</CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-8">
+                                    <div>
+                                        <h4 className="font-semibold text-sm mb-2">Revenge Risk Index Trend</h4>
+                                        <ChartContainer config={{}} className="h-40 w-full">
+                                            <LineChart data={Array.from({ length: 7 }, (_, i) => ({ day: `Day ${i+1}`, value: Math.min(100, (personalRisk.revengeRiskIndex - 20) + (Math.random() * 40))}))}>
+                                                <CartesianGrid vertical={false} />
+                                                <XAxis dataKey="day" tick={{fontSize: 12}} />
+                                                <YAxis domain={[0,100]} tick={{fontSize: 12}} />
+                                                <ChartTooltip content={<ChartTooltipContent />} />
+                                                <Line type="monotone" dataKey="value" stroke="hsl(var(--chart-5))" strokeWidth={2} dot={false} />
+                                            </LineChart>
+                                        </ChartContainer>
+                                    </div>
+                                    <div>
+                                        <h4 className="font-semibold text-sm mb-2">SL Moved Rate Trend</h4>
+                                        <ChartContainer config={{}} className="h-40 w-full">
+                                            <LineChart data={personalRisk.slMovedTrend7d}>
+                                                <CartesianGrid vertical={false} />
+                                                <XAxis dataKey="day" tick={{fontSize: 12}} />
+                                                <YAxis domain={[0,1]} tick={{fontSize: 12}} />
+                                                <ChartTooltip content={<ChartTooltipContent />} />
+                                                <Line type="step" dataKey="value" stroke="hsl(var(--chart-4))" strokeWidth={2} dot={false} />
+                                            </LineChart>
+                                        </ChartContainer>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+                        <div className="lg:col-span-1 space-y-8 sticky top-24">
+                           <RevengeRiskCard revengeRiskIndex={personalRisk.revengeRiskIndex} revengeRiskLevel={personalRisk.revengeRiskLevel} />
+                           <PersonaFitAnalysis onSetModule={onSetModule} />
+                        </div>
+                    </div>
+                </TabsContent>
+                <TabsContent value="reports" className="mt-6 space-y-8">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Generate Risk Report</CardTitle>
+                            <CardDescription>Get a copy-paste summary of your risk profile for a given period.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="flex gap-4">
+                            <Dialog>
+                                <DialogTrigger asChild>
+                                    <Button><FileText className="mr-2 h-4 w-4" /> Generate Weekly Report</Button>
+                                </DialogTrigger>
+                                <ReportDialog reportType="Weekly" />
+                            </Dialog>
+                             <Dialog>
+                                <DialogTrigger asChild>
+                                    <Button variant="outline"><FileText className="mr-2 h-4 w-4" /> Generate Monthly Report</Button>
+                                </DialogTrigger>
+                                <ReportDialog reportType="Monthly" />
+                            </Dialog>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+            </Tabs>
             
-            <div className="grid lg:grid-cols-3 gap-8 items-start">
-                <div className="lg:col-span-2 space-y-8">
-                   
-                    <MarketRiskCard marketRisk={marketRisk} onSetModule={onSetModule} />
-
-                    <RiskEventsTimeline events={riskEventsToday} />
-                    
-                    <ExposureSnapshotCard onSetModule={onSetModule} />
-                </div>
-
-                <div className="lg:col-span-1 space-y-8 sticky top-24">
-                     <RevengeRiskCard revengeRiskIndex={personalRisk.revengeRiskIndex} revengeRiskLevel={personalRisk.revengeRiskLevel} />
-                     <PersonaFitAnalysis onSetModule={onSetModule} />
-                     <PersonalRiskCard personalRisk={personalRisk} onSetModule={onSetModule} />
-                     <TodaysLimitsCard limits={todaysLimits} onSetModule={onSetModule} />
-                     <RiskBudgetCard limits={todaysLimits} decision={decision} refreshState={refresh} pnlTrend7d={personalRisk.pnlTrend7d}/>
-                     <VolatilityPolicyCard />
-                     <RiskControlsCard />
-                </div>
-            </div>
-             <ArjunRiskAlerts onSetModule={onSetModule} riskState={riskState} />
+            <ArjunRiskAlerts onSetModule={onSetModule} riskState={riskState} />
 
              <div className="text-center text-xs text-muted-foreground pt-4">
                 <TooltipProvider>
