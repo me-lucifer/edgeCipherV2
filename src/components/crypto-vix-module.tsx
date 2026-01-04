@@ -219,7 +219,7 @@ function getVixZoneFromValue(value: number): VixZone {
 
 function KeyEventsTimeline({ chartData, onSetModule }: { chartData: { hour: string; day: string; value: number; spike: string | null }[], onSetModule: (module: any, context?: any) => void }) {
     const events = useMemo(() => {
-        const generatedEvents: { time: Date; description: string; severity: 'High' | 'Medium' | 'Low', action?: { label: string, module: string, context?: any } }[] = [];
+        const generatedEvents: { id: string; time: Date; description: string; severity: 'High' | 'Medium' | 'Low', action?: { label: string, module: string, context?: any } }[] = [];
         let largestSpike = { value: 0, time: new Date() };
 
         for (let i = 1; i < chartData.length; i++) {
@@ -233,8 +233,9 @@ function KeyEventsTimeline({ chartData, onSetModule }: { chartData: { hour: stri
 
             if (prevZone !== currentZone) {
                 generatedEvents.push({
+                    id: `shift-${i}`,
                     time,
-                    description: `VIX crossed into '${currentZone}' zone.`,
+                    description: `VIX crossed from '${prevZone}' to '${currentZone}'.`,
                     severity: (currentZone === 'Extreme' || currentZone === 'High Volatility') ? 'High' : 'Medium',
                     action: { label: 'Open Risk Center', module: 'riskCenter' }
                 });
@@ -250,6 +251,7 @@ function KeyEventsTimeline({ chartData, onSetModule }: { chartData: { hour: stri
 
         if (largestSpike.value > 0) {
             generatedEvents.push({
+                id: `spike-${largestSpike.time.getTime()}`,
                 time: largestSpike.time,
                 description: `Largest volatility spike: +${largestSpike.value.toFixed(0)} points.`,
                 severity: 'High',
@@ -257,7 +259,13 @@ function KeyEventsTimeline({ chartData, onSetModule }: { chartData: { hour: stri
             });
         }
         
-        return generatedEvents.sort((a,b) => b.time.getTime() - a.time.getTime()).slice(0, 5);
+        return generatedEvents
+          .sort((a,b) => b.time.getTime() - a.time.getTime())
+          .filter(event => {
+              const seenAlerts: string[] = JSON.parse(sessionStorage.getItem('ec_vix_alerts_seen') || '[]');
+              return !seenAlerts.includes(event.id);
+          })
+          .slice(0, 5);
 
     }, [chartData]);
     
@@ -336,7 +344,6 @@ const ParameterAdjustmentsCard = ({ zone }: { zone: VixZone }) => {
 export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
     const { vixState, isLoading, updateVixValue, generateChoppyDay } = useVixState();
     const [timeRange, setTimeRange] = useState<'24H' | '7D'>('24H');
-    const [regimeShift, setRegimeShift] = useState<{ previous: VixZone, current: VixZone } | null>(null);
     const [persona, setPersona] = useState<PersonaType | null>(null);
     const [sensitivity, setSensitivity] = useState<'conservative' | 'balanced' | 'aggressive'>('balanced');
 
@@ -401,32 +408,7 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
         });
     }, [vixState, timeRange]);
     
-    useEffect(() => {
-        if (!vixState || chartData.length < 2) return;
-
-        const currentPoint = chartData[chartData.length - 1];
-        const previousPoint = chartData[chartData.length - 2];
-        
-        const currentZone = getVixZoneFromValue(currentPoint.value);
-        const previousZone = getVixZoneFromValue(previousPoint.value);
-        
-        if (currentZone !== previousZone) {
-            const shiftKey = `${previousZone}_${currentZone}`;
-            const lastShownShift = localStorage.getItem("ec_last_regime_shift");
-            if (lastShownShift !== shiftKey) {
-                setRegimeShift({ previous: previousZone, current: currentZone });
-                localStorage.setItem("ec_last_regime_shift", shiftKey);
-            }
-        } else {
-             setRegimeShift(null); // Clear if no shift
-        }
-    }, [vixState, chartData]);
-
-    const handleDismissRegimeShift = () => {
-        setRegimeShift(null);
-    };
-
-     const driverTrendData = useMemo(() => {
+    const driverTrendData = useMemo(() => {
         if (!vixState) return null;
         const series = timeRange === '24H' ? vixState.series.series24h : vixState.series.series7d;
         
@@ -521,13 +503,6 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                 <div className="grid lg:grid-cols-3 gap-8 items-start">
                     {/* Main Content */}
                     <div className="lg:col-span-2 space-y-8">
-                        {regimeShift && (
-                            <RegimeShiftBanner 
-                                previous={regimeShift.previous} 
-                                current={regimeShift.current} 
-                                onDismiss={handleDismissRegimeShift} 
-                            />
-                        )}
                         {isStrictMode && (
                              <Alert variant="destructive" className="bg-red-950/70 border-red-500/30 text-red-300">
                                 <AlertTriangle className="h-4 w-4 text-red-400" />
@@ -539,6 +514,7 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                                 </AlertDescription>
                             </Alert>
                         )}
+                        <KeyEventsTimeline chartData={chartData} onSetModule={onSetModule} />
                         <Card className="bg-muted/30 border-border/50">
                             <CardHeader>
                                 <CardTitle>Volatility Barometer</CardTitle>
@@ -738,8 +714,6 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                             </CardFooter>
                         </Card>
 
-                        <KeyEventsTimeline chartData={chartData} onSetModule={onSetModule} />
-
                         {driverTrendData && (
                             <Card className="bg-muted/30 border-border/50">
                                 <CardHeader>
@@ -829,3 +803,4 @@ const VixGauge = ({ value, zone }: { value: number, zone: VixZone }) => {
         </div>
     );
 };
+
