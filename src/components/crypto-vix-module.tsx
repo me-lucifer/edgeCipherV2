@@ -6,7 +6,7 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Bot, LineChart, Gauge, TrendingUp, TrendingDown, Info, AlertTriangle, SlidersHorizontal, Flame, Droplets, Newspaper, Sparkles, ArrowRight, X, BarChartHorizontal, Timer, Calendar, ChevronRight, User, BookOpen, BarChart as BarChartIcon, Scale, PlayCircle, LayoutDashboard, FileText, ShieldAlert } from "lucide-react";
+import { Bot, LineChart, Gauge, TrendingUp, TrendingDown, Info, AlertTriangle, SlidersHorizontal, Flame, Droplets, Newspaper, Sparkles, ArrowRight, X, BarChartHorizontal, Timer, Calendar, ChevronRight, User, BookOpen, BarChart as BarChartIcon, Scale, PlayCircle, LayoutDashboard, FileText, ShieldAlert, Check, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Line, ResponsiveContainer, CartesianGrid, XAxis, YAxis, ComposedChart, ReferenceLine, ReferenceDot } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "./ui/chart";
@@ -37,12 +37,47 @@ interface CryptoVixModuleProps {
     onSetModule: (module: any, context?: any) => void;
 }
 
-const zoneData: { zone: VixZone, range: string, color: string, impact: string, recommendation: string, behavior: string, actions: string[] }[] = [
-    { zone: "Extremely Calm", range: "0-20", color: "bg-green-500", impact: "Low volatility, may lead to choppy price action.", recommendation: "Range-trading strategies may excel.", behavior: "Price action is often choppy and lacks clear direction. Breakouts tend to fail.", actions: ["Consider range-trading strategies.", "Be patient and wait for clear, high-probability setups."] },
-    { zone: "Normal", range: "21-40", color: "bg-green-500", impact: "Standard market conditions, good for most strategies.", recommendation: "Follow your plan.", behavior: "Healthy trends can form. Pullbacks are generally reliable.", actions: ["Execute your standard trading plan.", "No special risk adjustments are typically needed."] },
-    { zone: "Volatile", range: "41-60", color: "bg-yellow-500", impact: "Increased chop, risk of stop-hunts.", recommendation: "Consider reducing size.", behavior: "Moves are faster and more erratic. Wicks get larger, increasing the risk of being stopped out.", actions: ["Consider reducing position size by 25-50%.", "Widen stop-losses slightly to account for noise."] },
-    { zone: "High Volatility", range: "61-80", color: "bg-orange-500", impact: "High risk of erratic moves and liquidations.", recommendation: "Defense-first. Minimum size.", behavior: "High risk of cascading liquidations and violent price swings in both directions.", actions: ["Drastically reduce size or avoid trading.", "Focus on capital preservation, not profit-making."] },
-    { zone: "Extreme", range: "81-100", color: "bg-red-500", impact: "Dangerously unpredictable, 'black swan' risk.", recommendation: "Avoid taking new positions.", behavior: "Market is in a state of panic or euphoria. Rational analysis often fails.", actions: ["Strongly consider not trading at all.", "If you must trade, use minimal size and extremely wide stops."] },
+const zoneData: { zone: VixZone, range: string, color: string, behavior: string[], actions: { sl: string, size: string, leverage: string}, commonMistake: string }[] = [
+    { 
+        zone: "Extremely Calm", 
+        range: "0-20", 
+        color: "border-green-500/30", 
+        behavior: ["Choppy, low-volume price action.", "Breakouts are less likely to follow through."], 
+        actions: { sl: "Standard", size: "Standard", leverage: "Standard" },
+        commonMistake: "Forcing trades out of boredom, leading to overtrading in a poor environment."
+    },
+    { 
+        zone: "Normal", 
+        range: "21-40", 
+        color: "border-green-500/30", 
+        behavior: ["Healthy trends can form.", "Pullbacks are generally reliable."], 
+        actions: { sl: "Standard", size: "Standard", leverage: "Standard" },
+        commonMistake: "Deviating from the plan due to overconfidence or minor drawdown."
+    },
+    { 
+        zone: "Volatile", 
+        range: "41-60", 
+        color: "border-yellow-500/30", 
+        behavior: ["Moves are faster and more erratic.", "Increased risk of stop-hunts due to larger wicks."], 
+        actions: { sl: "Widen slightly (1.25x)", size: "Reduce (25-50%)", leverage: "Reduce (≤ 20x)" },
+        commonMistake: "Failing to reduce size, leading to larger-than-expected losses on normal-looking setups."
+    },
+    { 
+        zone: "High Volatility", 
+        range: "61-80", 
+        color: "border-orange-500/30", 
+        behavior: ["High risk of cascading liquidations.", "Violent price swings in both directions are common."], 
+        actions: { sl: "Significantly wider or use volatility stops", size: "Minimal (75%+ reduction)", leverage: "Minimal (≤ 10x)" },
+        commonMistake: "Trying to 'catch a falling knife' or predict a bottom/top. The pros are waiting."
+    },
+    { 
+        zone: "Extreme", 
+        range: "81-100", 
+        color: "border-red-500/30", 
+        behavior: ["Market is in a state of panic or euphoria.", "Rational analysis often fails; moves are liquidation-driven."], 
+        actions: { sl: "No new positions", size: "No new positions", leverage: "No new positions" },
+        commonMistake: "Participating at all. The only goal here is capital preservation."
+    },
 ];
 
 type PersonaType = "Impulsive Sprinter" | "Fearful Analyst" | "Disciplined Scalper" | "Beginner";
@@ -473,7 +508,7 @@ function HowVixIsUsed({ onSetModule }: { onSetModule: (module: any, context?: an
     return (
         <Card className="bg-muted/30 border-border/50">
             <CardHeader>
-                <CardTitle>How EdgeCipher Crypto VIX is Used</CardTitle>
+                <CardTitle>How EdgeCipher Uses the Crypto VIX</CardTitle>
                 <CardDescription>
                     The VIX is a core signal that connects multiple modules to help you adapt to changing market conditions.
                 </CardDescription>
@@ -496,6 +531,56 @@ function HowVixIsUsed({ onSetModule }: { onSetModule: (module: any, context?: an
                         </CardContent>
                     </Card>
                 ))}
+            </CardContent>
+        </Card>
+    );
+}
+
+function VixPlaybook() {
+    return (
+        <Card className="bg-muted/30 border-border/50">
+            <CardHeader>
+                <CardTitle>The VIX Zone Playbook</CardTitle>
+                <CardDescription>
+                    Actionable guidance for each volatility regime.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {zoneData.map((zone) => (
+                        <Card key={zone.zone} className={cn("bg-muted/50 border-2", zone.color)}>
+                            <CardHeader>
+                                <CardTitle className="text-lg flex items-center justify-between">
+                                    <span>{zone.zone}</span>
+                                    <span className="font-mono text-base text-muted-foreground">{zone.range}</span>
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div>
+                                    <h4 className="text-sm font-semibold text-foreground mb-2">Market Behavior</h4>
+                                    <ul className="list-disc list-inside text-xs text-muted-foreground space-y-1">
+                                        {zone.behavior.map((b, i) => <li key={i}>{b}</li>)}
+                                    </ul>
+                                </div>
+                                <div>
+                                    <h4 className="text-sm font-semibold text-foreground mb-2">Recommended Actions</h4>
+                                    <div className="space-y-2">
+                                        <div className="flex items-center gap-2 text-xs"><ShieldCheck className="h-4 w-4 text-green-400" /><span>SL: {zone.actions.sl}</span></div>
+                                        <div className="flex items-center gap-2 text-xs"><Scale className="h-4 w-4 text-yellow-400" /><span>Size: {zone.actions.size}</span></div>
+                                        <div className="flex items-center gap-2 text-xs"><TrendingUp className="h-4 w-4 text-blue-400" /><span>Leverage: {zone.actions.leverage}</span></div>
+                                    </div>
+                                </div>
+                                 <Alert variant="destructive" className="p-3">
+                                    <AlertTriangle className="h-4 w-4" />
+                                    <AlertTitle className="text-xs font-semibold">Common Mistake</AlertTitle>
+                                    <AlertDescription className="text-xs">
+                                        {zone.commonMistake}
+                                    </AlertDescription>
+                                </Alert>
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
             </CardContent>
         </Card>
     );
@@ -636,6 +721,8 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                 </p>
             </div>
             
+            <VixPlaybook />
+
             <HowVixIsUsed onSetModule={onSetModule} />
 
             {isExtremeZone ? (
@@ -917,31 +1004,6 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                     <div className="lg:col-span-1 space-y-8 lg:sticky lg:top-24">
                         <VixSimulationControls vixState={vixState} updateVixValue={updateVixValue} generateChoppyDay={generateChoppyDay} />
                         <PerformanceByVixZoneCard onSetModule={onSetModule} />
-                        <Card className="bg-muted/30 border-border/50">
-                             <CardHeader>
-                                <CardTitle className="flex items-center gap-2"><Info className="h-5 w-5"/>How to Interpret Crypto VIX</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <Accordion type="single" collapsible className="w-full">
-                                    {zoneData.map(d => (
-                                        <AccordionItem value={d.zone} key={d.zone}>
-                                            <AccordionTrigger>
-                                                <span className="flex items-center gap-3">
-                                                    <div className={cn("w-3 h-3 rounded-full", d.color)} />
-                                                    <span className="font-semibold">{d.zone} ({d.range})</span>
-                                                </span>
-                                            </AccordionTrigger>
-                                            <AccordionContent className="space-y-3 pt-2">
-                                                <p className="text-sm text-muted-foreground italic">"{d.behavior}"</p>
-                                                <ul className="space-y-1 list-disc list-inside text-sm text-muted-foreground">
-                                                    {d.actions.map((action, i) => <li key={i}>{action}</li>)}
-                                                </ul>
-                                            </AccordionContent>
-                                        </AccordionItem>
-                                    ))}
-                                </Accordion>
-                            </CardContent>
-                        </Card>
                         <Card className="bg-muted/30 border-primary/20">
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2"><Bot className="h-5 w-5 text-primary"/> Ask Arjun</CardTitle>
