@@ -208,6 +208,12 @@ function KeyEventsTimeline({ chartData, onSetModule }: { chartData: { hour: stri
     const [events, setEvents] = useState<{ id: string; time: Date; description: string; severity: 'High' | 'Medium' | 'Low', action?: { label: string, module: string, context?: any } }[]>([]);
 
     useEffect(() => {
+        const regimeShiftInfo: Record<string, boolean> = {
+            'Normal_Volatile': true,
+            'Volatile_High Volatility': true,
+            'High Volatility_Extreme': true,
+        };
+
         const generatedEvents: typeof events = [];
         let largestSpike = { value: 0, time: new Date() };
         let lastShiftTime = new Date(0);
