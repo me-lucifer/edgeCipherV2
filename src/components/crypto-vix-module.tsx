@@ -9,16 +9,19 @@ import { Bot, LineChart, Gauge, TrendingUp, TrendingDown, Info, AlertTriangle } 
 import { cn } from "@/lib/utils";
 import { Line, ResponsiveContainer, CartesianGrid, XAxis, YAxis, ComposedChart, ReferenceLine } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "./ui/chart";
+import { useVixState, type VixZone } from "@/hooks/use-vix-state";
+import { Skeleton } from "./ui/skeleton";
 
 interface CryptoVixModuleProps {
     onSetModule: (module: any, context?: any) => void;
 }
 
-const zoneData = [
-    { zone: "Calm (0-40)", color: "bg-green-500", impact: "Standard conditions, good for most strategies.", recommendation: "Standard Operating Procedure" },
-    { zone: "Volatile (41-60)", color: "bg-yellow-500", impact: "Increased chop, risk of stop-hunts.", recommendation: "Capital Preservation" },
-    { zone: "High Volatility (61-80)", color: "bg-orange-500", impact: "High risk of erratic moves and liquidations.", recommendation: "Defense First" },
-    { zone: "Extreme (81-100)", color: "bg-red-500", impact: "Dangerously unpredictable, 'black swan' risk.", recommendation: "Maximum Caution" },
+const zoneData: { zone: VixZone, range: string, color: string, impact: string, recommendation: string }[] = [
+    { zone: "Extremely Calm", range: "0-20", color: "bg-green-500", impact: "Low volatility, may lead to choppy price action.", recommendation: "Range-trading strategies may excel." },
+    { zone: "Normal", range: "21-40", color: "bg-green-500", impact: "Standard market conditions, good for most strategies.", recommendation: "Follow your plan." },
+    { zone: "Volatile", range: "41-60", color: "bg-yellow-500", impact: "Increased chop, risk of stop-hunts.", recommendation: "Consider reducing size." },
+    { zone: "High Volatility", range: "61-80", color: "bg-orange-500", impact: "High risk of erratic moves and liquidations.", recommendation: "Defense-first. Minimum size." },
+    { zone: "Extreme", range: "81-100", color: "bg-red-500", impact: "Dangerously unpredictable, 'black swan' risk.", recommendation: "Avoid taking new positions." },
 ];
 
 const mockVixHistory = [
@@ -27,33 +30,51 @@ const mockVixHistory = [
     { day: "Today", value: 58 },
 ];
 
-const adaptationStrategies = {
-    "Calm": { title: "Standard Operating Procedure", strategy: "Your primary strategies should perform well. Focus on disciplined execution of your A+ setups." },
+const adaptationStrategies: Record<VixZone, { title: string; strategy: string }> = {
+    "Extremely Calm": { title: "Patience is Key", strategy: "Trends may be weak. Avoid forcing trades and consider range-bound strategies." },
+    "Normal": { title: "Standard Operating Procedure", strategy: "Your primary strategies should perform well. Focus on disciplined execution of your A+ setups." },
     "Volatile": { title: "Capital Preservation", strategy: "Consider reducing position size. Widen stop-losses to avoid getting shaken out by volatility. Be highly selective." },
     "High Volatility": { title: "Defense First", strategy: "This is a risky time to trade. If you must trade, use minimum size and wait for very clear confirmation." },
     "Extreme": { title: "Maximum Caution", strategy: "Avoid taking new positions. Market conditions are dangerously unpredictable." },
 };
 
-const getVixZone = (vix: number) => {
-    if (vix <= 40) return "Calm";
-    if (vix <= 60) return "Volatile";
-    if (vix <= 80) return "High Volatility";
-    return "Extreme";
-};
-
 
 export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
-    const currentVix = 58;
-    const currentZone = getVixZone(currentVix);
-    const adaptation = adaptationStrategies[currentZone as keyof typeof adaptationStrategies];
-    
+    const { vixState, isLoading } = useVixState();
+
     const askArjun = () => {
-        onSetModule('aiCoaching', { initialMessage: "How should I adapt my trading to the current volatility?" });
+        if (!vixState) return;
+        onSetModule('aiCoaching', { initialMessage: `How should I adapt my trading to the current volatility of ${vixState.value} (${vixState.zoneLabel})?` });
     }
+    
+    if (isLoading || !vixState) {
+        return (
+            <div className="space-y-8 animate-pulse">
+                <div className="text-center">
+                    <Skeleton className="h-10 w-1/3 mx-auto" />
+                    <Skeleton className="h-6 w-2/3 mx-auto mt-4" />
+                </div>
+                <div className="grid lg:grid-cols-3 gap-8 items-start">
+                    <div className="lg:col-span-2 space-y-8">
+                        <Skeleton className="h-64 w-full" />
+                        <Skeleton className="h-80 w-full" />
+                    </div>
+                    <div className="lg:col-span-1 space-y-8">
+                        <Skeleton className="h-96 w-full" />
+                        <Skeleton className="h-48 w-full" />
+                    </div>
+                </div>
+            </div>
+        );
+    }
+    
+    const { value: currentVix, zoneLabel: currentZone } = vixState;
+    const adaptation = adaptationStrategies[currentZone];
 
     const VixGauge = ({ value, zone }: { value: number, zone: string }) => {
         const colorConfig: Record<string, string> = {
-            "Calm": 'bg-green-500',
+            "Extremely Calm": 'bg-green-500',
+            "Normal": 'bg-green-500',
             "Volatile": 'bg-yellow-500',
             "High Volatility": 'bg-orange-500',
             "Extreme": 'bg-red-500',
@@ -69,9 +90,9 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
             >
                  <div className="absolute w-[85%] h-[85%] bg-muted/80 backdrop-blur-sm rounded-full" />
                  <div className="relative flex flex-col items-center justify-center z-10">
-                    <p className="text-5xl font-bold font-mono text-foreground">{value}</p>
+                    <p className="text-5xl font-bold font-mono text-foreground">{Math.round(value)}</p>
                     <p className={cn("font-semibold", 
-                        zone === 'Calm' && 'text-green-400',
+                        (zone === 'Extremely Calm' || zone === 'Normal') && 'text-green-400',
                         zone === 'Volatile' && 'text-yellow-400',
                         zone === 'High Volatility' && 'text-orange-400',
                         zone === 'Extreme' && 'text-red-400',
@@ -82,21 +103,24 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
     };
     
     const recommendationBgClass = {
-        "Calm": "bg-green-950/30 border-green-500/20",
+        "Extremely Calm": "bg-green-950/30 border-green-500/20",
+        "Normal": "bg-green-950/30 border-green-500/20",
         "Volatile": "bg-yellow-950/30 border-yellow-500/20",
         "High Volatility": "bg-orange-950/30 border-orange-500/20",
         "Extreme": "bg-red-950/30 border-red-500/20"
     }[currentZone];
 
     const recommendationTextClass = {
-        "Calm": "text-green-400",
+        "Extremely Calm": "text-green-400",
+        "Normal": "text-green-400",
         "Volatile": "text-yellow-400",
         "High Volatility": "text-orange-400",
         "Extreme": "text-red-400"
     }[currentZone];
     
      const recommendationSubtextClass = {
-        "Calm": "text-green-300/80",
+        "Extremely Calm": "text-green-300/80",
+        "Normal": "text-green-300/80",
         "Volatile": "text-yellow-300/80",
         "High Volatility": "text-orange-300/80",
         "Extreme": "text-red-300/80"
@@ -124,7 +148,7 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                             </div>
                             <div className="space-y-4">
                                 <div>
-                                    <h3 className="font-semibold text-foreground flex items-center gap-2"><TrendingUp className="h-4 w-4"/>Current State: {currentVix} ({currentZone})</h3>
+                                    <h3 className="font-semibold text-foreground flex items-center gap-2"><TrendingUp className="h-4 w-4"/>Current State: {Math.round(currentVix)} ({currentZone})</h3>
                                     <p className="text-sm text-muted-foreground mt-1">Markets are showing elevated chop and larger price swings than usual. Risk is heightened.</p>
                                 </div>
                                 <div className={cn("p-4 rounded-lg", recommendationBgClass)}>
@@ -148,6 +172,7 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                                         <XAxis dataKey="day" tick={{fontSize: 12}} />
                                         <YAxis domain={[0, 100]} tick={{fontSize: 12}}/>
                                         <ChartTooltip content={<ChartTooltipContent indicator="line" />} />
+                                        <ReferenceLine y={20} stroke="hsl(var(--chart-2))" strokeDasharray="3 3" />
                                         <ReferenceLine y={40} stroke="hsl(var(--chart-2))" strokeDasharray="3 3" />
                                         <ReferenceLine y={60} stroke="hsl(var(--chart-4))" strokeDasharray="3 3" />
                                         <ReferenceLine y={80} stroke="hsl(var(--chart-5))" strokeDasharray="3 3" />
@@ -170,7 +195,7 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Zone</TableHead>
-                                        <TableHead>Typical Impact</TableHead>
+                                        <TableHead>Impact</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -179,7 +204,7 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                                             <TableCell className="text-sm">
                                                 <span className="flex items-center gap-2">
                                                     <div className={cn("w-2 h-2 rounded-full", d.color)} />
-                                                    {d.zone}
+                                                    {d.range}
                                                 </span>
                                             </TableCell>
                                             <TableCell className="text-xs text-muted-foreground">{d.impact}</TableCell>
