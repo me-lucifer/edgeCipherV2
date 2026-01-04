@@ -191,6 +191,14 @@ function MarketRiskCard({ marketRisk, onSetModule }: { marketRisk: RiskState['ma
     
     const chartData = vixState?.series.series24h || [];
     
+    const getVixZone = (vix: number): VixZone => {
+        if (vix <= 20) return "Extremely Calm";
+        if (vix <= 40) return "Normal";
+        if (vix <= 60) return "Volatile";
+        if (vix <= 80) return "High Volatility";
+        return "Extreme";
+    };
+
     const previousZone = chartData.length > 1 ? getVixZone(chartData[chartData.length - 2].value) : vixZone;
     const regimeShift = previousZone !== vixZone;
 
@@ -489,19 +497,17 @@ function TodaysLimitsCard({ limits, onSetModule }: { limits: RiskState['todaysLi
 }
 
 function RiskControlsCard({ onSetModule }: { onSetModule: (module: any) => void }) {
+    const { refresh } = useRiskState();
     const [controls, setControls] = useState({
         warnOnHighRisk: true,
-        warnOnHighVIX: false,
         cooldownAfterLosses: true,
+        warnOnVixHigh: false,
+        lockOnVixExtreme: true,
     });
     const [isRecoveryMode, setIsRecoveryMode] = useState(false);
     const [volatilityPolicy, setVolatilityPolicy] = useState<'follow' | 'conservative' | 'strict'>('follow');
 
-
-    const { refresh } = useRiskState(); // To trigger a re-computation
-
     useEffect(() => {
-        // Load initial state from localStorage
         const guardrails = JSON.parse(localStorage.getItem("ec_guardrails") || "{}");
         const recoveryMode = localStorage.getItem("ec_recovery_mode") === 'true';
         const volPolicy = localStorage.getItem("ec_temp_vol_policy") as any || 'follow';
@@ -514,7 +520,7 @@ function RiskControlsCard({ onSetModule }: { onSetModule: (module: any) => void 
         const newControls = { ...controls, [key]: value };
         setControls(newControls);
         localStorage.setItem("ec_guardrails", JSON.stringify(newControls));
-        refresh(); // Manually trigger state re-computation
+        refresh();
     };
 
     const handleRecoveryModeChange = (value: boolean) => {
@@ -558,21 +564,6 @@ function RiskControlsCard({ onSetModule }: { onSetModule: (module: any) => void 
                 <CardDescription>Global overrides and guardrail toggles.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-                 <div className="space-y-2">
-                    <Label className="text-sm flex items-center gap-2"><Globe className="h-4 w-4" /> Volatility Policy</Label>
-                     <Select value={volatilityPolicy} onValueChange={(v) => handlePolicyChange(v as any)}>
-                        <SelectTrigger>
-                            <SelectValue placeholder="Select a policy" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="follow">Follow Strategy Rules</SelectItem>
-                            <SelectItem value="conservative">Conservative</SelectItem>
-                            <SelectItem value="strict">Strict</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground">Temporary override for today's session.</p>
-                </div>
-                <Separator />
                 <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
                         <Label htmlFor="recovery-mode" className="text-sm text-amber-400">Recovery Mode</Label>
@@ -586,15 +577,10 @@ function RiskControlsCard({ onSetModule }: { onSetModule: (module: any) => void 
                     />
                 </div>
                 <Separator />
-                <ControlSwitch id="warnOnHighRisk" label="Warn if risk > strategy" description="Alerts if trade risk % exceeds strategy default." />
-                <ControlSwitch id="warnOnHighVIX" label="Warn in high VIX" description="Alerts when trading in Elevated/Extreme VIX." />
                 <ControlSwitch id="cooldownAfterLosses" label="Stop after 2 losses" description="Enforces a daily cooldown after 2 losses." />
+                <ControlSwitch id="warnOnVixHigh" label="Warn on High VIX trades" description="Adds a warning when planning trades in High VIX." />
+                <ControlSwitch id="lockOnVixExtreme" label="Lock on Extreme VIX" description="Blocks trade execution during Extreme VIX." />
             </CardContent>
-            <CardFooter>
-                <Button variant="link" size="sm" className="p-0 h-auto" onClick={() => onSetModule('settings')}>
-                    Manage all guardrails
-                </Button>
-            </CardFooter>
         </Card>
     );
 }
@@ -614,8 +600,8 @@ function ExposureSnapshotCard({ onSetModule, vixZone }: { onSetModule: (module: 
     }, []);
 
     const getLiquidationProximity = (leverage: number, vixZone: VixZone): { label: 'Far' | 'Moderate' | 'Close', className: string } => {
-        if (leverage >= 50 && (vixZone === 'Elevated' || vixZone === 'Extreme')) return { label: 'Close', className: 'text-red-400 border-red-500/50' };
-        if (leverage >= 50 || (leverage >= 20 && (vixZone === 'Elevated' || vixZone === 'Extreme'))) return { label: 'Moderate', className: 'text-amber-400 border-amber-500/50' };
+        if (leverage >= 50 && (vixZone === 'Volatile' || vixZone === 'High Volatility' || vixZone === 'Extreme')) return { label: 'Close', className: 'text-red-400 border-red-500/50' };
+        if (leverage >= 50 || (leverage >= 20 && (vixZone === 'Volatile' || vixZone === 'High Volatility' || vixZone === 'Extreme'))) return { label: 'Moderate', className: 'text-amber-400 border-amber-500/50' };
         return { label: 'Far', className: 'text-green-400 border-green-500/50' };
     };
 

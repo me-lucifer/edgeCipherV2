@@ -164,6 +164,8 @@ const validatePlanAgainstStrategy = (plan: PlanInputs, strategy: RuleSet, contex
     const validations: ValidationCheck[] = [];
     const { riskRules, tpRules, contextRules, entryRules } = strategy;
     
+    const guardrails = JSON.parse(localStorage.getItem("ec_guardrails") || "{}");
+
     if (!riskRules || !tpRules || !contextRules || !entryRules) {
         // Fallback if ruleSet is incomplete
         return {
@@ -188,22 +190,22 @@ const validatePlanAgainstStrategy = (plan: PlanInputs, strategy: RuleSet, contex
         } : undefined,
     });
     
-    // A.1) VIX-based leverage checks
-    if (context.vixZone === 'Extreme' && plan.leverage > 5) {
+    // VIX-based leverage checks from Guardrails
+    if (guardrails.lockOnVixExtreme && context.vixZone === 'Extreme' && plan.leverage > 5) {
         validations.push({
             ruleId: 'vixLeverageExtreme',
             title: `Leverage <= 5x in Extreme VIX`,
             status: "FAIL",
-            message: `High volatility increases liquidation risk. Using >5x leverage in 'Extreme' VIX is highly discouraged.`,
+            message: `Guardrail active: Using >5x leverage in 'Extreme' VIX is blocked.`,
             category: 'Risk & Leverage',
             fix: { type: 'SET_VALUE', payload: { field: 'leverage', value: 5 } },
         });
-    } else if ((context.vixZone === 'High Volatility' || context.vixZone === 'Extreme') && plan.leverage > 10) {
+    } else if (guardrails.warnOnVixHigh && (context.vixZone === 'High Volatility' || context.vixZone === 'Extreme') && plan.leverage > 10) {
          validations.push({
             ruleId: 'vixLeverageHigh',
             title: `Leverage <= 10x in High/Extreme VIX`,
             status: "WARN",
-            message: `High volatility increases liquidation risk. Using >10x leverage is not recommended.`,
+            message: `Guardrail active: Using >10x leverage in high volatility is not recommended.`,
             category: 'Risk & Leverage',
             fix: { type: 'SET_VALUE', payload: { field: 'leverage', value: 10 } },
         });
@@ -893,7 +895,7 @@ function MarketRiskStrip({ onSetModule }: { onSetModule: (module: 'cryptoVix') =
         >
             <CardContent className="p-3 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                    <VixBadge value={vixValue} zoneLabel={vixZone} size="md" />
+                    <VixBadge value={vixValue} zoneLabel={vixZone} size="md" onClick={() => onSetModule('cryptoVix')} />
                     <p className="text-sm text-muted-foreground hidden sm:block">{recommendation}</p>
                 </div>
                 <ArrowRight className="h-5 w-5 text-muted-foreground" />
@@ -2338,6 +2340,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
     
     
     
+
 
 
 
