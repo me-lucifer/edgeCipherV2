@@ -212,6 +212,7 @@ function KeyEventsTimeline({ chartData, onSetModule }: { chartData: { hour: stri
             'Normal_Volatile': true,
             'Volatile_High Volatility': true,
             'High Volatility_Extreme': true,
+            'Volatile_Normal': true,
         };
 
         const generatedEvents: typeof events = [];
@@ -472,9 +473,9 @@ function HowVixIsUsed({ onSetModule }: { onSetModule: (module: any, context?: an
     return (
         <Card className="bg-muted/30 border-border/50">
             <CardHeader>
-                <CardTitle>How VIX is Used in EdgeCipher</CardTitle>
+                <CardTitle>How EdgeCipher Crypto VIX is Used</CardTitle>
                 <CardDescription>
-                    Crypto VIX is a core signal that connects multiple modules to help you adapt to changing market conditions.
+                    The VIX is a core signal that connects multiple modules to help you adapt to changing market conditions.
                 </CardDescription>
             </CardHeader>
             <CardContent className="grid md:grid-cols-2 gap-4">
@@ -629,9 +630,9 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
     return (
         <div className="space-y-8">
             <div className="text-center">
-                <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">Crypto Volatility Index (VIX)</h1>
+                <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">EdgeCipher Crypto VIX (0–100)</h1>
                 <p className="mt-4 text-lg text-muted-foreground max-w-3xl mx-auto">
-                    A proprietary 0–100 score for crypto futures market conditions.
+                    A proprietary score for crypto futures market conditions. Not the stock market VIX.
                 </p>
             </div>
             
@@ -691,11 +692,11 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                                                 <TooltipTrigger asChild>
                                                     <p className="text-xs text-muted-foreground italic flex items-center gap-1.5 cursor-help">
                                                         <Bot className="h-3 w-3" />
-                                                        Arjun uses Crypto VIX to adjust coaching strictness and risk recommendations.
+                                                        Arjun uses this to adjust coaching and risk recommendations.
                                                     </p>
                                                 </TooltipTrigger>
                                                 <TooltipContent>
-                                                    <p>This is a proprietary EdgeCipher volatility score (not stock market VIX).</p>
+                                                    <p>This is a proprietary score. Not the stock market VIX.</p>
                                                 </TooltipContent>
                                             </Tooltip>
                                         </TooltipProvider>
@@ -893,7 +894,7 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                                                         <br />
                                                         <span className="font-mono text-xs">VIX = 0.4*BTC_vol + 0.4*ETH_vol + 0.1*Funding + 0.1*Liquidations</span>
                                                         <br />
-                                                        <span className="text-xs italic mt-2 block">In production, this is calculated on the backend with a more complex model.</span>
+                                                        <span className="text-xs italic mt-2 block">Backend-calculated in production.</span>
                                                     </p>
                                                 </TooltipContent>
                                             </Tooltip>

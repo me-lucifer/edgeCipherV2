@@ -215,7 +215,7 @@ function MarketRiskCard({ marketRisk, onSetModule }: { marketRisk: RiskState['ma
                                 <Info className="h-4 w-4 text-muted-foreground/80 cursor-help" />
                             </TooltipTrigger>
                             <TooltipContent>
-                                <p className="max-w-xs">The Crypto VIX is an indicator of current market volatility (0-100). Higher values mean larger price swings and more risk.</p>
+                                <p className="max-w-xs">Based on the EdgeCipher Crypto VIX (0-100). Not the stock market VIX.</p>
                             </TooltipContent>
                         </Tooltip>
                     </TooltipProvider>
@@ -499,10 +499,9 @@ function TodaysLimitsCard({ limits, onSetModule }: { limits: RiskState['todaysLi
 function RiskControlsCard({ onSetModule }: { onSetModule: (module: any) => void }) {
     const { refresh } = useRiskState();
     const [controls, setControls] = useState({
-        warnOnHighRisk: true,
-        cooldownAfterLosses: true,
         warnOnVixHigh: false,
         lockOnVixExtreme: true,
+        cooldownAfterLosses: true,
     });
     const [isRecoveryMode, setIsRecoveryMode] = useState(false);
     const [volatilityPolicy, setVolatilityPolicy] = useState<'follow' | 'conservative' | 'strict'>('follow');
@@ -1813,9 +1812,3 @@ const DeltaIndicator = ({ delta, unit = "" }: { delta: number; unit?: string }) 
         </span>
     );
 };
-    
-    
-
-
-
-

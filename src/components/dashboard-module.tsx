@@ -485,7 +485,7 @@ function VixWidget({ onSetModule }: { onSetModule: (module: any, context?: Modul
                 <CardHeader>
                     <CardTitle className="text-base flex items-center gap-2">
                         <Gauge className="h-5 w-5" />
-                        Crypto VIX
+                        EdgeCipher Crypto VIX (0-100)
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -517,7 +517,7 @@ function VixWidget({ onSetModule }: { onSetModule: (module: any, context?: Modul
                 <div className="flex items-center justify-between">
                     <CardTitle className="text-base flex items-center gap-2">
                         <Gauge className="h-5 w-5" />
-                        Crypto VIX
+                        EdgeCipher Crypto VIX (0-100)
                     </CardTitle>
                     {isHighRisk && <Badge variant="destructive" className="text-xs">Strict Mode</Badge>}
                 </div>
@@ -866,7 +866,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                     </div>
                      <div className="p-3 rounded-lg bg-muted border border-border/50">
                         <p className="font-semibold text-foreground">Market Volatility</p>
-                        <p className="text-muted-foreground">The Crypto VIX is in the <span className="text-primary font-medium">{market.vixZone}</span> zone, indicating current market risk.</p>
+                        <p className="text-muted-foreground">The EdgeCipher Crypto VIX is in the <span className="text-primary font-medium">{market.vixZone}</span> zone, indicating current market risk.</p>
                     </div>
                     <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
                          <p className="font-semibold text-foreground">Today's Conclusion</p>
@@ -1117,9 +1117,3 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
     </div>
   );
 }
-
-    
-
-
-
-

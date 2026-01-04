@@ -716,7 +716,7 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
                 </div>
                  <div className="flex-1" />
                 <p className="text-xs text-muted-foreground text-right">
-                    VIX is <span className="font-semibold text-primary">{riskState?.marketRisk.vixZone || 'Normal'}</span>. Drawings are manual in Phase 1.
+                    EdgeCipher Crypto VIX is <span className="font-semibold text-primary">{riskState?.marketRisk.vixZone || 'Normal'}</span>. Drawings are manual in Phase 1.
                 </p>
             </div>
 
