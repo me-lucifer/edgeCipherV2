@@ -1,11 +1,12 @@
 
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Bot, LineChart, Gauge, TrendingUp, TrendingDown, Info, AlertTriangle, SlidersHorizontal, Flame, Droplets, Newspaper, Sparkles, ArrowRight, X, BarChartHorizontal } from "lucide-react";
+import { Bot, LineChart, Gauge, TrendingUp, TrendingDown, Info, AlertTriangle, SlidersHorizontal, Flame, Droplets, Newspaper, Sparkles, ArrowRight, X, BarChartHorizontal, Timer } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Line, ResponsiveContainer, CartesianGrid, XAxis, YAxis, ComposedChart, ReferenceLine, ReferenceDot } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "./ui/chart";
@@ -254,7 +255,19 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
         };
 
     }, [vixState, timeRange]);
+    
+    const { series24h, series7d } = vixState?.series || { series24h: [], series7d: [] };
+    const avg24h = series24h.length > 0 ? series24h.reduce((acc, p) => acc + p.value, 0) / series24h.length : 0;
+    const avg7d = series7d.length > 0 ? series7d.reduce((acc, p) => acc + p.value, 0) / series7d.length : 0;
+    const high24h = Math.max(...series24h.map(p => p.value));
+    const low24h = Math.min(...series24h.map(p => p.value));
 
+    const SummaryRow = ({ label, value, valueClass }: { label: string, value: React.ReactNode, valueClass?: string }) => (
+        <div className="flex justify-between items-center text-sm">
+            <p className="text-muted-foreground">{label}</p>
+            <p className={cn("font-mono font-semibold text-foreground", valueClass)}>{value}</p>
+        </div>
+    );
 
     if (isLoading || !vixState) {
         return (
@@ -360,24 +373,37 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                                     </TooltipProvider>
                                 </div>
                             </div>
-                           <Card className="bg-muted/50 border-border/50">
-                                <CardHeader>
-                                    <CardTitle className="text-base flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary" /> Suggested Posture: {posture.title}</CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-3">
-                                    <p className="text-sm text-muted-foreground">Arjun recommends these adjustments based on current conditions:</p>
-                                    <div className="flex flex-wrap gap-2">
-                                        {posture.actions.map((action, i) => (
-                                            <Badge key={i} variant="outline" className="text-xs">{action}</Badge>
-                                        ))}
-                                    </div>
-                                    <div className="pt-2">
-                                        <Button variant="link" size="sm" className="p-0 h-auto text-primary/90" onClick={askArjun}>
-                                            Discuss this with Arjun <ArrowRight className="ml-2 h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                </CardContent>
-                           </Card>
+                            <div className="space-y-4">
+                                <Card className="bg-muted/50 border-border/50">
+                                    <CardHeader className="pb-2">
+                                        <CardTitle className="text-base flex items-center gap-2"><Timer className="h-4 w-4" /> Current vs. Averages</CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-2">
+                                        <SummaryRow label="Current VIX" value={currentVix.toFixed(1)} valueClass={currentVix > avg24h ? 'text-amber-400' : 'text-green-400'} />
+                                        <SummaryRow label="24H Average" value={avg24h.toFixed(1)} />
+                                        <SummaryRow label="7D Average" value={avg7d.toFixed(1)} />
+                                        <SummaryRow label="24H Range" value={`${low24h.toFixed(1)} – ${high24h.toFixed(1)}`} />
+                                    </CardContent>
+                                </Card>
+                               <Card className="bg-muted/50 border-border/50">
+                                    <CardHeader>
+                                        <CardTitle className="text-base flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary" /> Suggested Posture: {posture.title}</CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-3">
+                                        <p className="text-sm text-muted-foreground">Arjun recommends these adjustments based on current conditions:</p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {posture.actions.map((action, i) => (
+                                                <Badge key={i} variant="outline" className="text-xs">{action}</Badge>
+                                            ))}
+                                        </div>
+                                        <div className="pt-2">
+                                            <Button variant="link" size="sm" className="p-0 h-auto text-primary/90" onClick={askArjun}>
+                                                Discuss this with Arjun <ArrowRight className="ml-2 h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                    </CardContent>
+                               </Card>
+                            </div>
                         </CardContent>
                     </Card>
 
