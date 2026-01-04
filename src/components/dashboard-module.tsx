@@ -485,7 +485,7 @@ function VixWidget({ onSetModule }: { onSetModule: (module: any, context?: Modul
                 <CardHeader>
                     <CardTitle className="text-base flex items-center gap-2">
                         <Gauge className="h-5 w-5" />
-                        EdgeCipher Crypto VIX (0-100)
+                        EdgeCipher Crypto VIX
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -517,7 +517,7 @@ function VixWidget({ onSetModule }: { onSetModule: (module: any, context?: Modul
                 <div className="flex items-center justify-between">
                     <CardTitle className="text-base flex items-center gap-2">
                         <Gauge className="h-5 w-5" />
-                        EdgeCipher Crypto VIX (0-100)
+                        EdgeCipher Crypto VIX
                     </CardTitle>
                     {isHighRisk && <Badge variant="destructive" className="text-xs">Strict Mode</Badge>}
                 </div>
