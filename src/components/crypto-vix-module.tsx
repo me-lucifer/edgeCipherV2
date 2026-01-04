@@ -14,6 +14,8 @@ import { Skeleton } from "./ui/skeleton";
 import { formatDistanceToNow } from "date-fns";
 import { Slider } from "./ui/slider";
 import { Label } from "./ui/label";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
+
 
 interface CryptoVixModuleProps {
     onSetModule: (module: any, context?: any) => void;
@@ -190,8 +192,23 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                              <CardDescription>Updated: {formatDistanceToNow(new Date(updatedAt), { addSuffix: true })} (prototype)</CardDescription>
                         </CardHeader>
                         <CardContent className="grid md:grid-cols-2 gap-8 items-center">
-                            <div className="flex items-center justify-center">
+                             <div className="flex flex-col items-center justify-center">
                                 <VixGauge value={currentVix} zone={currentZone} />
+                                <div className="text-center mt-4">
+                                     <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <p className="text-xs text-muted-foreground italic flex items-center gap-1.5 cursor-help">
+                                                    <Bot className="h-3 w-3" />
+                                                    Arjun uses Crypto VIX to adjust coaching strictness and risk recommendations.
+                                                </p>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>This is a proprietary EdgeCipher volatility score (not stock market VIX).</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                </div>
                             </div>
                             <div className="space-y-4">
                                 <div>
