@@ -2,10 +2,11 @@
 
       "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Bot, LineChart, Gauge, TrendingUp, TrendingDown, Info, AlertTriangle, SlidersHorizontal, Flame, Droplets, Newspaper, Sparkles, ArrowRight, X, BarChartHorizontal, Timer, Calendar, ChevronRight, User, BookOpen, BarChart, Scale } from "lucide-react";
+import { Bot, LineChart, Gauge, TrendingUp, TrendingDown, Info, AlertTriangle, SlidersHorizontal, Flame, Droplets, Newspaper, Sparkles, ArrowRight, X, BarChartHorizontal, Timer, Calendar, ChevronRight, User, BookOpen, BarChart, Scale, PlayCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Line, ResponsiveContainer, CartesianGrid, XAxis, YAxis, ComposedChart, ReferenceLine, ReferenceDot } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "./ui/chart";
@@ -20,7 +21,8 @@ import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
-
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "./ui/carousel";
+import { PlaceHolderImages } from "@/lib/placeholder-images";
 
 interface CryptoVixModuleProps {
     onSetModule: (module: any, context?: any) => void;
@@ -82,6 +84,19 @@ const regimeShiftInfo: Record<string, { meaning: string, action: string }> = {
     "Extreme_High Volatility": { meaning: "Volatility is decreasing but still very high.", action: "Wait for further confirmation before trading." },
     "High Volatility_Volatile": { meaning: "Conditions are improving but still risky.", action: "Can consider A+ setups with small size." },
     "Volatile_Normal": { meaning: "The market is calming down.", action: "Can slowly return to normal sizing." },
+};
+
+const learningVideos = {
+    highVol: [
+        { title: "Trading in High Volatility: A Guide to Capital Protection", tag: "Risk Management", href: "#" },
+        { title: "The Psychology of a Losing Streak", tag: "Psychology", href: "#" },
+        { title: "Why Your Stop Loss is Your Best Friend", tag: "Discipline", href: "#" },
+    ],
+    lowVol: [
+        { title: "How to Build a Testable Trading Strategy", tag: "Strategy", href: "#" },
+        { title: "Anatomy of an A+ Setup", tag: "Execution", href: "#" },
+        { title: "Journaling 101: Turning Trades into Data", tag: "Journaling", href: "#" },
+    ],
 };
 
 
@@ -219,9 +234,12 @@ function getVixZoneFromValue(value: number): VixZone {
 }
 
 function KeyEventsTimeline({ chartData, onSetModule }: { chartData: { hour: string; day: string; value: number; spike: string | null }[], onSetModule: (module: any, context?: any) => void }) {
-    const events = useMemo(() => {
-        const generatedEvents: { id: string; time: Date; description: string; severity: 'High' | 'Medium' | 'Low', action?: { label: string, module: string, context?: any } }[] = [];
+    const [events, setEvents] = useState<{ id: string; time: Date; description: string; severity: 'High' | 'Medium' | 'Low', action?: { label: string, module: string, context?: any } }[]>([]);
+
+    useEffect(() => {
+        const generatedEvents: typeof events = [];
         let largestSpike = { value: 0, time: new Date() };
+        let lastShiftTime = new Date(0);
 
         for (let i = 1; i < chartData.length; i++) {
             const prev = chartData[i - 1];
@@ -232,14 +250,18 @@ function KeyEventsTimeline({ chartData, onSetModule }: { chartData: { hour: stri
             const now = new Date();
             const time = i === chartData.length - 1 ? now : new Date(now.getTime() - (chartData.length - 1 - i) * 4 * 60 * 60 * 1000);
 
-            if (prevZone !== currentZone) {
-                generatedEvents.push({
-                    id: `shift-${i}`,
-                    time,
-                    description: `VIX crossed from '${prevZone}' to '${currentZone}'.`,
-                    severity: (currentZone === 'Extreme' || currentZone === 'High Volatility') ? 'High' : 'Medium',
-                    action: { label: 'Open Risk Center', module: 'riskCenter' }
-                });
+            if (prevZone !== currentZone && time.getTime() - lastShiftTime.getTime() > 60 * 60 * 1000) {
+                 const shiftKey = `${prevZone}_${currentZone}`;
+                 if(regimeShiftInfo[shiftKey]) {
+                    generatedEvents.push({
+                        id: `shift-${i}`,
+                        time,
+                        description: `Regime Shift: ${prevZone} → ${currentZone}`,
+                        severity: (currentZone === 'Extreme' || currentZone === 'High Volatility') ? 'High' : 'Medium',
+                        action: { label: 'Open Risk Center', module: 'riskCenter' }
+                    });
+                    lastShiftTime = time;
+                 }
             }
 
             if (current.spike === 'up') {
@@ -250,23 +272,23 @@ function KeyEventsTimeline({ chartData, onSetModule }: { chartData: { hour: stri
             }
         }
 
-        if (largestSpike.value > 0) {
+        if (largestSpike.value > 20) {
             generatedEvents.push({
                 id: `spike-${largestSpike.time.getTime()}`,
                 time: largestSpike.time,
-                description: `Largest volatility spike: +${largestSpike.value.toFixed(0)} points.`,
+                description: `Large volatility spike: +${largestSpike.value.toFixed(0)} points.`,
                 severity: 'High',
                 action: { label: 'Open Analytics', module: 'analytics' }
             });
         }
         
-        return generatedEvents
+        const seenAlerts: string[] = JSON.parse(sessionStorage.getItem('ec_vix_alerts_seen') || '[]');
+        
+        setEvents(generatedEvents
           .sort((a,b) => b.time.getTime() - a.time.getTime())
-          .filter(event => {
-              const seenAlerts: string[] = JSON.parse(sessionStorage.getItem('ec_vix_alerts_seen') || '[]');
-              return !seenAlerts.includes(event.id);
-          })
-          .slice(0, 5);
+          .filter(event => !seenAlerts.includes(event.id))
+          .slice(0, 5)
+        );
 
     }, [chartData]);
     
@@ -386,11 +408,60 @@ const PerformanceByVixZoneCard = ({ onSetModule }: { onSetModule: (module: any, 
     );
 };
 
+function LearningStrip({ zone, onVideoClick }: { zone: VixZone; onVideoClick: () => void; }) {
+    const videoThumbnail = PlaceHolderImages.find(p => p.id === 'video-thumbnail');
+    const videos = zone === 'High Volatility' || zone === 'Extreme' ? learningVideos.highVol : learningVideos.lowVol;
+    const title = zone === 'High Volatility' || zone === 'Extreme'
+        ? "Defensive Trading Resources"
+        : "Strategy & Execution Resources";
+
+    return (
+        <Card className="bg-muted/30 border-border/50">
+            <CardHeader>
+                <CardTitle>{title}</CardTitle>
+                <CardDescription>Recommended learning based on current market conditions.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Carousel opts={{ align: "start" }} className="w-full">
+                    <CarouselContent className="-ml-4">
+                        {videos.map((video, index) => (
+                            <CarouselItem key={index} className="pl-4 md:basis-1/2 lg:basis-1/3">
+                                <a href={video.href} onClick={(e) => { e.preventDefault(); onVideoClick(); }} className="block group">
+                                    <Card className="h-full bg-muted/30 border-border/50 overflow-hidden transform-gpu transition-all hover:bg-muted/50 hover:border-primary/30 hover:-translate-y-1">
+                                        <div className="relative aspect-video">
+                                            {videoThumbnail && (
+                                                <Image src={videoThumbnail.imageUrl} alt={video.title} fill style={{objectFit: 'cover'}} className="transition-transform duration-300 group-hover:scale-105" data-ai-hint={videoThumbnail.imageHint} />
+                                            )}
+                                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                                                <PlayCircle className="h-12 w-12 text-white/70 transition-transform duration-300 group-hover:scale-110 group-hover:text-white" />
+                                            </div>
+                                        </div>
+                                        <CardContent className="p-4">
+                                            <Badge variant="secondary" className="mb-2 bg-primary/10 text-primary">{video.tag}</Badge>
+                                            <p className="font-semibold text-foreground text-left text-sm">{video.title}</p>
+                                        </CardContent>
+                                    </Card>
+                                </a>
+                            </CarouselItem>
+                        ))}
+                    </CarouselContent>
+                    <CarouselPrevious className="ml-12" />
+                    <CarouselNext className="mr-12" />
+                </Carousel>
+                <p className="text-xs text-muted-foreground mt-4 text-center">
+                    (Prototype links. In a real app, these would link to curated YouTube videos.)
+                </p>
+            </CardContent>
+        </Card>
+    );
+}
+
 export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
     const { vixState, isLoading, updateVixValue, generateChoppyDay } = useVixState();
     const [timeRange, setTimeRange] = useState<'24H' | '7D'>('24H');
     const [persona, setPersona] = useState<PersonaType | null>(null);
     const [sensitivity, setSensitivity] = useState<'conservative' | 'balanced' | 'aggressive'>('balanced');
+    const [showVideoModal, setShowVideoModal] = useState(false);
 
 
     useEffect(() => {
@@ -526,7 +597,7 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                         <AlertTriangle className="h-16 w-16 text-red-400 mx-auto" />
                         <CardTitle className="text-4xl text-red-300 mt-4">Extreme Volatility: Do Not Trade</CardTitle>
                         <CardDescription className="text-red-300/80 text-base">
-                            Market conditions are dangerously unpredictable. Arjun's analysis is now focused on capital protection, not profit generation.
+                            Arjun's analysis is now focused on capital protection, not profit generation.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="mt-6">
@@ -773,6 +844,7 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                                 </CardContent>
                             </Card>
                         )}
+                        <LearningStrip zone={currentZone} onVideoClick={() => setShowVideoModal(true)} />
                     </div>
                     
                     {/* Sidebar */}
@@ -818,6 +890,19 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                     </div>
                 </div>
             )}
+             <AlertDialog open={showVideoModal} onOpenChange={setShowVideoModal}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Prototype Video</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This is a prototype. In the live product, this would play the real explainer video.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogAction onClick={() => setShowVideoModal(false)}>Close</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }
