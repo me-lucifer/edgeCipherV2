@@ -1014,8 +1014,12 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
                             <div className="p-4 bg-muted/50 rounded-lg space-y-4">
                                 <h3 className="text-sm font-semibold text-muted-foreground">Market & Direction</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <FormField control={form.control} name="instrument" render={({ field }: any) => (
-                                        <FormItem><FormLabel>Trading Pair*</FormLabel><FormControl><Input placeholder="e.g., BTC-PERP" {...field} /></FormControl><FormMessage /></FormItem>
+                                    <FormField control={form.control} name="instrument" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Trading Pair*</FormLabel>
+                                            <FormControl><Input placeholder="e.g., BTC-PERP" {...field} /></FormControl>
+                                            <FormMessage />
+                                        </FormItem>
                                     )}/>
                                     <FormField
                                         control={form.control}
@@ -1024,16 +1028,16 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
                                         <FormItem>
                                             <FormLabel>Direction</FormLabel>
                                             <FormControl>
-                                            <RadioGroup onValueChange={field.onChange} value={field.value} className="flex pt-2 gap-4">
-                                                <FormItem className="flex items-center space-x-2 space-y-0">
-                                                <FormControl><RadioGroupItem value="Long" id="direction-long" /></FormControl>
-                                                <Label htmlFor="direction-long" className="font-normal cursor-pointer">Long</Label>
-                                                </FormItem>
-                                                <FormItem className="flex items-center space-x-2 space-y-0">
-                                                <FormControl><RadioGroupItem value="Short" id="direction-short" /></FormControl>
-                                                <Label htmlFor="direction-short" className="font-normal cursor-pointer">Short</Label>
-                                                </FormItem>
-                                            </RadioGroup>
+                                                <RadioGroup onValueChange={field.onChange} value={field.value} className="flex pt-2 gap-4">
+                                                    <FormItem className="flex items-center space-x-2 space-y-0">
+                                                        <FormControl><RadioGroupItem value="Long" id="direction-long" /></FormControl>
+                                                        <Label htmlFor="direction-long" className="font-normal cursor-pointer">Long</Label>
+                                                    </FormItem>
+                                                    <FormItem className="flex items-center space-x-2 space-y-0">
+                                                        <FormControl><RadioGroupItem value="Short" id="direction-short" /></FormControl>
+                                                        <Label htmlFor="direction-short" className="font-normal cursor-pointer">Short</Label>
+                                                    </FormItem>
+                                                </RadioGroup>
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -1069,19 +1073,23 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
                             <div className="p-4 bg-muted/50 rounded-lg space-y-4">
                                 <h3 className="text-sm font-semibold text-muted-foreground">Risk Anchors</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {entryType === 'Limit' ? (
-                                        <FormField control={form.control} name="entryPrice" render={({ field }: any) => (
-                                            <FormItem><FormLabel>Entry Price*</FormLabel><FormControl><Input type="number" placeholder="0.00" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
-                                        )}/>
-                                    ) : (
+                                    <FormField control={form.control} name="entryPrice" render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Current Price (from Delta)</FormLabel>
-                                            <FormControl><Input readOnly value="68543.21 (mock)" className="bg-muted" /></FormControl>
+                                            <FormLabel>Entry Price*</FormLabel>
+                                            <FormControl>
+                                                <Input
+                                                    type="number"
+                                                    placeholder="0.00"
+                                                    disabled={entryType === 'Market'}
+                                                    {...field}
+                                                    value={entryType === 'Market' ? '' : field.value || ''}
+                                                />
+                                            </FormControl>
                                             <FormMessage />
                                         </FormItem>
-                                    )}
+                                    )}/>
                                     <div />
-                                    <FormField control={form.control} name="stopLoss" render={({ field }: any) => (
+                                    <FormField control={form.control} name="stopLoss" render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>Stop Loss Price (your promised exit)*</FormLabel>
                                             <FormControl><Input type="number" placeholder="0.00" {...field} value={field.value || ''} /></FormControl>
@@ -1089,13 +1097,13 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
                                             <FormMessage />
                                         </FormItem>
                                     )}/>
-                                    <FormField control={form.control} name="takeProfit" render={({ field }: any) => (
+                                    <FormField control={form.control} name="takeProfit" render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>Take Profit Price (TP)</FormLabel>
                                             <FormControl><Input type="number" placeholder="0.00" {...field} value={field.value || ''} /></FormControl>
                                             <FormMessage />
                                         </FormItem>
-                                    )}
+                                    )}/>
                                 </div>
                             </div>
                             
@@ -1103,14 +1111,34 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
                             <div className="p-4 bg-muted/50 rounded-lg space-y-4">
                                 <h3 className="text-sm font-semibold text-muted-foreground">Account & Risk</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <FormField control={form.control} name="accountCapital" render={({ field }: any) => (
-                                        <FormItem><FormLabel>Account Capital ($)*</FormLabel><FormControl><Input type="number" placeholder="10000" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                                    <FormField control={form.control} name="accountCapital" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Account Capital ($)*</FormLabel>
+                                            <FormControl><Input type="number" placeholder="10000" {...field} value={field.value || ''} /></FormControl>
+                                            <FormMessage />
+                                        </FormItem>
                                     )}/>
-                                    <FormField control={form.control} name="riskPercent" render={({ field }: any) => (
-                                        <FormItem><FormLabel>Risk per Trade (% of account)*</FormLabel><FormControl><Input type="number" placeholder="1" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                                    <FormField control={form.control} name="riskPercent" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Risk per Trade (% of account)*</FormLabel>
+                                            <FormControl><Input type="number" placeholder="1" {...field} value={field.value || ''} /></FormControl>
+                                            <FormMessage />
+                                        </FormItem>
                                     )}/>
-                                    <FormField control={form.control} name="leverage" render={({ field }: any) => (
-                                        <FormItem><FormLabel>Leverage</FormLabel><Select onValueChange={(v) => field.onChange(Number(v))} defaultValue={String(field.value)}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="5">5x</SelectItem><SelectItem value="10">10x</SelectItem><SelectItem value="20">20x</SelectItem><SelectItem value="50">50x</SelectItem></SelectContent></Select><FormMessage /></FormItem>
+                                    <FormField control={form.control} name="leverage" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Leverage</FormLabel>
+                                            <Select onValueChange={(v) => field.onChange(Number(v))} value={String(field.value)}>
+                                                <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
+                                                <SelectContent>
+                                                    <SelectItem value="5">5x</SelectItem>
+                                                    <SelectItem value="10">10x</SelectItem>
+                                                    <SelectItem value="20">20x</SelectItem>
+                                                    <SelectItem value="50">50x</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            <FormMessage />
+                                        </FormItem>
                                     )}/>
                                 </div>
                                 {isNewUser && (
@@ -1140,7 +1168,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
                                     </Alert>
                                 )}
                                 <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] items-end gap-2">
-                                    <FormField control={form.control} name="strategyId" render={({ field }: any) => (
+                                    <FormField control={form.control} name="strategyId" render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>Strategy*</FormLabel>
                                             <Popover open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
@@ -1233,7 +1261,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
 
                                 <StrategyGuardrailChecklist strategyId={strategyId} onSetModule={onSetModule} checkedRules={entryChecklist} onCheckRule={handleCheckRule} />
 
-                                <FormField control={form.control} name="notes" render={({ field }: any) => (
+                                <FormField control={form.control} name="notes" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Trade Rationale</FormLabel>
                                         <FormControl><Textarea placeholder="Why are you taking this trade? What conditions must be true?" {...field} /></FormControl>
@@ -2311,7 +2339,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
                          <FormField
                             control={form.control}
                             name="mindset"
-                            render={({ field }: any) => (
+                            render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>What is your mindset right now?</FormLabel>
                                     <FormControl>
@@ -2354,3 +2382,6 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
     
 
 
+
+
+    
