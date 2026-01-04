@@ -883,7 +883,25 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                         {driverTrendData && (
                             <Card className="bg-muted/30 border-border/50">
                                 <CardHeader>
-                                    <CardTitle>Driver Trends (Prototype)</CardTitle>
+                                    <CardTitle className="flex items-center gap-2">
+                                        Driver Trends (Prototype)
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger>
+                                                    <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                     <p className="max-w-xs font-normal">
+                                                        <span className="font-semibold">Simplified Formula (Prototype):</span>
+                                                        <br />
+                                                        <span className="font-mono text-xs">VIX = 0.4*BTC_vol + 0.4*ETH_vol + 0.1*Funding + 0.1*Liquidations</span>
+                                                        <br />
+                                                        <span className="text-xs italic mt-2 block">In production, this is calculated on the backend with a more complex model.</span>
+                                                    </p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    </CardTitle>
                                     <CardDescription>How each component of the VIX has behaved over the period.</CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-4">
