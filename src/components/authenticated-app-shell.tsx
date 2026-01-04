@@ -590,7 +590,7 @@ export function AuthenticatedAppShell() {
                               <span>EdgeCipher</span>
                           </a>
                       </div>
-                      <SidebarNav currentModule={currentModule} handleSetModule={handleSetModule} pendingJournalCount={pendingJournalCount} />
+                      <SidebarNav currentModule={currentModule} handleSetModule={handleSetModule} isSidebarOpen={isSidebarOpen} pendingJournalCount={pendingJournalCount} />
                   </SheetContent>
               </Sheet>
 
@@ -616,3 +616,5 @@ export function AuthenticatedAppShell() {
     </TooltipProvider>
   );
 }
+
+    
