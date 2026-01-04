@@ -491,28 +491,45 @@ function VixWidget({ onSetModule }: { onSetModule: (module: any, context?: Modul
                 <CardContent>
                     <Skeleton className="h-8 w-1/2 mb-2" />
                     <Skeleton className="h-4 w-1/3" />
+                    <Skeleton className="h-4 w-full mt-2" />
                 </CardContent>
             </Card>
         );
     }
     
     const { value, zoneLabel } = vixState;
+    const isHighRisk = zoneLabel === 'High Volatility' || zoneLabel === 'Extreme';
+    
+    const impactText = {
+        "Extremely Calm": "Range-bound conditions likely.",
+        "Normal": "Standard conditions for most strategies.",
+        "Volatile": "Increased chop; watch for stop-hunts.",
+        "High Volatility": "High risk of erratic moves.",
+        "Extreme": "Dangerously unpredictable market.",
+    }[zoneLabel];
 
     return (
-        <Card className="bg-muted/30 border-border/50 hover:bg-muted/50 hover:border-primary/20 transition-colors cursor-pointer" onClick={() => onSetModule('cryptoVix')}>
+        <Card 
+            className="bg-muted/30 border-border/50 hover:bg-muted/50 hover:border-primary/20 transition-colors cursor-pointer" 
+            onClick={() => onSetModule('cryptoVix')}
+        >
             <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                    <Gauge className="h-5 w-5" />
-                    Crypto VIX
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                    <CardTitle className="text-base flex items-center gap-2">
+                        <Gauge className="h-5 w-5" />
+                        Crypto VIX
+                    </CardTitle>
+                    {isHighRisk && <Badge variant="destructive" className="text-xs">Strict Mode</Badge>}
+                </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-3">
                 <VixBadge 
                     value={value} 
                     zoneLabel={zoneLabel} 
                     onClick={() => onSetModule('cryptoVix')} 
                     size="lg"
                 />
+                 <p className="text-sm text-muted-foreground pt-1">{impactText}</p>
                  <Button variant="link" className="px-0 h-auto text-xs text-muted-foreground hover:text-primary mt-2">
                     Open Risk Center <ArrowRight className="ml-1 h-3 w-3" />
                 </Button>
@@ -1102,6 +1119,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
 }
 
     
+
 
 
 
