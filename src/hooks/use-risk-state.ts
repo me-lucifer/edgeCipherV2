@@ -206,17 +206,6 @@ export function useRiskState() {
                 const storedVixState = JSON.parse(vixStateString);
                 vixValue = storedVixState.value;
                 vixZone = storedVixState.zoneLabel;
-            } else {
-                // Fallback for when ec_vix_state is not set
-                const vixOverride = localStorage.getItem("ec_vix_override");
-                if (vixOverride) {
-                    vixValue = parseInt(vixOverride, 10);
-                } else if (scenario === 'high_vol') {
-                    vixValue = 82;
-                } else if (scenario === 'drawdown') {
-                    vixValue = 65;
-                }
-                vixZone = getVixZone(vixValue);
             }
             
             const marketRisk = {
@@ -589,6 +578,3 @@ export function useRiskState() {
 
     return { riskState, isLoading, refresh: computeRiskState };
 }
-
-    
-

@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -108,6 +109,20 @@ export function useVixState() {
                 } else {
                     state = generateDefaultState();
                 }
+
+                // Check for override
+                const vixOverride = localStorage.getItem("ec_vix_override");
+                if (vixOverride) {
+                    const newValue = parseInt(vixOverride, 10);
+                    if (!isNaN(newValue) && newValue !== state.value) {
+                        state.value = newValue;
+                        state.zoneLabel = getVixZone(newValue);
+                        state.updatedAt = new Date().toISOString();
+                        // Update the last point in the series
+                        state.series.series24h[state.series.series24h.length - 1].value = newValue;
+                        state.series.series7d[state.series.series7d.length - 1].value = newValue;
+                    }
+                }
                 
                 localStorage.setItem(VIX_STATE_CACHE_KEY, JSON.stringify(state));
                 setVixState(state);
@@ -122,17 +137,14 @@ export function useVixState() {
     }, []);
 
     const updateVixValue = useCallback((newValue: number) => {
-        setVixState(prevState => {
-            if (!prevState) return null;
+        if (typeof window === "undefined") return;
 
-            const updatedSeries24h = [...prevState.series.series24h];
-            updatedSeries24h[updatedSeries24h.length - 1].value = newValue;
+        try {
+            const currentStateString = localStorage.getItem(VIX_STATE_CACHE_KEY);
+            const currentState = currentStateString ? JSON.parse(currentStateString) : generateDefaultState();
             
-            const updatedSeries7d = [...prevState.series.series7d];
-            updatedSeries7d[updatedSeries7d.length - 1].value = newValue;
-
             const newState: VixState = {
-                ...prevState,
+                ...currentState,
                 value: newValue,
                 zoneLabel: getVixZone(newValue),
                 updatedAt: new Date().toISOString(),
@@ -143,35 +155,49 @@ export function useVixState() {
                     liquidationSpike: newValue > 60 ? newValue * 0.7 + Math.random() * 30 : 10,
                     newsSentiment: 50 - (newValue * 0.3) + (Math.random() - 0.5) * 20,
                 },
-                series: {
-                    series24h: updatedSeries24h,
-                    series7d: updatedSeries7d,
-                }
             };
-            if (typeof window !== "undefined") {
-                localStorage.setItem(VIX_STATE_CACHE_KEY, JSON.stringify(newState));
-            }
-            return newState;
-        });
+
+            // Update the last point in series
+            newState.series.series24h[newState.series.series24h.length - 1].value = newValue;
+            newState.series.series7d[newState.series.series7d.length - 1].value = newValue;
+
+            localStorage.setItem(VIX_STATE_CACHE_KEY, JSON.stringify(newState));
+            
+            // This is the crucial part: dispatch a storage event to notify other tabs/hooks
+            window.dispatchEvent(new StorageEvent('storage', {
+                key: VIX_STATE_CACHE_KEY,
+                newValue: JSON.stringify(newState),
+            }));
+
+            // Also update the local state for immediate feedback in the current component
+            setVixState(newState);
+
+        } catch (e) {
+            console.error("Failed to update VIX state:", e);
+        }
     }, []);
     
     const generateChoppyDay = useCallback(() => {
-        setVixState(prevState => {
-            if (!prevState) return null;
-            const newSeries = generateVixSeries(prevState.value, 'choppy');
-            const newState = { ...prevState, series: newSeries };
-            if (typeof window !== "undefined") {
-                localStorage.setItem(VIX_STATE_CACHE_KEY, JSON.stringify(newState));
-            }
-            return newState;
-        });
+        if (typeof window === "undefined") return;
+        const currentStateString = localStorage.getItem(VIX_STATE_CACHE_KEY);
+        const currentState = currentStateString ? JSON.parse(currentStateString) : generateDefaultState();
+        
+        const newSeries = generateVixSeries(currentState.value, 'choppy');
+        const newState = { ...currentState, series: newSeries };
+        
+        localStorage.setItem(VIX_STATE_CACHE_KEY, JSON.stringify(newState));
+        window.dispatchEvent(new StorageEvent('storage', {
+            key: VIX_STATE_CACHE_KEY,
+            newValue: JSON.stringify(newState),
+        }));
+        setVixState(newState);
     }, []);
 
     useEffect(() => {
         loadVixState();
         
         const handleStorageChange = (e: StorageEvent) => {
-            if (e.key === VIX_STATE_CACHE_KEY || e.key === "ec_vix_override") {
+            if (e.key === VIX_STATE_CACHE_KEY || e.key === "ec_vix_override" || e.key === 'ec_demo_scenario') {
                 loadVixState();
             }
         };

@@ -159,35 +159,6 @@ function VixSimulationControls({ vixState, updateVixValue, generateChoppyDay }: 
     );
 }
 
-function RegimeShiftBanner({ previous, current, onDismiss }: { previous: VixZone; current: VixZone; onDismiss: () => void; }) {
-    const shiftKey = `${previous}_${current}`;
-    const info = regimeShiftInfo[shiftKey];
-
-    if (!info) return null;
-    
-    const isWorsening = ["Normal_Volatile", "Volatile_High Volatility", "High Volatility_Extreme"].includes(shiftKey);
-
-    return (
-        <Alert variant={isWorsening ? "destructive" : "default"} className={cn(isWorsening ? "bg-amber-950/70 border-amber-500/30 text-amber-300" : "bg-blue-950/70 border-blue-500/30 text-blue-300")}>
-            <AlertTriangle className={cn("h-4 w-4", isWorsening ? "text-amber-400" : "text-blue-400")} />
-            <div className="flex justify-between items-start">
-                <div>
-                    <AlertTitle className={cn(isWorsening ? "text-amber-400" : "text-blue-400")}>
-                        Regime Shift: {previous} → {current}
-                    </AlertTitle>
-                    <AlertDescription className="mt-1">
-                        <strong>What it means:</strong> {info.meaning} <br />
-                        <strong>Suggested action:</strong> {info.action}
-                    </AlertDescription>
-                </div>
-                <Button variant="ghost" size="icon" className="h-6 w-6 -mr-2 -mt-1" onClick={onDismiss}>
-                    <X className="h-4 w-4" />
-                </Button>
-            </div>
-        </Alert>
-    )
-}
-
 const HeatStrip = ({ data }: { data: { value: number }[] }) => {
     const getBlockColor = (value: number) => {
         if (value <= 20) return 'bg-green-500/50';
@@ -464,6 +435,34 @@ function LearningStrip({ zone, onVideoClick }: { zone: VixZone; onVideoClick: ()
         </Card>
     );
 }
+
+function VixGauge({ value, zone }: { value: number, zone: VixZone }) {
+    const fromColor = 
+        zone === 'Extremely Calm' || zone === 'Normal' ? 'hsl(var(--chart-2))' :
+        zone === 'Volatile' ? 'hsl(var(--chart-4))' :
+        zone === 'High Volatility' ? 'hsl(var(--chart-1))' :
+        'hsl(var(--chart-5))';
+
+    const conicGradient = `conic-gradient(${fromColor} 0deg, ${fromColor} calc(${value} / 100 * 180deg), hsl(var(--muted)) calc(${value} / 100 * 180deg), hsl(var(--muted)) 180deg)`;
+
+    return (
+        <div
+            className="relative flex items-end justify-center w-full h-32 rounded-t-full overflow-hidden"
+            style={{ background: conicGradient }}
+        >
+            <div className="absolute w-[85%] h-[85%] bg-muted/80 backdrop-blur-sm rounded-t-full top-auto bottom-0" />
+            <div className="relative flex flex-col items-center justify-center z-10 pb-4">
+                <p className="text-5xl font-bold font-mono text-foreground">{Math.round(value)}</p>
+                <p className={cn("font-semibold text-lg",
+                    (zone === 'Extremely Calm' || zone === 'Normal') && 'text-green-400',
+                    zone === 'Volatile' && 'text-yellow-400',
+                    zone === 'High Volatility' && 'text-orange-400',
+                    zone === 'Extreme' && 'text-red-400'
+                )}>{zone}</p>
+            </div>
+        </div>
+    );
+};
 
 export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
     const { vixState, isLoading, updateVixValue, generateChoppyDay } = useVixState();
@@ -754,7 +753,7 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                                             <Info className="h-3 w-3" />
                                             My VIX Tolerance (Prototype)
                                         </Label>
-                                        <Select value={sensitivity} onValueChange={handleSensitivityChange}>
+                                        <Select value={sensitivity} onValueChange={handleSensitivityChange as any}>
                                             <SelectTrigger className="h-8 text-xs">
                                                 <SelectValue />
                                             </SelectTrigger>
@@ -916,32 +915,3 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
         </div>
     );
 }
-
-function VixGauge({ value, zone }: { value: number, zone: VixZone }) {
-    const fromColor = 
-        zone === 'Extremely Calm' || zone === 'Normal' ? 'hsl(var(--chart-2))' :
-        zone === 'Volatile' ? 'hsl(var(--chart-4))' :
-        zone === 'High Volatility' ? 'hsl(var(--chart-1))' :
-        'hsl(var(--chart-5))';
-
-    const conicGradient = `conic-gradient(${fromColor} 0deg, ${fromColor} calc(${value} / 100 * 180deg), hsl(var(--muted)) calc(${value} / 100 * 180deg), hsl(var(--muted)) 180deg)`;
-
-    return (
-        <div
-            className="relative flex items-end justify-center w-full h-32 rounded-t-full overflow-hidden"
-            style={{ background: conicGradient }}
-        >
-            <div className="absolute w-[85%] h-[85%] bg-muted/80 backdrop-blur-sm rounded-t-full top-auto bottom-0" />
-            <div className="relative flex flex-col items-center justify-center z-10 pb-4">
-                <p className="text-5xl font-bold font-mono text-foreground">{Math.round(value)}</p>
-                <p className={cn("font-semibold text-lg",
-                    (zone === 'Extremely Calm' || zone === 'Normal') && 'text-green-400',
-                    zone === 'Volatile' && 'text-yellow-400',
-                    zone === 'High Volatility' && 'text-orange-400',
-                    zone === 'Extreme' && 'text-red-400'
-                )}>{zone}</p>
-            </div>
-        </div>
-    );
-};
-

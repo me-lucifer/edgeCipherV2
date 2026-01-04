@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import {
@@ -22,6 +23,7 @@ import { useEventLog } from "@/context/event-log-provider"
 import { useToast } from "@/hooks/use-toast"
 import { format } from "date-fns"
 import type { RiskEvent } from "@/hooks/use-risk-state"
+import { useVixState } from "@/hooks/use-vix-state"
 
 
 const themes: { name: string, id: Theme, color: string }[] = [
@@ -93,23 +95,6 @@ const scenarios: ScenarioData[] = [
             { time: "11:32", description: "Revenge Risk Index is now 'High'.", level: 'yellow' },
         ]
     },
-    { 
-        id: "recovery_mode", 
-        name: "Recovery Mode", 
-        description: "In a drawdown, enforcing strict risk rules.", 
-        icon: User,
-        vixValue: 55,
-        lossStreak: 3,
-        tradesExecuted: 3,
-        overrideCount: 1,
-        recoveryMode: true,
-        growthPlan: ["Focus on capital preservation, not making back losses.", "Strictly adhere to Recovery Mode risk limits.", "Journal every thought before entering a trade."],
-        riskEvents: [
-            { time: "09:45", description: "Loss streak limit of 3 reached. Recovery Mode is now recommended.", level: 'red' },
-            { time: "09:50", description: "Recovery Mode enabled by user.", level: 'green' },
-            { time: "10:15", description: "Execution blocked: Risk per trade exceeds Recovery Mode limit.", level: 'red' },
-        ]
-    },
 ];
 
 const chartModes: { id: ChartMarketMode, label: string, description: string, icon: React.ElementType }[] = [
@@ -125,6 +110,7 @@ export function DemoControls() {
     const [marketMode, setMarketMode] = useState<ChartMarketMode>('trend');
     const { toast } = useToast();
     const { addLog } = useEventLog();
+    const { updateVixValue } = useVixState();
     
     useEffect(() => {
         if (typeof window !== "undefined") {
@@ -147,15 +133,20 @@ export function DemoControls() {
         const scenarioData = scenarios.find(s => s.id === newScenarioId);
         if (!scenarioData) return;
 
-        // 1. Update primary scenario ID
         localStorage.setItem('ec_demo_scenario', scenarioData.id);
         
-        // 2. Update dependent localStorage values
-        localStorage.setItem('ec_vix_override', String(scenarioData.vixValue));
+        // Use the centralized VIX update function
+        if (updateVixValue) {
+            updateVixValue(scenarioData.vixValue);
+        } else {
+            // Fallback for safety, though updateVixValue should always be available
+            localStorage.setItem('ec_vix_override', String(scenarioData.vixValue));
+            dispatchStorageEvent('ec_vix_override', String(scenarioData.vixValue));
+        }
+        
         localStorage.setItem('ec_growth_plan_today', JSON.stringify(scenarioData.growthPlan));
         localStorage.setItem('ec_risk_events_today', JSON.stringify(scenarioData.riskEvents));
         localStorage.setItem('ec_recovery_mode', String(!!scenarioData.recoveryMode));
-
 
         const todayKey = format(new Date(), 'yyyy-MM-dd');
         const allCounters = JSON.parse(localStorage.getItem("ec_daily_counters") || '{}');
@@ -168,12 +159,9 @@ export function DemoControls() {
         };
         localStorage.setItem("ec_daily_counters", JSON.stringify(allCounters));
         
-        // Reset simulation PnL when scenario changes
         localStorage.removeItem("ec_simulated_pnl_today");
 
-        // Manually dispatch storage events to ensure all hooks react
         dispatchStorageEvent('ec_demo_scenario', scenarioData.id);
-        dispatchStorageEvent('ec_vix_override', String(scenarioData.vixValue));
         dispatchStorageEvent('ec_daily_counters', JSON.stringify(allCounters));
         dispatchStorageEvent('ec_recovery_mode', String(!!scenarioData.recoveryMode));
         dispatchStorageEvent('ec_simulated_pnl_today', null);
@@ -184,7 +172,7 @@ export function DemoControls() {
             title: "Scenario Changed",
             description: `Switched to "${scenarioData.name}" scenario.`
         });
-    }, [addLog, toast]);
+    }, [addLog, toast, updateVixValue]);
 
     const handleMarketModeChange = (newMarketMode: string) => {
         const mode = newMarketMode as ChartMarketMode;
@@ -334,5 +322,3 @@ export function DemoControls() {
         </div>
     )
 }
-
-    
