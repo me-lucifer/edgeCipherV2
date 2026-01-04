@@ -6,7 +6,7 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Bot, LineChart, Gauge, TrendingUp, TrendingDown, Info, AlertTriangle, SlidersHorizontal, Flame, Droplets, Newspaper, Sparkles, ArrowRight, X, BarChartHorizontal, Timer, Calendar, ChevronRight, User, BookOpen, BarChart as BarChartIcon, Scale, PlayCircle } from "lucide-react";
+import { Bot, LineChart, Gauge, TrendingUp, TrendingDown, Info, AlertTriangle, SlidersHorizontal, Flame, Droplets, Newspaper, Sparkles, ArrowRight, X, BarChartHorizontal, Timer, Calendar, ChevronRight, User, BookOpen, BarChart as BarChartIcon, Scale, PlayCircle, LayoutDashboard, FileText, ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Line, ResponsiveContainer, CartesianGrid, XAxis, YAxis, ComposedChart, ReferenceLine, ReferenceDot } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "./ui/chart";
@@ -464,6 +464,45 @@ function VixGauge({ value, zone }: { value: number, zone: VixZone }) {
     );
 };
 
+function HowVixIsUsed({ onSetModule }: { onSetModule: (module: any, context?: any) => void }) {
+    const usedBy = [
+        { id: "dashboard", icon: LayoutDashboard, title: "Dashboard", description: "Provides at-a-glance market context for your day." },
+        { id: "riskCenter", icon: ShieldAlert, title: "Risk Center", description: "A primary input for your daily trading decision." },
+        { id: "tradePlanning", icon: FileText, title: "Trade Planning", description: "Triggers guardrails and influences rule validation." },
+        { id: "analytics", icon: BarChartIcon, title: "Analytics", description: "Helps you understand how you perform in different volatility regimes." },
+    ];
+
+    return (
+        <Card className="bg-muted/30 border-border/50">
+            <CardHeader>
+                <CardTitle>How VIX is Used in EdgeCipher</CardTitle>
+                <CardDescription>
+                    Crypto VIX is a core signal that connects multiple modules to help you adapt to changing market conditions.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="grid md:grid-cols-2 gap-4">
+                {usedBy.map(item => (
+                    <Card
+                        key={item.id}
+                        className="bg-muted/50 border-border/50 cursor-pointer hover:border-primary/40 hover:bg-muted"
+                        onClick={() => onSetModule(item.id)}
+                    >
+                        <CardHeader className="flex-row items-center gap-4">
+                            <item.icon className="h-6 w-6 text-primary flex-shrink-0" />
+                            <div>
+                                <CardTitle className="text-base">{item.title}</CardTitle>
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                             <p className="text-xs text-muted-foreground">{item.description}</p>
+                        </CardContent>
+                    </Card>
+                ))}
+            </CardContent>
+        </Card>
+    );
+}
+
 export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
     const { vixState, isLoading, updateVixValue, generateChoppyDay } = useVixState();
     const [timeRange, setTimeRange] = useState<'24H' | '7D'>('24H');
@@ -599,7 +638,9 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                 </p>
             </div>
             
-             {isExtremeZone ? (
+            <HowVixIsUsed onSetModule={onSetModule} />
+
+            {isExtremeZone ? (
                 <Card className="bg-red-950/80 border-2 border-red-500/50 text-center py-12">
                     <CardHeader>
                         <AlertTriangle className="h-16 w-16 text-red-400 mx-auto" />
