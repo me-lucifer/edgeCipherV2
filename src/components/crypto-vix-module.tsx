@@ -1,10 +1,11 @@
 
+
       "use client";
 
 import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Bot, LineChart, Gauge, TrendingUp, TrendingDown, Info, AlertTriangle, SlidersHorizontal, Flame, Droplets, Newspaper, Sparkles, ArrowRight, X, BarChartHorizontal, Timer, Calendar, ChevronRight, User } from "lucide-react";
+import { Bot, LineChart, Gauge, TrendingUp, TrendingDown, Info, AlertTriangle, SlidersHorizontal, Flame, Droplets, Newspaper, Sparkles, ArrowRight, X, BarChartHorizontal, Timer, Calendar, ChevronRight, User, BookOpen, BarChart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Line, ResponsiveContainer, CartesianGrid, XAxis, YAxis, ComposedChart, ReferenceLine, ReferenceDot } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "./ui/chart";
@@ -428,38 +429,7 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
     const { value: currentVix, zoneLabel: currentZone, updatedAt, components } = vixState;
     const posture = persona ? postureSuggestions[currentZone]?.[persona] : null;
     const isStrictMode = currentVix >= 61;
-
-    const VixGauge = ({ value, zone }: { value: number, zone: string }) => {
-        const colorConfig: Record<string, string> = {
-            "Extremely Calm": 'bg-green-500',
-            "Normal": 'bg-green-500',
-            "Volatile": 'bg-yellow-500',
-            "High Volatility": 'bg-orange-500',
-            "Extreme": 'bg-red-500',
-        };
-        
-        const colorClass = colorConfig[zone] || 'bg-foreground';
-        
-        const conicGradient = `conic-gradient(var(--tw-gradient-from) 0deg, var(--tw-gradient-from) calc(${value} / 100 * 180deg), hsl(var(--muted)) calc(${value} / 100 * 180deg), hsl(var(--muted)) 180deg)`;
-
-        return (
-             <div 
-                className={cn("relative flex items-center justify-center w-full h-48 rounded-t-full from-green-500 overflow-hidden", colorClass)}
-                style={{ background: conicGradient }}
-            >
-                 <div className="absolute w-[85%] h-[85%] bg-muted/80 backdrop-blur-sm rounded-t-full top-auto bottom-0" />
-                 <div className="relative flex flex-col items-center justify-center z-10 pt-12">
-                    <p className="text-7xl font-bold font-mono text-foreground">{Math.round(value)}</p>
-                    <p className={cn("font-semibold text-lg", 
-                        (zone === 'Extremely Calm' || zone === 'Normal') && 'text-green-400',
-                        zone === 'Volatile' && 'text-yellow-400',
-                        zone === 'High Volatility' && 'text-orange-400',
-                        zone === 'Extreme' && 'text-red-400',
-                    )}>{zone}</p>
-                </div>
-            </div>
-        );
-    };
+    const isExtremeZone = currentZone === 'Extreme';
         
     const chartKey = timeRange === '24H' ? 'hour' : 'day';
 
@@ -472,250 +442,304 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                 </p>
             </div>
             
-            <div className="grid lg:grid-cols-3 gap-8 items-start">
-                {/* Main Content */}
-                <div className="lg:col-span-2 space-y-8">
-                    {regimeShift && (
-                        <RegimeShiftBanner 
-                            previous={regimeShift.previous} 
-                            current={regimeShift.current} 
-                            onDismiss={handleDismissRegimeShift} 
-                        />
-                    )}
-                    {isStrictMode && (
-                         <Alert variant="destructive" className="bg-red-950/70 border-red-500/30 text-red-300">
-                            <AlertTriangle className="h-4 w-4 text-red-400" />
-                            <AlertTitle className="text-red-400">
-                                Arjun is in Strict Mode
-                            </AlertTitle>
-                            <AlertDescription>
-                                Higher volatility → stricter risk and discipline enforcement.
-                            </AlertDescription>
-                        </Alert>
-                    )}
-                    <Card className="bg-muted/30 border-border/50">
-                        <CardHeader>
-                            <CardTitle>Volatility Barometer</CardTitle>
-                             <CardDescription>Updated: {formatDistanceToNow(new Date(updatedAt), { addSuffix: true })} (prototype)</CardDescription>
-                        </CardHeader>
-                        <CardContent className="grid md:grid-cols-2 gap-8 items-center">
-                             <div className="flex flex-col items-center justify-center">
-                                <VixGauge value={currentVix} zone={currentZone} />
-                                <div className="text-center mt-4">
-                                     <TooltipProvider>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <p className="text-xs text-muted-foreground italic flex items-center gap-1.5 cursor-help">
-                                                    <Bot className="h-3 w-3" />
-                                                    Arjun uses Crypto VIX to adjust coaching strictness and risk recommendations.
-                                                </p>
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>This is a proprietary EdgeCipher volatility score (not stock market VIX).</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
-                                </div>
-                            </div>
-                            <div className="space-y-4">
-                                <Card className="bg-muted/50 border-border/50">
-                                    <CardHeader className="pb-2">
-                                        <CardTitle className="text-base flex items-center gap-2"><Timer className="h-4 w-4" /> Current vs. Averages</CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="space-y-2">
-                                        <SummaryRow label="Current VIX" value={currentVix.toFixed(1)} valueClass={currentVix > avg24h ? 'text-amber-400' : 'text-green-400'} />
-                                        <SummaryRow label="24H Average" value={avg24h.toFixed(1)} />
-                                        <SummaryRow label="7D Average" value={avg7d.toFixed(1)} />
-                                        <SummaryRow label="24H Range" value={`${low24h.toFixed(1)} – ${high24h.toFixed(1)}`} />
-                                    </CardContent>
-                                </Card>
-                               <Card className="bg-primary/10 border-primary/20">
-                                    <CardHeader>
-                                        <CardTitle className="text-base flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary" /> Suggested Posture</CardTitle>
-                                         {!persona && (
-                                            <CardDescription className="text-xs">Select a persona to get personalized advice.</CardDescription>
-                                        )}
-                                    </CardHeader>
-                                    <CardContent className="space-y-3">
-                                        {!persona ? (
-                                            <Select onValueChange={(value) => handlePersonaChange(value as PersonaType)}>
-                                                <SelectTrigger className="w-[220px]">
-                                                    <SelectValue placeholder="Select Persona (Prototype)" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="Impulsive Sprinter">Impulsive Sprinter</SelectItem>
-                                                    <SelectItem value="Fearful Analyst">Fearful Analyst</SelectItem>
-                                                    <SelectItem value="Disciplined Scalper">Disciplined Scalper</SelectItem>
-                                                    <SelectItem value="Beginner">Beginner</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        ) : posture ? (
-                                            <>
-                                                <div className="flex justify-between items-center">
-                                                    <p className="font-semibold text-primary">{posture.title}</p>
-                                                    <Select value={persona} onValueChange={(value) => handlePersonaChange(value as PersonaType)}>
-                                                        <SelectTrigger className="w-[180px] h-8 text-xs">
-                                                            <SelectValue />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="Impulsive Sprinter">Impulsive Sprinter</SelectItem>
-                                                            <SelectItem value="Fearful Analyst">Fearful Analyst</SelectItem>
-                                                            <SelectItem value="Disciplined Scalper">Disciplined Scalper</SelectItem>
-                                                            <SelectItem value="Beginner">Beginner</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
-
-                                                <p className="text-sm text-primary/90 italic"><strong>Rule for today:</strong> "{posture.rule}"</p>
-                                                <div className="flex flex-wrap gap-2">
-                                                    {posture.actions.map((action, i) => (
-                                                        <Button key={i} variant="outline" size="sm" className="text-xs h-7" onClick={() => action.module && onSetModule(action.module, action.context)}>
-                                                            {action.label}
-                                                            {action.module && <ArrowRight className="ml-2 h-3 w-3" />}
-                                                        </Button>
-                                                    ))}
-                                                </div>
-                                                <div className="pt-2">
-                                                    <Button variant="link" size="sm" className="p-0 h-auto text-primary/90" onClick={askArjun}>
-                                                        Discuss this with Arjun <ArrowRight className="ml-2 h-4 w-4" />
-                                                    </Button>
-                                                </div>
-                                            </>
-                                        ) : <p className="text-sm text-muted-foreground">Could not load suggestions.</p>}
-                                    </CardContent>
-                               </Card>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="bg-muted/30 border-border/50">
-                        <CardHeader>
-                             <div className="flex items-center justify-between">
-                                <CardTitle>{timeRange === '24H' ? '24-Hour' : '7-Day'} Volatility Trend</CardTitle>
-                                <div className="flex items-center gap-1 rounded-full bg-muted p-1">
-                                    <Button
-                                        size="sm"
-                                        variant={timeRange === '24H' ? 'secondary' : 'ghost'}
-                                        onClick={() => setTimeRange('24H')}
-                                        className="rounded-full h-8 px-3 text-xs"
-                                    >
-                                        24H
-                                    </Button>
-                                    <Button
-                                        size="sm"
-                                        variant={timeRange === '7D' ? 'secondary' : 'ghost'}
-                                        onClick={() => setTimeRange('7D')}
-                                        className="rounded-full h-8 px-3 text-xs"
-                                    >
-                                        7D
-                                    </Button>
-                                </div>
-                            </div>
-                            <CardDescription>How today's volatility compares to the recent past.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                             <ChartContainer config={{value: {color: "hsl(var(--primary))"}}} className="h-64 w-full">
-                                <ResponsiveContainer>
-                                    <ComposedChart data={chartData}>
-                                        <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50"/>
-                                        <XAxis dataKey={chartKey} tick={{fontSize: 12}} />
-                                        <YAxis domain={[0, 100]} tick={{fontSize: 12}}/>
-                                        <ChartTooltip content={<ChartTooltipContent indicator="line" formatter={(value, name, props) => {
-                                            if (props.payload.spike === 'up') return <span className='font-semibold'>Volatility Spike</span>
-                                            if (props.payload.spike === 'down') return <span className='font-semibold'>Volatility Cooldown</span>
-                                            return <span className='font-mono'>{Number(value).toFixed(1)}</span>
-                                        }} />} />
-                                        <ReferenceLine y={20} stroke="hsl(var(--chart-2))" strokeOpacity={0.3} strokeDasharray="3 3" />
-                                        <ReferenceLine y={40} stroke="hsl(var(--chart-2))" strokeOpacity={0.3} strokeDasharray="3 3" />
-                                        <ReferenceLine y={60} stroke="hsl(var(--chart-4))" strokeOpacity={0.3} strokeDasharray="3 3" />
-                                        <ReferenceLine y={80} stroke="hsl(var(--chart-5))" strokeOpacity={0.3} strokeDasharray="3 3" />
-                                        <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} name="VIX" />
-                                         {chartData.map((point, index) => {
-                                            if (point.spike) {
-                                                return (
-                                                    <ReferenceDot
-                                                        key={index}
-                                                        x={point[chartKey as keyof typeof point]}
-                                                        y={point.value}
-                                                        r={5}
-                                                        fill={point.spike === 'up' ? "hsl(var(--chart-5))" : "hsl(var(--chart-2))"}
-                                                        stroke="hsl(var(--background))"
-                                                        strokeWidth={2}
-                                                        isFront={true}
-                                                    />
-                                                );
-                                            }
-                                            return null;
-                                        })}
-                                    </ComposedChart>
-                                </ResponsiveContainer>
-                            </ChartContainer>
-                        </CardContent>
-                        <CardFooter className="flex-col items-start gap-4">
-                           <p className="text-xs text-muted-foreground">This chart shows the VIX value over the past {timeRange === '7D' ? '7 days' : '24 hours'}.</p>
-                           {timeRange === '24H' && <HeatStrip data={vixState.series.series24h} />}
-                        </CardFooter>
-                    </Card>
-
-                    <KeyEventsTimeline chartData={chartData} onSetModule={onSetModule} />
-
-                    {driverTrendData && (
+             {isExtremeZone ? (
+                <Card className="bg-red-950/80 border-2 border-red-500/50 text-center py-12">
+                    <CardHeader>
+                        <AlertTriangle className="h-16 w-16 text-red-400 mx-auto" />
+                        <CardTitle className="text-4xl text-red-300 mt-4">Extreme Volatility: Do Not Trade</CardTitle>
+                        <CardDescription className="text-red-300/80 text-base">
+                            Market conditions are dangerously unpredictable. Arjun's analysis is now focused on capital protection, not profit generation.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="mt-6">
+                        <h4 className="font-semibold text-foreground mb-4">Recommended Actions:</h4>
+                        <div className="flex flex-wrap justify-center gap-4">
+                            <Button variant="outline" className="bg-red-500/10 border-red-500/30 text-red-300 hover:bg-red-500/20" onClick={() => onSetModule('tradeJournal')}>
+                                <BookOpen className="mr-2 h-4 w-4" /> Open Journal
+                            </Button>
+                             <Button variant="outline" className="bg-red-500/10 border-red-500/30 text-red-300 hover:bg-red-500/20" onClick={() => onSetModule('analytics')}>
+                                <BarChart className="mr-2 h-4 w-4" /> Review Analytics
+                            </Button>
+                            <Button variant="ghost" className="text-muted-foreground" onClick={() => onSetModule('tradePlanning')}>
+                                Plan for later (read-only)
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+            ) : (
+                <div className="grid lg:grid-cols-3 gap-8 items-start">
+                    {/* Main Content */}
+                    <div className="lg:col-span-2 space-y-8">
+                        {regimeShift && (
+                            <RegimeShiftBanner 
+                                previous={regimeShift.previous} 
+                                current={regimeShift.current} 
+                                onDismiss={handleDismissRegimeShift} 
+                            />
+                        )}
+                        {isStrictMode && (
+                             <Alert variant="destructive" className="bg-red-950/70 border-red-500/30 text-red-300">
+                                <AlertTriangle className="h-4 w-4 text-red-400" />
+                                <AlertTitle className="text-red-400">
+                                    Arjun is in Strict Mode
+                                </AlertTitle>
+                                <AlertDescription>
+                                    Higher volatility → stricter risk and discipline enforcement.
+                                </AlertDescription>
+                            </Alert>
+                        )}
                         <Card className="bg-muted/30 border-border/50">
                             <CardHeader>
-                                <CardTitle>Driver Trends (Prototype)</CardTitle>
-                                <CardDescription>How each component of the VIX has behaved over the period.</CardDescription>
+                                <CardTitle>Volatility Barometer</CardTitle>
+                                 <CardDescription>Updated: {formatDistanceToNow(new Date(updatedAt), { addSuffix: true })} (prototype)</CardDescription>
                             </CardHeader>
-                            <CardContent className="space-y-4">
-                                <DriverTrendChart data={driverTrendData.btcVol} name="BTC Volatility" color="hsl(var(--chart-1))" />
-                                <DriverTrendChart data={driverTrendData.ethVol} name="ETH Volatility" color="hsl(var(--chart-2))" />
-                                <DriverTrendChart data={driverTrendData.fundingPressure} name="Funding Pressure" color="hsl(var(--chart-3))" />
-                                <DriverTrendChart data={driverTrendData.liquidationSpike} name="Liquidation Spikes" color="hsl(var(--chart-5))" />
+                            <CardContent className="grid md:grid-cols-2 gap-8 items-center">
+                                 <div className="flex flex-col items-center justify-center">
+                                    <VixGauge value={currentVix} zone={currentZone} />
+                                    <div className="text-center mt-4">
+                                         <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <p className="text-xs text-muted-foreground italic flex items-center gap-1.5 cursor-help">
+                                                        <Bot className="h-3 w-3" />
+                                                        Arjun uses Crypto VIX to adjust coaching strictness and risk recommendations.
+                                                    </p>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>This is a proprietary EdgeCipher volatility score (not stock market VIX).</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    </div>
+                                </div>
+                                <div className="space-y-4">
+                                    <Card className="bg-muted/50 border-border/50">
+                                        <CardHeader className="pb-2">
+                                            <CardTitle className="text-base flex items-center gap-2"><Timer className="h-4 w-4" /> Current vs. Averages</CardTitle>
+                                        </CardHeader>
+                                        <CardContent className="space-y-2">
+                                            <SummaryRow label="Current VIX" value={currentVix.toFixed(1)} valueClass={currentVix > avg24h ? 'text-amber-400' : 'text-green-400'} />
+                                            <SummaryRow label="24H Average" value={avg24h.toFixed(1)} />
+                                            <SummaryRow label="7D Average" value={avg7d.toFixed(1)} />
+                                            <SummaryRow label="24H Range" value={`${low24h.toFixed(1)} – ${high24h.toFixed(1)}`} />
+                                        </CardContent>
+                                    </Card>
+                                   <Card className="bg-primary/10 border-primary/20">
+                                        <CardHeader>
+                                            <CardTitle className="text-base flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary" /> Suggested Posture</CardTitle>
+                                             {!persona && (
+                                                <CardDescription className="text-xs">Select a persona to get personalized advice.</CardDescription>
+                                            )}
+                                        </CardHeader>
+                                        <CardContent className="space-y-3">
+                                            {!persona ? (
+                                                <Select onValueChange={(value) => handlePersonaChange(value as PersonaType)}>
+                                                    <SelectTrigger className="w-[220px]">
+                                                        <SelectValue placeholder="Select Persona (Prototype)" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="Impulsive Sprinter">Impulsive Sprinter</SelectItem>
+                                                        <SelectItem value="Fearful Analyst">Fearful Analyst</SelectItem>
+                                                        <SelectItem value="Disciplined Scalper">Disciplined Scalper</SelectItem>
+                                                        <SelectItem value="Beginner">Beginner</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            ) : posture ? (
+                                                <>
+                                                    <div className="flex justify-between items-center">
+                                                        <p className="font-semibold text-primary">{posture.title}</p>
+                                                        <Select value={persona} onValueChange={(value) => handlePersonaChange(value as PersonaType)}>
+                                                            <SelectTrigger className="w-[180px] h-8 text-xs">
+                                                                <SelectValue />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="Impulsive Sprinter">Impulsive Sprinter</SelectItem>
+                                                                <SelectItem value="Fearful Analyst">Fearful Analyst</SelectItem>
+                                                                <SelectItem value="Disciplined Scalper">Disciplined Scalper</SelectItem>
+                                                                <SelectItem value="Beginner">Beginner</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+
+                                                    <p className="text-sm text-primary/90 italic"><strong>Rule for today:</strong> "{posture.rule}"</p>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {posture.actions.map((action, i) => (
+                                                            <Button key={i} variant="outline" size="sm" className="text-xs h-7" onClick={() => action.module && onSetModule(action.module, action.context)}>
+                                                                {action.label}
+                                                                {action.module && <ArrowRight className="ml-2 h-3 w-3" />}
+                                                            </Button>
+                                                        ))}
+                                                    </div>
+                                                    <div className="pt-2">
+                                                        <Button variant="link" size="sm" className="p-0 h-auto text-primary/90" onClick={askArjun}>
+                                                            Discuss this with Arjun <ArrowRight className="ml-2 h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                </>
+                                            ) : <p className="text-sm text-muted-foreground">Could not load suggestions.</p>}
+                                        </CardContent>
+                                   </Card>
+                                </div>
                             </CardContent>
                         </Card>
-                    )}
+
+                        <Card className="bg-muted/30 border-border/50">
+                            <CardHeader>
+                                 <div className="flex items-center justify-between">
+                                    <CardTitle>{timeRange === '24H' ? '24-Hour' : '7-Day'} Volatility Trend</CardTitle>
+                                    <div className="flex items-center gap-1 rounded-full bg-muted p-1">
+                                        <Button
+                                            size="sm"
+                                            variant={timeRange === '24H' ? 'secondary' : 'ghost'}
+                                            onClick={() => setTimeRange('24H')}
+                                            className="rounded-full h-8 px-3 text-xs"
+                                        >
+                                            24H
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant={timeRange === '7D' ? 'secondary' : 'ghost'}
+                                            onClick={() => setTimeRange('7D')}
+                                            className="rounded-full h-8 px-3 text-xs"
+                                        >
+                                            7D
+                                        </Button>
+                                    </div>
+                                </div>
+                                <CardDescription>How today's volatility compares to the recent past.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                 <ChartContainer config={{value: {color: "hsl(var(--primary))"}}} className="h-64 w-full">
+                                    <ResponsiveContainer>
+                                        <ComposedChart data={chartData}>
+                                            <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50"/>
+                                            <XAxis dataKey={chartKey} tick={{fontSize: 12}} />
+                                            <YAxis domain={[0, 100]} tick={{fontSize: 12}}/>
+                                            <ChartTooltip content={<ChartTooltipContent indicator="line" formatter={(value, name, props) => {
+                                                if (props.payload.spike === 'up') return <span className='font-semibold'>Volatility Spike</span>
+                                                if (props.payload.spike === 'down') return <span className='font-semibold'>Volatility Cooldown</span>
+                                                return <span className='font-mono'>{Number(value).toFixed(1)}</span>
+                                            }} />} />
+                                            <ReferenceLine y={20} stroke="hsl(var(--chart-2))" strokeOpacity={0.3} strokeDasharray="3 3" />
+                                            <ReferenceLine y={40} stroke="hsl(var(--chart-2))" strokeOpacity={0.3} strokeDasharray="3 3" />
+                                            <ReferenceLine y={60} stroke="hsl(var(--chart-4))" strokeOpacity={0.3} strokeDasharray="3 3" />
+                                            <ReferenceLine y={80} stroke="hsl(var(--chart-5))" strokeOpacity={0.3} strokeDasharray="3 3" />
+                                            <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} name="VIX" />
+                                             {chartData.map((point, index) => {
+                                                if (point.spike) {
+                                                    return (
+                                                        <ReferenceDot
+                                                            key={index}
+                                                            x={point[chartKey as keyof typeof point]}
+                                                            y={point.value}
+                                                            r={5}
+                                                            fill={point.spike === 'up' ? "hsl(var(--chart-5))" : "hsl(var(--chart-2))"}
+                                                            stroke="hsl(var(--background))"
+                                                            strokeWidth={2}
+                                                            isFront={true}
+                                                        />
+                                                    );
+                                                }
+                                                return null;
+                                            })}
+                                        </ComposedChart>
+                                    </ResponsiveContainer>
+                                </ChartContainer>
+                            </CardContent>
+                            <CardFooter className="flex-col items-start gap-4">
+                               <p className="text-xs text-muted-foreground">This chart shows the VIX value over the past {timeRange === '7D' ? '7 days' : '24 hours'}.</p>
+                               {timeRange === '24H' && <HeatStrip data={vixState.series.series24h} />}
+                            </CardFooter>
+                        </Card>
+
+                        <KeyEventsTimeline chartData={chartData} onSetModule={onSetModule} />
+
+                        {driverTrendData && (
+                            <Card className="bg-muted/30 border-border/50">
+                                <CardHeader>
+                                    <CardTitle>Driver Trends (Prototype)</CardTitle>
+                                    <CardDescription>How each component of the VIX has behaved over the period.</CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    <DriverTrendChart data={driverTrendData.btcVol} name="BTC Volatility" color="hsl(var(--chart-1))" />
+                                    <DriverTrendChart data={driverTrendData.ethVol} name="ETH Volatility" color="hsl(var(--chart-2))" />
+                                    <DriverTrendChart data={driverTrendData.fundingPressure} name="Funding Pressure" color="hsl(var(--chart-3))" />
+                                    <DriverTrendChart data={driverTrendData.liquidationSpike} name="Liquidation Spikes" color="hsl(var(--chart-5))" />
+                                </CardContent>
+                            </Card>
+                        )}
+                    </div>
+                    
+                    {/* Sidebar */}
+                    <div className="lg:col-span-1 space-y-8 sticky top-24">
+                        <VixSimulationControls vixState={vixState} updateVixValue={updateVixValue} generateChoppyDay={generateChoppyDay} />
+                        <Card className="bg-muted/30 border-border/50">
+                             <CardHeader>
+                                <CardTitle className="flex items-center gap-2"><Info className="h-5 w-5"/>How to Interpret Crypto VIX</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <Accordion type="single" collapsible className="w-full">
+                                    {zoneData.map(d => (
+                                        <AccordionItem value={d.zone} key={d.zone}>
+                                            <AccordionTrigger>
+                                                <span className="flex items-center gap-3">
+                                                    <div className={cn("w-3 h-3 rounded-full", d.color)} />
+                                                    <span className="font-semibold">{d.zone} ({d.range})</span>
+                                                </span>
+                                            </AccordionTrigger>
+                                            <AccordionContent className="space-y-3 pt-2">
+                                                <p className="text-sm text-muted-foreground italic">"{d.behavior}"</p>
+                                                <ul className="space-y-1 list-disc list-inside text-sm text-muted-foreground">
+                                                    {d.actions.map((action, i) => <li key={i}>{action}</li>)}
+                                                </ul>
+                                            </AccordionContent>
+                                        </AccordionItem>
+                                    ))}
+                                </Accordion>
+                            </CardContent>
+                        </Card>
+                        <Card className="bg-muted/30 border-primary/20">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2"><Bot className="h-5 w-5 text-primary"/> Ask Arjun</CardTitle>
+                            </CardHeader>
+                             <CardContent>
+                                <p className="text-sm text-muted-foreground mb-4">Get personalized advice on how your current strategies and risk profile should adapt to today's volatility.</p>
+                                 <Button variant="outline" className="w-full" onClick={askArjun}>
+                                    Ask Arjun how to adapt
+                                </Button>
+                            </CardContent>
+                        </Card>
+                    </div>
                 </div>
-                
-                {/* Sidebar */}
-                <div className="lg:col-span-1 space-y-8 sticky top-24">
-                    <VixSimulationControls vixState={vixState} updateVixValue={updateVixValue} generateChoppyDay={generateChoppyDay} />
-                    <Card className="bg-muted/30 border-border/50">
-                         <CardHeader>
-                            <CardTitle className="flex items-center gap-2"><Info className="h-5 w-5"/>How to Interpret Crypto VIX</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <Accordion type="single" collapsible className="w-full">
-                                {zoneData.map(d => (
-                                    <AccordionItem value={d.zone} key={d.zone}>
-                                        <AccordionTrigger>
-                                            <span className="flex items-center gap-3">
-                                                <div className={cn("w-3 h-3 rounded-full", d.color)} />
-                                                <span className="font-semibold">{d.zone} ({d.range})</span>
-                                            </span>
-                                        </AccordionTrigger>
-                                        <AccordionContent className="space-y-3 pt-2">
-                                            <p className="text-sm text-muted-foreground italic">"{d.behavior}"</p>
-                                            <ul className="space-y-1 list-disc list-inside text-sm text-muted-foreground">
-                                                {d.actions.map((action, i) => <li key={i}>{action}</li>)}
-                                            </ul>
-                                        </AccordionContent>
-                                    </AccordionItem>
-                                ))}
-                            </Accordion>
-                        </CardContent>
-                    </Card>
-                    <Card className="bg-muted/30 border-primary/20">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2"><Bot className="h-5 w-5 text-primary"/> Ask Arjun</CardTitle>
-                        </CardHeader>
-                         <CardContent>
-                            <p className="text-sm text-muted-foreground mb-4">Get personalized advice on how your current strategies and risk profile should adapt to today's volatility.</p>
-                             <Button variant="outline" className="w-full" onClick={askArjun}>
-                                Ask Arjun how to adapt
-                            </Button>
-                        </CardContent>
-                    </Card>
-                </div>
-            </div>
+            )}
         </div>
     );
 }
+
+const VixGauge = ({ value, zone }: { value: number, zone: string }) => {
+    const fromColor = 
+        zone === 'Extremely Calm' || zone === 'Normal' ? 'hsl(var(--chart-2))' :
+        zone === 'Volatile' ? 'hsl(var(--chart-4))' :
+        zone === 'High Volatility' ? 'hsl(var(--chart-1))' :
+        'hsl(var(--chart-5))';
+
+    const conicGradient = `conic-gradient(${fromColor} 0deg, ${fromColor} calc(${value} / 100 * 180deg), hsl(var(--muted)) calc(${value} / 100 * 180deg), hsl(var(--muted)) 180deg)`;
+
+    return (
+        <div
+            className="relative flex items-end justify-center w-full h-32 rounded-t-full overflow-hidden"
+            style={{ background: conicGradient }}
+        >
+            <div className="absolute w-[85%] h-[85%] bg-muted/80 backdrop-blur-sm rounded-t-full top-auto bottom-0" />
+            <div className="relative flex flex-col items-center justify-center z-10 pb-4">
+                <p className="text-5xl font-bold font-mono text-foreground">{Math.round(value)}</p>
+                <p className={cn("font-semibold text-lg",
+                    (zone === 'Extremely Calm' || zone === 'Normal') && 'text-green-400',
+                    zone === 'Volatile' && 'text-yellow-400',
+                    zone === 'High Volatility' && 'text-orange-400',
+                    zone === 'Extreme' && 'text-red-400'
+                )}>{zone}</p>
+            </div>
+        </div>
+    );
+};

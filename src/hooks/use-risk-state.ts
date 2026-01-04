@@ -390,7 +390,7 @@ export function useRiskState() {
             
             // Apply sensitivity modifiers
             let vixYellowThreshold = 50;
-            let vixRedThreshold = 75;
+            let vixRedThreshold = 80; // Changed from 75 to 80 to match Extreme zone start
             let leverageWarnThreshold = 15;
             let leverageFailThreshold = 20;
 

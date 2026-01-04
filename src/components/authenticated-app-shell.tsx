@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -421,6 +422,8 @@ export function AuthenticatedAppShell() {
   const sequenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [showJournalLockout, setShowJournalLockout] = useState(false);
   const [pendingNav, setPendingNav] = useState<{ id: Module, context?: ModuleContext } | null>(null);
+  const [showRiskWarning, setShowRiskWarning] = useState(false);
+  const { riskState } = useRiskState();
 
   const { entries: journalEntries, updateEntry: updateJournalEntry } = useJournal();
   const pendingJournalCount = journalEntries.filter(e => e.status === 'pending').length;
@@ -500,23 +503,32 @@ export function AuthenticatedAppShell() {
   };
 
   const handleSetModule = (id: Module, context?: ModuleContext) => {
-    if (id === 'tradePlanning' && pendingJournalCount >= 3) {
-      setPendingNav({ id, context });
-      setShowJournalLockout(true);
-    } else {
-      navigateTo(id, context);
+    setPendingNav({ id, context });
+
+    if (id === 'tradePlanning') {
+      if (riskState?.decision.level === 'red') {
+        setShowRiskWarning(true);
+        return;
+      }
+      if (pendingJournalCount >= 3) {
+        setShowJournalLockout(true);
+        return;
+      }
     }
+    
+    navigateTo(id, context);
   }
 
   const handleOpenJournal = () => {
     handleSetModule('tradeJournal');
   }
   
-  const handleContinueToPlanning = () => {
+  const handleContinueAnyway = () => {
       if (pendingNav) {
           navigateTo(pendingNav.id, pendingNav.context);
       }
       setShowJournalLockout(false);
+      setShowRiskWarning(false);
       setPendingNav(null);
   };
 
@@ -532,8 +544,8 @@ export function AuthenticatedAppShell() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setPendingNav(null)}>Cancel</AlertDialogCancel>
-            <Button variant="outline" onClick={handleContinueToPlanning}>
-                Continue anyway (Prototype)
+            <Button variant="outline" onClick={handleContinueAnyway}>
+                Continue anyway
             </Button>
             <AlertDialogAction onClick={() => {
               setShowJournalLockout(false);
@@ -541,6 +553,22 @@ export function AuthenticatedAppShell() {
               navigateTo('tradeJournal');
             }}>
               Go to Journal
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={showRiskWarning} onOpenChange={setShowRiskWarning}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-destructive" />Risk Center is RED</AlertDialogTitle>
+            <AlertDialogDescription>
+              {riskState?.decision.reasons.join(' ')} The Risk Center recommends NO TRADING. Proceeding to planning is a rule override and will be logged.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPendingNav(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleContinueAnyway}>
+              I understand, proceed anyway
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
