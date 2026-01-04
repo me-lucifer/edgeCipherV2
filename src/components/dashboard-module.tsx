@@ -19,6 +19,7 @@ import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, XAx
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "./ui/chart";
 import { ModuleContext } from "./authenticated-app-shell";
 import { Alert, AlertTitle, AlertDescription } from "./ui/alert";
+import { useVixState } from "@/hooks/use-vix-state";
 
 interface Persona {
     primaryPersonaName?: string;
@@ -473,6 +474,58 @@ function NewsSnapshot({ onSetModule }: { onSetModule: (module: any, context?: Mo
         </Card>
     )
 }
+
+function VixWidget({ onSetModule }: { onSetModule: (module: any, context?: ModuleContext) => void }) {
+    const { vixState, isLoading } = useVixState();
+
+    if (isLoading || !vixState) {
+        return (
+            <Card className="bg-muted/30 border-border/50">
+                <CardHeader>
+                    <CardTitle className="text-base flex items-center gap-2">
+                        <Gauge className="h-5 w-5" />
+                        Crypto VIX
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <Skeleton className="h-8 w-1/2 mb-2" />
+                    <Skeleton className="h-4 w-1/3" />
+                </CardContent>
+            </Card>
+        );
+    }
+    
+    const { value, zoneLabel } = vixState;
+
+    const zoneConfig: Record<string, string> = {
+        "Extremely Calm": 'text-green-400',
+        "Normal": 'text-green-400',
+        "Volatile": 'text-yellow-400',
+        "High Volatility": 'text-orange-400',
+        "Extreme": 'text-red-400',
+    };
+
+    return (
+        <Card className="bg-muted/30 border-border/50 hover:bg-muted/50 hover:border-primary/20 transition-colors cursor-pointer" onClick={() => onSetModule('cryptoVix')}>
+            <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                    <Gauge className="h-5 w-5" />
+                    Crypto VIX
+                </CardTitle>
+            </CardHeader>
+            <CardContent>
+                <p className="text-3xl font-bold font-mono">{value.toFixed(0)} <span className="text-base font-normal text-muted-foreground">/ 100</span></p>
+                <p className={cn("text-sm font-semibold", zoneConfig[zoneLabel] || 'text-muted-foreground')}>
+                    {zoneLabel}
+                </p>
+                <Button variant="link" className="px-0 h-auto text-xs text-muted-foreground hover:text-primary mt-2">
+                    Open Risk Center <ArrowRight className="ml-1 h-3 w-3" />
+                </Button>
+            </CardContent>
+        </Card>
+    );
+}
+
 
 function DashboardSkeleton() {
     return (
@@ -970,35 +1023,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                 />
 
                 <div id="demo-highlight-4" className="grid md:grid-cols-2 gap-8">
-                     <Card className="bg-muted/30 border-border/50">
-                        <CardHeader>
-                             <CardTitle className="text-base flex items-center gap-2">
-                                <Gauge className="h-5 w-5" />
-                                Crypto VIX
-                            </CardTitle>
-                             <CardDescription>
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                           <span className="flex items-center gap-1 cursor-help">
-                                                An index showing current market volatility (0-100).
-                                            </span>
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>Higher VIX means larger price swings and more risk.</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent key={animateKey} className="animate-in fade-in duration-500">
-                             <p className="text-3xl font-bold font-mono">{market.vixValue} <span className="text-base font-normal text-muted-foreground">/ 100</span></p>
-                             <p className={cn("text-sm font-semibold", market.vixZone === 'Extreme' || market.vixZone === 'Elevated' ? 'text-amber-400' : 'text-muted-foreground')}>{market.vixZone} Volatility Zone</p>
-                             <Button variant="link" className="px-0 h-auto text-xs text-muted-foreground hover:text-primary mt-2" onClick={() => onSetModule('riskCenter')}>
-                                Open Risk Center <ArrowRight className="ml-1 h-3 w-3" />
-                            </Button>
-                        </CardContent>
-                    </Card>
+                     <VixWidget onSetModule={onSetModule} />
                     <NewsSnapshot onSetModule={onSetModule} />
                 </div>
             </div>
@@ -1082,4 +1107,5 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
 }
 
     
+
 
