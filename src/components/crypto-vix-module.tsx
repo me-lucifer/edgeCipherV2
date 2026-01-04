@@ -1,12 +1,11 @@
 
-
       "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Bot, LineChart, Gauge, TrendingUp, TrendingDown, Info, AlertTriangle, SlidersHorizontal, Flame, Droplets, Newspaper, Sparkles, ArrowRight, X, BarChartHorizontal, Timer, Calendar, ChevronRight, User, BookOpen, BarChart as BarChartIcon, Scale, PlayCircle, LayoutDashboard, FileText, ShieldAlert, Check, ShieldCheck } from "lucide-react";
+import { Bot, LineChart, Gauge, TrendingUp, TrendingDown, Info, AlertTriangle, SlidersHorizontal, Flame, Droplets, Newspaper, Sparkles, ArrowRight, X, BarChartHorizontal, Timer, Calendar, ChevronRight, User, BookOpen, BarChart as BarChartIcon, Scale, PlayCircle, LayoutDashboard, FileText, ShieldAlert, Check, ShieldCheck, CheckCircle, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Line, ResponsiveContainer, CartesianGrid, XAxis, YAxis, ComposedChart, ReferenceLine, ReferenceDot } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "./ui/chart";
@@ -120,6 +119,30 @@ const postureSuggestions: Record<VixZone, Record<PersonaType, VixAdvice>> = {
         "Beginner": { interpretation: "This is a 'black swan' event. Do not participate under any circumstances. Watching this from the sidelines is one of the most valuable lessons in risk management you will ever get. This is the kind of day that ends trading careers. Your goal is to ensure it doesn't end yours before it begins.", rule: "DO NOT TRADE. DANGER.", actions: [{label: "Watch from a distance to learn"}, {label: "Understand that this is not a trading environment"}, {label: "The goal is to survive to trade another day"}] },
     }
 };
+
+const doDontSuggestions: Record<VixZone, { dos: string[], donts: string[] }> = {
+    "Extremely Calm": {
+        dos: ["Follow your rulebook precisely", "Journal every trade", "Wait for high-quality setups"],
+        donts: ["Don't overtrade out of boredom", "Don't force trades on low volume"],
+    },
+    "Normal": {
+        dos: ["Execute your A+ setups", "Stick to your planned risk", "Let winners run to target"],
+        donts: ["Don't get overconfident", "Don't deviate from your plan"],
+    },
+    "Volatile": {
+        dos: ["Reduce position size", "Widen stop loss slightly", "Wait for clear confirmation"],
+        donts: ["Don't chase wicks", "Don't scalp randomly without a plan"],
+    },
+    "High Volatility": {
+        dos: ["Cut size by 50% or more", "Only trade A++ setups", "Prioritize capital protection"],
+        donts: ["Don't try to catch falling knives", "Don't revenge trade"],
+    },
+    "Extreme": {
+        dos: ["Take no new trades", "Review analytics and journal", "Preserve your capital"],
+        donts: ["Don't try to 'win it back'", "Don't even look at the charts"],
+    },
+};
+
 
 const learningVideos = {
     highVol: [
@@ -586,6 +609,32 @@ function VixPlaybook() {
     );
 }
 
+function DoDontCard({ zone }: { zone: VixZone }) {
+    const { dos, donts } = doDontSuggestions[zone];
+
+    return (
+        <Card className="bg-muted/30 border-border/50">
+            <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">Today's Quick Playbook</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 gap-6">
+                <div className="space-y-3">
+                    <h4 className="font-semibold text-foreground flex items-center gap-2"><CheckCircle className="h-5 w-5 text-green-400" /> Do</h4>
+                    <ul className="space-y-2 list-disc list-inside text-sm text-muted-foreground">
+                        {dos.map((item, i) => <li key={i}>{item}</li>)}
+                    </ul>
+                </div>
+                <div className="space-y-3">
+                    <h4 className="font-semibold text-foreground flex items-center gap-2"><XCircle className="h-5 w-5 text-red-400" /> Don't</h4>
+                    <ul className="space-y-2 list-disc list-inside text-sm text-muted-foreground">
+                        {donts.map((item, i) => <li key={i}>{item}</li>)}
+                    </ul>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
 export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
     const { vixState, isLoading, updateVixValue, generateChoppyDay } = useVixState();
     const [timeRange, setTimeRange] = useState<'24H' | '7D'>('24H');
@@ -717,7 +766,17 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
             <div className="text-center">
                 <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">EdgeCipher Crypto VIX (0–100)</h1>
                 <p className="mt-4 text-lg text-muted-foreground max-w-3xl mx-auto">
-                    A proprietary score for crypto futures market conditions. Not the stock market VIX.
+                    A proprietary score for crypto futures market conditions. 
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <span className="cursor-help border-b border-dashed">Not the stock market VIX.</span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>This is a custom-built index for crypto futures, not related to the CBOE VIX.</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
                 </p>
             </div>
             
@@ -801,6 +860,7 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                                             <SummaryRow label="24H Range" value={`${low24h.toFixed(1)} – ${high24h.toFixed(1)}`} />
                                         </CardContent>
                                     </Card>
+                                    <DoDontCard zone={currentZone} />
                                 </div>
                             </CardContent>
                         </Card>
@@ -1034,3 +1094,5 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
         </div>
     );
 }
+
+    
