@@ -946,7 +946,7 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                     <TooltipProvider>
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <span className="cursor-help border-b border-dashed"> Not the stock market VIX.</span>
+                               <span className="cursor-help border-b border-dashed"> Not the stock market VIX.</span>
                             </TooltipTrigger>
                             <TooltipContent>
                                 <p>This is a custom-built index for crypto futures, not related to the CBOE VIX.</p>
@@ -972,14 +972,14 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                     <CardContent className="mt-6">
                         <h4 className="font-semibold text-foreground mb-4">Recommended Actions:</h4>
                         <div className="flex flex-wrap justify-center gap-4">
+                            <Button onClick={() => onSetModule('riskCenter')}>
+                                <ShieldAlert className="mr-2 h-4 w-4" /> Open Risk Center
+                            </Button>
                             <Button variant="outline" className="bg-red-500/10 border-red-500/30 text-red-300 hover:bg-red-500/20" onClick={() => onSetModule('tradeJournal')}>
                                 <BookOpen className="mr-2 h-4 w-4" /> Open Journal
                             </Button>
                              <Button variant="outline" className="bg-red-500/10 border-red-500/30 text-red-300 hover:bg-red-500/20" onClick={() => onSetModule('analytics')}>
                                 <BarChartIcon className="mr-2 h-4 w-4" /> Review Analytics
-                            </Button>
-                            <Button variant="ghost" className="text-muted-foreground" onClick={() => onSetModule('tradePlanning')}>
-                                Plan for later (read-only)
                             </Button>
                         </div>
                     </CardContent>
