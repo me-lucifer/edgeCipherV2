@@ -8,7 +8,7 @@ import { format } from 'date-fns';
 
 
 // Types for the consolidated risk state
-export type VixZone = "Calm" | "Normal" | "Elevated" | "Extreme";
+export type VixZone = "Extremely Calm" | "Normal" | "Volatile" | "High Volatility" | "Extreme";
 
 export type RiskDecision = {
     level: "green" | "yellow" | "red";
@@ -133,10 +133,11 @@ export type RiskState = {
 
 // Helper to get VIX zone from value
 const getVixZone = (vix: number): VixZone => {
-    if (vix > 75) return "Extreme";
-    if (vix > 50) return "Elevated";
-    if (vix > 25) return "Normal";
-    return "Calm";
+    if (vix <= 20) return "Extremely Calm";
+    if (vix <= 40) return "Normal";
+    if (vix <= 60) return "Volatile";
+    if (vix <= 80) return "High Volatility";
+    return "Extreme";
 };
 
 const mockPositions = [
@@ -196,17 +197,28 @@ export function useRiskState() {
             
             const now = new Date();
 
-            // 2. Compute Market Risk
-            const vixOverride = localStorage.getItem("ec_vix_override");
-            let vixValue = 45;
-            if (vixOverride) {
-                vixValue = parseInt(vixOverride, 10);
-            } else if (scenario === 'high_vol') {
-                vixValue = 82;
-            } else if (scenario === 'drawdown') {
-                vixValue = 65;
+            // 2. Compute Market Risk from ec_vix_state
+            const vixStateString = localStorage.getItem("ec_vix_state");
+            let vixValue = 37;
+            let vixZone: VixZone = 'Normal';
+
+            if (vixStateString) {
+                const storedVixState = JSON.parse(vixStateString);
+                vixValue = storedVixState.value;
+                vixZone = storedVixState.zoneLabel;
+            } else {
+                // Fallback for when ec_vix_state is not set
+                const vixOverride = localStorage.getItem("ec_vix_override");
+                if (vixOverride) {
+                    vixValue = parseInt(vixOverride, 10);
+                } else if (scenario === 'high_vol') {
+                    vixValue = 82;
+                } else if (scenario === 'drawdown') {
+                    vixValue = 65;
+                }
+                vixZone = getVixZone(vixValue);
             }
-            const vixZone = getVixZone(vixValue);
+            
             const marketRisk = {
                 vixValue,
                 vixZone,
@@ -219,8 +231,8 @@ export function useRiskState() {
             if (dailyCounters.lossStreak >= 3) revengeRiskIndex += 20; // Additional penalty
             if (dailyCounters.overrideCount > 0) revengeRiskIndex += 25;
             if (dailyCounters.tradesExecuted >= ((strategies.find((s: any) => s.status === 'active')?.versions.find((v:any) => v.isActiveVersion)?.ruleSet?.riskRules.maxDailyTrades || 5) - 1)) revengeRiskIndex += 15;
-            if (vixZone === 'Elevated') revengeRiskIndex += 10;
-            if (vixZone === 'Extreme') revengeRiskIndex += 25;
+            if (vixZone === 'Elevated' || vixZone === 'Volatile') revengeRiskIndex += 10;
+            if (vixZone === 'High Volatility' || vixZone === 'Extreme') revengeRiskIndex += 25;
 
             revengeRiskIndex = Math.min(100, revengeRiskIndex);
             
@@ -305,7 +317,7 @@ export function useRiskState() {
                 leverageDistribution,
                 mostCommonLeverageBucket: '6-10x',
                 highLeverageTradesToday,
-                leverageDistributionWarning: highLeverageTradesToday > 5 && (vixZone === 'Elevated' || vixZone === 'Extreme'),
+                leverageDistributionWarning: highLeverageTradesToday > 5 && (vixZone === 'Elevated' || vixZone === 'High Volatility' || vixZone === 'Extreme'),
                 disciplineLeaks,
                 riskHeatmapData,
             };
@@ -430,7 +442,7 @@ export function useRiskState() {
             }
             
             const maxLeverage = Math.max(...mockPositions.map(p => p.leverage), 0);
-            if (maxLeverage >= leverageFailThreshold || (maxLeverage >= leverageWarnThreshold && (vixZone === 'Elevated' || vixZone === 'Extreme'))) {
+            if (maxLeverage >= leverageFailThreshold || (maxLeverage >= leverageWarnThreshold && (vixZone === 'Elevated' || vixZone === 'High Volatility' || vixZone === 'Extreme'))) {
                 if (level !== 'red') {
                     level = 'yellow'; // Changed from 'red' to 'yellow' for less aggressive blocking
                     reasons.push(`Excessive Leverage: High leverage (${maxLeverage}x) detected in high volatility (${vixZone}), increasing liquidation risk.`);
@@ -465,7 +477,7 @@ export function useRiskState() {
                 },
                 {
                     id: 'vix_elevated',
-                    condition: vixZone === 'Elevated',
+                    condition: vixZone === 'Elevated' || vixZone === 'Volatile',
                     nudge: { title: "Volatility is Elevated", message: "Today is choppy. Consider reducing your trade size by 50% or only taking your absolute A+ setups.", severity: 'info' }
                 },
             ];
@@ -508,7 +520,7 @@ export function useRiskState() {
                     why: 'Market is highly unpredictable, risk of slippage is high.',
                     action: { label: 'View VIX', module: 'cryptoVix' }
                 });
-            } else if (vixZone === 'Elevated') {
+            } else if (vixZone === 'Elevated' || vixZone === 'High Volatility') {
                  drivers.push({
                     id: 'vix_elevated',
                     title: 'Elevated Volatility',
