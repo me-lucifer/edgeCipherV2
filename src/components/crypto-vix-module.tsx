@@ -732,6 +732,31 @@ ${recommendations}
     );
 }
 
+const ZoneDistributionBar = ({ title, distribution }: { title: string; distribution: { zone: VixZone, pct: number, color: string }[] }) => {
+    return (
+        <div>
+            <h4 className="text-sm font-semibold text-foreground mb-2">{title}</h4>
+            <TooltipProvider>
+                <div className="flex w-full h-3 rounded-full overflow-hidden">
+                    {distribution.map(({ zone, pct, color }) => (
+                        <Tooltip key={zone}>
+                            <TooltipTrigger asChild>
+                                <div
+                                    className={cn("h-full transition-all duration-300", color)}
+                                    style={{ width: `${pct}%` }}
+                                />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>{zone}: {pct.toFixed(1)}%</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    ))}
+                </div>
+            </TooltipProvider>
+        </div>
+    );
+};
+
 export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
     const { vixState, isLoading, updateVixValue, generateChoppyDay } = useVixState();
     const [timeRange, setTimeRange] = useState<'24H' | '7D'>('24H');
@@ -816,6 +841,33 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
         };
 
     }, [vixState, timeRange]);
+
+     const zoneDistribution = useMemo(() => {
+        if (!vixState) return { dist24h: [], dist7d: [] };
+
+        const calculateDistribution = (series: { value: number }[]) => {
+            if (!series || series.length === 0) return [];
+            const counts = { "Extremely Calm": 0, "Normal": 0, "Volatile": 0, "High Volatility": 0, "Extreme": 0 };
+            
+            series.forEach(point => {
+                const zone = getVixZoneFromValue(point.value);
+                counts[zone]++;
+            });
+
+            return [
+                { zone: "Extremely Calm" as VixZone, pct: (counts["Extremely Calm"] / series.length) * 100, color: "bg-green-500/30" },
+                { zone: "Normal" as VixZone, pct: (counts["Normal"] / series.length) * 100, color: "bg-green-500/60" },
+                { zone: "Volatile" as VixZone, pct: (counts["Volatile"] / series.length) * 100, color: "bg-yellow-500/60" },
+                { zone: "High Volatility" as VixZone, pct: (counts["High Volatility"] / series.length) * 100, color: "bg-orange-500/60" },
+                { zone: "Extreme" as VixZone, pct: (counts["Extreme"] / series.length) * 100, color: "bg-red-500/60" }
+            ].filter(item => item.pct > 0);
+        };
+        
+        return {
+            dist24h: calculateDistribution(vixState.series.series24h),
+            dist7d: calculateDistribution(vixState.series.series7d)
+        };
+    }, [vixState]);
     
     const { series24h, series7d } = vixState?.series || { series24h: [], series7d: [] };
     const avg24h = series24h.length > 0 ? series24h.reduce((acc, p) => acc + p.value, 0) / series24h.length : 0;
@@ -867,7 +919,7 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                     <TooltipProvider>
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <span className="cursor-help border-b border-dashed">Not the stock market VIX.</span>
+                                <span className="cursor-help border-b border-dashed"> Not the stock market VIX.</span>
                             </TooltipTrigger>
                             <TooltipContent>
                                 <p>This is a custom-built index for crypto futures, not related to the CBOE VIX.</p>
@@ -1053,6 +1105,18 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                             <ParameterAdjustmentsCard zone={currentZone} />
                         </div>
 
+                         <Card className="bg-muted/30 border-border/50">
+                            <CardHeader>
+                                <CardTitle>Time in Zone</CardTitle>
+                                <CardDescription>Percentage of time spent in each volatility zone.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-6">
+                                <ZoneDistributionBar title="Last 24 Hours" distribution={zoneDistribution.dist24h} />
+                                <ZoneDistributionBar title="Last 7 Days" distribution={zoneDistribution.dist7d} />
+                            </CardContent>
+                        </Card>
+
+
                         <Card className="bg-muted/30 border-border/50">
                             <CardHeader>
                                  <div className="flex items-center justify-between">
@@ -1192,5 +1256,3 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
         </div>
     );
 }
-
-    
