@@ -1,5 +1,4 @@
 
-
       "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -685,7 +684,6 @@ function ArjunInterventionAlert({ validationResult }: { validationResult: Valida
     );
 }
 
-
 function PlanSummary({ control, setPlanStatus, onSetModule, entryChecklist, session, vixZone, form }: { control: any, setPlanStatus: (status: PlanStatusType) => void, onSetModule: (module: any) => void, entryChecklist: Record<string, boolean>, session: "Asia" | "London" | "New York", vixZone: VixZone, form: any }) {
     const values = useWatch({ control }) as PlanFormValues;
     const { direction, entryPrice, stopLoss, takeProfit, riskPercent, accountCapital, justification, strategyId } = values;
@@ -1019,18 +1017,50 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
                                     <FormField control={form.control} name="instrument" render={({ field }: any) => (
                                         <FormItem><FormLabel>Trading Pair*</FormLabel><FormControl><Input placeholder="e.g., BTC-PERP" {...field} /></FormControl><FormMessage /></FormItem>
                                     )}/>
-                                    <FormField control={form.control} name="direction" render={({ field }: any) => (
-                                        <FormItem><FormLabel>Direction</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} value={field.value} className="flex pt-2 gap-4">
-                                        <Label className="flex items-center gap-2 p-2 h-10 rounded-md border border-transparent has-[:checked]:border-primary/50 has-[:checked]:bg-primary/5 cursor-pointer"><FormControl><RadioGroupItem value="Long" /></FormControl><span>Long</span></Label>
-                                        <Label className="flex items-center gap-2 p-2 h-10 rounded-md border border-transparent has-[:checked]:border-primary/50 has-[:checked]:bg-primary/5 cursor-pointer"><FormControl><RadioGroupItem value="Short" /></FormControl><span>Short</span></Label>
-                                        </RadioGroup></FormControl><FormMessage /></FormItem>
-                                    )}/>
-                                    <FormField control={form.control} name="entryType" render={({ field }: any) => (
-                                        <FormItem><FormLabel>Entry Type</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} value={field.value} className="flex pt-2 gap-4">
-                                        <Label className="flex items-center gap-2 p-2 h-10 rounded-md border border-transparent has-[:checked]:border-primary/50 has-[:checked]:bg-primary/5 cursor-pointer"><FormControl><RadioGroupItem value="Limit" /></FormControl><span>Limit</span></Label>
-                                        <Label className="flex items-center gap-2 p-2 h-10 rounded-md border border-transparent has-[:checked]:border-primary/50 has-[:checked]:bg-primary/5 cursor-pointer"><FormControl><RadioGroupItem value="Market" /></FormControl><span>Market</span></Label>
-                                        </RadioGroup></FormControl><FormMessage /></FormItem>
-                                    )}/>
+                                    <FormField
+                                        control={form.control}
+                                        name="direction"
+                                        render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Direction</FormLabel>
+                                            <FormControl>
+                                            <RadioGroup onValueChange={field.onChange} value={field.value} className="flex pt-2 gap-4">
+                                                <FormItem className="flex items-center space-x-2 space-y-0">
+                                                <FormControl><RadioGroupItem value="Long" id="direction-long" /></FormControl>
+                                                <Label htmlFor="direction-long" className="font-normal cursor-pointer">Long</Label>
+                                                </FormItem>
+                                                <FormItem className="flex items-center space-x-2 space-y-0">
+                                                <FormControl><RadioGroupItem value="Short" id="direction-short" /></FormControl>
+                                                <Label htmlFor="direction-short" className="font-normal cursor-pointer">Short</Label>
+                                                </FormItem>
+                                            </RadioGroup>
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name="entryType"
+                                        render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Entry Type</FormLabel>
+                                            <FormControl>
+                                                <RadioGroup onValueChange={field.onChange} value={field.value} className="flex pt-2 gap-4">
+                                                    <FormItem className="flex items-center space-x-2 space-y-0">
+                                                        <FormControl><RadioGroupItem value="Limit" id="entryType-limit" /></FormControl>
+                                                        <Label htmlFor="entryType-limit" className="font-normal cursor-pointer">Limit</Label>
+                                                    </FormItem>
+                                                    <FormItem className="flex items-center space-x-2 space-y-0">
+                                                        <FormControl><RadioGroupItem value="Market" id="entryType-market" /></FormControl>
+                                                        <Label htmlFor="entryType-market" className="font-normal cursor-pointer">Market</Label>
+                                                    </FormItem>
+                                                </RadioGroup>
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                        )}
+                                    />
                                 </div>
                                 <FormDescription className="text-xs italic">Be honest – is this following your plan, or chasing a move?</FormDescription>
                             </div>
@@ -1777,13 +1807,13 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
         const { toast } = useToast();
         const [isPlanningLoading, setIsPlanningLoading] = useState(true);
         const [planStatus, setPlanStatus] = useState<PlanStatusType>("incomplete");
-        const [showBanner, setShowBanner] = useState(true);
+        const [showBanner, setShowValidationBanner] = useState(false);
         const [currentStep, setCurrentStep] = useState<TradePlanStep>("plan");
         const [arjunFeedbackAccepted, setArjunFeedbackAccepted] = useState(false);
         const [showTemplateOverwriteDialog, setShowTemplateOverwriteDialog] = useState(false);
         const [pendingTemplateId, setPendingTemplateId] = useState<string | null>(null);
         const [isNewUser, setIsNewUser] = useState(false);
-        const [showValidationBanner, setShowValidationBanner] = useState(false);
+        
         const [draftToResume, setDraftToResume] = useState<SavedDraft | null>(null);
         const [isWalkthroughOpen, setIsWalkthroughOpen] = useState(false);
         const [initialContext, setInitialContext] = useState(planContext);
@@ -2320,14 +2350,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
 
 
 
-
-
-
-
-
-
-
-
-
+    
+    
 
 
