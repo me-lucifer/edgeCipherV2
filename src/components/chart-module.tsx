@@ -190,7 +190,7 @@ function ChartWalkthrough({ isOpen, onOpenChange, onDemoSelect }: { isOpen: bool
     const walkthroughSteps = [
         { icon: BarChartHorizontal, title: "1. Pick an Instrument", description: "Use the search to find the crypto pair you want to analyze." },
         { icon: FileText, title: "2. Draw Manually", description: "Use standard TradingView tools to mark trendlines, levels, and fibs." },
-        { icon: Send, title: "3. Send to Planning", description: "Once you have a thesis, send it to Trade Planning to structure your Entry, SL, and TP." },
+        { icon: Send, title: "3. Send to Planning", description: "Once you have a thesis, send it to Trade Planning to structure your trade." },
     ];
     
     const limitations = [
@@ -709,11 +709,15 @@ export function ChartModule({ onSetModule, planContext }: ChartModuleProps) {
 
             <WorkflowHintBar isVisible={isHintBarVisible && !isFullscreen} onDismiss={dismissHintBar} />
             
-            <div className={cn("flex items-center gap-4", isFullscreen && "hidden")}>
+            <div className={cn("flex flex-wrap items-center gap-4", isFullscreen && "hidden")}>
                 <span className="text-xs font-semibold text-muted-foreground">Multi-timeframe view (manual)</span>
                 <div role="group" aria-label="Multi-timeframe chart view" className="flex items-center gap-1 rounded-full bg-muted p-1">
                     {multiTimeframeIntervals.map(item => (<Button key={item.value} size="sm" variant={interval === item.value ? 'secondary' : 'ghost'} onClick={() => handleIntervalChange(item.value)} className="rounded-full h-7 px-3 text-xs">{item.label}</Button>))}
                 </div>
+                 <div className="flex-1" />
+                <p className="text-xs text-muted-foreground text-right">
+                    VIX is <span className="font-semibold text-primary">{riskState?.marketRisk.vixZone || 'Normal'}</span>. Drawings are manual in Phase 1.
+                </p>
             </div>
 
             <div className="flex-1 min-h-0">
