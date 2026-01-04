@@ -302,6 +302,8 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
     const [timeRange, setTimeRange] = useState<'24H' | '7D'>('24H');
     const [regimeShift, setRegimeShift] = useState<{ previous: VixZone, current: VixZone } | null>(null);
     const [persona, setPersona] = useState<PersonaType | null>(null);
+    const [sensitivity, setSensitivity] = useState<'conservative' | 'balanced' | 'aggressive'>('balanced');
+
 
     useEffect(() => {
         if (typeof window !== "undefined") {
@@ -316,6 +318,11 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
             } else {
                 setPersona('Beginner');
             }
+
+            const storedSensitivity = localStorage.getItem("ec_risk_sensitivity");
+            if (storedSensitivity) {
+                setSensitivity(storedSensitivity as any);
+            }
         }
     }, []);
 
@@ -325,6 +332,14 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
             localStorage.setItem("ec_prototype_persona", newPersona);
         }
     };
+    
+    const handleSensitivityChange = (newSensitivity: 'conservative' | 'balanced' | 'aggressive') => {
+        setSensitivity(newSensitivity);
+        if(typeof window !== "undefined") {
+            localStorage.setItem("ec_risk_sensitivity", newSensitivity);
+        }
+    };
+
 
     const askArjun = () => {
         if (!vixState) return;
@@ -559,7 +574,7 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                                                 </Select>
                                             ) : posture ? (
                                                 <>
-                                                    <div className="flex justify-between items-center">
+                                                    <div className="flex justify-between items-center flex-wrap gap-2">
                                                         <p className="font-semibold text-primary">{posture.title}</p>
                                                         <Select value={persona} onValueChange={(value) => handlePersonaChange(value as PersonaType)}>
                                                             <SelectTrigger className="w-[180px] h-8 text-xs">
@@ -591,6 +606,25 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                                                 </>
                                             ) : <p className="text-sm text-muted-foreground">Could not load suggestions.</p>}
                                         </CardContent>
+                                        <CardFooter className="border-t pt-4">
+                                            <div className="w-full space-y-2">
+                                                <Label className="text-xs text-muted-foreground flex items-center gap-2">
+                                                    <Info className="h-3 w-3" />
+                                                    My VIX Tolerance (Prototype)
+                                                </Label>
+                                                <Select value={sensitivity} onValueChange={handleSensitivityChange}>
+                                                    <SelectTrigger className="h-8 text-xs">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="conservative">Conservative</SelectItem>
+                                                        <SelectItem value="balanced">Balanced</SelectItem>
+                                                        <SelectItem value="aggressive">Aggressive</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                                <p className="text-xs text-muted-foreground/80">Adjusts the VIX thresholds for 'Yellow' and 'Red' alerts in the Risk Center.</p>
+                                            </div>
+                                        </CardFooter>
                                    </Card>
                                 </div>
                             </CardContent>
@@ -729,7 +763,7 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
     );
 }
 
-const VixGauge = ({ value, zone }: { value: number, zone: string }) => {
+const VixGauge = ({ value, zone }: { value: number, zone: VixZone }) => {
     const fromColor = 
         zone === 'Extremely Calm' || zone === 'Normal' ? 'hsl(var(--chart-2))' :
         zone === 'Volatile' ? 'hsl(var(--chart-4))' :

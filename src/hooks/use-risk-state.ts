@@ -389,21 +389,21 @@ export function useRiskState() {
             let level: "green" | "yellow" | "red" = "green";
             
             // Apply sensitivity modifiers
-            let vixYellowThreshold = 50;
-            let vixRedThreshold = 80; // Changed from 75 to 80 to match Extreme zone start
-            let leverageWarnThreshold = 15;
-            let leverageFailThreshold = 20;
+            let vixYellowThreshold = 60;
+            let vixRedThreshold = 80; 
+            let leverageWarnThreshold = 20;
+            let leverageFailThreshold = 50;
 
             if (sensitivitySetting === 'conservative') {
-                vixYellowThreshold = 45;
-                vixRedThreshold = 65;
-                leverageWarnThreshold = 12;
-                leverageFailThreshold = 18;
-            } else if (sensitivitySetting === 'aggressive') {
-                vixYellowThreshold = 60;
-                vixRedThreshold = 85;
-                leverageWarnThreshold = 20;
+                vixYellowThreshold = 50;
+                vixRedThreshold = 70;
+                leverageWarnThreshold = 15;
                 leverageFailThreshold = 30;
+            } else if (sensitivitySetting === 'aggressive') {
+                vixYellowThreshold = 70;
+                vixRedThreshold = 90;
+                leverageWarnThreshold = 30;
+                leverageFailThreshold = 75;
             }
 
 
