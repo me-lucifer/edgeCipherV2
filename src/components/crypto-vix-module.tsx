@@ -427,6 +427,7 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
     
     const { value: currentVix, zoneLabel: currentZone, updatedAt, components } = vixState;
     const posture = persona ? postureSuggestions[currentZone]?.[persona] : null;
+    const isStrictMode = currentVix >= 61;
 
     const VixGauge = ({ value, zone }: { value: number, zone: string }) => {
         const colorConfig: Record<string, string> = {
@@ -474,6 +475,24 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
             <div className="grid lg:grid-cols-3 gap-8 items-start">
                 {/* Main Content */}
                 <div className="lg:col-span-2 space-y-8">
+                    {regimeShift && (
+                        <RegimeShiftBanner 
+                            previous={regimeShift.previous} 
+                            current={regimeShift.current} 
+                            onDismiss={handleDismissRegimeShift} 
+                        />
+                    )}
+                    {isStrictMode && (
+                         <Alert variant="destructive" className="bg-red-950/70 border-red-500/30 text-red-300">
+                            <AlertTriangle className="h-4 w-4 text-red-400" />
+                            <AlertTitle className="text-red-400">
+                                Arjun is in Strict Mode
+                            </AlertTitle>
+                            <AlertDescription>
+                                Higher volatility → stricter risk and discipline enforcement.
+                            </AlertDescription>
+                        </Alert>
+                    )}
                     <Card className="bg-muted/30 border-border/50">
                         <CardHeader>
                             <CardTitle>Volatility Barometer</CardTitle>
@@ -568,14 +587,6 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                             </div>
                         </CardContent>
                     </Card>
-
-                    {regimeShift && (
-                        <RegimeShiftBanner 
-                            previous={regimeShift.previous} 
-                            current={regimeShift.current} 
-                            onDismiss={handleDismissRegimeShift} 
-                        />
-                    )}
 
                     <Card className="bg-muted/30 border-border/50">
                         <CardHeader>
