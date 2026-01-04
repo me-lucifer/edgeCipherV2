@@ -339,7 +339,7 @@ export function useRiskState() {
                 leverageDistribution,
                 mostCommonLeverageBucket: '6-10x',
                 highLeverageTradesToday,
-                leverageDistributionWarning: highLeverageTradesToday > 5 && (vixZone === 'Elevated' || vixZone === 'High Volatility' || vixZone === 'Extreme'),
+                leverageDistributionWarning: highLeverageTradesToday > 5 && (vixZone === 'Volatile' || vixZone === 'High Volatility' || vixZone === 'Extreme'),
                 disciplineLeaks,
                 riskHeatmapData,
             };
@@ -411,19 +411,15 @@ export function useRiskState() {
             let level: "green" | "yellow" | "red" = "green";
             
             // Apply sensitivity modifiers
-            let vixYellowThreshold = 60;
-            let vixRedThreshold = 80; 
+            const vixWarnThreshold = guardrails.warnThreshold || 60;
+            const vixLockThreshold = guardrails.lockThreshold || 80;
             let leverageWarnThreshold = 20;
             let leverageFailThreshold = 50;
 
             if (sensitivitySetting === 'conservative') {
-                vixYellowThreshold = 50;
-                vixRedThreshold = 70;
                 leverageWarnThreshold = 15;
                 leverageFailThreshold = 30;
             } else if (sensitivitySetting === 'aggressive') {
-                vixYellowThreshold = 70;
-                vixRedThreshold = 90;
                 leverageWarnThreshold = 30;
                 leverageFailThreshold = 75;
             }
@@ -442,12 +438,12 @@ export function useRiskState() {
                 level = "red";
                 reasons.push(`Daily Budget Exceeded: Daily loss limit of ${maxDailyLossPct}% has been reached.`);
             }
-             if (vixValue >= vixRedThreshold) {
+             if (vixValue >= vixLockThreshold || vixZone === 'Extreme') {
                 level = "red";
-                reasons.push(`Extreme Volatility: Market VIX is in the 'Extreme' zone (Threshold: >${vixRedThreshold}).`);
-            } else if (vixValue >= vixYellowThreshold) {
+                reasons.push(`Extreme Volatility: Market VIX is in the 'Extreme' zone (Threshold: >${vixLockThreshold}).`);
+            } else if (vixValue >= vixWarnThreshold) {
                 if (level !== 'red') level = 'yellow';
-                reasons.push(`Elevated Volatility: Market VIX is '${vixZone}' (Threshold: >${vixYellowThreshold}).`);
+                reasons.push(`Elevated Volatility: Market VIX is '${vixZone}' (Threshold: >${vixWarnThreshold}).`);
             }
 
             if (revengeRiskLevel === 'Critical') {
