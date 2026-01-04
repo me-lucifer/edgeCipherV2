@@ -249,8 +249,11 @@ export function useRiskState() {
             if (dailyCounters.lossStreak >= 2) revengeRiskIndex += 30;
             if (dailyCounters.lossStreak >= 3) revengeRiskIndex += 20; // Additional penalty
             if (dailyCounters.overrideCount > 0) revengeRiskIndex += 25;
-            if (dailyCounters.tradesExecuted >= ((strategies.find((s: any) => s.status === 'active')?.versions.find((v:any) => v.isActiveVersion)?.ruleSet?.riskRules.maxDailyTrades || 5) - 1)) revengeRiskIndex += 15;
-            if (vixZone === 'Elevated' || vixZone === 'Volatile') revengeRiskIndex += 10;
+            
+            const maxDailyTradesRule = strategies.find((s: any) => s.status === 'active')?.versions.find((v:any) => v.isActiveVersion)?.ruleSet?.riskRules.maxDailyTrades || 5;
+
+            if (dailyCounters.tradesExecuted >= (maxDailyTradesRule - 1)) revengeRiskIndex += 15;
+            if (vixZone === 'Volatile') revengeRiskIndex += 10;
             if (vixZone === 'High Volatility' || vixZone === 'Extreme') revengeRiskIndex += 25;
 
             revengeRiskIndex = Math.min(100, revengeRiskIndex);
@@ -496,7 +499,7 @@ export function useRiskState() {
                 },
                 {
                     id: 'vix_elevated',
-                    condition: vixZone === 'Elevated' || vixZone === 'Volatile',
+                    condition: vixZone === 'Volatile',
                     nudge: { title: "Volatility is Elevated", message: "Today is choppy. Consider reducing your trade size by 50% or only taking your absolute A+ setups.", severity: 'info' }
                 },
             ];

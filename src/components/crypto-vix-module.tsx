@@ -1,11 +1,12 @@
 
+
       "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Bot, LineChart, Gauge, TrendingUp, TrendingDown, Info, AlertTriangle, SlidersHorizontal, Flame, Droplets, Newspaper, Sparkles, ArrowRight, X, BarChartHorizontal, Timer, Calendar, ChevronRight, User, BookOpen, BarChart as BarChartIcon, Scale, PlayCircle, LayoutDashboard, FileText, ShieldAlert, Check, ShieldCheck, CheckCircle, XCircle } from "lucide-react";
+import { Bot, LineChart, Gauge, TrendingUp, TrendingDown, Info, AlertTriangle, SlidersHorizontal, Flame, Droplets, Newspaper, Sparkles, ArrowRight, X, BarChartHorizontal, Timer, Calendar, ChevronRight, User, BookOpen, BarChart as BarChartIcon, Scale, PlayCircle, LayoutDashboard, FileText, ShieldAlert, Check, ShieldCheck, CheckCircle, XCircle, Clipboard, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Line, ResponsiveContainer, CartesianGrid, XAxis, YAxis, ComposedChart, ReferenceLine, ReferenceDot } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "./ui/chart";
@@ -31,6 +32,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { useToast } from "@/hooks/use-toast";
 
 interface CryptoVixModuleProps {
     onSetModule: (module: any, context?: any) => void;
@@ -116,7 +118,7 @@ const postureSuggestions: Record<VixZone, Record<PersonaType, VixAdvice>> = {
         "Impulsive Sprinter": { interpretation: "Catastrophic risk is present. Your account is in extreme danger if you trade. Close your platform and walk away. The only winning move is not to play. This is non-negotiable for your persona. Any attempt to trade now is a direct path to significant financial and psychological damage.", rule: "DO NOT TRADE. The only trade that matters is protecting your account.", actions: [{label: "Seriously, close your trading platform"}, {label: "Go for a walk. Do not look at the charts."}, {label: "Protecting your capital is the only goal."}] },
         "Fearful Analyst": { interpretation: "The market is completely irrational. Your analysis does not apply. Do not attempt to find a bottom or top. Confirm all positions are closed or protected and wait for sanity to return. Your fear is justified today; it is a rational response to an irrational market. Trust it and stay flat.", rule: "Stay flat. This is a spectator sport right now.", actions: [{label: "Confirm all open positions are closed or protected"}, {label: "Read a book on trading psychology"}, {label: "Wait for volatility to return to normal levels"}] },
         "Disciplined Scalper": { interpretation: "There is no edge here. The market is in a state of cascading liquidations. Any position taken is a gamble, not a trade. Your discipline requires you to stay flat and protect your capital. This is not the environment for your strategy. Acknowledging that and stepping aside is the highest form of discipline.", rule: "Stay flat. There is no trading edge in a liquidation cascade.", actions: [{label: "Stay flat and protect your capital"}, {label: "Wait for volatility to return to normal levels"}, {label: "This is a day for risk managers, not traders"}] },
-        "Beginner": { interpretation: "This is a 'black swan' event. Do not participate under any circumstances. Watching this from the sidelines is one of the most valuable lessons in risk management you will ever get. This is the kind of day that ends trading careers. Your goal is to ensure it doesn't end yours before it begins.", rule: "DO NOT TRADE. DANGER.", actions: [{label: "Watch from a distance to learn"}, {label: "Understand that this is not a trading environment"}, {label: "The goal is to survive to trade another day"}] },
+        "Beginner": { interpretation: "DO NOT TRADE. DANGER.", actions: [{label: "Watch from a distance to learn"}, {label: "Understand that this is not a trading environment"}, {label: "The goal is to survive to trade another day"}] },
     }
 };
 
@@ -272,7 +274,7 @@ function KeyEventsTimeline({ chartData, onSetModule }: { chartData: { hour: stri
             'High Volatility_Extreme': true,
             'Volatile_Normal': true,
         };
-
+        
         const generatedEvents: typeof events = [];
         let largestSpike = { value: 0, time: new Date() };
         let lastShiftTime = new Date(0);
@@ -635,6 +637,101 @@ function DoDontCard({ zone }: { zone: VixZone }) {
     );
 }
 
+function VolatilityBriefCard({ vixState, persona }: { vixState: VixState, persona: PersonaType | null }) {
+    const { toast } = useToast();
+    const { value: currentVix, zoneLabel: currentZone, series } = vixState;
+
+    const summaryStats = useMemo(() => {
+        if (!series?.series24h) return { high: 0, low: 0, avg: 0, spikes: 0 };
+        const values = series.series24h.map(p => p.value);
+        let spikes = 0;
+        for (let i = 1; i < values.length; i++) {
+            if (Math.abs(values[i] - values[i - 1]) > 20) {
+                spikes++;
+            }
+        }
+        return {
+            high: Math.max(...values),
+            low: Math.min(...values),
+            avg: values.reduce((a, b) => a + b, 0) / values.length,
+            spikes,
+        };
+    }, [series]);
+
+    const posture = persona ? postureSuggestions[currentZone]?.[persona] : null;
+
+    const generateReportText = (short = false): string => {
+        const title = `### Volatility Brief: ${new Date().toLocaleDateString()} ###`;
+        const currentStatus = `Current VIX: ${currentVix.toFixed(0)} (${currentZone})`;
+        
+        if (short) {
+            const shortRecommendation = posture?.actions[0]?.label || doDontSuggestions[currentZone].dos[0];
+            return `${title}\n${currentStatus}\n**Top Recommendation**: ${shortRecommendation}`;
+        }
+
+        const interpretation = posture?.interpretation || `Market conditions are currently '${currentZone}', suggesting specific types of price action.`;
+        const recommendations = posture?.actions.slice(0, 3).map(a => `- ${a.label}`).join('\n') ||
+                                doDontSuggestions[currentZone].dos.slice(0, 3).map(d => `- ${d}`).join('\n');
+
+        return `
+${title}
+
+**Current Status**: ${currentStatus}
+
+**24H Summary**:
+- High: ${summaryStats.high.toFixed(0)}
+- Low: ${summaryStats.low.toFixed(0)}
+- Average: ${summaryStats.avg.toFixed(0)}
+- Spikes (>20pts): ${summaryStats.spikes}
+
+**Arjun's Interpretation**:
+${interpretation}
+
+**Top 3 Recommended Actions**:
+${recommendations}
+        `.trim();
+    };
+
+    const handleCopy = (short: boolean) => {
+        navigator.clipboard.writeText(generateReportText(short));
+        toast({ title: "Brief copied to clipboard!" });
+    };
+
+    return (
+        <Card className="bg-muted/30 border-border/50">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Clipboard className="h-5 w-5" /> Volatility Brief</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="p-3 bg-muted rounded-lg border">
+                    <p className="text-xs text-muted-foreground">Current VIX</p>
+                    <p className="font-bold text-lg">{currentVix.toFixed(0)} ({currentZone})</p>
+                </div>
+                 <div className="text-xs">
+                    <p className="font-semibold text-muted-foreground mb-1">Arjun's Note:</p>
+                    <p className="italic text-muted-foreground">{posture?.interpretation || "Select a persona for tailored advice."}</p>
+                </div>
+                 <div>
+                    <p className="font-semibold text-muted-foreground text-xs mb-2">Recommended Actions:</p>
+                    <ul className="list-disc list-inside text-xs text-muted-foreground space-y-1">
+                       {(posture?.actions || doDontSuggestions[currentZone].dos).slice(0,3).map((action, i) => (
+                           <li key={i}>{typeof action === 'string' ? action : action.label}</li>
+                       ))}
+                    </ul>
+                </div>
+            </CardContent>
+            <CardFooter className="flex gap-2">
+                 <Button variant="outline" size="sm" className="flex-1" onClick={() => handleCopy(true)}>
+                    <Copy className="mr-2 h-4 w-4" /> Copy Short
+                </Button>
+                <Button variant="outline" size="sm" className="flex-1" onClick={() => handleCopy(false)}>
+                    <Copy className="mr-2 h-4 w-4" /> Copy Full
+                </Button>
+            </CardFooter>
+        </Card>
+    );
+}
+
 export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
     const { vixState, isLoading, updateVixValue, generateChoppyDay } = useVixState();
     const [timeRange, setTimeRange] = useState<'24H' | '7D'>('24H');
@@ -854,7 +951,7 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                                             <CardTitle className="text-base flex items-center gap-2"><Timer className="h-4 w-4" /> Current vs. Averages</CardTitle>
                                         </CardHeader>
                                         <CardContent className="space-y-2">
-                                            <SummaryRow label="Current VIX" value={currentVix.toFixed(1)} valueClass={currentVix > avg24h ? 'text-amber-400' : 'text-green-400'} />
+                                            <SummaryRow label="Current VIX" value={currentVix.toFixed(1)} valueClass={currentVix > avg24h ? 'text-amber-300' : 'text-green-300'} />
                                             <SummaryRow label="24H Average" value={avg24h.toFixed(1)} />
                                             <SummaryRow label="7D Average" value={avg7d.toFixed(1)} />
                                             <SummaryRow label="24H Range" value={`${low24h.toFixed(1)} – ${high24h.toFixed(1)}`} />
@@ -1063,6 +1160,7 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                     {/* Sidebar */}
                     <div className="lg:col-span-1 space-y-8 lg:sticky lg:top-24">
                         <VixSimulationControls vixState={vixState} updateVixValue={updateVixValue} generateChoppyDay={generateChoppyDay} />
+                        <VolatilityBriefCard vixState={vixState} persona={persona} />
                         <PerformanceByVixZoneCard onSetModule={onSetModule} />
                         <Card className="bg-muted/30 border-primary/20">
                             <CardHeader>
