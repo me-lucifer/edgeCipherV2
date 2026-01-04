@@ -526,7 +526,20 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                                     </Card>
                                    <Card className="bg-primary/10 border-primary/20">
                                         <CardHeader>
-                                            <CardTitle className="text-base flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary" /> Suggested Posture</CardTitle>
+                                            <CardTitle className="text-base flex items-center gap-2">
+                                                <Sparkles className="h-5 w-5 text-primary" /> 
+                                                Suggested Posture
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p>In high VIX, Arjun prioritizes capital protection over growth.</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                            </CardTitle>
                                              {!persona && (
                                                 <CardDescription className="text-xs">Select a persona to get personalized advice.</CardDescription>
                                             )}
