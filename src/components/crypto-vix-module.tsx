@@ -642,19 +642,19 @@ function VolatilityBriefCard({ vixState, persona }: { vixState: VixState, person
     const { value: currentVix, zoneLabel: currentZone, series } = vixState;
 
     const summaryStats = useMemo(() => {
-        if (!series?.series24h) return { high: 0, low: 0, avg: 0, spikes: 0 };
+        if (!series?.series24h) return { high: 0, low: 0, avg: 0, spikeIndex: 0 };
         const values = series.series24h.map(p => p.value);
-        let spikes = 0;
+        let spikeCount = 0;
         for (let i = 1; i < values.length; i++) {
-            if (Math.abs(values[i] - values[i - 1]) > 20) {
-                spikes++;
+            if (Math.abs(values[i] - values[i - 1]) > 15) {
+                spikeCount++;
             }
         }
         return {
             high: Math.max(...values),
             low: Math.min(...values),
             avg: values.reduce((a, b) => a + b, 0) / values.length,
-            spikes,
+            spikeIndex: spikeCount,
         };
     }, [series]);
 
@@ -682,7 +682,7 @@ ${title}
 - High: ${summaryStats.high.toFixed(0)}
 - Low: ${summaryStats.low.toFixed(0)}
 - Average: ${summaryStats.avg.toFixed(0)}
-- Spikes (>20pts): ${summaryStats.spikes}
+- Spike Index: ${summaryStats.spikeIndex}
 
 **Arjun's Interpretation**:
 ${interpretation}
@@ -875,9 +875,36 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
     const high24h = series24h.length > 0 ? Math.max(...series24h.map(p => p.value)) : 0;
     const low24h = series24h.length > 0 ? Math.min(...series24h.map(p => p.value)) : 0;
 
-    const SummaryRow = ({ label, value, valueClass }: { label: string, value: React.ReactNode, valueClass?: string }) => (
+    const spikeIndex24h = useMemo(() => {
+        if (!series24h || series24h.length < 2) return 0;
+        let spikes = 0;
+        for (let i = 1; i < series24h.length; i++) {
+            if (Math.abs(series24h[i].value - series24h[i - 1].value) > 15) {
+                spikes++;
+            }
+        }
+        return spikes;
+    }, [series24h]);
+
+    const spikeLevel = spikeIndex24h > 5 ? 'High' : spikeIndex24h > 2 ? 'Medium' : 'Low';
+
+    const SummaryRow = ({ label, value, valueClass, tooltip }: { label: string; value: React.ReactNode; valueClass?: string, tooltip?: string }) => (
         <div className="flex justify-between items-center text-sm">
-            <p className="text-muted-foreground">{label}</p>
+            <p className="text-muted-foreground flex items-center gap-1">
+                {label}
+                {tooltip && (
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Info className="h-3 w-3 cursor-help text-muted-foreground/80" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p className="max-w-xs">{tooltip}</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                )}
+            </p>
             <p className={cn("font-mono font-semibold text-foreground", valueClass)}>{value}</p>
         </div>
     );
@@ -1007,6 +1034,14 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                                             <SummaryRow label="24H Average" value={avg24h.toFixed(1)} />
                                             <SummaryRow label="7D Average" value={avg7d.toFixed(1)} />
                                             <SummaryRow label="24H Range" value={`${low24h.toFixed(1)} – ${high24h.toFixed(1)}`} />
+                                            <SummaryRow 
+                                                label="24H Spike Index" 
+                                                value={<>{spikeIndex24h} <Badge variant="outline" className={cn(
+                                                    spikeLevel === 'High' && 'border-red-500/50 text-red-400',
+                                                    spikeLevel === 'Medium' && 'border-amber-500/50 text-amber-400'
+                                                )}>{spikeLevel}</Badge></>}
+                                                tooltip="Measures sudden regime changes; higher = harder conditions."
+                                            />
                                         </CardContent>
                                     </Card>
                                     <DoDontCard zone={currentZone} />
