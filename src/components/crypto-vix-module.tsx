@@ -3,15 +3,17 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Bot, LineChart, Gauge, TrendingUp, TrendingDown, Info, AlertTriangle } from "lucide-react";
+import { Bot, LineChart, Gauge, TrendingUp, TrendingDown, Info, AlertTriangle, SlidersHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Line, ResponsiveContainer, CartesianGrid, XAxis, YAxis, ComposedChart, ReferenceLine } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "./ui/chart";
 import { useVixState, type VixZone } from "@/hooks/use-vix-state";
 import { Skeleton } from "./ui/skeleton";
 import { formatDistanceToNow } from "date-fns";
+import { Slider } from "./ui/slider";
+import { Label } from "./ui/label";
 
 interface CryptoVixModuleProps {
     onSetModule: (module: any, context?: any) => void;
@@ -39,9 +41,53 @@ const adaptationStrategies: Record<VixZone, { title: string; strategy: string }>
     "Extreme": { title: "Maximum Caution", strategy: "Avoid taking new positions. Market conditions are dangerously unpredictable." },
 };
 
+function VixSimulationControls({ vixState, updateVixValue }: { vixState: VixState, updateVixValue: (value: number) => void }) {
+    const presets = [
+        { label: "Calm", value: 15 },
+        { label: "Normal", value: 35 },
+        { label: "Volatile", value: 55 },
+        { label: "High Vol", value: 72 },
+        { label: "Extreme", value: 90 },
+    ];
+
+    return (
+        <Card className="bg-muted/30 border-border/50">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><SlidersHorizontal className="h-5 w-5"/>Simulate VIX (Prototype)</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                 <div className="space-y-2">
+                    <Label htmlFor="vix-slider">Live Value: {vixState.value}</Label>
+                    <Slider
+                        id="vix-slider"
+                        min={0}
+                        max={100}
+                        step={1}
+                        value={[vixState.value]}
+                        onValueChange={(value) => updateVixValue(value[0])}
+                    />
+                </div>
+                <div className="flex flex-wrap gap-2">
+                    {presets.map(p => (
+                        <Button
+                            key={p.label}
+                            variant="outline"
+                            size="sm"
+                            className="text-xs"
+                            onClick={() => updateVixValue(p.value)}
+                        >
+                            {p.label} ({p.value})
+                        </Button>
+                    ))}
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
 
 export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
-    const { vixState, isLoading } = useVixState();
+    const { vixState, isLoading, updateVixValue } = useVixState();
 
     const askArjun = () => {
         if (!vixState) return;
@@ -82,15 +128,16 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
         };
         
         const colorClass = colorConfig[zone] || 'bg-foreground';
-        const conicGradient = `conic-gradient(var(--tw-gradient-from) 0deg, var(--tw-gradient-from) calc(${value} * 3.6deg), hsl(var(--muted)) calc(${value} * 3.6deg), hsl(var(--muted)) 360deg)`;
+        
+        const conicGradient = `conic-gradient(var(--tw-gradient-from) 0deg, var(--tw-gradient-from) calc(${value} / 100 * 180deg), hsl(var(--muted)) calc(${value} / 100 * 180deg), hsl(var(--muted)) 180deg)`;
 
         return (
-            <div 
-                className={cn("relative flex items-center justify-center w-64 h-64 rounded-full from-green-500", colorClass)}
+             <div 
+                className={cn("relative flex items-center justify-center w-full h-48 rounded-t-full from-green-500 overflow-hidden", colorClass)}
                 style={{ background: conicGradient }}
             >
-                 <div className="absolute w-[85%] h-[85%] bg-muted/80 backdrop-blur-sm rounded-full" />
-                 <div className="relative flex flex-col items-center justify-center z-10">
+                 <div className="absolute w-[85%] h-[85%] bg-muted/80 backdrop-blur-sm rounded-t-full top-auto bottom-0" />
+                 <div className="relative flex flex-col items-center justify-center z-10 pt-12">
                     <p className="text-7xl font-bold font-mono text-foreground">{Math.round(value)}</p>
                     <p className={cn("font-semibold text-lg", 
                         (zone === 'Extremely Calm' || zone === 'Normal') && 'text-green-400',
@@ -160,6 +207,7 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                 
                 {/* Sidebar */}
                 <div className="lg:col-span-1 space-y-8 sticky top-24">
+                    <VixSimulationControls vixState={vixState} updateVixValue={updateVixValue} />
                     <Card className="bg-muted/30 border-border/50">
                          <CardHeader>
                             <CardTitle className="flex items-center gap-2"><Info className="h-5 w-5"/>Understanding the Zones</CardTitle>
