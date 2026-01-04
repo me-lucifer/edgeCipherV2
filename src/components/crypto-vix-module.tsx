@@ -15,11 +15,10 @@ interface CryptoVixModuleProps {
 }
 
 const zoneData = [
-    { zone: "Extremely Calm (0-20)", color: "bg-blue-500", impact: "Very slow markets, consolidation likely." },
-    { zone: "Normal (21-40)", color: "bg-green-500", impact: "Standard conditions, good for most strategies." },
-    { zone: "Volatile (41-60)", color: "bg-yellow-500", impact: "Increased chop, risk of stop-hunts." },
-    { zone: "High Volatility (61-80)", color: "bg-red-500", impact: "High risk of erratic moves and liquidations." },
-    { zone: "Extreme (81-100)", color: "bg-purple-500", impact: "Dangerously unpredictable, 'black swan' risk." },
+    { zone: "Calm (0-40)", color: "bg-green-500", impact: "Standard conditions, good for most strategies.", recommendation: "Standard Operating Procedure" },
+    { zone: "Volatile (41-60)", color: "bg-yellow-500", impact: "Increased chop, risk of stop-hunts.", recommendation: "Capital Preservation" },
+    { zone: "High Volatility (61-80)", color: "bg-orange-500", impact: "High risk of erratic moves and liquidations.", recommendation: "Defense First" },
+    { zone: "Extreme (81-100)", color: "bg-red-500", impact: "Dangerously unpredictable, 'black swan' risk.", recommendation: "Maximum Caution" },
 ];
 
 const mockVixHistory = [
@@ -29,16 +28,14 @@ const mockVixHistory = [
 ];
 
 const adaptationStrategies = {
-    "Extremely Calm": { title: "Patience is Key", strategy: "Setups take longer to play out. Avoid forcing trades in slow markets. Focus on clear range-bound plays if available." },
-    "Normal": { title: "Standard Operating Procedure", strategy: "Your primary strategies should perform well. Focus on disciplined execution of your A+ setups." },
+    "Calm": { title: "Standard Operating Procedure", strategy: "Your primary strategies should perform well. Focus on disciplined execution of your A+ setups." },
     "Volatile": { title: "Capital Preservation", strategy: "Consider reducing position size. Widen stop-losses to avoid getting shaken out by volatility. Be highly selective." },
-    "High Volatility": { title: "Defense First", strategy: "The riskiest time to trade. Many pros sit out entirely. If you must trade, use minimum size and wait for very clear confirmation." },
+    "High Volatility": { title: "Defense First", strategy: "This is a risky time to trade. If you must trade, use minimum size and wait for very clear confirmation." },
     "Extreme": { title: "Maximum Caution", strategy: "Avoid taking new positions. Market conditions are dangerously unpredictable." },
 };
 
 const getVixZone = (vix: number) => {
-    if (vix <= 20) return "Extremely Calm";
-    if (vix <= 40) return "Normal";
+    if (vix <= 40) return "Calm";
     if (vix <= 60) return "Volatile";
     if (vix <= 80) return "High Volatility";
     return "Extreme";
@@ -56,29 +53,54 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
 
     const VixGauge = ({ value, zone }: { value: number, zone: string }) => {
         const colorConfig: Record<string, string> = {
-            "Extremely Calm": 'hsl(var(--chart-3))',
-            "Normal": 'hsl(var(--chart-2))',
-            "Volatile": 'hsl(var(--chart-4))',
-            "High Volatility": 'hsl(var(--chart-5))',
-            "Extreme": 'hsl(var(--destructive))',
+            "Calm": 'bg-green-500',
+            "Volatile": 'bg-yellow-500',
+            "High Volatility": 'bg-orange-500',
+            "Extreme": 'bg-red-500',
         };
         
-        const color = colorConfig[zone] || 'hsl(var(--foreground))';
-        const conicGradient = `conic-gradient(${color} 0deg, ${color} calc(${value} * 3.6deg), hsl(var(--muted)) calc(${value} * 3.6deg), hsl(var(--muted)) 360deg)`;
+        const colorClass = colorConfig[zone] || 'bg-foreground';
+        const conicGradient = `conic-gradient(var(--tw-gradient-from) 0deg, var(--tw-gradient-from) calc(${value} * 3.6deg), hsl(var(--muted)) calc(${value} * 3.6deg), hsl(var(--muted)) 360deg)`;
 
         return (
             <div 
-                className="relative flex items-center justify-center w-48 h-48 rounded-full"
+                className={cn("relative flex items-center justify-center w-48 h-48 rounded-full from-green-500", colorClass)}
                 style={{ background: conicGradient }}
             >
                  <div className="absolute w-[85%] h-[85%] bg-muted/80 backdrop-blur-sm rounded-full" />
                  <div className="relative flex flex-col items-center justify-center z-10">
                     <p className="text-5xl font-bold font-mono text-foreground">{value}</p>
-                    <p className="font-semibold" style={{ color }}>{zone}</p>
+                    <p className={cn("font-semibold", 
+                        zone === 'Calm' && 'text-green-400',
+                        zone === 'Volatile' && 'text-yellow-400',
+                        zone === 'High Volatility' && 'text-orange-400',
+                        zone === 'Extreme' && 'text-red-400',
+                    )}>{zone}</p>
                 </div>
             </div>
         );
     };
+    
+    const recommendationBgClass = {
+        "Calm": "bg-green-950/30 border-green-500/20",
+        "Volatile": "bg-yellow-950/30 border-yellow-500/20",
+        "High Volatility": "bg-orange-950/30 border-orange-500/20",
+        "Extreme": "bg-red-950/30 border-red-500/20"
+    }[currentZone];
+
+    const recommendationTextClass = {
+        "Calm": "text-green-400",
+        "Volatile": "text-yellow-400",
+        "High Volatility": "text-orange-400",
+        "Extreme": "text-red-400"
+    }[currentZone];
+    
+     const recommendationSubtextClass = {
+        "Calm": "text-green-300/80",
+        "Volatile": "text-yellow-300/80",
+        "High Volatility": "text-orange-300/80",
+        "Extreme": "text-red-300/80"
+    }[currentZone];
 
     return (
         <div className="space-y-8">
@@ -105,9 +127,9 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                                     <h3 className="font-semibold text-foreground flex items-center gap-2"><TrendingUp className="h-4 w-4"/>Current State: {currentVix} ({currentZone})</h3>
                                     <p className="text-sm text-muted-foreground mt-1">Markets are showing elevated chop and larger price swings than usual. Risk is heightened.</p>
                                 </div>
-                                <div className="p-4 rounded-lg bg-amber-950/30 border border-amber-500/20">
-                                    <h4 className="font-semibold text-amber-400 flex items-center gap-2"><AlertTriangle className="h-4 w-4"/>Recommended Posture: {adaptation.title}</h4>
-                                    <p className="text-sm text-amber-300/80 mt-1">{adaptation.strategy}</p>
+                                <div className={cn("p-4 rounded-lg", recommendationBgClass)}>
+                                    <h4 className={cn("font-semibold flex items-center gap-2", recommendationTextClass)}><AlertTriangle className="h-4 w-4"/>Recommended Posture: {adaptation.title}</h4>
+                                    <p className={cn("text-sm mt-1", recommendationSubtextClass)}>{adaptation.strategy}</p>
                                 </div>
                             </div>
                         </CardContent>
@@ -126,7 +148,6 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                                         <XAxis dataKey="day" tick={{fontSize: 12}} />
                                         <YAxis domain={[0, 100]} tick={{fontSize: 12}}/>
                                         <ChartTooltip content={<ChartTooltipContent indicator="line" />} />
-                                        <ReferenceLine y={20} stroke="hsl(var(--chart-3))" strokeDasharray="3 3" />
                                         <ReferenceLine y={40} stroke="hsl(var(--chart-2))" strokeDasharray="3 3" />
                                         <ReferenceLine y={60} stroke="hsl(var(--chart-4))" strokeDasharray="3 3" />
                                         <ReferenceLine y={80} stroke="hsl(var(--chart-5))" strokeDasharray="3 3" />
@@ -184,4 +205,3 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
         </div>
     );
 }
-
