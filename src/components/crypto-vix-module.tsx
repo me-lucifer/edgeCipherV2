@@ -30,11 +30,17 @@ const zoneData: { zone: VixZone, range: string, color: string, impact: string, r
     { zone: "Extreme", range: "81-100", color: "bg-red-500", impact: "Dangerously unpredictable, 'black swan' risk.", recommendation: "Avoid taking new positions." },
 ];
 
-const mockVixHistory = [
-    { day: "30d ago", value: 35 }, { day: "25d ago", value: 45 }, { day: "20d ago", value: 25 },
-    { day: "15d ago", value: 55 }, { day: "10d ago", value: 78 }, { day: "5d ago", value: 65 },
+const mockVixHistory7d = [
+    { day: "7d ago", value: 35 }, { day: "6d ago", value: 45 }, { day: "5d ago", value: 25 },
+    { day: "4d ago", value: 55 }, { day: "3d ago", value: 78 }, { day: "2d ago", value: 65 },
     { day: "Today", value: 58 },
 ];
+
+const mockVixHistory24h = [
+    { hour: "24h", value: 60 }, { hour: "20h", value: 55 }, { hour: "16h", value: 58 },
+    { hour: "12h", value: 62 }, { hour: "8h", value: 70 }, { hour: "4h", value: 65 },
+    { hour: "Now", value: 58 },
+]
 
 const postureSuggestions: Record<VixZone, { title: string, actions: string[] }> = {
     "Extremely Calm": { title: "Be patient", actions: ["Wait for A+ setups", "Respect ranges", "Avoid forcing trades"] },
@@ -102,6 +108,7 @@ function ScoreComponentCard({ icon: Icon, title, value, colorClass }: { icon: Re
 
 export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
     const { vixState, isLoading, updateVixValue } = useVixState();
+    const [timeRange, setTimeRange] = useState<'24H' | '7D'>('24H');
 
     const askArjun = () => {
         if (!vixState) return;
@@ -173,7 +180,9 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
 
     const newsSentiment = components.newsSentiment > 60 ? "Greed" : components.newsSentiment < 40 ? "Fear" : "Neutral";
     const newsSentimentColor = newsSentiment === "Fear" ? "text-red-500" : newsSentiment === "Greed" ? "text-green-500" : "text-yellow-500";
-
+    
+    const chartData = timeRange === '24H' ? mockVixHistory24h : mockVixHistory7d;
+    const chartKey = timeRange === '24H' ? 'hour' : 'day';
 
     return (
         <div className="space-y-8">
@@ -254,15 +263,35 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
 
                      <Card className="bg-muted/30 border-border/50">
                         <CardHeader>
-                            <CardTitle>30-Day Volatility History</CardTitle>
+                             <div className="flex items-center justify-between">
+                                <CardTitle>{timeRange} Volatility Trend</CardTitle>
+                                <div className="flex items-center gap-1 rounded-full bg-muted p-1">
+                                    <Button
+                                        size="sm"
+                                        variant={timeRange === '24H' ? 'secondary' : 'ghost'}
+                                        onClick={() => setTimeRange('24H')}
+                                        className="rounded-full h-8 px-3 text-xs"
+                                    >
+                                        24H
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        variant={timeRange === '7D' ? 'secondary' : 'ghost'}
+                                        onClick={() => setTimeRange('7D')}
+                                        className="rounded-full h-8 px-3 text-xs"
+                                    >
+                                        7D
+                                    </Button>
+                                </div>
+                            </div>
                             <CardDescription>How today's volatility compares to the recent past.</CardDescription>
                         </CardHeader>
                         <CardContent>
                              <ChartContainer config={{value: {color: "hsl(var(--primary))"}}} className="h-64 w-full">
                                 <ResponsiveContainer>
-                                    <ComposedChart data={mockVixHistory}>
+                                    <ComposedChart data={chartData}>
                                         <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50"/>
-                                        <XAxis dataKey="day" tick={{fontSize: 12}} />
+                                        <XAxis dataKey={chartKey} tick={{fontSize: 12}} />
                                         <YAxis domain={[0, 100]} tick={{fontSize: 12}}/>
                                         <ChartTooltip content={<ChartTooltipContent indicator="line" />} />
                                         <ReferenceLine y={20} stroke="hsl(var(--chart-2))" strokeDasharray="3 3" />
@@ -275,7 +304,7 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                             </ChartContainer>
                         </CardContent>
                         <CardFooter>
-                           <p className="text-xs text-muted-foreground">This chart shows the daily closing VIX value over the past 30 days.</p>
+                           <p className="text-xs text-muted-foreground">This chart shows the daily closing VIX value over the past {timeRange === '7D' ? '7 days' : '24 hours'}.</p>
                         </CardFooter>
                     </Card>
                 </div>
