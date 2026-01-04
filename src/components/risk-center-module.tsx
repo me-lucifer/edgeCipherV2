@@ -37,6 +37,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "./ui/chart";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
 import { useJournal, type JournalEntry } from "./trade-journal-module";
 import { RiskCenterTour } from "./risk-center-tour";
+import { VixBadge } from "./ui/vix-badge";
 
 
 interface RiskCenterModuleProps {
@@ -169,6 +170,7 @@ const VixGauge = ({ value, zone }: { value: number, zone: string }) => {
 
 function MarketRiskCard({ marketRisk, onSetModule }: { marketRisk: RiskState['marketRisk'], onSetModule: (module: any) => void }) {
     const { vixValue, vixZone } = marketRisk;
+    const { vixState } = useRiskState();
     
     const handleSliderChange = (value: number[]) => {
         const newVix = value[0];
@@ -186,10 +188,11 @@ function MarketRiskCard({ marketRisk, onSetModule }: { marketRisk: RiskState['ma
     };
     
     const { impact } = zoneInfo[vixZone] || zoneInfo.Normal;
-
-    // Mocked conditions based on VIX for demo purposes
-    const fundingRateStatus = vixZone === 'Extreme' ? 'High' : 'Neutral';
-    const newsSentimentStatus = vixZone === 'Extreme' ? 'Fear' : vixZone === 'Elevated' ? 'Mixed' : 'Neutral';
+    
+    const chartData = vixState?.series.series24h || [];
+    
+    const previousZone = chartData.length > 1 ? getVixZone(chartData[chartData.length - 2].value) : vixZone;
+    const regimeShift = previousZone !== vixZone;
 
 
     return (
@@ -211,53 +214,34 @@ function MarketRiskCard({ marketRisk, onSetModule }: { marketRisk: RiskState['ma
                 </CardTitle>
             </CardHeader>
             <CardContent className="grid md:grid-cols-2 gap-6 items-center">
-                <VixGauge value={vixValue} zone={vixZone} />
+                <VixBadge value={vixValue} zoneLabel={vixZone} size="lg" onClick={() => onSetModule('cryptoVix')} />
                 <div className="space-y-3">
                    <p className="text-sm text-muted-foreground"><span className="font-semibold text-foreground">Impact:</span> {impact}</p>
+                   <div className="h-12 w-full">
+                     <ChartContainer config={{value: {color: "hsl(var(--primary))"}}} className="h-full w-full">
+                        <ResponsiveContainer>
+                          <LineChart data={chartData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
+                            <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </ChartContainer>
+                   </div>
                    <Button variant="link" className="p-0 h-auto" onClick={() => onSetModule('cryptoVix')}>
                        Open Crypto VIX details <ArrowRight className="ml-2 h-4 w-4" />
                    </Button>
                 </div>
             </CardContent>
-            <Separator className="my-4" />
-            <CardContent>
-                <h4 className="font-semibold text-foreground mb-3 text-sm">Today's Conditions</h4>
-                <div className="flex flex-wrap gap-2">
-                    <Badge variant="outline" className={cn(
-                        "text-xs",
-                        vixZone === 'Extreme' || vixZone === 'Elevated' ? 'border-amber-500/50 text-amber-400' : 'border-border'
-                    )}>
-                        <Sparkles className="mr-1.5 h-3 w-3" />
-                        Volatility: {vixZone}
-                    </Badge>
-                     <Badge variant="outline" className={cn(
-                        "text-xs",
-                        fundingRateStatus === 'High' ? 'border-red-500/50 text-red-400' : 'border-border'
-                    )}>
-                        <Droplets className="mr-1.5 h-3 w-3" />
-                        Funding: {fundingRateStatus} (prototype)
-                    </Badge>
-                    <Badge variant="outline" className={cn(
-                        "text-xs",
-                        newsSentimentStatus === 'Fear' ? 'border-red-500/50 text-red-400' : 
-                        newsSentimentStatus === 'Mixed' ? 'border-amber-500/50 text-amber-400' : 'border-border'
-                    )}>
-                        <TrendingUp className="mr-1.5 h-3 w-3" />
-                        News Sentiment: {newsSentimentStatus} (prototype)
-                    </Badge>
-                </div>
-            </CardContent>
-            <CardFooter className="border-t pt-4 mt-4">
-                <div className="w-full space-y-3">
-                    <Label className="text-xs text-muted-foreground flex items-center gap-2"><SlidersHorizontal className="h-3 w-3" /> Simulate VIX (Prototype)</Label>
-                    <Slider
-                        defaultValue={[vixValue]}
-                        max={100}
-                        step={1}
-                        onValueChange={handleSliderChange}
-                    />
-                </div>
-            </CardFooter>
+            {regimeShift && (
+                 <CardFooter className="flex-col items-start">
+                    <Alert variant="default" className="bg-amber-950/40 border-amber-500/20 text-amber-300">
+                        <AlertTriangle className="h-4 w-4 text-amber-400" />
+                        <AlertTitle>Regime Shift Detected</AlertTitle>
+                        <AlertDescription>
+                            Volatility has moved from '{previousZone}' to '{vixZone}'. Re-evaluate your risk parameters.
+                        </AlertDescription>
+                    </Alert>
+                </CardFooter>
+            )}
         </Card>
     );
 }
@@ -1845,6 +1829,7 @@ const DeltaIndicator = ({ delta, unit = "" }: { delta: number; unit?: string }) 
 };
     
     
+
 
 
 
