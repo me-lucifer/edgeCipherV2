@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Bot, LineChart, Gauge, TrendingUp, TrendingDown, Info, AlertTriangle, SlidersHorizontal, Flame, Droplets, Newspaper } from "lucide-react";
+import { Bot, LineChart, Gauge, TrendingUp, TrendingDown, Info, AlertTriangle, SlidersHorizontal, Flame, Droplets, Newspaper, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Line, ResponsiveContainer, CartesianGrid, XAxis, YAxis, ComposedChart, ReferenceLine } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "./ui/chart";
@@ -15,6 +15,7 @@ import { formatDistanceToNow } from "date-fns";
 import { Slider } from "./ui/slider";
 import { Label } from "./ui/label";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
+import { Badge } from "./ui/badge";
 
 
 interface CryptoVixModuleProps {
@@ -41,6 +42,14 @@ const adaptationStrategies: Record<VixZone, { title: string; strategy: string }>
     "Volatile": { title: "Capital Preservation", strategy: "Consider reducing position size. Widen stop-losses to avoid getting shaken out by volatility. Be highly selective." },
     "High Volatility": { title: "Defense First", strategy: "This is a risky time to trade. If you must trade, use minimum size and wait for very clear confirmation." },
     "Extreme": { title: "Maximum Caution", strategy: "Avoid taking new positions. Market conditions are dangerously unpredictable." },
+};
+
+const postureSuggestions: Record<VixZone, { title: string, actions: string[] }> = {
+    "Extremely Calm": { title: "Be patient", actions: ["Wait for A+ setups", "Respect ranges", "Avoid forcing trades"] },
+    "Normal": { title: "Execute plan", actions: ["Stick to your strategy", "Normal size OK", "Journal consistently"] },
+    "Volatile": { title: "Trade defensively", actions: ["Reduce size", "Widen stops slightly", "Confirm entries"] },
+    "High Volatility": { title: "Extreme caution", actions: ["Cut size >40%", "Wait for clear signals", "Avoid overtrading"] },
+    "Extreme": { title: "No new trades", actions: ["Protect capital", "Close risky positions", "Review, don't trade"] },
 };
 
 function VixSimulationControls({ vixState, updateVixValue }: { vixState: VixState, updateVixValue: (value: number) => void }) {
@@ -129,7 +138,7 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
     }
     
     const { value: currentVix, zoneLabel: currentZone, updatedAt, components } = vixState;
-    const adaptation = adaptationStrategies[currentZone];
+    const posture = postureSuggestions[currentZone] || postureSuggestions.Normal;
 
     const VixGauge = ({ value, zone }: { value: number, zone: string }) => {
         const colorConfig: Record<string, string> = {
@@ -210,12 +219,24 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                                     </TooltipProvider>
                                 </div>
                             </div>
-                            <div className="space-y-4">
-                                <div>
-                                    <h3 className="font-semibold text-foreground flex items-center gap-2"><TrendingUp className="h-4 w-4"/>What it means:</h3>
-                                    <p className="text-sm text-muted-foreground mt-1">{adaptation.strategy}</p>
-                                </div>
-                            </div>
+                           <Card className="bg-muted/50 border-border/50">
+                                <CardHeader>
+                                    <CardTitle className="text-base flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary" /> Suggested Posture: {posture.title}</CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-3">
+                                    <p className="text-sm text-muted-foreground">Arjun recommends these adjustments based on current conditions:</p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {posture.actions.map((action, i) => (
+                                            <Badge key={i} variant="outline" className="text-xs">{action}</Badge>
+                                        ))}
+                                    </div>
+                                    <div className="pt-2">
+                                        <Button variant="link" size="sm" className="p-0 h-auto text-primary/90" onClick={askArjun}>
+                                            Discuss this with Arjun <ArrowRight className="ml-2 h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                </CardContent>
+                           </Card>
                         </CardContent>
                     </Card>
 
