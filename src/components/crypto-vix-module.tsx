@@ -23,6 +23,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "./ui/carousel";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 interface CryptoVixModuleProps {
     onSetModule: (module: any, context?: any) => void;
@@ -42,38 +51,38 @@ type VixAction = {
     module?: string;
     context?: any;
 }
-type VixAdvice = { title: string; rule: string; actions: VixAction[] };
+type VixAdvice = { interpretation: string; rule: string; actions: VixAction[] };
 
 const postureSuggestions: Record<VixZone, Record<PersonaType, VixAdvice>> = {
     "Extremely Calm": {
-        "Impulsive Sprinter": { title: "Patience is key", rule: "Wait for A+ setups; avoid forcing trades in chop.", actions: [{label: "Stick to high-probability setups"}, {label: "Respect range boundaries"}, {label: "Use this quiet time for journal review", module: "tradeJournal"}] },
-        "Fearful Analyst": { title: "Observe and Plan", rule: "Use this low-stress time to plan future trades without pressure.", actions: [{label: "Build confidence by paper trading setups"}, {label: "Identify clear range levels", module: "chart"}, {label: "Plan entries/exits without emotional pressure", module: 'tradePlanning'}] },
-        "Disciplined Scalper": { title: "Execute your plan", rule: "Your range-bound strategies may perform well now.", actions: [{label: "Focus on clear S/R flips"}, {label: "Take profits at defined levels"}, {label: "Monitor for signs of increasing volatility"}] },
-        "Beginner": { title: "Learn the field", rule: "This is the best time to study market structure without high risk.", actions: [{label: "Practice identifying support and resistance", module: "chart"}, {label: "Observe how price reacts at key levels"}, {label: "Formulate a simple trade plan without executing", module: "tradePlanning"}] },
+        "Impulsive Sprinter": { interpretation: "Calm markets can feel slow, which may trigger your impulse to force trades. Patience is your primary edge today. Avoid chasing small moves and wait for your A+ setup.", rule: "Do not invent setups; wait for the market to present a clear opportunity.", actions: [{label: "Stick to high-probability setups"}, {label: "Respect range boundaries"}, {label: "Use this quiet time for journal review", module: "tradeJournal"}] },
+        "Fearful Analyst": { interpretation: "These low-stress conditions are perfect for building confidence. Use this time to observe and plan without pressure. The goal is to build conviction in your analysis before you risk capital.", rule: "Focus on planning and analysis, not forced execution.", actions: [{label: "Build confidence by paper trading setups"}, {label: "Identify clear range levels", module: "chart"}, {label: "Plan entries/exits without emotional pressure", module: 'tradePlanning'}] },
+        "Disciplined Scalper": { interpretation: "Range-bound strategies often perform well in these conditions. Your discipline is key to avoid over-leveraging on small moves. Trust your system and execute your plan.", rule: "Execute your plan, but protect your capital from choppy price action.", actions: [{label: "Focus on clear S/R flips"}, {label: "Take profits at defined levels"}, {label: "Monitor for signs of increasing volatility"}] },
+        "Beginner": { interpretation: "This is the ideal environment to study market structure without the high risk of volatile swings. Watch how price reacts at key levels and practice formulating plans without executing.", rule: "Today is for learning and observation, not for aggressive trading.", actions: [{label: "Practice identifying support and resistance", module: "chart"}, {label: "Observe how price reacts at key levels"}, {label: "Formulate a simple trade plan without executing", module: "tradePlanning"}] },
     },
     "Normal": {
-        "Impulsive Sprinter": { title: "Follow the rules", rule: "Your biggest risk now is breaking your plan. Stick to it.", actions: [{label: "One trade at a time; no adding to losers"}, {label: "Respect your stop-loss, no exceptions"}, {label: "Complete journal before your next trade", module: "tradeJournal"}] },
-        "Fearful Analyst": { title: "Trust your analysis", rule: "Conditions are favorable for well-planned trades. Execute your plan.", actions: [{label: "Trust the analysis you did in calmer times"}, {label: "Use a pre-flight checklist before entering"}, {label: "Start with a smaller-than-normal position size"}] },
-        "Disciplined Scalper": { title: "Your prime time", rule: "Good conditions for your strategy. Execute with discipline.", actions: [{label: "Execute your A+ setups without hesitation"}, {label: "Adhere strictly to your profit-taking rules"}, {label: "Monitor for signs of increasing volatility"}] },
-        "Beginner": { title: "Practice execution", rule: "Execute your plan with a very small, controlled position size.", actions: [{label: "Focus on one or two simple setups"}, {label: "Practice setting entry, stop, and profit orders", module: "tradePlanning"}, {label: "Journal every action and emotion immediately", module: "tradeJournal"}] },
+        "Impulsive Sprinter": { interpretation: "Normal conditions can still trigger impatience. Your biggest risk is deviating from your plan. The goal is consistent execution, not hitting a home run. Stick to your rules.", rule: "Follow your plan without exception; no adding to losers or revenge trading.", actions: [{label: "One trade at a time"}, {label: "Respect your stop-loss, no exceptions"}, {label: "Complete journal before your next trade", module: "tradeJournal"}] },
+        "Fearful Analyst": { interpretation: "The market is providing good conditions for well-planned trades. Your analysis is likely sound; now is the time to trust it. Hesitation can be as costly as a bad entry. Execute your plan.", rule: "Trust your analysis and execute your A+ setups with confidence.", actions: [{label: "Trust the analysis you did in calmer times"}, {label: "Use a pre-flight checklist before entering"}, {label: "Start with a smaller-than-normal position size"}] },
+        "Disciplined Scalper": { interpretation: "These are your prime conditions. The market has direction but isn't overly chaotic. Your edge is sharpest now. Focus on disciplined execution of your best setups.", rule: "Execute your A+ setups without hesitation and adhere to your rules.", actions: [{label: "Execute A+ setups cleanly"}, {label: "Adhere strictly to your profit-taking rules"}, {label: "Monitor for signs of increasing volatility"}] },
+        "Beginner": { interpretation: "This is a good environment to practice. Focus on executing one or two simple setups with very small, controlled position sizes. The goal is to learn the process, not to make money.", rule: "Practice disciplined execution with a minimal position size.", actions: [{label: "Focus on one or two simple setups"}, {label: "Practice setting entry, stop, and profit orders", module: "tradePlanning"}, {label: "Journal every action and emotion immediately", module: "tradeJournal"}] },
     },
     "Volatile": {
-        "Impulsive Sprinter": { title: "DEFENSE FIRST", rule: "Your #1 risk is overtrading & revenge. HALVE your size.", actions: [{label: "Cut position size by 50%", module: 'tradePlanning', context: { safeMode: true } }, {label: "Wait for crystal-clear A+ setups"}, {label: "Set a hard stop on number of trades for the day", module: 'riskCenter'}] },
-        "Fearful Analyst": { title: "Sit out or size down", rule: "Analysis is difficult in chop. It's okay to wait.", actions: [{label: "If unsure, the best trade is no trade"}, {label: "Drastically reduce size if you see a perfect setup"}, {label: "Watch price action without the pressure to participate", module: 'chart'}] },
-        "Disciplined Scalper": { title: "Extreme caution", rule: "Your strategy is high-risk now. Adapt or wait.", actions: [{label: "Widen stops slightly to avoid getting wicked out"}, {label: "Reduce position size significantly", module: 'tradePlanning', context: { safeMode: true } }, {label: "Focus only on setups with very clear invalidation"}] },
-        "Beginner": { title: "Observe, don't trade", rule: "This is the worst environment for learning. Watch, don't touch.", actions: [{label: "Watch how price interacts with key levels without trading", module: 'chart'}, {label: "Notice how quickly moves can reverse"}, {label: "See this as a live lesson in risk management"}] },
+        "Impulsive Sprinter": { interpretation: "This is a danger zone for you. Volatility can feel like an opportunity, but it's where your impulses are most costly. Your #1 job is defense. Reduce size and be extremely selective.", rule: "Your first priority is capital protection, not profit.", actions: [{label: "Cut position size by 50%", module: 'tradePlanning', context: { safeMode: true } }, {label: "Wait for crystal-clear A+ setups"}, {label: "Set a hard stop on number of trades", module: 'riskCenter'}] },
+        "Fearful Analyst": { interpretation: "Analysis is difficult in choppy, volatile markets. It is perfectly acceptable to sit out and wait for clearer conditions. Don't feel pressured to trade; protecting your mental capital is key.", rule: "If you are not 100% confident in a setup, the best trade is no trade.", actions: [{label: "If unsure, stay flat"}, {label: "Drastically reduce size if you see a perfect setup"}, {label: "Watch price action without pressure", module: 'chart'}] },
+        "Disciplined Scalper": { interpretation: "Your strategy is at high risk in these conditions. Wider wicks can easily stop you out of otherwise good trades. You must adapt by widening stops and reducing size, or wait for the market to normalize.", rule: "Adapt your parameters for volatility or wait for calmer conditions.", actions: [{label: "Widen stops slightly to avoid getting wicked out"}, {label: "Reduce position size significantly", module: 'tradePlanning', context: { safeMode: true } }, {label: "Focus on setups with very clear invalidation"}] },
+        "Beginner": { interpretation: "This is a 'sit on your hands' day. Watching the chaos from the sidelines is the most valuable lesson. You cannot predict these moves, and trying to will likely result in losses.", rule: "Observe the market, do not participate.", actions: [{label: "Watch how price interacts with key levels", module: 'chart'}, {label: "Notice how quickly moves can reverse"}, {label: "See this as a live lesson in risk management"}] },
     },
     "High Volatility": {
-        "Impulsive Sprinter": { title: "STOP. HANDS OFF.", rule: "Do not trade. You are at maximum risk of blowing up.", actions: [{label: "Close the charts for a few hours"}, {label: "Read your trading plan instead of watching candles", module: 'strategyManagement'}, {label: "A flat day is a winning day in these conditions"}] },
-        "Fearful Analyst": { title: "Stay flat", rule: "Analysis is unreliable now. Protect your capital and mindset.", actions: [{label: "Do not feel pressure to trade; pros are waiting too"}, {label: "This is a good time for high-level market review", module: 'analytics'}, {label: "Study how 'black swan' events unfold"}] },
-        "Disciplined Scalper": { title: "Cash is a position", rule: "Your edge is gone. Wait for the market to normalize.", actions: [{label: "Preserve capital; your opportunity will come later"}, {label: "Avoid the temptation to catch falling knives"}, {label: "Review your rules for high-volatility environments", module: 'strategyManagement'}] },
-        "Beginner": { title: "DO NOT TRADE", rule: "This is how beginners lose their accounts. Your only job is to watch.", actions: [{label: "Observe the chaos from the sidelines"}, {label: "Understand that you cannot predict these moves"}, {label: "Learn that sometimes the best action is no action"}] },
+        "Impulsive Sprinter": { interpretation: "This is a 'red alert' for your persona. The market is erratic, and your impulse to trade is at its most dangerous. The risk of significant loss is extremely high. Do not trade.", rule: "Your only job today is to protect your capital by not trading.", actions: [{label: "Close the charts for a few hours"}, {label: "Read your trading plan instead", module: 'strategyManagement'}, {label: "A flat day is a winning day in these conditions"}] },
+        "Fearful Analyst": { interpretation: "Your analysis is unreliable in these conditions. The market is driven by liquidations and fear, not fundamentals or clean technicals. Protect your capital and your mindset by staying flat.", rule: "Stay flat. Pros are waiting, and so should you.", actions: [{label: "Do not feel pressure to trade"}, {label: "This is a good time for high-level review", module: 'analytics'}, {label: "Study how 'black swan' events unfold"}] },
+        "Disciplined Scalper": { interpretation: "Your edge does not exist in these market conditions. The noise is too high, and risk is not definable. Your discipline is best expressed by not participating until the market normalizes.", rule: "Cash is the strongest position right now. Preserve your capital.", actions: [{label: "Preserve capital; opportunity will come later"}, {label: "Avoid the temptation to catch falling knives"}, {label: "Review your rules for high-volatility", module: 'strategyManagement'}] },
+        "Beginner": { interpretation: "This is the environment where new traders lose their accounts. Do not trade. Your only job is to watch from a distance and understand that the best action is no action. Survival is the goal.", rule: "Do not trade. Your goal is to survive to trade another day.", actions: [{label: "Observe the chaos from the sidelines"}, {label: "Understand that you cannot predict these moves"}, {label: "Learn that sometimes the best action is no action"}] },
     },
     "Extreme": {
-        "Impulsive Sprinter": { title: "STOP. WALK AWAY.", rule: "You are in extreme danger of catastrophic loss.", actions: [{label: "Seriously, close your trading platform"}, {label: "Go for a walk. Do not look at the charts."}, {label: "Protecting your capital is the only trade that matters"}] },
-        "Fearful Analyst": { title: "Stay flat. Full stop.", rule: "The market is irrational. Your analysis does not apply.", actions: [{label: "Confirm all open positions are closed or protected"}, {label: "Read a book on trading psychology"}, {label: "This is a spectator sport right now"}] },
-        "Disciplined Scalper": { title: "No edge here", rule: "Market is liquidating. There is no edge to be found.", actions: [{label: "Stay flat and protect your capital"}, {label: "Wait for volatility to return to normal levels"}, {label: "This is a day for risk managers, not traders"}] },
-        "Beginner": { title: "DO NOT TRADE. DANGER.", rule: "This is a 'black swan' event. Do not participate.", actions: [{label: "Watch from a distance to learn"}, {label: "Understand that this is not a trading environment"}, {label: "The goal is to survive to trade another day"}] },
+        "Impulsive Sprinter": { interpretation: "Catastrophic risk is present. Your account is in extreme danger if you trade. Close your platform and walk away. The only winning move is not to play. This is non-negotiable for your persona.", rule: "DO NOT TRADE. The only trade that matters is protecting your account.", actions: [{label: "Seriously, close your trading platform"}, {label: "Go for a walk. Do not look at the charts."}, {label: "Protecting your capital is the only goal."}] },
+        "Fearful Analyst": { interpretation: "The market is completely irrational. Your analysis does not apply. Do not attempt to find a bottom or top. Confirm all positions are closed or protected and wait for sanity to return.", rule: "Stay flat. This is a spectator sport right now.", actions: [{label: "Confirm all open positions are closed or protected"}, {label: "Read a book on trading psychology"}, {label: "Wait for volatility to return to normal levels"}] },
+        "Disciplined Scalper": { interpretation: "There is no edge here. The market is in a state of cascading liquidations. Any position taken is a gamble, not a trade. Your discipline requires you to stay flat and protect your capital.", rule: "Stay flat. There is no trading edge in a liquidation cascade.", actions: [{label: "Stay flat and protect your capital"}, {label: "Wait for volatility to return to normal levels"}, {label: "This is a day for risk managers, not traders"}] },
+        "Beginner": { interpretation: "This is a 'black swan' event. Do not participate under any circumstances. Watching this from the sidelines is one of the most valuable lessons in risk management you will ever get. Do not trade.", rule: "DO NOT TRADE. DANGER.", actions: [{label: "Watch from a distance to learn"}, {label: "Understand that this is not a trading environment"}, {label: "The goal is to survive to trade another day"}] },
     }
 };
 
@@ -707,7 +716,7 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                                     ) : posture ? (
                                         <>
                                             <div className="flex justify-between items-center flex-wrap gap-2">
-                                                <p className="font-semibold text-primary">{posture.title}</p>
+                                                 <p className="font-semibold text-primary/90">{persona}</p>
                                                 <Select value={persona} onValueChange={(value) => handlePersonaChange(value as PersonaType)}>
                                                     <SelectTrigger className="w-[180px] h-8 text-xs">
                                                         <SelectValue />
@@ -720,9 +729,10 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                                                     </SelectContent>
                                                 </Select>
                                             </div>
+                                            <p className="text-sm text-primary/90 italic">"{posture.interpretation}"</p>
+                                            <p className="text-sm"><strong>Today's rule:</strong> {posture.rule}</p>
 
-                                            <p className="text-sm text-primary/90 italic"><strong>Rule for today:</strong> "{posture.rule}"</p>
-                                            <div className="flex flex-wrap gap-2">
+                                            <div className="flex flex-wrap gap-2 pt-2">
                                                 {posture.actions.map((action, i) => (
                                                     <Button key={i} variant="outline" size="sm" className="text-xs h-7" onClick={() => action.module && onSetModule(action.module, action.context)}>
                                                         {action.label}
@@ -907,7 +917,7 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
     );
 }
 
-const VixGauge = ({ value, zone }: { value: number, zone: VixZone }) => {
+function VixGauge({ value, zone }: { value: number, zone: VixZone }) {
     const fromColor = 
         zone === 'Extremely Calm' || zone === 'Normal' ? 'hsl(var(--chart-2))' :
         zone === 'Volatile' ? 'hsl(var(--chart-4))' :
@@ -934,3 +944,4 @@ const VixGauge = ({ value, zone }: { value: number, zone: VixZone }) => {
         </div>
     );
 };
+
