@@ -508,7 +508,7 @@ function HowVixIsUsed({ onSetModule }: { onSetModule: (module: any, context?: an
     return (
         <Card className="bg-muted/30 border-border/50">
             <CardHeader>
-                <CardTitle>How EdgeCipher Uses the Crypto VIX</CardTitle>
+                <CardTitle>How EdgeCipher Uses the EdgeCipher Crypto VIX (0–100)</CardTitle>
                 <CardDescription>
                     The VIX is a core signal that connects multiple modules to help you adapt to changing market conditions.
                 </CardDescription>
