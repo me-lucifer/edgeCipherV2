@@ -1,13 +1,13 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Bot, LineChart, Gauge, TrendingUp, TrendingDown, Info, AlertTriangle, SlidersHorizontal, Flame, Droplets, Newspaper, Sparkles, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Line, ResponsiveContainer, CartesianGrid, XAxis, YAxis, ComposedChart, ReferenceLine } from "recharts";
+import { Line, ResponsiveContainer, CartesianGrid, XAxis, YAxis, ComposedChart, ReferenceLine, ReferenceDot } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "./ui/chart";
 import { useVixState, type VixState, type VixZone } from "@/hooks/use-vix-state";
 import { Skeleton } from "./ui/skeleton";
@@ -169,7 +169,19 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
     const newsSentiment = components.newsSentiment > 60 ? "Greed" : components.newsSentiment < 40 ? "Fear" : "Neutral";
     const newsSentimentColor = newsSentiment === "Fear" ? "text-red-500" : newsSentiment === "Greed" ? "text-green-500" : "text-yellow-500";
     
-    const chartData = timeRange === '24H' ? series.series24h : series.series7d;
+    const chartData = useMemo(() => {
+        const data = timeRange === '24H' ? series.series24h : series.series7d;
+        
+        return data.map((point, index, arr) => {
+            let spike = null;
+            if (index >= 2) {
+                const diff = point.value - arr[index - 2].value;
+                if (diff > 15) spike = "up";
+                if (diff < -15) spike = "down";
+            }
+            return { ...point, spike };
+        });
+    }, [series, timeRange]);
     const chartKey = timeRange === '24H' ? 'hour' : 'day';
 
     return (
@@ -281,12 +293,33 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                                         <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50"/>
                                         <XAxis dataKey={chartKey} tick={{fontSize: 12}} />
                                         <YAxis domain={[0, 100]} tick={{fontSize: 12}}/>
-                                        <ChartTooltip content={<ChartTooltipContent indicator="line" />} />
+                                        <ChartTooltip content={<ChartTooltipContent indicator="line" formatter={(value, name, props) => {
+                                            if (props.payload.spike === 'up') return "Volatility Spike"
+                                            if (props.payload.spike === 'down') return "Volatility Cooldown"
+                                            return `${value}`
+                                        }} />} />
                                         <ReferenceLine y={20} stroke="hsl(var(--chart-2))" strokeDasharray="3 3" />
                                         <ReferenceLine y={40} stroke="hsl(var(--chart-2))" strokeDasharray="3 3" />
                                         <ReferenceLine y={60} stroke="hsl(var(--chart-4))" strokeDasharray="3 3" />
                                         <ReferenceLine y={80} stroke="hsl(var(--chart-5))" strokeDasharray="3 3" />
                                         <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} name="VIX" />
+                                         {chartData.map((point, index) => {
+                                            if (point.spike) {
+                                                return (
+                                                    <ReferenceDot
+                                                        key={index}
+                                                        x={point[chartKey as keyof typeof point]}
+                                                        y={point.value}
+                                                        r={5}
+                                                        fill={point.spike === 'up' ? "hsl(var(--chart-5))" : "hsl(var(--chart-2))"}
+                                                        stroke="hsl(var(--background))"
+                                                        strokeWidth={2}
+                                                        isFront={true}
+                                                    />
+                                                );
+                                            }
+                                            return null;
+                                        })}
                                     </ComposedChart>
                                 </ResponsiveContainer>
                             </ChartContainer>
