@@ -1,12 +1,13 @@
 
+
       "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart as BarChartIcon, Brain, Calendar, Filter, AlertCircle, Info, TrendingUp, TrendingDown, Users, DollarSign, Target, Gauge, Zap, Award, ArrowRight, XCircle, CheckCircle, Circle, Bot, AlertTriangle, Clipboard, Star, Activity, BookOpen, BarChartHorizontal, Database, View, Flag, Presentation, ChevronsUpDown, Copy, MoreHorizontal, ShieldCheck, HelpCircle, ChevronUp } from "lucide-react";
+import { BarChart, Brain, Calendar, Filter, AlertCircle, Info, TrendingUp, TrendingDown, Users, DollarSign, Target, Gauge, Zap, Award, ArrowRight, XCircle, CheckCircle, Circle, Bot, AlertTriangle, Clipboard, Star, Activity, BookOpen, BarChartHorizontal, Database, View, Flag, Presentation, ChevronsUpDown, Copy, MoreHorizontal, ShieldCheck, HelpCircle, ChevronUp } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { BarChart, CartesianGrid, XAxis, YAxis, Bar, Line, LineChart, ResponsiveContainer, ReferenceDot, Dot } from "recharts";
+import { BarChart as RechartsBarChart, CartesianGrid, XAxis, YAxis, Bar as RechartsBar, Line, LineChart, ResponsiveContainer, ReferenceDot, Dot } from "recharts";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -351,7 +352,7 @@ const GuardrailDialog = () => {
     const [guardrails, setGuardrails] = useState({
         warnOnLowRR: true,
         warnOnHighRisk: true,
-        warnOnHighVIX: false,
+        warnOnVixHigh: false,
         warnAfterLosses: false,
     });
 
@@ -392,7 +393,7 @@ const GuardrailDialog = () => {
             <div className="py-4 space-y-4">
                 <GuardrailSwitch id="warnOnLowRR" label="Warn if R:R is below 1.5" description="Get an alert if a trade's potential reward doesn't justify its risk." />
                 <GuardrailSwitch id="warnOnHighRisk" label="Warn if risk is over 2%" description="Get a warning before you plan a trade that risks too much of your capital." />
-                <GuardrailSwitch id="warnOnHighVIX" label="Warn in Elevated/Extreme VIX" description="Nudge yourself to be more cautious when the market is volatile." />
+                <GuardrailSwitch id="warnOnVixHigh" label="Warn in Elevated/Extreme VIX" description="Nudge yourself to be more cautious when the market is volatile." />
                 <GuardrailSwitch id="warnAfterLosses" label="Warn after 2 consecutive losses" description="A 'cool-down' alert to prevent revenge trading after a losing streak." />
             </div>
             <DialogFooter>
@@ -1128,8 +1129,8 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
                     learningNotes: "This is a demo-generated learning note."
                 },
                 meta: {
-                    journalingCompletedAt: new Date(date.getTime() + (1000 * 60 * (150 + random() * 60))).toISOString(),
                     strategyVersion: `v${1 + Math.floor(random() * 2)}`,
+                    journalingCompletedAt: new Date(date.getTime() + (1000 * 60 * (150 + random() * 60))).toISOString(),
                     ruleAdherenceSummary: {
                         followedEntryRules: random() < 0.8,
                         movedSL: mistakes.includes("Moved SL"),
@@ -1239,7 +1240,7 @@ export function PerformanceAnalyticsModule({ onSetModule }: PerformanceAnalytics
     if (!hasData) {
         return (
             <div className="flex flex-col items-center justify-center text-center p-8 border-2 border-dashed rounded-lg min-h-[60vh]">
-                <BarChartIcon className="h-16 w-16 text-muted-foreground/50 mb-4" />
+                <BarChart className="h-16 w-16 text-muted-foreground/50 mb-4" />
                 <h2 className="text-2xl font-bold">No Analytics Data</h2>
                 <p className="text-muted-foreground mt-2 max-w-md">
                     To unlock these insights, you need to complete some journal entries. This data powers all of Arjun's analysis.
@@ -1440,7 +1441,7 @@ ${JSON.stringify(data, null, 2)}
                         id="summary"
                         title="High-Level Summary"
                         description={<>Your performance snapshot for the last <span className="font-semibold text-foreground">{timeRange}</span>.</>}
-                        icon={BarChartIcon}
+                        icon={BarChart}
                         headerContent={
                              <Badge id="analytics-quality-badge" variant="outline" className={cn(
                                 "text-base px-3 py-1",
@@ -1665,12 +1666,12 @@ ${JSON.stringify(data, null, 2)}
                         icon={Award}
                     >
                         <ChartContainer config={{}} className="h-64">
-                            <BarChart data={disciplineBreakdown} layout="vertical" margin={{ left: 20 }}>
+                            <RechartsBarChart data={disciplineBreakdown} layout="vertical" margin={{ left: 20 }}>
                                 <XAxis type="number" hide />
                                 <YAxis type="category" dataKey="violation" hide />
                                 <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line" />} />
-                                <Bar dataKey="frequency" fill="hsl(var(--primary))" radius={4} />
-                            </BarChart>
+                                <RechartsBar dataKey="frequency" fill="hsl(var(--primary))" radius={4} />
+                            </RechartsBarChart>
                         </ChartContainer>
                     </SectionCard>
                 </TabsContent>
@@ -1995,7 +1996,3 @@ const computeSinglePeriodAnalytics = (entries: JournalEntry[], random: () => num
         disciplineByVolatility,
     };
   }
-
-
-
-

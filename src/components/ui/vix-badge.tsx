@@ -1,3 +1,4 @@
+
 "use client";
 
 import { cn } from "@/lib/utils";
@@ -15,11 +16,11 @@ interface VixBadgeProps extends React.HTMLAttributes<HTMLDivElement> {
 
 export function VixBadge({ value, zoneLabel, size = 'md', showLabel = true, className, onClick, ...props }: VixBadgeProps) {
     const zoneConfig: Record<VixZone, string> = {
-        "Extremely Calm": 'border-green-500/30 bg-green-500/10 text-green-400',
-        "Normal": 'border-green-500/30 bg-green-500/10 text-green-400',
-        "Volatile": 'border-amber-500/30 bg-amber-500/10 text-amber-400',
-        "High Volatility": 'border-orange-500/30 bg-orange-500/10 text-orange-400',
-        "Extreme": 'border-red-500/30 bg-red-500/10 text-red-400 animate-pulse',
+        "Extremely Calm": 'border-green-500/30 bg-green-500/10 text-green-300',
+        "Normal": 'border-green-500/30 bg-green-500/10 text-green-300',
+        "Volatile": 'border-amber-500/30 bg-amber-500/10 text-amber-300',
+        "High Volatility": 'border-orange-500/30 bg-orange-500/10 text-orange-300',
+        "Extreme": 'border-red-500/30 bg-red-500/10 text-red-300 animate-pulse',
     };
 
     const isHighRisk = zoneLabel === 'High Volatility' || zoneLabel === 'Extreme';

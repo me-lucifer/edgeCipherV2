@@ -6,7 +6,7 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Bot, LineChart, Gauge, TrendingUp, TrendingDown, Info, AlertTriangle, SlidersHorizontal, Flame, Droplets, Newspaper, Sparkles, ArrowRight, X, BarChartHorizontal, Timer, Calendar, ChevronRight, User, BookOpen, BarChart as BarChartIcon, Scale, PlayCircle, LayoutDashboard, FileText, ShieldAlert } from "lucide-react";
+import { Bot, LineChart, Gauge, TrendingUp, TrendingDown, Info, AlertTriangle, SlidersHorizontal, Flame, Droplets, Newspaper, Sparkles, ArrowRight, X, BarChartHorizontal, Timer, Calendar, ChevronRight, User, BookOpen, BarChart, Scale, PlayCircle, LayoutDashboard, FileText, ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Line, ResponsiveContainer, CartesianGrid, XAxis, YAxis, ComposedChart, ReferenceLine, ReferenceDot } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "./ui/chart";
@@ -84,15 +84,6 @@ const postureSuggestions: Record<VixZone, Record<PersonaType, VixAdvice>> = {
         "Disciplined Scalper": { interpretation: "There is no edge here. The market is in a state of cascading liquidations. Any position taken is a gamble, not a trade. Your discipline requires you to stay flat and protect your capital. This is not the environment for your strategy. Acknowledging that and stepping aside is the highest form of discipline.", rule: "Stay flat. There is no trading edge in a liquidation cascade.", actions: [{label: "Stay flat and protect your capital"}, {label: "Wait for volatility to return to normal levels"}, {label: "This is a day for risk managers, not traders"}] },
         "Beginner": { interpretation: "This is a 'black swan' event. Do not participate under any circumstances. Watching this from the sidelines is one of the most valuable lessons in risk management you will ever get. This is the kind of day that ends trading careers. Your goal is to ensure it doesn't end yours before it begins.", rule: "DO NOT TRADE. DANGER.", actions: [{label: "Watch from a distance to learn"}, {label: "Understand that this is not a trading environment"}, {label: "The goal is to survive to trade another day"}] },
     }
-};
-
-const regimeShiftInfo: Record<string, { meaning: string, action: string }> = {
-    "Normal_Volatile": { meaning: "Market chop is increasing.", action: "Consider reducing leverage." },
-    "Volatile_High Volatility": { meaning: "Risk of erratic moves is now high.", action: "Switch to defense-first mindset." },
-    "High Volatility_Extreme": { meaning: "Dangerous conditions detected.", action: "Avoid taking new positions." },
-    "Extreme_High Volatility": { meaning: "Volatility is decreasing but still very high.", action: "Wait for further confirmation before trading." },
-    "High Volatility_Volatile": { meaning: "Conditions are improving but still risky.", action: "Can consider A+ setups with small size." },
-    "Volatile_Normal": { meaning: "The market is calming down.", action: "Can slowly return to normal sizing." },
 };
 
 const learningVideos = {
@@ -324,9 +315,9 @@ const ParameterAdjustmentsCard = ({ zone }: { zone: VixZone }) => {
         </div>
     );
 
-    let color = "text-green-400";
-    if (zone === "Volatile") color = "text-yellow-400";
-    if (zone === "High Volatility" || zone === "Extreme") color = "text-red-400";
+    let color = "text-green-300";
+    if (zone === "Volatile") color = "text-yellow-300";
+    if (zone === "High Volatility" || zone === "Extreme") color = "text-red-300";
 
     return (
         <Card className="bg-muted/30 border-border/50">
@@ -355,7 +346,7 @@ const PerformanceByVixZoneCard = ({ onSetModule }: { onSetModule: (module: any, 
     return (
         <Card className="bg-muted/30 border-border/50">
             <CardHeader>
-                <CardTitle className="flex items-center gap-2"><BarChartIcon className="h-5 w-5" />Your Performance by VIX</CardTitle>
+                <CardTitle className="flex items-center gap-2"><BarChart className="h-5 w-5" />Your Performance by VIX</CardTitle>
             </CardHeader>
             <CardContent>
                 <Table>
@@ -454,10 +445,10 @@ function VixGauge({ value, zone }: { value: number, zone: VixZone }) {
             <div className="relative flex flex-col items-center justify-center z-10 pb-4">
                 <p className="text-5xl font-bold font-mono text-foreground">{Math.round(value)}</p>
                 <p className={cn("font-semibold text-lg",
-                    (zone === 'Extremely Calm' || zone === 'Normal') && 'text-green-400',
-                    zone === 'Volatile' && 'text-yellow-400',
-                    zone === 'High Volatility' && 'text-orange-400',
-                    zone === 'Extreme' && 'text-red-400'
+                    (zone === 'Extremely Calm' || zone === 'Normal') && 'text-green-300',
+                    zone === 'Volatile' && 'text-yellow-300',
+                    zone === 'High Volatility' && 'text-orange-300',
+                    zone === 'Extreme' && 'text-red-300'
                 )}>{zone}</p>
             </div>
         </div>
@@ -469,7 +460,7 @@ function HowVixIsUsed({ onSetModule }: { onSetModule: (module: any, context?: an
         { id: "dashboard", icon: LayoutDashboard, title: "Dashboard", description: "Provides at-a-glance market context for your day." },
         { id: "riskCenter", icon: ShieldAlert, title: "Risk Center", description: "A primary input for your daily trading decision." },
         { id: "tradePlanning", icon: FileText, title: "Trade Planning", description: "Triggers guardrails and influences rule validation." },
-        { id: "analytics", icon: BarChartIcon, title: "Analytics", description: "Helps you understand how you perform in different volatility regimes." },
+        { id: "analytics", icon: BarChart, title: "Analytics", description: "Helps you understand how you perform in different volatility regimes." },
     ];
 
     return (
@@ -656,7 +647,7 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                                 <BookOpen className="mr-2 h-4 w-4" /> Open Journal
                             </Button>
                              <Button variant="outline" className="bg-red-500/10 border-red-500/30 text-red-300 hover:bg-red-500/20" onClick={() => onSetModule('analytics')}>
-                                <BarChartIcon className="mr-2 h-4 w-4" /> Review Analytics
+                                <BarChart className="mr-2 h-4 w-4" /> Review Analytics
                             </Button>
                             <Button variant="ghost" className="text-muted-foreground" onClick={() => onSetModule('tradePlanning')}>
                                 Plan for later (read-only)
