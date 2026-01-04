@@ -442,15 +442,15 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                                         <SummaryRow label="24H Range" value={`${low24h.toFixed(1)} – ${high24h.toFixed(1)}`} />
                                     </CardContent>
                                 </Card>
-                               <Card className="bg-muted/50 border-border/50">
+                               <Card className="bg-primary/10 border-primary/20">
                                     <CardHeader>
                                         <CardTitle className="text-base flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary" /> Suggested Posture: {posture.title}</CardTitle>
                                     </CardHeader>
                                     <CardContent className="space-y-3">
-                                        <p className="text-sm text-muted-foreground">Arjun recommends these adjustments based on current conditions:</p>
+                                        <p className="text-sm text-primary/90">Arjun recommends these adjustments based on current conditions:</p>
                                         <div className="flex flex-wrap gap-2">
                                             {posture.actions.map((action, i) => (
-                                                <Badge key={i} variant="outline" className="text-xs">{action}</Badge>
+                                                <Badge key={i} variant="outline" className="text-xs border-primary/30 text-primary/90">{action}</Badge>
                                             ))}
                                         </div>
                                         <div className="pt-2">
@@ -501,7 +501,7 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                              <ChartContainer config={{value: {color: "hsl(var(--primary))"}}} className="h-64 w-full">
                                 <ResponsiveContainer>
                                     <ComposedChart data={chartData}>
-                                        <CartesianGrid vertical={false} strokeDasharray="2 2" className="stroke-border/50"/>
+                                        <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50"/>
                                         <XAxis dataKey={chartKey} tick={{fontSize: 12}} />
                                         <YAxis domain={[0, 100]} tick={{fontSize: 12}}/>
                                         <ChartTooltip content={<ChartTooltipContent indicator="line" formatter={(value, name, props) => {
