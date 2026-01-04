@@ -46,7 +46,9 @@ function seededRandom(seed: number) {
 }
 
 const generateVixSeries = (baseValue: number, mode: 'normal' | 'choppy' = 'normal'): VixSeries => {
-    const seed = new Date().toISOString().split('T')[0].length + (mode === 'choppy' ? 100 : 0); // Change seed for choppy
+    const dateStr = new Date().toISOString().split('T')[0];
+    const dateSeed = Array.from(dateStr).reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const seed = dateSeed + (mode === 'choppy' ? 100 : 0);
     const random = seededRandom(seed);
     
     const series24h = [...Array(7)].map((_, i) => {
