@@ -5,11 +5,11 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Bot, LineChart, Gauge, TrendingUp, TrendingDown, Info, AlertTriangle, SlidersHorizontal } from "lucide-react";
+import { Bot, LineChart, Gauge, TrendingUp, TrendingDown, Info, AlertTriangle, SlidersHorizontal, Flame, Droplets, Newspaper } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Line, ResponsiveContainer, CartesianGrid, XAxis, YAxis, ComposedChart, ReferenceLine } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "./ui/chart";
-import { useVixState, type VixZone } from "@/hooks/use-vix-state";
+import { useVixState, type VixState, type VixZone } from "@/hooks/use-vix-state";
 import { Skeleton } from "./ui/skeleton";
 import { formatDistanceToNow } from "date-fns";
 import { Slider } from "./ui/slider";
@@ -85,6 +85,17 @@ function VixSimulationControls({ vixState, updateVixValue }: { vixState: VixStat
     );
 }
 
+function ScoreComponentCard({ icon: Icon, title, value, colorClass }: { icon: React.ElementType, title: string, value: number, colorClass: string }) {
+    return (
+        <Card className="bg-muted/50 text-center">
+            <CardContent className="p-4">
+                <Icon className={cn("h-5 w-5 mx-auto mb-2", colorClass)} />
+                <p className="text-2xl font-bold font-mono text-foreground">{value.toFixed(0)}</p>
+                <p className="text-xs text-muted-foreground">{title}</p>
+            </CardContent>
+        </Card>
+    );
+}
 
 export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
     const { vixState, isLoading, updateVixValue } = useVixState();
@@ -150,6 +161,17 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
         );
     };
     
+    const getComponentColor = (value: number) => {
+      if (value > 75) return "text-red-500";
+      if (value > 50) return "text-orange-500";
+      if (value > 25) return "text-yellow-500";
+      return "text-green-500";
+    }
+
+    const newsSentiment = components.newsSentiment > 60 ? "Greed" : components.newsSentiment < 40 ? "Fear" : "Neutral";
+    const newsSentimentColor = newsSentiment === "Fear" ? "text-red-500" : newsSentiment === "Greed" ? "text-green-500" : "text-yellow-500";
+
+
     return (
         <div className="space-y-8">
             <div className="text-center">
@@ -177,6 +199,26 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                                     <p className="text-sm text-muted-foreground mt-1">{adaptation.strategy}</p>
                                 </div>
                             </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="bg-muted/30 border-border/50">
+                        <CardHeader>
+                            <CardTitle>What's driving the score?</CardTitle>
+                            <CardDescription>The VIX is a weighted average of several market factors.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                            <ScoreComponentCard icon={Flame} title="BTC Volatility" value={components.btcVol} colorClass={getComponentColor(components.btcVol)} />
+                            <ScoreComponentCard icon={Flame} title="ETH Volatility" value={components.ethVol} colorClass={getComponentColor(components.ethVol)} />
+                            <ScoreComponentCard icon={Droplets} title="Funding Pressure" value={components.fundingPressure} colorClass={getComponentColor(components.fundingPressure)} />
+                            <ScoreComponentCard icon={AlertTriangle} title="Liquidation Spikes" value={components.liquidationSpike} colorClass={getComponentColor(components.liquidationSpike)} />
+                            <Card className="bg-muted/50 text-center">
+                                <CardContent className="p-4">
+                                    <Newspaper className={cn("h-5 w-5 mx-auto mb-2", newsSentimentColor)} />
+                                    <p className={cn("text-lg font-bold text-foreground", newsSentimentColor)}>{newsSentiment}</p>
+                                    <p className="text-xs text-muted-foreground">News Sentiment</p>
+                                </CardContent>
+                            </Card>
                         </CardContent>
                     </Card>
 
