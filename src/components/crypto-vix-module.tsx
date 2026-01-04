@@ -19,6 +19,7 @@ import { Badge } from "./ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 
 
 interface CryptoVixModuleProps {
@@ -336,6 +337,50 @@ const ParameterAdjustmentsCard = ({ zone }: { zone: VixZone }) => {
                 <AdjustmentRow label="Stop Loss" value={guidance.sl} colorClass={color} />
                 <AdjustmentRow label="Position Size" value={guidance.size} colorClass={color} />
                 <AdjustmentRow label="Leverage" value={guidance.leverage} colorClass={color} />
+            </CardContent>
+        </Card>
+    );
+};
+
+const PerformanceByVixZoneCard = ({ onSetModule }: { onSetModule: (module: any, context?: any) => void }) => {
+    const mockPerformance = [
+        { zone: "Calm", trades: 40, winRate: 65, avgRR: 1.8, mistakes: 3 },
+        { zone: "Normal", trades: 70, winRate: 52, avgRR: 1.5, mistakes: 8 },
+        { zone: "Volatile", trades: 20, winRate: 35, avgRR: 0.9, mistakes: 8 },
+        { zone: "Extreme", trades: 3, winRate: 15, avgRR: -0.5, mistakes: 2 },
+    ];
+
+    return (
+        <Card className="bg-muted/30 border-border/50">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><BarChartIcon className="h-5 w-5" />Your Performance by VIX</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Zone</TableHead>
+                            <TableHead>Win %</TableHead>
+                            <TableHead>Avg. R:R</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {mockPerformance.map(p => (
+                            <TableRow key={p.zone}>
+                                <TableCell className="font-semibold">{p.zone}</TableCell>
+                                <TableCell className={cn(p.winRate < 40 && 'text-red-400')}>{p.winRate}%</TableCell>
+                                <TableCell className={cn('font-mono', p.avgRR < 1 && 'text-red-400', p.avgRR > 1.5 && 'text-green-400')}>{p.avgRR.toFixed(1)}</TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+                <Button
+                    variant="link"
+                    className="p-0 h-auto mt-4"
+                    onClick={() => onSetModule('analytics', { tab: 'by-behaviour' })}
+                >
+                    Open full VIX breakdown in Analytics <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
             </CardContent>
         </Card>
     );
@@ -733,6 +778,7 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                     {/* Sidebar */}
                     <div className="lg:col-span-1 space-y-8 sticky top-24">
                         <VixSimulationControls vixState={vixState} updateVixValue={updateVixValue} generateChoppyDay={generateChoppyDay} />
+                        <PerformanceByVixZoneCard onSetModule={onSetModule} />
                         <Card className="bg-muted/30 border-border/50">
                              <CardHeader>
                                 <CardTitle className="flex items-center gap-2"><Info className="h-5 w-5"/>How to Interpret Crypto VIX</CardTitle>
@@ -803,4 +849,3 @@ const VixGauge = ({ value, zone }: { value: number, zone: VixZone }) => {
         </div>
     );
 };
-
