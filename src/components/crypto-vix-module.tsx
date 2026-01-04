@@ -50,7 +50,7 @@ const regimeShiftInfo: Record<string, { meaning: string, action: string }> = {
 };
 
 
-function VixSimulationControls({ vixState, updateVixValue }: { vixState: VixState, updateVixValue: (value: number) => void }) {
+function VixSimulationControls({ vixState, updateVixValue, generateChoppyDay }: { vixState: VixState, updateVixValue: (value: number) => void, generateChoppyDay: () => void }) {
     const presets = [
         { label: "Calm", value: 15 },
         { label: "Normal", value: 35 },
@@ -88,6 +88,12 @@ function VixSimulationControls({ vixState, updateVixValue }: { vixState: VixStat
                             {p.label} ({p.value})
                         </Button>
                     ))}
+                </div>
+                <div className="pt-2">
+                    <Button variant="outline" className="w-full" onClick={generateChoppyDay}>
+                        <Flame className="mr-2 h-4 w-4" />
+                        Generate Choppy Day
+                    </Button>
                 </div>
             </CardContent>
         </Card>
@@ -251,7 +257,7 @@ function KeyEventsTimeline({ chartData }: { chartData: { hour: string; day: stri
 }
 
 export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
-    const { vixState, isLoading, updateVixValue } = useVixState();
+    const { vixState, isLoading, updateVixValue, generateChoppyDay } = useVixState();
     const [timeRange, setTimeRange] = useState<'24H' | '7D'>('24H');
     const [regimeShift, setRegimeShift] = useState<{ previous: VixZone, current: VixZone } | null>(null);
 
@@ -555,7 +561,7 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                 
                 {/* Sidebar */}
                 <div className="lg:col-span-1 space-y-8 sticky top-24">
-                    <VixSimulationControls vixState={vixState} updateVixValue={updateVixValue} />
+                    <VixSimulationControls vixState={vixState} updateVixValue={updateVixValue} generateChoppyDay={generateChoppyDay} />
                     <Card className="bg-muted/30 border-border/50">
                          <CardHeader>
                             <CardTitle className="flex items-center gap-2"><Info className="h-5 w-5"/>How to Interpret Crypto VIX</CardTitle>

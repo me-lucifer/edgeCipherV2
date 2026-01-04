@@ -27,7 +27,6 @@ export interface VixState {
 }
 
 const VIX_STATE_CACHE_KEY = "ec_vix_state";
-const VIX_SERIES_CACHE_KEY = "ec_vix_series";
 
 const getVixZone = (vix: number): VixZone => {
     if (vix <= 20) return "Extremely Calm";
@@ -46,13 +45,17 @@ function seededRandom(seed: number) {
     };
 }
 
-const generateVixSeries = (baseValue: number): VixSeries => {
-    const seed = new Date().toISOString().split('T')[0].length; // Daily stable seed
+const generateVixSeries = (baseValue: number, mode: 'normal' | 'choppy' = 'normal'): VixSeries => {
+    const seed = new Date().toISOString().split('T')[0].length + (mode === 'choppy' ? 100 : 0); // Change seed for choppy
     const random = seededRandom(seed);
     
     const series24h = [...Array(7)].map((_, i) => {
         const hour = i === 6 ? 'Now' : `${24 - i * 4}h`;
-        const value = baseValue + (random() - 0.5) * 20;
+        const volatilityFactor = mode === 'choppy' ? 40 : 20;
+        let value = baseValue + (random() - 0.5) * volatilityFactor;
+        if (mode === 'choppy' && Math.random() < 0.4) {
+            value += (Math.random() - 0.5) * 30; // Add extra spikes
+        }
         return { hour, value: Math.max(0, Math.min(100, Math.round(value))) };
     }).reverse();
     series24h[6].value = baseValue;
@@ -151,6 +154,18 @@ export function useVixState() {
             return newState;
         });
     }, []);
+    
+    const generateChoppyDay = useCallback(() => {
+        setVixState(prevState => {
+            if (!prevState) return null;
+            const newSeries = generateVixSeries(prevState.value, 'choppy');
+            const newState = { ...prevState, series: newSeries };
+            if (typeof window !== "undefined") {
+                localStorage.setItem(VIX_STATE_CACHE_KEY, JSON.stringify(newState));
+            }
+            return newState;
+        });
+    }, []);
 
     useEffect(() => {
         loadVixState();
@@ -165,5 +180,5 @@ export function useVixState() {
         return () => window.removeEventListener('storage', handleStorageChange);
     }, [loadVixState]);
 
-    return { vixState, isLoading, updateVixValue, refresh: loadVixState };
+    return { vixState, isLoading, updateVixValue, generateChoppyDay, refresh: loadVixState };
 }
