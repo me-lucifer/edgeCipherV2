@@ -5,7 +5,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Bot, LineChart, Gauge, TrendingUp, TrendingDown, Info, AlertTriangle, SlidersHorizontal, Flame, Droplets, Newspaper, Sparkles, ArrowRight, X, BarChartHorizontal, Timer, Calendar, ChevronRight, User, BookOpen, BarChart } from "lucide-react";
+import { Bot, LineChart, Gauge, TrendingUp, TrendingDown, Info, AlertTriangle, SlidersHorizontal, Flame, Droplets, Newspaper, Sparkles, ArrowRight, X, BarChartHorizontal, Timer, Calendar, ChevronRight, User, BookOpen, BarChart, Scale } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Line, ResponsiveContainer, CartesianGrid, XAxis, YAxis, ComposedChart, ReferenceLine, ReferenceDot } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "./ui/chart";
@@ -297,6 +297,42 @@ function KeyEventsTimeline({ chartData, onSetModule }: { chartData: { hour: stri
     );
 }
 
+const ParameterAdjustmentsCard = ({ zone }: { zone: VixZone }) => {
+    const guidance = {
+        "Extremely Calm": { sl: 'Standard', size: 'Standard', leverage: 'Standard' },
+        Normal: { sl: 'Standard', size: 'Standard', leverage: 'Standard' },
+        Volatile: { sl: 'Consider widening slightly', size: 'Reduce by 25-50%', leverage: '≤ 20x recommended' },
+        "High Volatility": { sl: 'Significantly wider', size: 'Reduce by 50%+', leverage: '≤ 10x recommended' },
+        Extreme: { sl: 'No new positions', size: 'No new positions', leverage: 'No new positions' },
+    }[zone];
+
+    const AdjustmentRow = ({ label, value, colorClass }: { label: string, value: string, colorClass: string }) => (
+        <div className="flex justify-between items-center text-sm p-3 bg-muted rounded-md border">
+            <p className="text-muted-foreground font-medium">{label}</p>
+            <p className={cn("font-semibold text-right", colorClass)}>{value}</p>
+        </div>
+    );
+
+    let color = "text-green-400";
+    if (zone === "Volatile") color = "text-yellow-400";
+    if (zone === "High Volatility" || zone === "Extreme") color = "text-red-400";
+
+    return (
+        <Card className="bg-muted/30 border-border/50">
+            <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                    <Scale className="h-5 w-5" /> Parameter Adjustments
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+                <AdjustmentRow label="Stop Loss" value={guidance.sl} colorClass={color} />
+                <AdjustmentRow label="Position Size" value={guidance.size} colorClass={color} />
+                <AdjustmentRow label="Leverage" value={guidance.leverage} colorClass={color} />
+            </CardContent>
+        </Card>
+    );
+};
+
 export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
     const { vixState, isLoading, updateVixValue, generateChoppyDay } = useVixState();
     const [timeRange, setTimeRange] = useState<'24H' | '7D'>('24H');
@@ -539,31 +575,50 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                                             <SummaryRow label="24H Range" value={`${low24h.toFixed(1)} – ${high24h.toFixed(1)}`} />
                                         </CardContent>
                                     </Card>
-                                   <Card className="bg-primary/10 border-primary/20">
-                                        <CardHeader>
-                                            <CardTitle className="text-base flex items-center gap-2">
-                                                <Sparkles className="h-5 w-5 text-primary" /> 
-                                                Suggested Posture
-                                                <TooltipProvider>
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                                                        </TooltipTrigger>
-                                                        <TooltipContent>
-                                                            <p>In high VIX, Arjun prioritizes capital protection over growth.</p>
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                </TooltipProvider>
-                                            </CardTitle>
-                                             {!persona && (
-                                                <CardDescription className="text-xs">Select a persona to get personalized advice.</CardDescription>
-                                            )}
-                                        </CardHeader>
-                                        <CardContent className="space-y-3">
-                                            {!persona ? (
-                                                <Select onValueChange={(value) => handlePersonaChange(value as PersonaType)}>
-                                                    <SelectTrigger className="w-[220px]">
-                                                        <SelectValue placeholder="Select Persona (Prototype)" />
+                                </div>
+                            </CardContent>
+                        </Card>
+                        <div className="grid md:grid-cols-2 gap-8">
+                             <Card className="bg-primary/10 border-primary/20">
+                                <CardHeader>
+                                    <CardTitle className="text-base flex items-center gap-2">
+                                        <Sparkles className="h-5 w-5 text-primary" /> 
+                                        Suggested Posture
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>In high VIX, Arjun prioritizes capital protection over growth.</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    </CardTitle>
+                                        {!persona && (
+                                        <CardDescription className="text-xs">Select a persona to get personalized advice.</CardDescription>
+                                    )}
+                                </CardHeader>
+                                <CardContent className="space-y-3">
+                                    {!persona ? (
+                                        <Select onValueChange={(value) => handlePersonaChange(value as PersonaType)}>
+                                            <SelectTrigger className="w-[220px]">
+                                                <SelectValue placeholder="Select Persona (Prototype)" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="Impulsive Sprinter">Impulsive Sprinter</SelectItem>
+                                                <SelectItem value="Fearful Analyst">Fearful Analyst</SelectItem>
+                                                <SelectItem value="Disciplined Scalper">Disciplined Scalper</SelectItem>
+                                                <SelectItem value="Beginner">Beginner</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    ) : posture ? (
+                                        <>
+                                            <div className="flex justify-between items-center flex-wrap gap-2">
+                                                <p className="font-semibold text-primary">{posture.title}</p>
+                                                <Select value={persona} onValueChange={(value) => handlePersonaChange(value as PersonaType)}>
+                                                    <SelectTrigger className="w-[180px] h-8 text-xs">
+                                                        <SelectValue />
                                                     </SelectTrigger>
                                                     <SelectContent>
                                                         <SelectItem value="Impulsive Sprinter">Impulsive Sprinter</SelectItem>
@@ -572,63 +627,47 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                                                         <SelectItem value="Beginner">Beginner</SelectItem>
                                                     </SelectContent>
                                                 </Select>
-                                            ) : posture ? (
-                                                <>
-                                                    <div className="flex justify-between items-center flex-wrap gap-2">
-                                                        <p className="font-semibold text-primary">{posture.title}</p>
-                                                        <Select value={persona} onValueChange={(value) => handlePersonaChange(value as PersonaType)}>
-                                                            <SelectTrigger className="w-[180px] h-8 text-xs">
-                                                                <SelectValue />
-                                                            </SelectTrigger>
-                                                            <SelectContent>
-                                                                <SelectItem value="Impulsive Sprinter">Impulsive Sprinter</SelectItem>
-                                                                <SelectItem value="Fearful Analyst">Fearful Analyst</SelectItem>
-                                                                <SelectItem value="Disciplined Scalper">Disciplined Scalper</SelectItem>
-                                                                <SelectItem value="Beginner">Beginner</SelectItem>
-                                                            </SelectContent>
-                                                        </Select>
-                                                    </div>
-
-                                                    <p className="text-sm text-primary/90 italic"><strong>Rule for today:</strong> "{posture.rule}"</p>
-                                                    <div className="flex flex-wrap gap-2">
-                                                        {posture.actions.map((action, i) => (
-                                                            <Button key={i} variant="outline" size="sm" className="text-xs h-7" onClick={() => action.module && onSetModule(action.module, action.context)}>
-                                                                {action.label}
-                                                                {action.module && <ArrowRight className="ml-2 h-3 w-3" />}
-                                                            </Button>
-                                                        ))}
-                                                    </div>
-                                                    <div className="pt-2">
-                                                        <Button variant="link" size="sm" className="p-0 h-auto text-primary/90" onClick={askArjun}>
-                                                            Discuss this with Arjun <ArrowRight className="ml-2 h-4 w-4" />
-                                                        </Button>
-                                                    </div>
-                                                </>
-                                            ) : <p className="text-sm text-muted-foreground">Could not load suggestions.</p>}
-                                        </CardContent>
-                                        <CardFooter className="border-t pt-4">
-                                            <div className="w-full space-y-2">
-                                                <Label className="text-xs text-muted-foreground flex items-center gap-2">
-                                                    <Info className="h-3 w-3" />
-                                                    My VIX Tolerance (Prototype)
-                                                </Label>
-                                                <Select value={sensitivity} onValueChange={handleSensitivityChange}>
-                                                    <SelectTrigger className="h-8 text-xs">
-                                                        <SelectValue />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="conservative">Conservative</SelectItem>
-                                                        <SelectItem value="balanced">Balanced</SelectItem>
-                                                        <SelectItem value="aggressive">Aggressive</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                                <p className="text-xs text-muted-foreground/80">Adjusts the VIX thresholds for 'Yellow' and 'Red' alerts in the Risk Center.</p>
                                             </div>
-                                        </CardFooter>
-                                   </Card>
-                                </div>
-                            </CardContent>
-                        </Card>
+
+                                            <p className="text-sm text-primary/90 italic"><strong>Rule for today:</strong> "{posture.rule}"</p>
+                                            <div className="flex flex-wrap gap-2">
+                                                {posture.actions.map((action, i) => (
+                                                    <Button key={i} variant="outline" size="sm" className="text-xs h-7" onClick={() => action.module && onSetModule(action.module, action.context)}>
+                                                        {action.label}
+                                                        {action.module && <ArrowRight className="ml-2 h-3 w-3" />}
+                                                    </Button>
+                                                ))}
+                                            </div>
+                                            <div className="pt-2">
+                                                <Button variant="link" size="sm" className="p-0 h-auto text-primary/90" onClick={askArjun}>
+                                                    Discuss this with Arjun <ArrowRight className="ml-2 h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        </>
+                                    ) : <p className="text-sm text-muted-foreground">Could not load suggestions.</p>}
+                                </CardContent>
+                                <CardFooter className="border-t pt-4">
+                                    <div className="w-full space-y-2">
+                                        <Label className="text-xs text-muted-foreground flex items-center gap-2">
+                                            <Info className="h-3 w-3" />
+                                            My VIX Tolerance (Prototype)
+                                        </Label>
+                                        <Select value={sensitivity} onValueChange={handleSensitivityChange}>
+                                            <SelectTrigger className="h-8 text-xs">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="conservative">Conservative</SelectItem>
+                                                <SelectItem value="balanced">Balanced</SelectItem>
+                                                <SelectItem value="aggressive">Aggressive</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <p className="text-xs text-muted-foreground/80">Adjusts the VIX thresholds for 'Yellow' and 'Red' alerts in the Risk Center.</p>
+                                    </div>
+                                </CardFooter>
+                                </Card>
+                            <ParameterAdjustmentsCard zone={currentZone} />
+                        </div>
 
                         <Card className="bg-muted/30 border-border/50">
                             <CardHeader>
@@ -660,8 +699,8 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                                     <ResponsiveContainer>
                                         <ComposedChart data={chartData}>
                                             <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50"/>
-                                            <XAxis dataKey={chartKey} tick={{fontSize: 12}} />
-                                            <YAxis domain={[0, 100]} tick={{fontSize: 12}}/>
+                                            <XAxis dataKey={chartKey} tick={{fontSize: 12}} className="fill-muted-foreground" />
+                                            <YAxis domain={[0, 100]} tick={{fontSize: 12}} className="fill-muted-foreground" />
                                             <ChartTooltip content={<ChartTooltipContent indicator="line" formatter={(value, name, props) => {
                                                 if (props.payload.spike === 'up') return <span className='font-semibold'>Volatility Spike</span>
                                                 if (props.payload.spike === 'down') return <span className='font-semibold'>Volatility Cooldown</span>
