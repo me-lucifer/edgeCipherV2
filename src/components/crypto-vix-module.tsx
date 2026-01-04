@@ -6,7 +6,7 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Bot, LineChart, Gauge, TrendingUp, TrendingDown, Info, AlertTriangle, SlidersHorizontal, Flame, Droplets, Newspaper, Sparkles, ArrowRight, X, BarChartHorizontal, Timer, Calendar, ChevronRight, User, BookOpen, BarChart, Scale, PlayCircle, LayoutDashboard, FileText, ShieldAlert } from "lucide-react";
+import { Bot, LineChart, Gauge, TrendingUp, TrendingDown, Info, AlertTriangle, SlidersHorizontal, Flame, Droplets, Newspaper, Sparkles, ArrowRight, X, BarChartHorizontal, Timer, Calendar, ChevronRight, User, BookOpen, BarChart as BarChartIcon, Scale, PlayCircle, LayoutDashboard, FileText, ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Line, ResponsiveContainer, CartesianGrid, XAxis, YAxis, ComposedChart, ReferenceLine, ReferenceDot } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "./ui/chart";
@@ -346,7 +346,7 @@ const PerformanceByVixZoneCard = ({ onSetModule }: { onSetModule: (module: any, 
     return (
         <Card className="bg-muted/30 border-border/50">
             <CardHeader>
-                <CardTitle className="flex items-center gap-2"><BarChart className="h-5 w-5" />Your Performance by VIX</CardTitle>
+                <CardTitle className="flex items-center gap-2"><BarChartIcon className="h-5 w-5" />Your Performance by VIX</CardTitle>
             </CardHeader>
             <CardContent>
                 <Table>
@@ -460,7 +460,7 @@ function HowVixIsUsed({ onSetModule }: { onSetModule: (module: any, context?: an
         { id: "dashboard", icon: LayoutDashboard, title: "Dashboard", description: "Provides at-a-glance market context for your day." },
         { id: "riskCenter", icon: ShieldAlert, title: "Risk Center", description: "A primary input for your daily trading decision." },
         { id: "tradePlanning", icon: FileText, title: "Trade Planning", description: "Triggers guardrails and influences rule validation." },
-        { id: "analytics", icon: BarChart, title: "Analytics", description: "Helps you understand how you perform in different volatility regimes." },
+        { id: "analytics", icon: BarChartIcon, title: "Analytics", description: "Helps you understand how you perform in different volatility regimes." },
     ];
 
     return (
@@ -647,7 +647,7 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                                 <BookOpen className="mr-2 h-4 w-4" /> Open Journal
                             </Button>
                              <Button variant="outline" className="bg-red-500/10 border-red-500/30 text-red-300 hover:bg-red-500/20" onClick={() => onSetModule('analytics')}>
-                                <BarChart className="mr-2 h-4 w-4" /> Review Analytics
+                                <BarChartIcon className="mr-2 h-4 w-4" /> Review Analytics
                             </Button>
                             <Button variant="ghost" className="text-muted-foreground" onClick={() => onSetModule('tradePlanning')}>
                                 Plan for later (read-only)
@@ -907,7 +907,7 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                     </div>
                     
                     {/* Sidebar */}
-                    <div className="lg:col-span-1 space-y-8 sticky top-24">
+                    <div className="lg:col-span-1 space-y-8 lg:sticky lg:top-24">
                         <VixSimulationControls vixState={vixState} updateVixValue={updateVixValue} generateChoppyDay={generateChoppyDay} />
                         <PerformanceByVixZoneCard onSetModule={onSetModule} />
                         <Card className="bg-muted/30 border-border/50">
