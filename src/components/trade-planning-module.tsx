@@ -498,7 +498,7 @@ function MarketContext({ session, setSession, vixZone, setVixZone }: { session: 
                             Conditions seem stable. Follow your plan.
                         </AlertDescription>
                     </Alert>
-                )}
+                 )}
             </div>
         </div>
     )
@@ -990,268 +990,268 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
     const selectedStrategyForDisplay = availableStrategies.find(s => s.strategyId === strategyId);
 
     return (
-         <div className="grid lg:grid-cols-3 gap-8 items-start">
-            <div className="lg:col-span-2 space-y-6">
-                <MarketRiskStrip onSetModule={onSetModule} />
-                <ArjunGuardrailAlerts form={form} />
-                <Card className="bg-muted/30 border-border/50">
-                    <CardHeader>
-                        <CardTitle>Plan details</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                        {draftToResume && (
-                            <Card className="border-primary/30 bg-muted/50">
-                                <CardHeader className="flex-row items-center gap-4 space-y-0">
-                                    <Clock className="h-5 w-5 text-primary" />
-                                    <div>
-                                        <CardTitle className="text-base">Resume where you left off?</CardTitle>
-                                        <CardDescription>
-                                            You have an unfinished plan from {formatDistanceToNow(new Date(draftToResume.timestamp), { addSuffix: true })}.
-                                        </CardDescription>
-                                    </div>
-                                </CardHeader>
-                                <CardContent className="flex gap-2">
-                                    <Button onClick={onResume}>Resume Draft</Button>
-                                    <Button variant="ghost" onClick={onDiscard}>Discard</Button>
-                                </CardContent>
-                            </Card>
-                        )}
-                        {/* Template Selector */}
-                        <div className="p-4 bg-muted/50 rounded-lg space-y-2 border-b border-border/50">
-                            <Label htmlFor="plan-template">Start from template</Label>
-                            <Select onValueChange={handleTemplateChange} value={selectedTemplate}>
-                                <SelectTrigger id="plan-template">
-                                    <SelectValue placeholder="Select a template" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {planTemplates.map(template => (
-                                        <SelectItem 
-                                            key={template.id} 
-                                            value={template.id}
-                                            disabled={template.id === 'custom_soon'}
-                                        >
-                                            <div className="flex items-center gap-2">
-                                                <Copy className="h-4 w-4 text-muted-foreground" />
-                                                <span>{template.name}</span>
-                                            </div>
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        {/* Group A */}
-                        <div className="p-4 bg-muted/50 rounded-lg space-y-4">
-                            <h3 className="text-sm font-semibold text-muted-foreground">Market & Direction</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <FormField control={form.control} name="instrument" render={({ field }) => (
-                                    <FormItem><FormLabel>Trading Pair*</FormLabel><FormControl><Input placeholder="e.g., BTC-PERP" {...field} /></FormControl><FormMessage /></FormItem>
-                                )}/>
-                                <FormField control={form.control} name="direction" render={({ field }) => (
-                                    <FormItem><FormLabel>Direction</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} value={field.value} className="flex pt-2 gap-4">
-                                    <Label className="flex items-center gap-2 p-2 h-10 rounded-md border border-transparent has-[:checked]:border-primary/50 has-[:checked]:bg-primary/5 cursor-pointer"><FormControl><RadioGroupItem value="Long" /></FormControl><span>Long</span></Label>
-                                    <Label className="flex items-center gap-2 p-2 h-10 rounded-md border border-transparent has-[:checked]:border-primary/50 has-[:checked]:bg-primary/5 cursor-pointer"><FormControl><RadioGroupItem value="Short" /></FormControl><span>Short</span></Label>
-                                    </RadioGroup></FormControl><FormMessage /></FormItem>
-                                )}/>
-                                <FormField control={form.control} name="entryType" render={({ field }) => (
-                                    <FormItem><FormLabel>Entry Type</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} value={field.value} className="flex pt-2 gap-4">
-                                    <Label className="flex items-center gap-2 p-2 h-10 rounded-md border border-transparent has-[:checked]:border-primary/50 has-[:checked]:bg-primary/5 cursor-pointer"><FormControl><RadioGroupItem value="Limit" /></FormControl><span>Limit</span></Label>
-                                    <Label className="flex items-center gap-2 p-2 h-10 rounded-md border border-transparent has-[:checked]:border-primary/50 has-[:checked]:bg-primary/5 cursor-pointer"><FormControl><RadioGroupItem value="Market" /></FormControl><span>Market</span></Label>
-                                    </RadioGroup></FormControl><FormMessage /></FormItem>
-                                )}/>
+        <>
+            <div className="grid lg:grid-cols-3 gap-8 items-start">
+                <div className="lg:col-span-2 space-y-6">
+                    <MarketRiskStrip onSetModule={onSetModule} />
+                    <ArjunGuardrailAlerts form={form} />
+                    <Card className="bg-muted/30 border-border/50">
+                        <CardHeader>
+                            <CardTitle>Plan details</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            {draftToResume && (
+                                <Card className="border-primary/30 bg-muted/50">
+                                    <CardHeader className="flex-row items-center gap-4 space-y-0">
+                                        <Clock className="h-5 w-5 text-primary" />
+                                        <div>
+                                            <CardTitle className="text-base">Resume where you left off?</CardTitle>
+                                            <CardDescription>
+                                                You have an unfinished plan from {formatDistanceToNow(new Date(draftToResume.timestamp), { addSuffix: true })}.
+                                            </CardDescription>
+                                        </div>
+                                    </CardHeader>
+                                    <CardContent className="flex gap-2">
+                                        <Button onClick={onResume}>Resume Draft</Button>
+                                        <Button variant="ghost" onClick={onDiscard}>Discard</Button>
+                                    </CardContent>
+                                </Card>
+                            )}
+                            {/* Template Selector */}
+                            <div className="p-4 bg-muted/50 rounded-lg space-y-2 border-b border-border/50">
+                                <Label htmlFor="plan-template">Start from template</Label>
+                                <Select onValueChange={handleTemplateChange} value={selectedTemplate}>
+                                    <SelectTrigger id="plan-template">
+                                        <SelectValue placeholder="Select a template" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {planTemplates.map(template => (
+                                            <SelectItem 
+                                                key={template.id} 
+                                                value={template.id}
+                                                disabled={template.id === 'custom_soon'}
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    <Copy className="h-4 w-4 text-muted-foreground" />
+                                                    <span>{template.name}</span>
+                                                </div>
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
-                            <FormDescription className="text-xs italic">Be honest – is this following your plan, or chasing a move?</FormDescription>
-                        </div>
 
-                        {/* Group B */}
-                        <div className="p-4 bg-muted/50 rounded-lg space-y-4">
-                            <h3 className="text-sm font-semibold text-muted-foreground">Risk Anchors</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {entryType === 'Limit' ? (
-                                    <FormField control={form.control} name="entryPrice" render={({ field }) => (
-                                        <FormItem><FormLabel>Entry Price*</FormLabel><FormControl><Input type="number" placeholder="0.00" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                            {/* Group A */}
+                            <div className="p-4 bg-muted/50 rounded-lg space-y-4">
+                                <h3 className="text-sm font-semibold text-muted-foreground">Market & Direction</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <FormField control={form.control} name="instrument" render={({ field }) => (
+                                        <FormItem><FormLabel>Trading Pair*</FormLabel><FormControl><Input placeholder="e.g., BTC-PERP" {...field} /></FormControl><FormMessage /></FormItem>
                                     )}/>
-                                ) : (
-                                    <FormItem>
-                                        <FormLabel>Current Price (from Delta)</FormLabel>
-                                        <FormControl><Input readOnly value="68543.21 (mock)" className="bg-muted" /></FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                                <div />
-                                <FormField control={form.control} name="stopLoss" render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Stop Loss Price (your promised exit)*</FormLabel>
-                                        <FormControl><Input type="number" placeholder="0.00" {...field} value={field.value || ''} /></FormControl>
-                                        <FormDescription className="text-xs">Your invalidation point. Where you promise to exit if wrong.</FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}/>
-                                <FormField control={form.control} name="takeProfit" render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Take Profit Price (TP)</FormLabel>
-                                        <FormControl><Input type="number" placeholder="0.00" {...field} value={field.value || ''} /></FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}/>
+                                    <FormField control={form.control} name="direction" render={({ field }) => (
+                                        <FormItem><FormLabel>Direction</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} value={field.value} className="flex pt-2 gap-4">
+                                        <Label className="flex items-center gap-2 p-2 h-10 rounded-md border border-transparent has-[:checked]:border-primary/50 has-[:checked]:bg-primary/5 cursor-pointer"><FormControl><RadioGroupItem value="Long" /></FormControl><span>Long</span></Label>
+                                        <Label className="flex items-center gap-2 p-2 h-10 rounded-md border border-transparent has-[:checked]:border-primary/50 has-[:checked]:bg-primary/5 cursor-pointer"><FormControl><RadioGroupItem value="Short" /></FormControl><span>Short</span></Label>
+                                        </RadioGroup></FormControl><FormMessage /></FormItem>
+                                    )}/>
+                                    <FormField control={form.control} name="entryType" render={({ field }) => (
+                                        <FormItem><FormLabel>Entry Type</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} value={field.value} className="flex pt-2 gap-4">
+                                        <Label className="flex items-center gap-2 p-2 h-10 rounded-md border border-transparent has-[:checked]:border-primary/50 has-[:checked]:bg-primary/5 cursor-pointer"><FormControl><RadioGroupItem value="Limit" /></FormControl><span>Limit</span></Label>
+                                        <Label className="flex items-center gap-2 p-2 h-10 rounded-md border border-transparent has-[:checked]:border-primary/50 has-[:checked]:bg-primary/5 cursor-pointer"><FormControl><RadioGroupItem value="Market" /></FormControl><span>Market</span></Label>
+                                        </RadioGroup></FormControl><FormMessage /></FormItem>
+                                    )}/>
+                                </div>
+                                <FormDescription className="text-xs italic">Be honest – is this following your plan, or chasing a move?</FormDescription>
                             </div>
-                        </div>
-                        
-                        {/* Group C */}
-                        <div className="p-4 bg-muted/50 rounded-lg space-y-4">
-                            <h3 className="text-sm font-semibold text-muted-foreground">Account & Risk</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <FormField control={form.control} name="accountCapital" render={({ field }) => (
-                                    <FormItem><FormLabel>Account Capital ($)*</FormLabel><FormControl><Input type="number" placeholder="10000" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
-                                )}/>
-                                <FormField control={form.control} name="riskPercent" render={({ field }) => (
-                                    <FormItem><FormLabel>Risk per Trade (% of account)*</FormLabel><FormControl><Input type="number" placeholder="1" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
-                                )}/>
-                                <FormField control={form.control} name="leverage" render={({ field }) => (
-                                    <FormItem><FormLabel>Leverage</FormLabel><Select onValueChange={(v) => field.onChange(Number(v))} defaultValue={String(field.value)}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="5">5x</SelectItem><SelectItem value="10">10x</SelectItem><SelectItem value="20">20x</SelectItem><SelectItem value="50">50x</SelectItem></SelectContent></Select><FormMessage /></FormItem>
-                                )}/>
+
+                            {/* Group B */}
+                            <div className="p-4 bg-muted/50 rounded-lg space-y-4">
+                                <h3 className="text-sm font-semibold text-muted-foreground">Risk Anchors</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {entryType === 'Limit' ? (
+                                        <FormField control={form.control} name="entryPrice" render={({ field }) => (
+                                            <FormItem><FormLabel>Entry Price*</FormLabel><FormControl><Input type="number" placeholder="0.00" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                                        )}/>
+                                    ) : (
+                                        <FormItem>
+                                            <FormLabel>Current Price (from Delta)</FormLabel>
+                                            <FormControl><Input readOnly value="68543.21 (mock)" className="bg-muted" /></FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                    <div />
+                                    <FormField control={form.control} name="stopLoss" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Stop Loss Price (your promised exit)*</FormLabel>
+                                            <FormControl><Input type="number" placeholder="0.00" {...field} value={field.value || ''} /></FormControl>
+                                            <FormDescription className="text-xs">Your invalidation point. Where you promise to exit if wrong.</FormDescription>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}/>
+                                    <FormField control={form.control} name="takeProfit" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Take Profit Price (TP)</FormLabel>
+                                            <FormControl><Input type="number" placeholder="0.00" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                                        )}/>
+                                </div>
                             </div>
-                            {isNewUser && (
-                                <Alert variant="default" className="mt-4 bg-muted/50 border-border/50">
-                                    <Info className="h-4 w-4" />
-                                    <AlertDescription className="text-xs">
-                                    In the real product, this step would send orders to a testnet or paper trading account first, not a live one.
-                                    </AlertDescription>
-                                </Alert>
-                            )}
-                            <Separator className="mt-4" />
                             
-                        </div>
+                            {/* Group C */}
+                            <div className="p-4 bg-muted/50 rounded-lg space-y-4">
+                                <h3 className="text-sm font-semibold text-muted-foreground">Account & Risk</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <FormField control={form.control} name="accountCapital" render={({ field }) => (
+                                        <FormItem><FormLabel>Account Capital ($)*</FormLabel><FormControl><Input type="number" placeholder="10000" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                                    )}/>
+                                    <FormField control={form.control} name="riskPercent" render={({ field }) => (
+                                        <FormItem><FormLabel>Risk per Trade (% of account)*</FormLabel><FormControl><Input type="number" placeholder="1" {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem>
+                                    )}/>
+                                    <FormField control={form.control} name="leverage" render={({ field }) => (
+                                        <FormItem><FormLabel>Leverage</FormLabel><Select onValueChange={(v) => field.onChange(Number(v))} defaultValue={String(field.value)}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl><SelectContent><SelectItem value="5">5x</SelectItem><SelectItem value="10">10x</SelectItem><SelectItem value="20">20x</SelectItem><SelectItem value="50">50x</SelectItem></SelectContent></Select><FormMessage /></FormItem>
+                                    )}/>
+                                </div>
+                                {isNewUser && (
+                                    <Alert variant="default" className="mt-4 bg-muted/50 border-border/50">
+                                        <Info className="h-4 w-4" />
+                                        <AlertDescription className="text-xs">
+                                        In the real product, this step would send orders to a testnet or paper trading account first, not a live one.
+                                        </AlertDescription>
+                                    </Alert>
+                                )}
+                                <Separator className="mt-4" />
+                                
+                            </div>
 
-                        <Separator />
-                        
-                        {/* Group D */}
-                        <div className="p-4 bg-muted/50 rounded-lg space-y-4">
-                            <h3 className="text-sm font-semibold text-muted-foreground">Strategy & Reasoning</h3>
-                            {showArchivedWarning && (
-                                <Alert variant="destructive">
-                                    <AlertTriangle className="h-4 w-4" />
-                                    <AlertTitle>Strategy Archived</AlertTitle>
-                                    <AlertDescription>
-                                        The strategy previously selected for this plan has been archived. Please select an active strategy to proceed.
-                                    </AlertDescription>
-                                </Alert>
-                            )}
-                            <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] items-end gap-2">
-                                 <FormField control={form.control} name="strategyId" render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Strategy*</FormLabel>
-                                        <Popover open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
-                                            <PopoverTrigger asChild>
-                                                <FormControl>
-                                                    <Button
-                                                        variant="outline"
-                                                        role="combobox"
-                                                        className={cn(
-                                                            "w-full justify-between",
-                                                            !field.value && "text-muted-foreground"
-                                                        )}
-                                                    >
-                                                        {selectedStrategyForDisplay
-                                                            ? selectedStrategyForDisplay.name
-                                                            : "Select from your playbook"}
-                                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                                    </Button>
-                                                </FormControl>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-full p-0" style={{ width: 'var(--radix-popover-trigger-width)' }}>
-                                                <Command>
-                                                    <CommandInput placeholder="Search strategy..." />
-                                                    <CommandEmpty>No strategy found.</CommandEmpty>
-                                                    <CommandGroup>
-                                                        <CommandList>
-                                                        {availableStrategies.map(strategy => {
-                                                            const health = getStrategyHealth(strategy);
-                                                            const activeVersion = strategy.versions.find(v => v.isActiveVersion);
-                                                            const recommendation = getRecommendedStatus(strategy, { instrument, session });
+                            <Separator />
+                            
+                            {/* Group D */}
+                            <div className="p-4 bg-muted/50 rounded-lg space-y-4">
+                                <h3 className="text-sm font-semibold text-muted-foreground">Strategy & Reasoning</h3>
+                                {showArchivedWarning && (
+                                    <Alert variant="destructive">
+                                        <AlertTriangle className="h-4 w-4" />
+                                        <AlertTitle>Strategy Archived</AlertTitle>
+                                        <AlertDescription>
+                                            The strategy previously selected for this plan has been archived. Please select an active strategy to proceed.
+                                        </AlertDescription>
+                                    </Alert>
+                                )}
+                                <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] items-end gap-2">
+                                    <FormField control={form.control} name="strategyId" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Strategy*</FormLabel>
+                                            <Popover open={isSelectorOpen} onOpenChange={setIsSelectorOpen}>
+                                                <PopoverTrigger asChild>
+                                                    <FormControl>
+                                                        <Button
+                                                            variant="outline"
+                                                            role="combobox"
+                                                            className={cn(
+                                                                "w-full justify-between",
+                                                                !field.value && "text-muted-foreground"
+                                                            )}
+                                                        >
+                                                            {selectedStrategyForDisplay
+                                                                ? selectedStrategyForDisplay.name
+                                                                : "Select from your playbook"}
+                                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                        </Button>
+                                                    </FormControl>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-full p-0" style={{ width: 'var(--radix-popover-trigger-width)' }}>
+                                                    <Command>
+                                                        <CommandInput placeholder="Search strategy..." />
+                                                        <CommandEmpty>No strategy found.</CommandEmpty>
+                                                        <CommandGroup>
+                                                            <CommandList>
+                                                            {availableStrategies.map(strategy => {
+                                                                const health = getStrategyHealth(strategy);
+                                                                const activeVersion = strategy.versions.find(v => v.isActiveVersion);
+                                                                const recommendation = getRecommendedStatus(strategy, { instrument, session });
 
-                                                            const minRR = activeVersion?.ruleSet?.tpRules.minRR;
-                                                            const maxTrades = activeVersion?.ruleSet?.riskRules.maxDailyTrades;
-                                                            const vixPolicy = activeVersion?.ruleSet?.contextRules.vixPolicy;
+                                                                const minRR = activeVersion?.ruleSet?.tpRules.minRR;
+                                                                const maxTrades = activeVersion?.ruleSet?.riskRules.maxDailyTrades;
+                                                                const vixPolicy = activeVersion?.ruleSet?.contextRules.vixPolicy;
 
-                                                            return (
-                                                                <CommandItem
-                                                                    value={strategy.name}
-                                                                    key={strategy.strategyId}
-                                                                    onSelect={() => handleStrategySelect(strategy.strategyId)}
-                                                                >
-                                                                    <div className="flex flex-col gap-2 w-full">
-                                                                        <div className="flex justify-between items-start">
-                                                                            <div>
-                                                                                <p className="font-semibold">{strategy.name} <span className="text-xs text-muted-foreground">v{activeVersion?.versionNumber}</span></p>
-                                                                                <div className="flex items-center gap-1.5 mt-1">
-                                                                                    {recommendation && <Badge className="text-xs bg-primary/10 text-primary">{recommendation}</Badge>}
-                                                                                    <Badge variant="outline" className="text-xs">{strategy.type}</Badge>
-                                                                                    {strategy.timeframes.map(tf => <Badge key={tf} variant="secondary" className="text-xs">{tf}</Badge>)}
+                                                                return (
+                                                                    <CommandItem
+                                                                        value={strategy.name}
+                                                                        key={strategy.strategyId}
+                                                                        onSelect={() => handleStrategySelect(strategy.strategyId)}
+                                                                    >
+                                                                        <div className="flex flex-col gap-2 w-full">
+                                                                            <div className="flex justify-between items-start">
+                                                                                <div>
+                                                                                    <p className="font-semibold">{strategy.name} <span className="text-xs text-muted-foreground">v{activeVersion?.versionNumber}</span></p>
+                                                                                    <div className="flex items-center gap-1.5 mt-1">
+                                                                                        {recommendation && <Badge className="text-xs bg-primary/10 text-primary">{recommendation}</Badge>}
+                                                                                        <Badge variant="outline" className="text-xs">{strategy.type}</Badge>
+                                                                                        {strategy.timeframes.map(tf => <Badge key={tf} variant="secondary" className="text-xs">{tf}</Badge>)}
+                                                                                    </div>
                                                                                 </div>
+                                                                                <Badge variant={health === 'Healthy' ? 'secondary' : 'destructive'} className={cn(
+                                                                                    "text-xs",
+                                                                                    health === 'Healthy' && 'bg-green-500/10 text-green-400 border-green-500/20',
+                                                                                    health === 'Needs Work' && 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+                                                                                    health === 'Risky' && 'bg-red-500/10 text-red-400 border-red-500/20'
+                                                                                )}>{health}</Badge>
                                                                             </div>
-                                                                            <Badge variant={health === 'Healthy' ? 'secondary' : 'destructive'} className={cn(
-                                                                                "text-xs",
-                                                                                health === 'Healthy' && 'bg-green-500/10 text-green-400 border-green-500/20',
-                                                                                health === 'Needs Work' && 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-                                                                                health === 'Risky' && 'bg-red-500/10 text-red-400 border-red-500/20'
-                                                                            )}>{health}</Badge>
+                                                                            <div className="flex flex-wrap items-center gap-2">
+                                                                                {minRR && <Badge variant="outline" className="text-xs">RR ≥ {minRR}</Badge>}
+                                                                                {maxTrades && <Badge variant="outline" className="text-xs">Max {maxTrades} trades/day</Badge>}
+                                                                                {vixPolicy === 'avoidHigh' && <Badge variant="outline" className="text-xs">Avoid High VIX</Badge>}
+                                                                            </div>
                                                                         </div>
-                                                                         <div className="flex flex-wrap items-center gap-2">
-                                                                            {minRR && <Badge variant="outline" className="text-xs">RR ≥ {minRR}</Badge>}
-                                                                            {maxTrades && <Badge variant="outline" className="text-xs">Max {maxTrades} trades/day</Badge>}
-                                                                            {vixPolicy === 'avoidHigh' && <Badge variant="outline" className="text-xs">Avoid High VIX</Badge>}
-                                                                        </div>
-                                                                    </div>
-                                                                    <Check className={cn("ml-auto h-4 w-4", field.value === strategy.strategyId ? "opacity-100" : "opacity-0")} />
-                                                                </CommandItem>
-                                                            )
-                                                        })}
-                                                        </CommandList>
-                                                    </CommandGroup>
-                                                </Command>
-                                            </PopoverContent>
-                                        </Popover>
+                                                                        <Check className={cn("ml-auto h-4 w-4", field.value === strategy.strategyId ? "opacity-100" : "opacity-0")} />
+                                                                    </CommandItem>
+                                                                )
+                                                            })}
+                                                            </CommandList>
+                                                        </CommandGroup>
+                                                    </Command>
+                                                </PopoverContent>
+                                            </Popover>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}/>
+                                    <Button type="button" variant="outline" size="sm" onClick={() => setIsStrategyDrawerOpen(true)} disabled={!strategyId}>
+                                        View Details
+                                    </Button>
+                                </div>
+
+                                {activeVersion && (
+                                    <Alert variant="default" className="bg-muted/50 border-border/50">
+                                        <Sparkles className="h-4 w-4 text-primary" />
+                                        <AlertDescription className="text-xs">
+                                            This strategy is tuned for <strong className="text-foreground">{activeVersion.ruleSet.contextRules.allowedSessions.join(', ')}</strong> sessions with a <strong className="text-foreground">{activeVersion.ruleSet.contextRules.vixPolicy}</strong> VIX policy.
+                                        </AlertDescription>
+                                    </Alert>
+                                )}
+
+                                <StrategyGuardrailChecklist strategyId={strategyId} onSetModule={onSetModule} checkedRules={entryChecklist} onCheckRule={handleCheckRule} />
+
+                                <FormField control={form.control} name="notes" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Trade Rationale</FormLabel>
+                                        <FormControl><Textarea placeholder="Why are you taking this trade? What conditions must be true?" {...field} /></FormControl>
+                                        <FormDescription className="text-xs italic">This will be saved to your journal. Write it for your future self to review.</FormDescription>
                                         <FormMessage />
                                     </FormItem>
                                 )}/>
-                                <Button type="button" variant="outline" size="sm" onClick={() => setIsStrategyDrawerOpen(true)} disabled={!strategyId}>
-                                    View Details
-                                </Button>
                             </div>
+                        </CardContent>
+                    </Card>
+                </div>
 
-                            {activeVersion && (
-                                <Alert variant="default" className="bg-muted/50 border-border/50">
-                                    <Sparkles className="h-4 w-4 text-primary" />
-                                    <AlertDescription className="text-xs">
-                                        This strategy is tuned for <strong className="text-foreground">{activeVersion.ruleSet.contextRules.allowedSessions.join(', ')}</strong> sessions with a <strong className="text-foreground">{activeVersion.ruleSet.contextRules.vixPolicy}</strong> VIX policy.
-                                    </AlertDescription>
-                                </Alert>
-                            )}
-
-                            <StrategyGuardrailChecklist strategyId={strategyId} onSetModule={onSetModule} checkedRules={entryChecklist} onCheckRule={handleCheckRule} />
-
-                            <FormField control={form.control} name="notes" render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Trade Rationale</FormLabel>
-                                    <FormControl><Textarea placeholder="Why are you taking this trade? What conditions must be true?" {...field} /></FormControl>
-                                    <FormDescription className="text-xs italic">This will be saved to your journal. Write it for your future self to review.</FormDescription>
-                                    <FormMessage />
-                                </FormItem>
-                            )}/>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
-
-            <div className="lg:col-span-1 space-y-6 sticky top-24">
-                <SessionChecklist currentStep={currentStep} />
-                <PlanSummary control={form.control} setPlanStatus={setPlanStatus} onSetModule={onSetModule} entryChecklist={entryChecklist} session={session} vixZone={vixZone} form={form} />
-                 <Card className="bg-muted/30 border-border/50">
-                    <CardContent className="p-4">
-                         <MarketContext session={session} setSession={setSession} vixZone={vixZone} setVixZone={setVixZone} />
-                    </CardContent>
-                </Card>
+                <div className="lg:col-span-1 space-y-6 sticky top-24">
+                    <SessionChecklist currentStep={currentStep} />
+                    <PlanSummary control={form.control} setPlanStatus={setPlanStatus} onSetModule={onSetModule} entryChecklist={entryChecklist} session={session} vixZone={vixZone} form={form} />
+                    <Card className="bg-muted/30 border-border/50">
+                        <CardContent className="p-4">
+                            <MarketContext session={session} setSession={setSession} vixZone={vixZone} setVixZone={setVixZone} />
+                        </CardContent>
+                    </Card>
+                </div>
             </div>
             
             <Drawer open={isStrategyDrawerOpen} onOpenChange={setIsStrategyDrawerOpen}>
@@ -1261,7 +1261,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
                             <DrawerHeader>
                                 <DrawerTitle className="text-2xl" id="strategy-drawer-title">{viewedStrategy.name}</DrawerTitle>
                                 {viewedStrategy.versions.find(v => v.isActiveVersion)?.description &&
-                                  <DrawerDescription>{viewedStrategy.versions.find(v => v.isActiveVersion)?.description}</DrawerDescription>
+                                <DrawerDescription>{viewedStrategy.versions.find(v => v.isActiveVersion)?.description}</DrawerDescription>
                                 }
                             </DrawerHeader>
                             <div className="px-4 py-6 space-y-6">
@@ -1316,7 +1316,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
                     )}
                 </DrawerContent>
             </Drawer>
-        </div>
+        </>
     );
 }
     
@@ -1324,7 +1324,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
     
     // Re-adding the full file content with the change integrated.
     
-    function ExecutionOptions({ form, onSetModule, executionHeadingRef, validationResult, entryChecklist }: { form: any, onSetModule: (module: any, context?: any) => void; executionHeadingRef: React.Ref<HTMLDivElement>; validationResult: ValidationOutput | null, entryChecklist: Record<string, boolean> }) {
+    function ExecutionOptions({ form, onSetModule, executionHeadingRef, validationResult, entryChecklist, vixZone, vixValue }: { form: any, onSetModule: (module: any, context?: any) => void; executionHeadingRef: React.Ref<HTMLDivElement>; validationResult: ValidationOutput | null, entryChecklist: Record<string, boolean>; vixZone: VixZone; vixValue: number; }) {
         const [executionType, setExecutionType] = useState<"Market" | "Limit">("Market");
         const [isExecuting, setIsExecuting] = useState(false);
         const [executionResult, setExecutionResult] = useState<{ tradeId: string, draftId: string } | null>(null);
@@ -1361,6 +1361,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
                             if (activeVersionIndex !== -1) {
                                 s.versions[activeVersionIndex].usageCount += 1;
                                 s.versions[activeVersionIndex].lastUsedAt = now;
+                                
                             }
                             return { ...s, lastUsedAt: now };
                         }
@@ -1430,6 +1431,10 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
                     },
                     meta: {
                         ruleAdherenceSummary: ruleAdherenceSummary,
+                        vixOnExecute: {
+                            value: vixValue,
+                            zone: vixZone,
+                        }
                     },
                 };
                 
@@ -1532,7 +1537,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
         );
     }
     
-    function ExecuteStep({ form, onSetModule, onSetStep, planStatus, executionHeadingRef, validationResult, entryChecklist }: { form: any, onSetModule: any, onSetStep: (step: TradePlanStep) => void; planStatus: PlanStatusType, executionHeadingRef: React.Ref<HTMLDivElement>, validationResult: ValidationOutput | null, entryChecklist: Record<string, boolean> }) {
+    function ExecuteStep({ form, onSetModule, onSetStep, planStatus, executionHeadingRef, validationResult, entryChecklist, vixZone, vixValue }: { form: any, onSetModule: any, onSetStep: (step: TradePlanStep) => void; planStatus: PlanStatusType, executionHeadingRef: React.Ref<HTMLDivElement>, validationResult: ValidationOutput | null, entryChecklist: Record<string, boolean>, vixZone: VixZone, vixValue: number }) {
         return (
              <div className="grid lg:grid-cols-2 gap-8 items-start">
                  <Card className="bg-muted/30 border-border/50">
@@ -1561,7 +1566,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
                          </AlertDialog>
                     </CardContent>
                 </Card>
-                <ExecutionOptions form={form} onSetModule={onSetModule} executionHeadingRef={executionHeadingRef} validationResult={validationResult} entryChecklist={entryChecklist} />
+                <ExecutionOptions form={form} onSetModule={onSetModule} executionHeadingRef={executionHeadingRef} validationResult={validationResult} entryChecklist={entryChecklist} vixZone={vixZone} vixValue={vixValue} />
             </div>
         );
     }
@@ -2215,7 +2220,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
     
                         {currentStep === "plan" && <PlanStep form={form} onSetModule={onSetModule} setPlanStatus={setPlanStatus} onApplyTemplate={handleApplyTemplate} isNewUser={isNewUser} currentStep={currentStep} draftToResume={draftToResume} onResume={handleResumeDraft} onDiscard={handleDiscardDraft} entryChecklist={entryChecklist} setEntryChecklist={setEntryChecklist} session={session} setSession={setSession} vixZone={vixZone} setVixZone={setVixZone} />}
                         {currentStep === "review" && <ReviewStep form={form} onSetModule={onSetModule} onSetStep={setCurrentStep} arjunFeedbackAccepted={arjunFeedbackAccepted} setArjunFeedbackAccepted={setArjunFeedbackAccepted} planStatus={planStatus} reviewHeadingRef={reviewHeadingRef} />}
-                        {currentStep === "execute" && <ExecuteStep form={form} onSetModule={onSetModule} onSetStep={setCurrentStep} planStatus={planStatus} executionHeadingRef={executionHeadingRef} validationResult={null} entryChecklist={entryChecklist} />}
+                        {currentStep === "execute" && <ExecuteStep form={form} onSetModule={onSetModule} onSetStep={setCurrentStep} planStatus={planStatus} executionHeadingRef={executionHeadingRef} validationResult={null} entryChecklist={entryChecklist} vixZone={vixZone} vixValue={riskState?.marketRisk.vixValue || 0} />}
     
                          <div className="mt-8 p-4 bg-muted/20 border-t border-border/50 flex flex-col sm:flex-row items-center justify-between gap-4">
                             <p className="text-sm text-muted-foreground">Step {Object.keys(stepConfig).indexOf(currentStep) + 1} of 3: {stepConfig[currentStep].label} your trade.</p>
@@ -2339,14 +2344,18 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
     }
     
     
+
+
+
+
+
+
+
+
+
+
+
+
+
     
-
-
-
-
-
-
-
-
-
 

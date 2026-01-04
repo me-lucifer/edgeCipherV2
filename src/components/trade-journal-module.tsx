@@ -95,6 +95,10 @@ const journalEntrySchema = z.object({
   }).optional(),
   meta: z.object({
     strategyVersion: z.string().optional(),
+    vixOnExecute: z.object({
+        value: z.number(),
+        zone: z.string(),
+    }).optional(),
     ruleAdherenceSummary: z.object({
       followedEntryRules: z.boolean().default(true),
       movedSL: z.boolean().default(false),
@@ -126,7 +130,7 @@ const mockJournalEntries: JournalEntry[] = [
       technical: { instrument: 'BTC-PERP', direction: 'Long', entryPrice: 68500, stopLoss: 68000, takeProfit: 69500, leverage: 20, positionSize: 0.5, riskPercent: 1, rrRatio: 2, strategy: "BTC Trend Breakout" },
       planning: { planNotes: "Clean breakout above resistance. Good follow-through.", mindset: "Confident, Calm" },
       review: { pnl: 234.75, exitPrice: 68969.5, emotionalNotes: "Felt good, stuck to the plan.", emotionsTags: "Confident,Focused", mistakesTags: "None (disciplined)", learningNotes: "Trust the plan when the setup is clean.", newsContextTags: "Post-CPI" },
-      meta: { strategyVersion: "v1", journalingCompletedAt: new Date(Date.now() - 86400000 * 2).toISOString(), ruleAdherenceSummary: { followedEntryRules: true, movedSL: false, exitedEarly: false, rrBelowMin: false } }
+      meta: { strategyVersion: "v1", journalingCompletedAt: new Date(Date.now() - 86400000 * 2).toISOString(), ruleAdherenceSummary: { followedEntryRules: true, movedSL: false, exitedEarly: false, rrBelowMin: false }, vixOnExecute: { value: 35, zone: 'Normal' } }
     },
     {
       id: 'completed-2',
@@ -136,7 +140,7 @@ const mockJournalEntries: JournalEntry[] = [
       technical: { instrument: 'ETH-PERP', direction: 'Short', entryPrice: 3605, stopLoss: 3625, leverage: 50, positionSize: 12, riskPercent: 2, rrRatio: 1, strategy: "London Reversal" },
       planning: { planNotes: "Fading what looks like a sweep of the high.", mindset: "Anxious" },
       review: { pnl: -240, exitPrice: 3625, emotionalNotes: "Market kept pushing, I felt like I was fighting a trend. Should have waited for more confirmation.", emotionsTags: "Anxious,Revenge", mistakesTags: "Forced Entry,Moved SL,Override", learningNotes: "Don't fight a strong trend, even if it looks like a sweep.", newsContextTags: "News-driven day" },
-      meta: { strategyVersion: "v1", journalingCompletedAt: new Date(Date.now() - 86400000).toISOString(), ruleAdherenceSummary: { followedEntryRules: false, movedSL: true, exitedEarly: false, rrBelowMin: true } }
+      meta: { strategyVersion: "v1", journalingCompletedAt: new Date(Date.now() - 86400000).toISOString(), ruleAdherenceSummary: { followedEntryRules: false, movedSL: true, exitedEarly: false, rrBelowMin: true }, vixOnExecute: { value: 65, zone: 'Volatile' } }
     },
 ];
 
@@ -2105,5 +2109,7 @@ function getReviewPriority(entry: JournalEntry): ReviewPriority {
 
     return { priority, reasons };
 }
+
+    
 
     
