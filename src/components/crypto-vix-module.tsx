@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Bot, LineChart, Gauge, TrendingUp, TrendingDown, Info, AlertTriangle, SlidersHorizontal, Flame, Droplets, Newspaper, Sparkles, ArrowRight, X } from "lucide-react";
+import { Bot, LineChart, Gauge, TrendingUp, TrendingDown, Info, AlertTriangle, SlidersHorizontal, Flame, Droplets, Newspaper, Sparkles, ArrowRight, X, BarChartHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Line, ResponsiveContainer, CartesianGrid, XAxis, YAxis, ComposedChart, ReferenceLine, ReferenceDot } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "./ui/chart";
@@ -161,6 +161,25 @@ const HeatStrip = ({ data }: { data: { value: number }[] }) => {
     )
 }
 
+function DriverTrendChart({ data, name, color }: { data: any[]; name: string; color: string; }) {
+    return (
+      <div className="flex items-center gap-4">
+        <div className="w-32">
+          <h4 className="font-semibold text-foreground text-sm">{name}</h4>
+        </div>
+        <div className="h-10 flex-1">
+          <ChartContainer config={{ value: { color } }} className="h-full w-full">
+            <ResponsiveContainer>
+              <LineChart data={data} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+                <Line type="monotone" dataKey="value" stroke="var(--color-value)" strokeWidth={2} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </ChartContainer>
+        </div>
+      </div>
+    );
+}
+
 export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
     const { vixState, isLoading, updateVixValue } = useVixState();
     const [timeRange, setTimeRange] = useState<'24H' | '7D'>('24H');
@@ -218,6 +237,24 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
     const handleDismissRegimeShift = () => {
         setRegimeShift(null);
     };
+
+     const driverTrendData = useMemo(() => {
+        if (!vixState) return null;
+        const series = timeRange === '24H' ? vixState.series.series24h : vixState.series.series7d;
+        
+        const generateDriverSeries = (factor: number, noise: number) => {
+            return series.map(d => ({ ...d, value: Math.max(0, Math.min(100, (d.value * factor) + (Math.random() - 0.5) * noise)) }));
+        };
+
+        return {
+            btcVol: generateDriverSeries(0.8, 10),
+            ethVol: generateDriverSeries(0.9, 15),
+            fundingPressure: generateDriverSeries(0.5, 20),
+            liquidationSpike: generateDriverSeries(0.3, 30).map(d => d.value > 70 ? d.value : d.value / 2),
+        };
+
+    }, [vixState, timeRange]);
+
 
     if (isLoading || !vixState) {
         return (
@@ -363,6 +400,21 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                             </Card>
                         </CardContent>
                     </Card>
+
+                    {driverTrendData && (
+                        <Card className="bg-muted/30 border-border/50">
+                            <CardHeader>
+                                <CardTitle>Driver Trends (Prototype)</CardTitle>
+                                <CardDescription>How each component of the VIX has behaved over the period.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <DriverTrendChart data={driverTrendData.btcVol} name="BTC Volatility" color="hsl(var(--chart-1))" />
+                                <DriverTrendChart data={driverTrendData.ethVol} name="ETH Volatility" color="hsl(var(--chart-2))" />
+                                <DriverTrendChart data={driverTrendData.fundingPressure} name="Funding Pressure" color="hsl(var(--chart-3))" />
+                                <DriverTrendChart data={driverTrendData.liquidationSpike} name="Liquidation Spikes" color="hsl(var(--chart-5))" />
+                            </CardContent>
+                        </Card>
+                    )}
                     
                     {regimeShift && (
                         <RegimeShiftBanner 
