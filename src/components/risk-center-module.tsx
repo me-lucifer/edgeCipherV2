@@ -134,6 +134,39 @@ function TradeDecisionBar({ decision }: { decision: RiskState['decision'] | null
     );
 }
 
+const VixGauge = ({ value, zone }: { value: number, zone: string }) => {
+    const colorConfig: Record<string, string> = {
+        "Extremely Calm": 'bg-green-500',
+        "Normal": 'bg-green-500',
+        "Volatile": 'bg-yellow-500',
+        "High Volatility": 'bg-orange-500',
+        "Extreme": 'bg-red-500',
+    };
+    
+    const colorClass = colorConfig[zone] || 'bg-foreground';
+    const rotation = (value / 100) * 180;
+
+    const conicGradient = `conic-gradient(var(--tw-gradient-from) 0deg, var(--tw-gradient-from) ${rotation}deg, hsl(var(--muted)) ${rotation}deg, hsl(var(--muted)) 180deg)`;
+
+    return (
+         <div 
+            className={cn("relative flex items-end justify-center w-full h-24 rounded-t-full from-green-500 overflow-hidden", colorClass)}
+            style={{ background: conicGradient }}
+        >
+             <div className="absolute w-[85%] h-[85%] bg-muted/80 backdrop-blur-sm rounded-t-full top-auto bottom-0" />
+             <div className="relative flex flex-col items-center justify-center z-10 pb-2">
+                <p className="text-4xl font-bold font-mono text-foreground">{Math.round(value)}</p>
+                <p className={cn("font-semibold", 
+                    (zone === 'Extremely Calm' || zone === 'Normal') && 'text-green-400',
+                    zone === 'Volatile' && 'text-yellow-400',
+                    zone === 'High Volatility' && 'text-orange-400',
+                    zone === 'Extreme' && 'text-red-400',
+                )}>{zone}</p>
+            </div>
+        </div>
+    );
+};
+
 function MarketRiskCard({ marketRisk, onSetModule }: { marketRisk: RiskState['marketRisk'], onSetModule: (module: any) => void }) {
     const { vixValue, vixZone } = marketRisk;
     
@@ -141,18 +174,18 @@ function MarketRiskCard({ marketRisk, onSetModule }: { marketRisk: RiskState['ma
         const newVix = value[0];
         localStorage.setItem("ec_vix_override", String(newVix));
         // The useRiskState hook will automatically pick up this change and update the state
+        window.dispatchEvent(new StorageEvent('storage', { key: 'ec_vix_override' }));
     };
 
     const zoneInfo = {
-        Calm: { color: 'green', impact: 'Markets are quiet. Setups may take longer to play out; be patient.' },
-        Normal: { color: 'blue', impact: 'Standard conditions. Follow your plan as designed.' },
-        Elevated: { color: 'amber', impact: 'Expect whipsaws and spikes. Consider reducing size.' },
-        Extreme: { color: 'red', impact: 'High risk of erratic moves. Many pros sit out.' }
+        "Extremely Calm": { impact: 'Markets are quiet. Setups may take longer to play out; be patient.' },
+        Normal: { impact: 'Standard conditions. Follow your plan as designed.' },
+        Volatile: { impact: 'Expect whipsaws and spikes. Consider reducing size.' },
+        "High Volatility": { impact: 'High risk of erratic moves. Many pros sit out.' },
+        Extreme: { impact: 'Dangerously unpredictable market. Strongly consider not trading.' }
     };
     
-    const { color, impact } = zoneInfo[vixZone] || zoneInfo.Normal;
-    const colorClass = `hsl(var(--chart-${color === 'green' ? 2 : color === 'blue' ? 1 : color === 'amber' ? 4 : 5}))`;
-    const conicGradient = `conic-gradient(${colorClass} 0deg, ${colorClass} calc(${vixValue} * 1.8deg), hsl(var(--muted)) calc(${vixValue} * 1.8deg), hsl(var(--muted)) 180deg)`;
+    const { impact } = zoneInfo[vixZone] || zoneInfo.Normal;
 
     // Mocked conditions based on VIX for demo purposes
     const fundingRateStatus = vixZone === 'Extreme' ? 'High' : 'Neutral';
@@ -178,24 +211,7 @@ function MarketRiskCard({ marketRisk, onSetModule }: { marketRisk: RiskState['ma
                 </CardTitle>
             </CardHeader>
             <CardContent className="grid md:grid-cols-2 gap-6 items-center">
-                <div 
-                    className="relative flex items-center justify-center w-full h-24 overflow-hidden rounded-t-full bg-muted"
-                >
-                    <div 
-                        className="absolute top-0 left-0 w-full h-full rounded-t-full"
-                        style={{ background: conicGradient }}
-                    />
-                    <div className="absolute w-[85%] h-[85%] bg-muted/80 backdrop-blur-sm rounded-t-full" />
-                     <div className="relative flex flex-col items-center justify-center z-10 -mt-2">
-                        <p className="text-4xl font-bold font-mono text-foreground">{vixValue}</p>
-                        <Badge className={cn("text-base font-semibold", 
-                            vixZone === "Extreme" && "bg-red-500/20 text-red-300 border-red-500/30",
-                            vixZone === "Elevated" && "bg-amber-500/20 text-amber-300 border-amber-500/30",
-                            vixZone === "Normal" && "bg-blue-500/20 text-blue-300 border-blue-500/30",
-                            vixZone === "Calm" && "bg-green-500/20 text-green-300 border-green-500/30"
-                        )}>{vixZone}</Badge>
-                    </div>
-                </div>
+                <VixGauge value={vixValue} zone={vixZone} />
                 <div className="space-y-3">
                    <p className="text-sm text-muted-foreground"><span className="font-semibold text-foreground">Impact:</span> {impact}</p>
                    <Button variant="link" className="p-0 h-auto" onClick={() => onSetModule('cryptoVix')}>
@@ -1829,5 +1845,6 @@ const DeltaIndicator = ({ delta, unit = "" }: { delta: number; unit?: string }) 
 };
     
     
+
 
 
