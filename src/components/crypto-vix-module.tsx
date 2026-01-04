@@ -397,9 +397,9 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
     return (
         <div className="space-y-8">
             <div className="text-center">
-                <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">Crypto VIX</h1>
+                <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">Crypto Volatility Index (VIX)</h1>
                 <p className="mt-4 text-lg text-muted-foreground max-w-3xl mx-auto">
-                    A proprietary 0–100 volatility score for crypto futures market conditions.
+                    A proprietary 0–100 score for crypto futures market conditions.
                 </p>
             </div>
             
@@ -501,18 +501,18 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                              <ChartContainer config={{value: {color: "hsl(var(--primary))"}}} className="h-64 w-full">
                                 <ResponsiveContainer>
                                     <ComposedChart data={chartData}>
-                                        <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50"/>
+                                        <CartesianGrid vertical={false} strokeDasharray="2 2" className="stroke-border/50"/>
                                         <XAxis dataKey={chartKey} tick={{fontSize: 12}} />
                                         <YAxis domain={[0, 100]} tick={{fontSize: 12}}/>
                                         <ChartTooltip content={<ChartTooltipContent indicator="line" formatter={(value, name, props) => {
-                                            if (props.payload.spike === 'up') return "Volatility Spike"
-                                            if (props.payload.spike === 'down') return "Volatility Cooldown"
-                                            return `${value}`
+                                            if (props.payload.spike === 'up') return <span className='font-semibold'>Volatility Spike</span>
+                                            if (props.payload.spike === 'down') return <span className='font-semibold'>Volatility Cooldown</span>
+                                            return <span className='font-mono'>{Number(value).toFixed(1)}</span>
                                         }} />} />
-                                        <ReferenceLine y={20} stroke="hsl(var(--chart-2))" strokeOpacity={0.5} strokeDasharray="3 3" />
-                                        <ReferenceLine y={40} stroke="hsl(var(--chart-2))" strokeOpacity={0.5} strokeDasharray="3 3" />
-                                        <ReferenceLine y={60} stroke="hsl(var(--chart-4))" strokeOpacity={0.5} strokeDasharray="3 3" />
-                                        <ReferenceLine y={80} stroke="hsl(var(--chart-5))" strokeOpacity={0.5} strokeDasharray="3 3" />
+                                        <ReferenceLine y={20} stroke="hsl(var(--chart-2))" strokeOpacity={0.3} strokeDasharray="3 3" />
+                                        <ReferenceLine y={40} stroke="hsl(var(--chart-2))" strokeOpacity={0.3} strokeDasharray="3 3" />
+                                        <ReferenceLine y={60} stroke="hsl(var(--chart-4))" strokeOpacity={0.3} strokeDasharray="3 3" />
+                                        <ReferenceLine y={80} stroke="hsl(var(--chart-5))" strokeOpacity={0.3} strokeDasharray="3 3" />
                                         <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} name="VIX" />
                                          {chartData.map((point, index) => {
                                             if (point.spike) {
