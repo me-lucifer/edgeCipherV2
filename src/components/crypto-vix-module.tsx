@@ -36,14 +36,6 @@ const mockVixHistory = [
     { day: "Today", value: 58 },
 ];
 
-const adaptationStrategies: Record<VixZone, { title: string; strategy: string }> = {
-    "Extremely Calm": { title: "Patience is Key", strategy: "Trends may be weak. Avoid forcing trades and consider range-bound strategies." },
-    "Normal": { title: "Standard Operating Procedure", strategy: "Your primary strategies should perform well. Focus on disciplined execution of your A+ setups." },
-    "Volatile": { title: "Capital Preservation", strategy: "Consider reducing position size. Widen stop-losses to avoid getting shaken out by volatility. Be highly selective." },
-    "High Volatility": { title: "Defense First", strategy: "This is a risky time to trade. If you must trade, use minimum size and wait for very clear confirmation." },
-    "Extreme": { title: "Maximum Caution", strategy: "Avoid taking new positions. Market conditions are dangerously unpredictable." },
-};
-
 const postureSuggestions: Record<VixZone, { title: string, actions: string[] }> = {
     "Extremely Calm": { title: "Be patient", actions: ["Wait for A+ setups", "Respect ranges", "Avoid forcing trades"] },
     "Normal": { title: "Execute plan", actions: ["Stick to your strategy", "Normal size OK", "Journal consistently"] },
@@ -282,6 +274,9 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                                 </ResponsiveContainer>
                             </ChartContainer>
                         </CardContent>
+                        <CardFooter>
+                           <p className="text-xs text-muted-foreground">This chart shows the daily closing VIX value over the past 30 days.</p>
+                        </CardFooter>
                     </Card>
                 </div>
                 
