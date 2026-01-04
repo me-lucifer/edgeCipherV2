@@ -1,5 +1,4 @@
 
-
       "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
@@ -118,7 +117,7 @@ const postureSuggestions: Record<VixZone, Record<PersonaType, VixAdvice>> = {
         "Impulsive Sprinter": { interpretation: "Catastrophic risk is present. Your account is in extreme danger if you trade. Close your platform and walk away. The only winning move is not to play. This is non-negotiable for your persona. Any attempt to trade now is a direct path to significant financial and psychological damage.", rule: "DO NOT TRADE. The only trade that matters is protecting your account.", actions: [{label: "Seriously, close your trading platform"}, {label: "Go for a walk. Do not look at the charts."}, {label: "Protecting your capital is the only goal."}] },
         "Fearful Analyst": { interpretation: "The market is completely irrational. Your analysis does not apply. Do not attempt to find a bottom or top. Confirm all positions are closed or protected and wait for sanity to return. Your fear is justified today; it is a rational response to an irrational market. Trust it and stay flat.", rule: "Stay flat. This is a spectator sport right now.", actions: [{label: "Confirm all open positions are closed or protected"}, {label: "Read a book on trading psychology"}, {label: "Wait for volatility to return to normal levels"}] },
         "Disciplined Scalper": { interpretation: "There is no edge here. The market is in a state of cascading liquidations. Any position taken is a gamble, not a trade. Your discipline requires you to stay flat and protect your capital. This is not the environment for your strategy. Acknowledging that and stepping aside is the highest form of discipline.", rule: "Stay flat. There is no trading edge in a liquidation cascade.", actions: [{label: "Stay flat and protect your capital"}, {label: "Wait for volatility to return to normal levels"}, {label: "This is a day for risk managers, not traders"}] },
-        "Beginner": { interpretation: "DO NOT TRADE. DANGER.", actions: [{label: "Watch from a distance to learn"}, {label: "Understand that this is not a trading environment"}, {label: "The goal is to survive to trade another day"}] },
+        "Beginner": { interpretation: "DO NOT TRADE. DANGER. This is where new traders lose their accounts. Watch from a distance to learn that sometimes the best action is no action. The goal is to survive to trade another day.", actions: [{label: "Watch from a distance to learn"}, {label: "Understand that this is not a trading environment"}, {label: "The goal is to survive to trade another day"}] },
     }
 };
 
@@ -941,8 +940,8 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
         <div className="space-y-8">
             <div className="text-center">
                 <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">EdgeCipher Crypto VIX (0–100)</h1>
-                <p className="mt-4 text-lg text-muted-foreground max-w-3xl mx-auto">
-                    A proprietary score for crypto futures market conditions. 
+                 <p className="mt-4 text-lg text-muted-foreground max-w-3xl mx-auto">
+                    A proprietary score for crypto futures market conditions.
                     <TooltipProvider>
                         <Tooltip>
                             <TooltipTrigger asChild>
@@ -973,7 +972,7 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                         <h4 className="font-semibold text-foreground mb-4">Recommended Actions:</h4>
                         <div className="flex flex-wrap justify-center gap-4">
                             <Button onClick={() => onSetModule('riskCenter')}>
-                                <ShieldAlert className="mr-2 h-4 w-4" /> Open Risk Center
+                                <ShieldAlert className="mr-2 h-4 w-4" /> Go to Risk Center
                             </Button>
                             <Button variant="outline" className="bg-red-500/10 border-red-500/30 text-red-300 hover:bg-red-500/20" onClick={() => onSetModule('tradeJournal')}>
                                 <BookOpen className="mr-2 h-4 w-4" /> Open Journal
@@ -1035,8 +1034,8 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                                             <SummaryRow label="7D Average" value={avg7d.toFixed(1)} />
                                             <SummaryRow label="24H Range" value={`${low24h.toFixed(1)} – ${high24h.toFixed(1)}`} />
                                             <SummaryRow 
-                                                label="24H Spike Index" 
-                                                value={<>{spikeIndex24h} <Badge variant="outline" className={cn(
+                                                label="Spike Index (24h)" 
+                                                value={<><span className="mr-2">{spikeIndex24h}</span> <Badge variant="outline" className={cn(
                                                     spikeLevel === 'High' && 'border-red-500/50 text-red-400',
                                                     spikeLevel === 'Medium' && 'border-amber-500/50 text-amber-400'
                                                 )}>{spikeLevel}</Badge></>}
