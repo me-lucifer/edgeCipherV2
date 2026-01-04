@@ -201,11 +201,41 @@ export function useRiskState() {
             const vixStateString = localStorage.getItem("ec_vix_state");
             let vixValue = 37;
             let vixZone: VixZone = 'Normal';
+            let oldVixZone: VixZone = 'Normal';
 
             if (vixStateString) {
                 const storedVixState = JSON.parse(vixStateString);
                 vixValue = storedVixState.value;
                 vixZone = storedVixState.zoneLabel;
+                
+                // Get previous VIX zone if available
+                const series24h = storedVixState.series?.series24h;
+                if (series24h && series24h.length > 1) {
+                    oldVixZone = getVixZone(series24h[series24h.length - 2].value);
+                } else {
+                    oldVixZone = vixZone;
+                }
+            }
+
+            // Check for VIX zone change and add event
+            if (vixZone !== oldVixZone) {
+                const severityMap: Record<VixZone, 'red' | 'yellow' | 'green'> = {
+                    "Extreme": 'red',
+                    "High Volatility": 'red',
+                    "Volatile": 'yellow',
+                    "Normal": 'green',
+                    "Extremely Calm": 'green',
+                };
+                const newEvent: RiskEvent = {
+                    time: format(now, 'HH:mm'),
+                    description: `VIX entered ${vixZone} zone (${vixValue.toFixed(0)}).`,
+                    level: severityMap[vixZone],
+                };
+                // Avoid adding duplicate events
+                if (!riskEventsToday.some(e => e.description === newEvent.description && e.time === newEvent.time)) {
+                    riskEventsToday.push(newEvent);
+                    localStorage.setItem('ec_risk_events_today', JSON.stringify(riskEventsToday));
+                }
             }
             
             const marketRisk = {
