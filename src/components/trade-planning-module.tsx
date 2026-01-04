@@ -35,7 +35,7 @@ import { useDailyCounters } from "@/hooks/use-daily-counters";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Check } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
-import { useRiskState, type RiskDecision, type ActiveNudge } from "@/hooks/use-risk-state";
+import { useRiskState, type RiskDecision, type ActiveNudge, type VixZone } from "@/hooks/use-risk-state";
 
 
 interface TradePlanningModuleProps {
@@ -128,8 +128,6 @@ type PlanInputs = {
     session: "Asia" | "London" | "New York"; // Mocked
 };
 
-type VixZone = "Calm" | "Normal" | "Elevated" | "Extreme";
-
 type ValidationContext = {
     todayTradeCountAll: number;
     lossStreak: number;
@@ -188,6 +186,28 @@ const validatePlanAgainstStrategy = (plan: PlanInputs, strategy: RuleSet, contex
             payload: { field: 'leverage', value: riskRules.leverageCap }
         } : undefined,
     });
+    
+    // A.1) VIX-based leverage checks
+    if (context.vixZone === 'Extreme' && plan.leverage > 5) {
+        validations.push({
+            ruleId: 'vixLeverageExtreme',
+            title: `Leverage <= 5x in Extreme VIX`,
+            status: "FAIL",
+            message: `High volatility increases liquidation risk. Using >5x leverage in 'Extreme' VIX is highly discouraged.`,
+            category: 'Risk & Leverage',
+            fix: { type: 'SET_VALUE', payload: { field: 'leverage', value: 5 } },
+        });
+    } else if ((context.vixZone === 'High Volatility' || context.vixZone === 'Extreme') && plan.leverage > 10) {
+         validations.push({
+            ruleId: 'vixLeverageHigh',
+            title: `Leverage <= 10x in High/Extreme VIX`,
+            status: "WARN",
+            message: `High volatility increases liquidation risk. Using >10x leverage is not recommended.`,
+            category: 'Risk & Leverage',
+            fix: { type: 'SET_VALUE', payload: { field: 'leverage', value: 10 } },
+        });
+    }
+
 
     // B) Risk per trade
     const riskDifference = plan.riskPct - riskRules.riskPerTradePct;
@@ -613,6 +633,16 @@ const interventionMessages = {
         message: "Your entry confirmation checklist is incomplete.",
         why: "Skipping this step leads to impulsive entries that don't fit your plan.",
         suggestion: "Review each entry condition and confirm your setup is valid before proceeding."
+    },
+    vixLeverageExtreme: {
+        message: "Leverage is too high for extreme volatility.",
+        why: "High volatility dramatically increases liquidation risk. This is a recipe for a blown account.",
+        suggestion: "Reduce leverage to 5x or less immediately."
+    },
+    vixLeverageHigh: {
+        message: "Leverage is high for current volatility.",
+        why: "High volatility increases liquidation risk.",
+        suggestion: "Consider reducing leverage to 10x or less."
     },
     default: {
         message: "This plan deviates from your strategy.",
@@ -2272,6 +2302,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
     
     
     
+
 
 
 

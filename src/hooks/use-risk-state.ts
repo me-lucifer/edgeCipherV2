@@ -420,10 +420,10 @@ export function useRiskState() {
                 level = "red";
                 reasons.push(`Daily Budget Exceeded: Daily loss limit of ${maxDailyLossPct}% has been reached.`);
             }
-             if (vixValue > vixRedThreshold) {
+             if (vixValue >= vixRedThreshold) {
                 level = "red";
                 reasons.push(`Extreme Volatility: Market VIX is in the 'Extreme' zone (Threshold: >${vixRedThreshold}).`);
-            } else if (vixValue > vixYellowThreshold) {
+            } else if (vixValue >= vixYellowThreshold) {
                 if (level !== 'red') level = 'yellow';
                 reasons.push(`Elevated Volatility: Market VIX is '${vixZone}' (Threshold: >${vixYellowThreshold}).`);
             }
@@ -442,9 +442,9 @@ export function useRiskState() {
             }
             
             const maxLeverage = Math.max(...mockPositions.map(p => p.leverage), 0);
-            if (maxLeverage >= leverageFailThreshold || (maxLeverage >= leverageWarnThreshold && (vixZone === 'Elevated' || vixZone === 'High Volatility' || vixZone === 'Extreme'))) {
+            if (maxLeverage >= leverageFailThreshold || (maxLeverage >= leverageWarnThreshold && (vixZone === 'High Volatility' || vixZone === 'Extreme'))) {
                 if (level !== 'red') {
-                    level = 'yellow'; // Changed from 'red' to 'yellow' for less aggressive blocking
+                    level = 'yellow';
                     reasons.push(`Excessive Leverage: High leverage (${maxLeverage}x) detected in high volatility (${vixZone}), increasing liquidation risk.`);
                 }
             } else if (maxLeverage >= leverageWarnThreshold) {
@@ -520,10 +520,10 @@ export function useRiskState() {
                     why: 'Market is highly unpredictable, risk of slippage is high.',
                     action: { label: 'View VIX', module: 'cryptoVix' }
                 });
-            } else if (vixZone === 'Elevated' || vixZone === 'High Volatility') {
+            } else if (vixZone === 'High Volatility') {
                  drivers.push({
                     id: 'vix_elevated',
-                    title: 'Elevated Volatility',
+                    title: 'High Volatility',
                     severity: 'Medium',
                     why: 'Increased chop & risk of stop-hunts.',
                     action: { label: 'View VIX', module: 'cryptoVix' }
@@ -591,3 +591,4 @@ export function useRiskState() {
 }
 
     
+
