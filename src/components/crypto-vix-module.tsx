@@ -15,10 +15,11 @@ interface CryptoVixModuleProps {
 }
 
 const zoneData = [
-    { zone: "Calm (<25)", days: 10, color: "bg-green-500", impact: "Slow markets, fewer opportunities." },
-    { zone: "Normal (25-50)", days: 15, color: "bg-blue-500", impact: "Standard conditions, good for most strategies." },
-    { zone: "Elevated (50-75)", days: 4, color: "bg-yellow-500", impact: "Increased chop, risk of stop-hunts." },
-    { zone: "Extreme (>75)", days: 1, color: "bg-red-500", impact: "High risk of erratic moves and liquidations." },
+    { zone: "Extremely Calm (0-20)", color: "bg-blue-500", impact: "Very slow markets, consolidation likely." },
+    { zone: "Normal (21-40)", color: "bg-green-500", impact: "Standard conditions, good for most strategies." },
+    { zone: "Volatile (41-60)", color: "bg-yellow-500", impact: "Increased chop, risk of stop-hunts." },
+    { zone: "High Volatility (61-80)", color: "bg-red-500", impact: "High risk of erratic moves and liquidations." },
+    { zone: "Extreme (81-100)", color: "bg-purple-500", impact: "Dangerously unpredictable, 'black swan' risk." },
 ];
 
 const mockVixHistory = [
@@ -28,16 +29,25 @@ const mockVixHistory = [
 ];
 
 const adaptationStrategies = {
-    Calm: { title: "Patience is Key", strategy: "Setups take longer to play out. Avoid forcing trades in slow markets. Focus on clear range-bound plays if available." },
-    Normal: { title: "Standard Operating Procedure", strategy: "Your primary strategies should perform well. Focus on disciplined execution of your A+ setups." },
-    Elevated: { title: "Capital Preservation", strategy: "Consider reducing position size by 50%. Widen stop-losses to avoid getting shaken out by volatility. Be highly selective." },
-    Extreme: { title: "Defense First", strategy: "The riskiest time to trade. Many pros sit out entirely. If you must trade, use minimum size and wait for very clear confirmation." }
+    "Extremely Calm": { title: "Patience is Key", strategy: "Setups take longer to play out. Avoid forcing trades in slow markets. Focus on clear range-bound plays if available." },
+    "Normal": { title: "Standard Operating Procedure", strategy: "Your primary strategies should perform well. Focus on disciplined execution of your A+ setups." },
+    "Volatile": { title: "Capital Preservation", strategy: "Consider reducing position size. Widen stop-losses to avoid getting shaken out by volatility. Be highly selective." },
+    "High Volatility": { title: "Defense First", strategy: "The riskiest time to trade. Many pros sit out entirely. If you must trade, use minimum size and wait for very clear confirmation." },
+    "Extreme": { title: "Maximum Caution", strategy: "Avoid taking new positions. Market conditions are dangerously unpredictable." },
+};
+
+const getVixZone = (vix: number) => {
+    if (vix <= 20) return "Extremely Calm";
+    if (vix <= 40) return "Normal";
+    if (vix <= 60) return "Volatile";
+    if (vix <= 80) return "High Volatility";
+    return "Extreme";
 };
 
 
 export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
     const currentVix = 58;
-    const currentZone = "Elevated";
+    const currentZone = getVixZone(currentVix);
     const adaptation = adaptationStrategies[currentZone as keyof typeof adaptationStrategies];
     
     const askArjun = () => {
@@ -46,10 +56,11 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
 
     const VixGauge = ({ value, zone }: { value: number, zone: string }) => {
         const colorConfig: Record<string, string> = {
-            Calm: 'hsl(var(--chart-2))',
-            Normal: 'hsl(var(--chart-1))',
-            Elevated: 'hsl(var(--chart-4))',
-            Extreme: 'hsl(var(--chart-5))',
+            "Extremely Calm": 'hsl(var(--chart-3))',
+            "Normal": 'hsl(var(--chart-2))',
+            "Volatile": 'hsl(var(--chart-4))',
+            "High Volatility": 'hsl(var(--chart-5))',
+            "Extreme": 'hsl(var(--destructive))',
         };
         
         const color = colorConfig[zone] || 'hsl(var(--foreground))';
@@ -115,9 +126,10 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                                         <XAxis dataKey="day" tick={{fontSize: 12}} />
                                         <YAxis domain={[0, 100]} tick={{fontSize: 12}}/>
                                         <ChartTooltip content={<ChartTooltipContent indicator="line" />} />
-                                        <ReferenceLine y={25} stroke="hsl(var(--chart-2))" strokeDasharray="3 3" />
-                                        <ReferenceLine y={50} stroke="hsl(var(--chart-1))" strokeDasharray="3 3" />
-                                        <ReferenceLine y={75} stroke="hsl(var(--chart-5))" strokeDasharray="3 3" />
+                                        <ReferenceLine y={20} stroke="hsl(var(--chart-3))" strokeDasharray="3 3" />
+                                        <ReferenceLine y={40} stroke="hsl(var(--chart-2))" strokeDasharray="3 3" />
+                                        <ReferenceLine y={60} stroke="hsl(var(--chart-4))" strokeDasharray="3 3" />
+                                        <ReferenceLine y={80} stroke="hsl(var(--chart-5))" strokeDasharray="3 3" />
                                         <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} name="VIX" />
                                     </ComposedChart>
                                 </ResponsiveContainer>
@@ -143,9 +155,11 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                                 <TableBody>
                                     {zoneData.map(d => (
                                         <TableRow key={d.zone}>
-                                            <TableCell className="flex items-center gap-2 text-sm">
-                                                <div className={cn("w-2 h-2 rounded-full", d.color)} />
-                                                {d.zone}
+                                            <TableCell className="text-sm">
+                                                <span className="flex items-center gap-2">
+                                                    <div className={cn("w-2 h-2 rounded-full", d.color)} />
+                                                    {d.zone}
+                                                </span>
                                             </TableCell>
                                             <TableCell className="text-xs text-muted-foreground">{d.impact}</TableCell>
                                         </TableRow>
