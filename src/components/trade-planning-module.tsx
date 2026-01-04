@@ -278,19 +278,19 @@ const validatePlanAgainstStrategy = (plan: PlanInputs, strategy: RuleSet, contex
     let message = "Volatility is within strategy parameters.";
     let fix: ValidationCheck['fix'] | undefined;
     
-    if (finalVixPolicy === 'conservative' && (context.vixZone === 'Elevated' || context.vixZone === 'Extreme')) {
+    if (finalVixPolicy === 'conservative' && (context.vixZone === 'Volatile' || context.vixZone === 'High Volatility' || context.vixZone === 'Extreme')) {
         vixStatus = 'WARN';
         message = `Current VIX is '${context.vixZone}', which the 'Conservative' policy suggests avoiding.`;
         fix = { type: 'SHOW_HINT', payload: { toastMessage: 'Consider switching to a strategy that performs better in high volatility.' } };
-    } else if (finalVixPolicy === 'strict' && (context.vixZone !== 'Calm' && context.vixZone !== 'Normal')) {
+    } else if (finalVixPolicy === 'strict' && (context.vixZone !== 'Extremely Calm' && context.vixZone !== 'Normal')) {
         vixStatus = 'FAIL';
         message = `The 'Strict' policy only allows trading in 'Calm' or 'Normal' VIX, but it is currently '${context.vixZone}'.`;
         fix = { type: 'SHOW_HINT', payload: { toastMessage: 'Switch to a different strategy or wait for calmer markets.' } };
-    } else if (contextRules.vixPolicy === 'avoidHigh' && (context.vixZone === 'Elevated' || context.vixZone === 'Extreme')) {
+    } else if (contextRules.vixPolicy === 'avoidHigh' && (context.vixZone === 'High Volatility' || context.vixZone === 'Extreme')) {
         vixStatus = 'WARN';
         message = `Strategy suggests avoiding high VIX, and current VIX is '${context.vixZone}'.`;
         fix = { type: 'SHOW_HINT', payload: { toastMessage: 'Consider switching to a strategy that performs better in high volatility.' } };
-    } else if (contextRules.vixPolicy === 'onlyLowNormal' && (context.vixZone === 'Elevated' || context.vixZone === 'Extreme')) {
+    } else if (contextRules.vixPolicy === 'onlyLowNormal' && (context.vixZone === 'Volatile' || context.vixZone === 'High Volatility' || context.vixZone === 'Extreme')) {
         vixStatus = 'FAIL';
         message = `Strategy requires 'Calm' or 'Normal' VIX, but it is currently '${context.vixZone}'.`;
         fix = { type: 'SHOW_HINT', payload: { toastMessage: 'Switch to a different strategy or wait for calmer markets.' } };
@@ -443,7 +443,7 @@ function MarketContext({ session, setSession, vixZone, setVixZone }: { session: 
         return "Calm";
     };
 
-    const isHighVol = vixZone === 'Extreme' || vixZone === 'Elevated';
+    const isHighVol = vixZone === 'Extreme' || vixZone === 'High Volatility';
 
     return (
         <div>
@@ -469,9 +469,10 @@ function MarketContext({ session, setSession, vixZone, setVixZone }: { session: 
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="Calm">Calm</SelectItem>
+                            <SelectItem value="Extremely Calm">Extremely Calm</SelectItem>
                             <SelectItem value="Normal">Normal</SelectItem>
-                            <SelectItem value="Elevated">Elevated</SelectItem>
+                            <SelectItem value="Volatile">Volatile</SelectItem>
+                            <SelectItem value="High Volatility">High Volatility</SelectItem>
                             <SelectItem value="Extreme">Extreme</SelectItem>
                         </SelectContent>
                     </Select>
@@ -1585,7 +1586,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
             if (!activeRuleset) return null;
             
             const scenario = localStorage.getItem('ec_demo_scenario') as DemoScenario | null;
-            const vixZone = scenario === 'high_vol' ? 'Elevated' : 'Normal';
+            const vixZone = scenario === 'high_vol' ? 'Volatile' : 'Normal';
             const lossStreak = scenario === 'drawdown' ? 3 : 0;
             
             const planInputs: PlanInputs = {
@@ -2092,7 +2093,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
                                   currentStep === 'review' ? !canProceedToExecution :
                                   false;
         
-        const isBlocked = (planStatus === 'FAIL' && (!justificationValue || justificationValue.length === 0)) || (riskDecisionLevel === 'red' && (!justificationOverride || !justificationValue || justificationValue.length === 0));
+        const isBlocked = (planStatus === 'FAIL' && (!justificationValue || justificationValue.length === 0)) || (riskDecisionLevel === 'red' && (!justificationOverride || !justificationValue || !justificationValue.length));
 
         const isBannerVisible = showBanner && isBlocked;
     
@@ -2252,7 +2253,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
     function ReviewStep({ form, onSetModule, onSetStep, arjunFeedbackAccepted, setArjunFeedbackAccepted, planStatus, reviewHeadingRef }: { form: any, onSetModule: any, onSetStep: (step: TradePlanStep) => void; arjunFeedbackAccepted: boolean, setArjunFeedbackAccepted: (accepted: boolean) => void, planStatus: PlanStatusType, reviewHeadingRef: React.Ref<HTMLDivElement> }) {
         const values = form.getValues();
         const personaData = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem("ec_persona_final") || localStorage.getItem("ec_persona_base") || "{}") : {};
-        const market = typeof window !== 'undefined' ? { vixValue: localStorage.getItem('ec_demo_scenario') === 'high_vol' ? 82 : 45, vixZone: localStorage.getItem('ec_demo_scenario') === 'high_vol' ? 'Elevated' : 'Normal' } : { vixValue: 45, vixZone: 'Normal' };
+        const market = typeof window !== 'undefined' ? { vixValue: localStorage.getItem('ec_demo_scenario') === 'high_vol' ? 82 : 45, vixZone: localStorage.getItem('ec_demo_scenario') === 'high_vol' ? 'Volatile' : 'Normal' } : { vixValue: 45, vixZone: 'Normal' };
     
         const { entryPrice, stopLoss, takeProfit } = useWatch({ control: form.control });
     
@@ -2337,6 +2338,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
     
     
     
+
 
 
 
