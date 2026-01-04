@@ -119,31 +119,44 @@ export function useVixState() {
     }, []);
 
     const updateVixValue = useCallback((newValue: number) => {
-        const newSeries = generateVixSeries(newValue);
-        const newState: VixState = {
-            value: newValue,
-            zoneLabel: getVixZone(newValue),
-            updatedAt: new Date().toISOString(),
-            components: {
-                btcVol: newValue * 0.8 + Math.random() * 10,
-                ethVol: newValue * 0.9 + Math.random() * 15,
-                fundingPressure: newValue * 0.5 + Math.random() * 20,
-                liquidationSpike: newValue > 60 ? newValue * 0.7 + Math.random() * 30 : 10,
-                newsSentiment: 50 - (newValue * 0.3) + (Math.random() - 0.5) * 20,
-            },
-            series: newSeries
-        };
-        setVixState(newState);
-        if (typeof window !== "undefined") {
-            localStorage.setItem(VIX_STATE_CACHE_KEY, JSON.stringify(newState));
-        }
+        setVixState(prevState => {
+            if (!prevState) return null;
+
+            const updatedSeries24h = [...prevState.series.series24h];
+            updatedSeries24h[updatedSeries24h.length - 1].value = newValue;
+            
+            const updatedSeries7d = [...prevState.series.series7d];
+            updatedSeries7d[updatedSeries7d.length - 1].value = newValue;
+
+            const newState: VixState = {
+                ...prevState,
+                value: newValue,
+                zoneLabel: getVixZone(newValue),
+                updatedAt: new Date().toISOString(),
+                components: {
+                    btcVol: newValue * 0.8 + Math.random() * 10,
+                    ethVol: newValue * 0.9 + Math.random() * 15,
+                    fundingPressure: newValue * 0.5 + Math.random() * 20,
+                    liquidationSpike: newValue > 60 ? newValue * 0.7 + Math.random() * 30 : 10,
+                    newsSentiment: 50 - (newValue * 0.3) + (Math.random() - 0.5) * 20,
+                },
+                series: {
+                    series24h: updatedSeries24h,
+                    series7d: updatedSeries7d,
+                }
+            };
+            if (typeof window !== "undefined") {
+                localStorage.setItem(VIX_STATE_CACHE_KEY, JSON.stringify(newState));
+            }
+            return newState;
+        });
     }, []);
 
     useEffect(() => {
         loadVixState();
         
         const handleStorageChange = (e: StorageEvent) => {
-            if (e.key === VIX_STATE_CACHE_KEY) {
+            if (e.key === VIX_STATE_CACHE_KEY || e.key === "ec_vix_override") {
                 loadVixState();
             }
         };
