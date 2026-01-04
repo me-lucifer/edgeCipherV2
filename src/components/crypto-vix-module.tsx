@@ -11,6 +11,7 @@ import { Line, ResponsiveContainer, CartesianGrid, XAxis, YAxis, ComposedChart, 
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "./ui/chart";
 import { useVixState, type VixZone } from "@/hooks/use-vix-state";
 import { Skeleton } from "./ui/skeleton";
+import { formatDistanceToNow } from "date-fns";
 
 interface CryptoVixModuleProps {
     onSetModule: (module: any, context?: any) => void;
@@ -68,7 +69,7 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
         );
     }
     
-    const { value: currentVix, zoneLabel: currentZone } = vixState;
+    const { value: currentVix, zoneLabel: currentZone, updatedAt, components } = vixState;
     const adaptation = adaptationStrategies[currentZone];
 
     const VixGauge = ({ value, zone }: { value: number, zone: string }) => {
@@ -85,13 +86,13 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
 
         return (
             <div 
-                className={cn("relative flex items-center justify-center w-48 h-48 rounded-full from-green-500", colorClass)}
+                className={cn("relative flex items-center justify-center w-64 h-64 rounded-full from-green-500", colorClass)}
                 style={{ background: conicGradient }}
             >
                  <div className="absolute w-[85%] h-[85%] bg-muted/80 backdrop-blur-sm rounded-full" />
                  <div className="relative flex flex-col items-center justify-center z-10">
-                    <p className="text-5xl font-bold font-mono text-foreground">{Math.round(value)}</p>
-                    <p className={cn("font-semibold", 
+                    <p className="text-7xl font-bold font-mono text-foreground">{Math.round(value)}</p>
+                    <p className={cn("font-semibold text-lg", 
                         (zone === 'Extremely Calm' || zone === 'Normal') && 'text-green-400',
                         zone === 'Volatile' && 'text-yellow-400',
                         zone === 'High Volatility' && 'text-orange-400',
@@ -102,30 +103,6 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
         );
     };
     
-    const recommendationBgClass = {
-        "Extremely Calm": "bg-green-950/30 border-green-500/20",
-        "Normal": "bg-green-950/30 border-green-500/20",
-        "Volatile": "bg-yellow-950/30 border-yellow-500/20",
-        "High Volatility": "bg-orange-950/30 border-orange-500/20",
-        "Extreme": "bg-red-950/30 border-red-500/20"
-    }[currentZone];
-
-    const recommendationTextClass = {
-        "Extremely Calm": "text-green-400",
-        "Normal": "text-green-400",
-        "Volatile": "text-yellow-400",
-        "High Volatility": "text-orange-400",
-        "Extreme": "text-red-400"
-    }[currentZone];
-    
-     const recommendationSubtextClass = {
-        "Extremely Calm": "text-green-300/80",
-        "Normal": "text-green-300/80",
-        "Volatile": "text-yellow-300/80",
-        "High Volatility": "text-orange-300/80",
-        "Extreme": "text-red-300/80"
-    }[currentZone];
-
     return (
         <div className="space-y-8">
             <div className="text-center">
@@ -141,6 +118,7 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                     <Card className="bg-muted/30 border-border/50">
                         <CardHeader>
                             <CardTitle>Volatility Barometer</CardTitle>
+                             <CardDescription>Updated: {formatDistanceToNow(new Date(updatedAt), { addSuffix: true })} (prototype)</CardDescription>
                         </CardHeader>
                         <CardContent className="grid md:grid-cols-2 gap-8 items-center">
                             <div className="flex items-center justify-center">
@@ -148,12 +126,8 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                             </div>
                             <div className="space-y-4">
                                 <div>
-                                    <h3 className="font-semibold text-foreground flex items-center gap-2"><TrendingUp className="h-4 w-4"/>Current State: {Math.round(currentVix)} ({currentZone})</h3>
-                                    <p className="text-sm text-muted-foreground mt-1">Markets are showing elevated chop and larger price swings than usual. Risk is heightened.</p>
-                                </div>
-                                <div className={cn("p-4 rounded-lg", recommendationBgClass)}>
-                                    <h4 className={cn("font-semibold flex items-center gap-2", recommendationTextClass)}><AlertTriangle className="h-4 w-4"/>Recommended Posture: {adaptation.title}</h4>
-                                    <p className={cn("text-sm mt-1", recommendationSubtextClass)}>{adaptation.strategy}</p>
+                                    <h3 className="font-semibold text-foreground flex items-center gap-2"><TrendingUp className="h-4 w-4"/>What it means:</h3>
+                                    <p className="text-sm text-muted-foreground mt-1">{adaptation.strategy}</p>
                                 </div>
                             </div>
                         </CardContent>
