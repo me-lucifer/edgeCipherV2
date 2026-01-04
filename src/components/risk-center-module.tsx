@@ -235,7 +235,7 @@ function MarketRiskCard({ marketRisk, onSetModule }: { marketRisk: RiskState['ma
                       </ChartContainer>
                    </div>
                    <Button variant="link" className="p-0 h-auto" onClick={() => onSetModule('cryptoVix')}>
-                       Open Crypto VIX details <ArrowRight className="ml-2 h-4 w-4" />
+                       Open EdgeCipher Crypto VIX (0-100) details <ArrowRight className="ml-2 h-4 w-4" />
                    </Button>
                 </div>
             </CardContent>
@@ -498,27 +498,34 @@ function TodaysLimitsCard({ limits, onSetModule }: { limits: RiskState['todaysLi
 
 function RiskControlsCard({ onSetModule }: { onSetModule: (module: any) => void }) {
     const { refresh } = useRiskState();
-    const [controls, setControls] = useState({
-        warnOnVixHigh: false,
-        lockOnVixExtreme: true,
-        cooldownAfterLosses: true,
-    });
     const [isRecoveryMode, setIsRecoveryMode] = useState(false);
-    const [volatilityPolicy, setVolatilityPolicy] = useState<'follow' | 'conservative' | 'strict'>('follow');
+    
+    const [guardrails, setGuardrails] = useState({
+        cooldownAfterLosses: true,
+        warnOnVixHigh: true,
+        lockOnVixExtreme: true,
+        warnThreshold: 41,
+        strongWarnThreshold: 61,
+        lockThreshold: 81,
+    });
+    
+    const defaultThresholds = {
+        warnThreshold: 41,
+        strongWarnThreshold: 61,
+        lockThreshold: 81,
+    };
 
     useEffect(() => {
-        const guardrails = JSON.parse(localStorage.getItem("ec_guardrails") || "{}");
-        const recoveryMode = localStorage.getItem("ec_recovery_mode") === 'true';
-        const volPolicy = localStorage.getItem("ec_temp_vol_policy") as any || 'follow';
-        setControls(prev => ({ ...prev, ...guardrails }));
-        setIsRecoveryMode(recoveryMode);
-        setVolatilityPolicy(volPolicy);
+        const storedGuardrails = JSON.parse(localStorage.getItem("ec_guardrails") || "{}");
+        const recovery = localStorage.getItem("ec_recovery_mode") === 'true';
+        setGuardrails(prev => ({ ...prev, ...storedGuardrails }));
+        setIsRecoveryMode(recovery);
     }, []);
 
-    const handleGuardrailChange = (key: keyof typeof controls, value: boolean) => {
-        const newControls = { ...controls, [key]: value };
-        setControls(newControls);
-        localStorage.setItem("ec_guardrails", JSON.stringify(newControls));
+    const handleGuardrailChange = (key: keyof typeof guardrails, value: boolean | number) => {
+        const newGuardrails = { ...guardrails, [key]: value };
+        setGuardrails(newGuardrails);
+        localStorage.setItem("ec_guardrails", JSON.stringify(newGuardrails));
         refresh();
     };
 
@@ -535,22 +542,22 @@ function RiskControlsCard({ onSetModule }: { onSetModule: (module: any) => void 
         refresh();
     };
 
-    const handlePolicyChange = (newPolicy: typeof volatilityPolicy) => {
-        setVolatilityPolicy(newPolicy);
-        localStorage.setItem("ec_temp_vol_policy", newPolicy);
+    const resetThresholds = () => {
+        const newGuardrails = { ...guardrails, ...defaultThresholds };
+        setGuardrails(newGuardrails);
+        localStorage.setItem("ec_guardrails", JSON.stringify(newGuardrails));
         refresh();
     };
 
-
-    const ControlSwitch = ({ id, label, description }: { id: keyof typeof controls, label: string, description: string }) => (
+    const ControlSwitch = ({ id, label, description }: { id: keyof typeof guardrails, label: string, description: string }) => (
         <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-                <Label htmlFor={id} className="text-sm">{label}</Label>
+                <Label htmlFor={id as string} className="text-sm">{label}</Label>
                 <p className="text-xs text-muted-foreground">{description}</p>
             </div>
             <Switch
-                id={id}
-                checked={controls[id]}
+                id={id as string}
+                checked={guardrails[id] as boolean}
                 onCheckedChange={(checked) => handleGuardrailChange(id, checked)}
             />
         </div>
@@ -577,8 +584,30 @@ function RiskControlsCard({ onSetModule }: { onSetModule: (module: any) => void 
                 </div>
                 <Separator />
                 <ControlSwitch id="cooldownAfterLosses" label="Stop after 2 losses" description="Enforces a daily cooldown after 2 losses." />
-                <ControlSwitch id="warnOnVixHigh" label="Warn on High VIX trades" description="Adds a warning when planning trades in High VIX." />
-                <ControlSwitch id="lockOnVixExtreme" label="Lock on Extreme VIX" description="Blocks trade execution during Extreme VIX." />
+                <Collapsible>
+                    <CollapsibleTrigger className="w-full flex justify-between items-center text-sm font-medium">
+                        Advanced Thresholds
+                        <ChevronDown className="h-4 w-4" />
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="space-y-6 pt-4">
+                         <div className="space-y-2">
+                             <Label htmlFor="warn-threshold">Warn Threshold</Label>
+                            <Slider id="warn-threshold" value={[guardrails.warnThreshold]} min={20} max={100} step={1} onValueChange={(v) => handleGuardrailChange('warnThreshold', v[0])} />
+                             <p className="text-xs text-muted-foreground text-right">{guardrails.warnThreshold}+ (Volatile)</p>
+                         </div>
+                         <div className="space-y-2">
+                             <Label htmlFor="strong-warn-threshold">Strong Warn Threshold</Label>
+                            <Slider id="strong-warn-threshold" value={[guardrails.strongWarnThreshold]} min={20} max={100} step={1} onValueChange={(v) => handleGuardrailChange('strongWarnThreshold', v[0])} />
+                            <p className="text-xs text-muted-foreground text-right">{guardrails.strongWarnThreshold}+ (High Vol)</p>
+                         </div>
+                         <div className="space-y-2">
+                             <Label htmlFor="lock-threshold">Lock Threshold</Label>
+                            <Slider id="lock-threshold" value={[guardrails.lockThreshold]} min={20} max={100} step={1} onValueChange={(v) => handleGuardrailChange('lockThreshold', v[0])} />
+                            <p className="text-xs text-muted-foreground text-right">{guardrails.lockThreshold}+ (Extreme)</p>
+                         </div>
+                         <Button variant="ghost" size="sm" onClick={resetThresholds} className="w-full text-xs">Reset to defaults</Button>
+                    </CollapsibleContent>
+                </Collapsible>
             </CardContent>
         </Card>
     );
