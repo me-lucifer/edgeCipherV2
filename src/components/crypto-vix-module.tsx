@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -29,18 +29,6 @@ const zoneData: { zone: VixZone, range: string, color: string, impact: string, r
     { zone: "High Volatility", range: "61-80", color: "bg-orange-500", impact: "High risk of erratic moves and liquidations.", recommendation: "Defense-first. Minimum size." },
     { zone: "Extreme", range: "81-100", color: "bg-red-500", impact: "Dangerously unpredictable, 'black swan' risk.", recommendation: "Avoid taking new positions." },
 ];
-
-const mockVixHistory7d = [
-    { day: "7d ago", value: 35 }, { day: "6d ago", value: 45 }, { day: "5d ago", value: 25 },
-    { day: "4d ago", value: 55 }, { day: "3d ago", value: 78 }, { day: "2d ago", value: 65 },
-    { day: "Today", value: 58 },
-];
-
-const mockVixHistory24h = [
-    { hour: "24h", value: 60 }, { hour: "20h", value: 55 }, { hour: "16h", value: 58 },
-    { hour: "12h", value: 62 }, { hour: "8h", value: 70 }, { hour: "4h", value: 65 },
-    { hour: "Now", value: 58 },
-]
 
 const postureSuggestions: Record<VixZone, { title: string, actions: string[] }> = {
     "Extremely Calm": { title: "Be patient", actions: ["Wait for A+ setups", "Respect ranges", "Avoid forcing trades"] },
@@ -136,7 +124,7 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
         );
     }
     
-    const { value: currentVix, zoneLabel: currentZone, updatedAt, components } = vixState;
+    const { value: currentVix, zoneLabel: currentZone, updatedAt, components, series } = vixState;
     const posture = postureSuggestions[currentZone] || postureSuggestions.Normal;
 
     const VixGauge = ({ value, zone }: { value: number, zone: string }) => {
@@ -181,7 +169,7 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
     const newsSentiment = components.newsSentiment > 60 ? "Greed" : components.newsSentiment < 40 ? "Fear" : "Neutral";
     const newsSentimentColor = newsSentiment === "Fear" ? "text-red-500" : newsSentiment === "Greed" ? "text-green-500" : "text-yellow-500";
     
-    const chartData = timeRange === '24H' ? mockVixHistory24h : mockVixHistory7d;
+    const chartData = timeRange === '24H' ? series.series24h : series.series7d;
     const chartKey = timeRange === '24H' ? 'hour' : 'day';
 
     return (
