@@ -20,6 +20,7 @@ import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "
 import { ModuleContext } from "./authenticated-app-shell";
 import { Alert, AlertTitle, AlertDescription } from "./ui/alert";
 import { useVixState } from "@/hooks/use-vix-state";
+import { VixBadge } from "./ui/vix-badge";
 
 interface Persona {
     primaryPersonaName?: string;
@@ -426,7 +427,7 @@ function NewsSnapshot({ onSetModule }: { onSetModule: (module: any, context?: Mo
                      <TooltipProvider>
                         <Tooltip>
                             <TooltipTrigger asChild>
-                               <span className="flex items-center gap-1 cursor-help">
+                               <span className="flex items-center gap-1.5 cursor-help">
                                     Headlines can trigger sharp moves. Use them as context.
                                 </span>
                             </TooltipTrigger>
@@ -497,14 +498,6 @@ function VixWidget({ onSetModule }: { onSetModule: (module: any, context?: Modul
     
     const { value, zoneLabel } = vixState;
 
-    const zoneConfig: Record<string, string> = {
-        "Extremely Calm": 'text-green-400',
-        "Normal": 'text-green-400',
-        "Volatile": 'text-yellow-400',
-        "High Volatility": 'text-orange-400',
-        "Extreme": 'text-red-400',
-    };
-
     return (
         <Card className="bg-muted/30 border-border/50 hover:bg-muted/50 hover:border-primary/20 transition-colors cursor-pointer" onClick={() => onSetModule('cryptoVix')}>
             <CardHeader>
@@ -514,11 +507,13 @@ function VixWidget({ onSetModule }: { onSetModule: (module: any, context?: Modul
                 </CardTitle>
             </CardHeader>
             <CardContent>
-                <p className="text-3xl font-bold font-mono">{value.toFixed(0)} <span className="text-base font-normal text-muted-foreground">/ 100</span></p>
-                <p className={cn("text-sm font-semibold", zoneConfig[zoneLabel] || 'text-muted-foreground')}>
-                    {zoneLabel}
-                </p>
-                <Button variant="link" className="px-0 h-auto text-xs text-muted-foreground hover:text-primary mt-2">
+                <VixBadge 
+                    value={value} 
+                    zoneLabel={zoneLabel} 
+                    onClick={() => onSetModule('cryptoVix')} 
+                    size="lg"
+                />
+                 <Button variant="link" className="px-0 h-auto text-xs text-muted-foreground hover:text-primary mt-2">
                     Open Risk Center <ArrowRight className="ml-1 h-3 w-3" />
                 </Button>
             </CardContent>
@@ -1107,5 +1102,6 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
 }
 
     
+
 
 
