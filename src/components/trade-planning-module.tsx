@@ -36,6 +36,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Check } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
 import { useRiskState, type RiskDecision, type ActiveNudge, type VixZone } from "@/hooks/use-risk-state";
+import { VixBadge } from "./ui/vix-badge";
 
 
 interface TradePlanningModuleProps {
@@ -867,6 +868,39 @@ const getRecommendedStatus = (strategy: Strategy, context: { instrument: string,
     return null;
 }
 
+function MarketRiskStrip({ onSetModule }: { onSetModule: (module: 'cryptoVix') => void }) {
+    const { riskState } = useRiskState();
+
+    if (!riskState) {
+        return <Skeleton className="h-12 w-full mb-6" />;
+    }
+
+    const { vixValue, vixZone } = riskState.marketRisk;
+
+    const recommendation = {
+        "Extremely Calm": "Market is quiet. Focus on clean setups.",
+        "Normal": "Standard conditions. Stick to your plan.",
+        "Volatile": "Heads up: Volatility is elevated. Consider reducing size.",
+        "High Volatility": "Warning: High volatility. Reduce size and widen stops.",
+        "Extreme": "DANGER: Extreme volatility. No new trades recommended.",
+    }[vixZone];
+
+    return (
+        <Card 
+            className="mb-6 bg-muted/30 border-border/50 cursor-pointer hover:border-primary/30"
+            onClick={() => onSetModule('cryptoVix')}
+        >
+            <CardContent className="p-3 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <VixBadge value={vixValue} zoneLabel={vixZone} size="md" />
+                    <p className="text-sm text-muted-foreground hidden sm:block">{recommendation}</p>
+                </div>
+                <ArrowRight className="h-5 w-5 text-muted-foreground" />
+            </CardContent>
+        </Card>
+    );
+}
+
 function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser, currentStep, draftToResume, onResume, onDiscard, entryChecklist, setEntryChecklist, session, setSession, vixZone, setVixZone }: PlanStepProps) {
     const entryType = useWatch({ control: form.control, name: 'entryType' });
     const strategyId = useWatch({ control: form.control, name: 'strategyId' });
@@ -955,6 +989,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
     return (
          <div className="grid lg:grid-cols-3 gap-8 items-start">
             <div className="lg:col-span-2 space-y-6">
+                <MarketRiskStrip onSetModule={onSetModule} />
                 <ArjunGuardrailAlerts form={form} />
                 <Card className="bg-muted/30 border-border/50">
                     <CardHeader>
@@ -2302,6 +2337,7 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
     
     
     
+
 
 
 
