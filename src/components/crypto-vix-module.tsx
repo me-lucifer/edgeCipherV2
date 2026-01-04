@@ -1,18 +1,18 @@
 
 
-"use client";
+      "use client";
 
 import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Bot, LineChart, Gauge, TrendingUp, TrendingDown, Info, AlertTriangle, SlidersHorizontal, Flame, Droplets, Newspaper, Sparkles, ArrowRight, X, BarChartHorizontal, Timer } from "lucide-react";
+import { Bot, LineChart, Gauge, TrendingUp, TrendingDown, Info, AlertTriangle, SlidersHorizontal, Flame, Droplets, Newspaper, Sparkles, ArrowRight, X, BarChartHorizontal, Timer, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Line, ResponsiveContainer, CartesianGrid, XAxis, YAxis, ComposedChart, ReferenceLine, ReferenceDot } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "./ui/chart";
 import { useVixState, type VixState, type VixZone } from "@/hooks/use-vix-state";
 import { Skeleton } from "./ui/skeleton";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, subHours, subDays } from "date-fns";
 import { Slider } from "./ui/slider";
 import { Label } from "./ui/label";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
@@ -181,6 +181,79 @@ function DriverTrendChart({ data, name, color }: { data: any[]; name: string; co
     );
 }
 
+function KeyEventsTimeline({ chartData }: { chartData: { hour: string; day: string; value: number; spike: string | null }[] }) {
+    const events = useMemo(() => {
+        const generatedEvents: { time: Date, description: string, severity: 'High' | 'Medium' | 'Low' }[] = [];
+        let largestSpike = { value: 0, time: new Date() };
+
+        for (let i = 1; i < chartData.length; i++) {
+            const prev = chartData[i - 1];
+            const current = chartData[i];
+            const prevZone = getVixZone(prev.value);
+            const currentZone = getVixZone(current.value);
+
+            const now = new Date();
+            const time = i === chartData.length - 1 ? now : subHours(now, (chartData.length - 1 - i) * 4);
+
+            if (prevZone !== currentZone) {
+                generatedEvents.push({
+                    time,
+                    description: `VIX crossed into '${currentZone}' zone.`,
+                    severity: (currentZone === 'Extreme' || currentZone === 'High Volatility') ? 'High' : 'Medium'
+                });
+            }
+
+            if (current.spike === 'up') {
+                const diff = current.value - chartData[i - 2].value;
+                if (diff > largestSpike.value) {
+                    largestSpike = { value: diff, time: time };
+                }
+            }
+        }
+
+        if (largestSpike.value > 0) {
+            generatedEvents.push({
+                time: largestSpike.time,
+                description: `Largest volatility spike: +${largestSpike.value.toFixed(0)} points.`,
+                severity: 'High'
+            });
+        }
+        
+        return generatedEvents.sort((a,b) => b.time.getTime() - a.time.getTime()).slice(0, 5);
+
+    }, [chartData]);
+    
+    if (events.length === 0) return null;
+
+    return (
+        <Card className="bg-muted/30 border-border/50">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Calendar className="h-5 w-5" /> Key Volatility Events (24H)</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <div className="space-y-4">
+                    {events.map((event, index) => (
+                        <div key={index} className="flex items-start gap-3">
+                            <div className="flex flex-col items-center">
+                                <div className={cn("mt-1 w-3 h-3 rounded-full",
+                                    event.severity === 'High' && 'bg-red-500',
+                                    event.severity === 'Medium' && 'bg-amber-500',
+                                    event.severity === 'Low' && 'bg-blue-500'
+                                )} />
+                                {index < events.length - 1 && <div className="w-px h-12 bg-border mt-2" />}
+                            </div>
+                            <div>
+                                <p className="text-xs text-muted-foreground">{formatDistanceToNow(event.time, { addSuffix: true })}</p>
+                                <p className="font-medium text-foreground text-sm">{event.description}</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
 export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
     const { vixState, isLoading, updateVixValue } = useVixState();
     const [timeRange, setTimeRange] = useState<'24H' | '7D'>('24H');
@@ -290,7 +363,7 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
         );
     }
     
-    const { value: currentVix, zoneLabel: currentZone, updatedAt, components, series } = vixState;
+    const { value: currentVix, zoneLabel: currentZone, updatedAt, components } = vixState;
     const posture = postureSuggestions[currentZone] || postureSuggestions.Normal;
 
     const VixGauge = ({ value, zone }: { value: number, zone: string }) => {
@@ -407,41 +480,6 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                         </CardContent>
                     </Card>
 
-                    <Card className="bg-muted/30 border-border/50">
-                        <CardHeader>
-                            <CardTitle>What's driving the score?</CardTitle>
-                            <CardDescription>The VIX is a weighted average of several market factors.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                            <ScoreComponentCard icon={Flame} title="BTC Volatility" value={components.btcVol} colorClass={getComponentColor(components.btcVol)} />
-                            <ScoreComponentCard icon={Flame} title="ETH Volatility" value={components.ethVol} colorClass={getComponentColor(components.ethVol)} />
-                            <ScoreComponentCard icon={Droplets} title="Funding Pressure" value={components.fundingPressure} colorClass={getComponentColor(components.fundingPressure)} />
-                            <ScoreComponentCard icon={AlertTriangle} title="Liquidation Spikes" value={components.liquidationSpike} colorClass={getComponentColor(components.liquidationSpike)} />
-                            <Card className="bg-muted/50 text-center">
-                                <CardContent className="p-4">
-                                    <Newspaper className={cn("h-5 w-5 mx-auto mb-2", newsSentimentColor)} />
-                                    <p className={cn("text-lg font-bold text-foreground", newsSentimentColor)}>{newsSentiment}</p>
-                                    <p className="text-xs text-muted-foreground">News Sentiment</p>
-                                </CardContent>
-                            </Card>
-                        </CardContent>
-                    </Card>
-
-                    {driverTrendData && (
-                        <Card className="bg-muted/30 border-border/50">
-                            <CardHeader>
-                                <CardTitle>Driver Trends (Prototype)</CardTitle>
-                                <CardDescription>How each component of the VIX has behaved over the period.</CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <DriverTrendChart data={driverTrendData.btcVol} name="BTC Volatility" color="hsl(var(--chart-1))" />
-                                <DriverTrendChart data={driverTrendData.ethVol} name="ETH Volatility" color="hsl(var(--chart-2))" />
-                                <DriverTrendChart data={driverTrendData.fundingPressure} name="Funding Pressure" color="hsl(var(--chart-3))" />
-                                <DriverTrendChart data={driverTrendData.liquidationSpike} name="Liquidation Spikes" color="hsl(var(--chart-5))" />
-                            </CardContent>
-                        </Card>
-                    )}
-                    
                     {regimeShift && (
                         <RegimeShiftBanner 
                             previous={regimeShift.previous} 
@@ -450,7 +488,7 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                         />
                     )}
 
-                     <Card className="bg-muted/30 border-border/50">
+                    <Card className="bg-muted/30 border-border/50">
                         <CardHeader>
                              <div className="flex items-center justify-between">
                                 <CardTitle>{timeRange === '24H' ? '24-Hour' : '7-Day'} Volatility Trend</CardTitle>
@@ -513,11 +551,28 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                                 </ResponsiveContainer>
                             </ChartContainer>
                         </CardContent>
-                        <CardFooter className="flex flex-col items-start gap-4">
+                        <CardFooter className="flex-col items-start gap-4">
                            <p className="text-xs text-muted-foreground">This chart shows the daily closing VIX value over the past {timeRange === '7D' ? '7 days' : '24 hours'}.</p>
-                           {timeRange === '24H' && <HeatStrip data={series.series24h} />}
+                           {timeRange === '24H' && <HeatStrip data={vixState.series.series24h} />}
                         </CardFooter>
                     </Card>
+
+                    <KeyEventsTimeline chartData={chartData} />
+
+                    {driverTrendData && (
+                        <Card className="bg-muted/30 border-border/50">
+                            <CardHeader>
+                                <CardTitle>Driver Trends (Prototype)</CardTitle>
+                                <CardDescription>How each component of the VIX has behaved over the period.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <DriverTrendChart data={driverTrendData.btcVol} name="BTC Volatility" color="hsl(var(--chart-1))" />
+                                <DriverTrendChart data={driverTrendData.ethVol} name="ETH Volatility" color="hsl(var(--chart-2))" />
+                                <DriverTrendChart data={driverTrendData.fundingPressure} name="Funding Pressure" color="hsl(var(--chart-3))" />
+                                <DriverTrendChart data={driverTrendData.liquidationSpike} name="Liquidation Spikes" color="hsl(var(--chart-5))" />
+                            </CardContent>
+                        </Card>
+                    )}
                 </div>
                 
                 {/* Sidebar */}
