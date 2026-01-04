@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -136,18 +135,21 @@ export function useVixState() {
         }
     }, []);
 
-    const updateVixValue = useCallback((newValue: number) => {
+    const updateVixValue = useCallback((newValue: number, mode: 'normal' | 'choppy' = 'normal') => {
         if (typeof window === "undefined") return;
 
         try {
             const currentStateString = localStorage.getItem(VIX_STATE_CACHE_KEY);
             const currentState = currentStateString ? JSON.parse(currentStateString) : generateDefaultState();
             
+            const newSeries = generateVixSeries(newValue, mode);
+            
             const newState: VixState = {
                 ...currentState,
                 value: newValue,
                 zoneLabel: getVixZone(newValue),
                 updatedAt: new Date().toISOString(),
+                series: newSeries,
                 components: {
                     btcVol: newValue * 0.8 + Math.random() * 10,
                     ethVol: newValue * 0.9 + Math.random() * 15,
@@ -156,10 +158,6 @@ export function useVixState() {
                     newsSentiment: 50 - (newValue * 0.3) + (Math.random() - 0.5) * 20,
                 },
             };
-
-            // Update the last point in series
-            newState.series.series24h[newState.series.series24h.length - 1].value = newValue;
-            newState.series.series7d[newState.series.series7d.length - 1].value = newValue;
 
             localStorage.setItem(VIX_STATE_CACHE_KEY, JSON.stringify(newState));
             

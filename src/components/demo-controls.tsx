@@ -137,11 +137,7 @@ export function DemoControls() {
         
         // Use the centralized VIX update function
         if (updateVixValue) {
-            updateVixValue(scenarioData.vixValue);
-        } else {
-            // Fallback for safety, though updateVixValue should always be available
-            localStorage.setItem('ec_vix_override', String(scenarioData.vixValue));
-            dispatchStorageEvent('ec_vix_override', String(scenarioData.vixValue));
+            updateVixValue(scenarioData.vixValue, scenarioData.id === 'high_vol' || scenarioData.id === 'drawdown' ? 'choppy' : 'normal');
         }
         
         localStorage.setItem('ec_growth_plan_today', JSON.stringify(scenarioData.growthPlan));
