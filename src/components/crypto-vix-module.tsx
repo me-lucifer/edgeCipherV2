@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Bot, LineChart, Gauge, TrendingUp, TrendingDown, Info, AlertTriangle, SlidersHorizontal, Flame, Droplets, Newspaper, Sparkles, ArrowRight } from "lucide-react";
+import { Bot, LineChart, Gauge, TrendingUp, TrendingDown, Info, AlertTriangle, SlidersHorizontal, Flame, Droplets, Newspaper, Sparkles, ArrowRight, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Line, ResponsiveContainer, CartesianGrid, XAxis, YAxis, ComposedChart, ReferenceLine, ReferenceDot } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "./ui/chart";
@@ -16,6 +16,7 @@ import { Slider } from "./ui/slider";
 import { Label } from "./ui/label";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Badge } from "./ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 
 
 interface CryptoVixModuleProps {
@@ -37,6 +38,16 @@ const postureSuggestions: Record<VixZone, { title: string, actions: string[] }> 
     "High Volatility": { title: "Extreme caution", actions: ["Cut size >40%", "Wait for clear signals", "Avoid overtrading"] },
     "Extreme": { title: "No new trades", actions: ["Protect capital", "Close risky positions", "Review, don't trade"] },
 };
+
+const regimeShiftInfo: Record<string, { meaning: string, action: string }> = {
+    "Normal_Volatile": { meaning: "Market chop is increasing.", action: "Consider reducing leverage." },
+    "Volatile_High Volatility": { meaning: "Risk of erratic moves is now high.", action: "Switch to defense-first mindset." },
+    "High Volatility_Extreme": { meaning: "Dangerous conditions detected.", action: "Avoid taking new positions." },
+    "Extreme_High Volatility": { meaning: "Volatility is decreasing but still very high.", action: "Wait for further confirmation before trading." },
+    "High Volatility_Volatile": { meaning: "Conditions are improving but still risky.", action: "Can consider A+ setups with small size." },
+    "Volatile_Normal": { meaning: "The market is calming down.", action: "Can slowly return to normal sizing." },
+};
+
 
 function VixSimulationControls({ vixState, updateVixValue }: { vixState: VixState, updateVixValue: (value: number) => void }) {
     const presets = [
@@ -94,15 +105,93 @@ function ScoreComponentCard({ icon: Icon, title, value, colorClass }: { icon: Re
     );
 }
 
+function RegimeShiftBanner({ previous, current, onDismiss }: { previous: VixZone; current: VixZone; onDismiss: () => void; }) {
+    const shiftKey = `${previous}_${current}`;
+    const info = regimeShiftInfo[shiftKey];
+
+    if (!info) return null;
+    
+    const isWorsening = ["Normal_Volatile", "Volatile_High Volatility", "High Volatility_Extreme"].includes(shiftKey);
+
+    return (
+        <Alert variant={isWorsening ? "destructive" : "default"} className={cn(isWorsening ? "bg-amber-950/70 border-amber-500/30 text-amber-300" : "bg-blue-950/70 border-blue-500/30 text-blue-300")}>
+            <AlertTriangle className={cn("h-4 w-4", isWorsening ? "text-amber-400" : "text-blue-400")} />
+            <div className="flex justify-between items-start">
+                <div>
+                    <AlertTitle className={cn(isWorsening ? "text-amber-400" : "text-blue-400")}>
+                        Regime Shift: {previous} → {current}
+                    </AlertTitle>
+                    <AlertDescription className="mt-1">
+                        <strong>What it means:</strong> {info.meaning} <br />
+                        <strong>Suggested action:</strong> {info.action}
+                    </AlertDescription>
+                </div>
+                <Button variant="ghost" size="icon" className="h-6 w-6 -mr-2 -mt-1" onClick={onDismiss}>
+                    <X className="h-4 w-4" />
+                </Button>
+            </div>
+        </Alert>
+    )
+}
+
 export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
     const { vixState, isLoading, updateVixValue } = useVixState();
     const [timeRange, setTimeRange] = useState<'24H' | '7D'>('24H');
+    const [regimeShift, setRegimeShift] = useState<{ previous: VixZone, current: VixZone } | null>(null);
 
     const askArjun = () => {
         if (!vixState) return;
         onSetModule('aiCoaching', { initialMessage: `How should I adapt my trading to the current volatility of ${vixState.value} (${vixState.zoneLabel})?` });
     }
+
+    const chartData = useMemo(() => {
+        if (!vixState) return [];
+        const data = timeRange === '24H' ? vixState.series.series24h : vixState.series.series7d;
+        
+        return data.map((point, index, arr) => {
+            let spike = null;
+            if (index >= 2) {
+                const diff = point.value - arr[index - 2].value;
+                if (diff > 15) spike = "up";
+                if (diff < -15) spike = "down";
+            }
+            return { ...point, spike };
+        });
+    }, [vixState, timeRange]);
     
+    useEffect(() => {
+        if (!vixState || chartData.length < 2) return;
+
+        const currentPoint = chartData[chartData.length - 1];
+        const previousPoint = chartData[chartData.length - 2];
+        
+        const getVixZone = (value: number): VixZone => {
+            if (value <= 20) return "Extremely Calm";
+            if (value <= 40) return "Normal";
+            if (value <= 60) return "Volatile";
+            if (value <= 80) return "High Volatility";
+            return "Extreme";
+        };
+
+        const currentZone = getVixZone(currentPoint.value);
+        const previousZone = getVixZone(previousPoint.value);
+        
+        if (currentZone !== previousZone) {
+            const shiftKey = `${previousZone}_${currentZone}`;
+            const lastShownShift = localStorage.getItem("ec_last_regime_shift");
+            if (lastShownShift !== shiftKey) {
+                setRegimeShift({ previous: previousZone, current: currentZone });
+                localStorage.setItem("ec_last_regime_shift", shiftKey);
+            }
+        } else {
+             setRegimeShift(null); // Clear if no shift
+        }
+    }, [vixState, chartData]);
+
+    const handleDismissRegimeShift = () => {
+        setRegimeShift(null);
+    };
+
     if (isLoading || !vixState) {
         return (
             <div className="space-y-8 animate-pulse">
@@ -169,19 +258,6 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
     const newsSentiment = components.newsSentiment > 60 ? "Greed" : components.newsSentiment < 40 ? "Fear" : "Neutral";
     const newsSentimentColor = newsSentiment === "Fear" ? "text-red-500" : newsSentiment === "Greed" ? "text-green-500" : "text-yellow-500";
     
-    const chartData = useMemo(() => {
-        const data = timeRange === '24H' ? series.series24h : series.series7d;
-        
-        return data.map((point, index, arr) => {
-            let spike = null;
-            if (index >= 2) {
-                const diff = point.value - arr[index - 2].value;
-                if (diff > 15) spike = "up";
-                if (diff < -15) spike = "down";
-            }
-            return { ...point, spike };
-        });
-    }, [series, timeRange]);
     const chartKey = timeRange === '24H' ? 'hour' : 'day';
 
     return (
@@ -260,6 +336,14 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                             </Card>
                         </CardContent>
                     </Card>
+                    
+                    {regimeShift && (
+                        <RegimeShiftBanner 
+                            previous={regimeShift.previous} 
+                            current={regimeShift.current} 
+                            onDismiss={handleDismissRegimeShift} 
+                        />
+                    )}
 
                      <Card className="bg-muted/30 border-border/50">
                         <CardHeader>
@@ -298,10 +382,10 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                                             if (props.payload.spike === 'down') return "Volatility Cooldown"
                                             return `${value}`
                                         }} />} />
-                                        <ReferenceLine y={20} stroke="hsl(var(--chart-2))" strokeDasharray="3 3" />
-                                        <ReferenceLine y={40} stroke="hsl(var(--chart-2))" strokeDasharray="3 3" />
-                                        <ReferenceLine y={60} stroke="hsl(var(--chart-4))" strokeDasharray="3 3" />
-                                        <ReferenceLine y={80} stroke="hsl(var(--chart-5))" strokeDasharray="3 3" />
+                                        <ReferenceLine y={20} stroke="hsl(var(--chart-2))" strokeOpacity={0.5} strokeDasharray="3 3" />
+                                        <ReferenceLine y={40} stroke="hsl(var(--chart-2))" strokeOpacity={0.5} strokeDasharray="3 3" />
+                                        <ReferenceLine y={60} stroke="hsl(var(--chart-4))" strokeOpacity={0.5} strokeDasharray="3 3" />
+                                        <ReferenceLine y={80} stroke="hsl(var(--chart-5))" strokeOpacity={0.5} strokeDasharray="3 3" />
                                         <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} name="VIX" />
                                          {chartData.map((point, index) => {
                                             if (point.spike) {
