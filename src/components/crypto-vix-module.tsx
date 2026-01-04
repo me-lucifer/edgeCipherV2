@@ -134,6 +134,33 @@ function RegimeShiftBanner({ previous, current, onDismiss }: { previous: VixZone
     )
 }
 
+const HeatStrip = ({ data }: { data: { value: number }[] }) => {
+    const getBlockColor = (value: number) => {
+        if (value <= 20) return 'bg-green-500/50';
+        if (value <= 40) return 'bg-green-500/70';
+        if (value <= 60) return 'bg-yellow-500/70';
+        if (value <= 80) return 'bg-orange-500/70';
+        return 'bg-red-500/70';
+    };
+    
+    return (
+        <div className="flex w-full gap-px rounded-md overflow-hidden">
+            {data.map((point, index) => (
+                 <TooltipProvider key={index}>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <div className="flex-1 h-3" style={{ backgroundColor: getBlockColor(point.value).replace('bg-', '').replace('/50', '').replace('/70', '') }}></div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>VIX: {point.value}</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
+            ))}
+        </div>
+    )
+}
+
 export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
     const { vixState, isLoading, updateVixValue } = useVixState();
     const [timeRange, setTimeRange] = useState<'24H' | '7D'>('24H');
@@ -348,7 +375,7 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                      <Card className="bg-muted/30 border-border/50">
                         <CardHeader>
                              <div className="flex items-center justify-between">
-                                <CardTitle>{timeRange} Volatility Trend</CardTitle>
+                                <CardTitle>{timeRange === '24H' ? '24-Hour' : '7-Day'} Volatility Trend</CardTitle>
                                 <div className="flex items-center gap-1 rounded-full bg-muted p-1">
                                     <Button
                                         size="sm"
@@ -408,8 +435,9 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                                 </ResponsiveContainer>
                             </ChartContainer>
                         </CardContent>
-                        <CardFooter>
+                        <CardFooter className="flex flex-col items-start gap-4">
                            <p className="text-xs text-muted-foreground">This chart shows the daily closing VIX value over the past {timeRange === '7D' ? '7 days' : '24 hours'}.</p>
+                           {timeRange === '24H' && <HeatStrip data={series.series24h} />}
                         </CardFooter>
                     </Card>
                 </div>
