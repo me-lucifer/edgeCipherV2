@@ -5,7 +5,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Bot, LineChart, Gauge, TrendingUp, TrendingDown, Info, AlertTriangle, SlidersHorizontal, Flame, Droplets, Newspaper, Sparkles, ArrowRight, X, BarChartHorizontal, Timer, Calendar, ChevronRight } from "lucide-react";
+import { Bot, LineChart, Gauge, TrendingUp, TrendingDown, Info, AlertTriangle, SlidersHorizontal, Flame, Droplets, Newspaper, Sparkles, ArrowRight, X, BarChartHorizontal, Timer, Calendar, ChevronRight, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Line, ResponsiveContainer, CartesianGrid, XAxis, YAxis, ComposedChart, ReferenceLine, ReferenceDot } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "./ui/chart";
@@ -18,6 +18,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/t
 import { Badge } from "./ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
 
 interface CryptoVixModuleProps {
@@ -32,12 +33,40 @@ const zoneData: { zone: VixZone, range: string, color: string, impact: string, r
     { zone: "Extreme", range: "81-100", color: "bg-red-500", impact: "Dangerously unpredictable, 'black swan' risk.", recommendation: "Avoid taking new positions.", behavior: "Market is in a state of panic or euphoria. Rational analysis often fails.", actions: ["Strongly consider not trading at all.", "If you must trade, use minimal size and extremely wide stops."] },
 ];
 
-const postureSuggestions: Record<VixZone, { title: string, actions: string[] }> = {
-    "Extremely Calm": { title: "Be patient", actions: ["Wait for A+ setups", "Respect ranges", "Avoid forcing trades"] },
-    "Normal": { title: "Execute plan", actions: ["Stick to your strategy", "Normal size OK", "Journal consistently"] },
-    "Volatile": { title: "Trade defensively", actions: ["Reduce size", "Widen stops slightly", "Confirm entries"] },
-    "High Volatility": { title: "Extreme caution", actions: ["Cut size >40%", "Wait for clear signals", "Avoid overtrading"] },
-    "Extreme": { title: "No new trades", actions: ["Protect capital", "Close risky positions", "Review, don't trade"] },
+type PersonaType = "Impulsive Sprinter" | "Fearful Analyst" | "Disciplined Scalper" | "Beginner";
+type VixAdvice = { title: string; rule: string; actions: string[] };
+
+const postureSuggestions: Record<VixZone, Record<PersonaType, VixAdvice>> = {
+    "Extremely Calm": {
+        "Impulsive Sprinter": { title: "Patience is key", rule: "Wait for A+ setups; avoid forcing trades in chop.", actions: ["Stick to high-probability setups only", "Respect range boundaries; don't chase small moves", "Use this quiet time for journal review"] },
+        "Fearful Analyst": { title: "Observe and Plan", rule: "Use this low-stress time to plan future trades without pressure.", actions: ["Build confidence by paper trading your setups", "Identify clear range levels for future reference", "Plan entries/exits without emotional pressure"] },
+        "Disciplined Scalper": { title: "Execute your plan", rule: "Your range-bound strategies may perform well now.", actions: ["Focus on clear support/resistance flips", "Take profits at defined levels; don't get greedy", "Be aware of potential low-volume spikes"] },
+        "Beginner": { title: "Learn the field", rule: "This is the best time to study market structure without high risk.", actions: ["Practice identifying support and resistance", "Observe how price reacts at key levels", "Formulate a simple trade plan without executing"] },
+    },
+    "Normal": {
+        "Impulsive Sprinter": { title: "Follow the rules", rule: "Your biggest risk now is breaking your plan. Stick to it.", actions: ["One trade at a time; no adding to losers", "Respect your stop-loss, no exceptions", "Complete journal before your next trade"] },
+        "Fearful Analyst": { title: "Trust your analysis", rule: "Conditions are favorable for well-planned trades. Execute your plan.", actions: ["Trust the analysis you did in calmer times", "Use a pre-flight checklist before entering", "Start with a smaller-than-normal position size"] },
+        "Disciplined Scalper": { title: "Your prime time", rule: "Good conditions for your strategy. Execute with discipline.", actions: ["Execute your A+ setups without hesitation", "Adhere strictly to your profit-taking rules", "Monitor for signs of increasing volatility"] },
+        "Beginner": { title: "Practice execution", rule: "Execute your plan with a very small, controlled position size.", actions: ["Focus on one or two simple setups you've defined", "Practice setting entry, stop, and profit orders", "Journal every action and emotion immediately"] },
+    },
+    "Volatile": {
+        "Impulsive Sprinter": { title: "DEFENSE FIRST", rule: "Your #1 risk is overtrading & revenge. HALVE your size.", actions: ["Cut position size by 50% or more", "Wait for crystal-clear A+ setups; skip everything else", "Set a hard stop on number of trades for the day"] },
+        "Fearful Analyst": { title: "Sit out or size down", rule: "Analysis is difficult in chop. It's okay to wait.", actions: ["If unsure, the best trade is no trade", "Drastically reduce size if you see a perfect setup", "Watch price action without the pressure to participate"] },
+        "Disciplined Scalper": { title: "Extreme caution", rule: "Your strategy is high-risk now. Adapt or wait.", actions: ["Widen stops slightly to avoid getting wicked out", "Reduce position size significantly", "Focus only on setups with very clear invalidation"] },
+        "Beginner": { title: "Observe, don't trade", rule: "This is the worst environment for learning. Watch, don't touch.", actions: ["Watch how price interacts with key levels without trading", "Notice how quickly moves can reverse", "See this as a live lesson in risk management"] },
+    },
+    "High Volatility": {
+        "Impulsive Sprinter": { title: "STOP. HANDS OFF.", rule: "Do not trade. You are at maximum risk of blowing up.", actions: ["Close the charts for a few hours", "Read your trading plan instead of watching candles", "A flat day is a winning day in these conditions"] },
+        "Fearful Analyst": { title: "Stay flat", rule: "Analysis is unreliable now. Protect your capital and mindset.", actions: ["Do not feel pressure to trade; pros are waiting too", "This is a good time for high-level market review", "Study how 'black swan' events unfold"] },
+        "Disciplined Scalper": { title: "Cash is a position", rule: "Your edge is gone. Wait for the market to normalize.", actions: ["Preserve capital; your opportunity will come later", "Avoid the temptation to catch falling knives", "Review your rules for high-volatility environments"] },
+        "Beginner": { title: "DO NOT TRADE", rule: "This is how beginners lose their accounts. Your only job is to watch.", actions: ["Observe the chaos from the sidelines", "Understand that you cannot predict these moves", "Learn that sometimes the best action is no action"] },
+    },
+    "Extreme": {
+        "Impulsive Sprinter": { title: "STOP. WALK AWAY.", rule: "You are in extreme danger of catastrophic loss.", actions: ["Seriously, close your trading platform", "Go for a walk. Do not look at the charts.", "Protecting your capital is the only trade that matters"] },
+        "Fearful Analyst": { title: "Stay flat. Full stop.", rule: "The market is irrational. Your analysis does not apply.", actions: ["Confirm all open positions are closed or protected", "Read a book on trading psychology", "This is a spectator sport right now"] },
+        "Disciplined Scalper": { title: "No edge here", rule: "Market is liquidating. There is no edge to be found.", actions: ["Stay flat and protect your capital", "Wait for volatility to return to normal levels", "This is a day for risk managers, not traders"] },
+        "Beginner": { title: "DO NOT TRADE. DANGER.", rule: "This is a 'black swan' event. Do not participate.", actions: ["Watch from a distance to learn", "Understand that this is not a trading environment", "The goal is to survive to trade another day"] },
+    }
 };
 
 const regimeShiftInfo: Record<string, { meaning: string, action: string }> = {
@@ -183,9 +212,9 @@ function getVixZoneFromValue(value: number): VixZone {
     return "Extreme";
 }
 
-function KeyEventsTimeline({ chartData }: { chartData: { hour: string; day: string; value: number; spike: string | null }[] }) {
+function KeyEventsTimeline({ chartData, onSetModule }: { chartData: { hour: string; day: string; value: number; spike: string | null }[], onSetModule: (module: any) => void }) {
     const events = useMemo(() => {
-        const generatedEvents: { time: Date, description: string, severity: 'High' | 'Medium' | 'Low' }[] = [];
+        const generatedEvents: { time: Date; description: string; severity: 'High' | 'Medium' | 'Low', action?: { label: string, module: string } }[] = [];
         let largestSpike = { value: 0, time: new Date() };
 
         for (let i = 1; i < chartData.length; i++) {
@@ -201,7 +230,8 @@ function KeyEventsTimeline({ chartData }: { chartData: { hour: string; day: stri
                 generatedEvents.push({
                     time,
                     description: `VIX crossed into '${currentZone}' zone.`,
-                    severity: (currentZone === 'Extreme' || currentZone === 'High Volatility') ? 'High' : 'Medium'
+                    severity: (currentZone === 'Extreme' || currentZone === 'High Volatility') ? 'High' : 'Medium',
+                    action: { label: 'Open Risk Center', module: 'riskCenter' }
                 });
             }
 
@@ -217,7 +247,8 @@ function KeyEventsTimeline({ chartData }: { chartData: { hour: string; day: stri
             generatedEvents.push({
                 time: largestSpike.time,
                 description: `Largest volatility spike: +${largestSpike.value.toFixed(0)} points.`,
-                severity: 'High'
+                severity: 'High',
+                action: { label: 'Open Analytics', module: 'analytics' }
             });
         }
         
@@ -242,11 +273,16 @@ function KeyEventsTimeline({ chartData }: { chartData: { hour: string; day: stri
                                     event.severity === 'Medium' && 'bg-amber-500',
                                     event.severity === 'Low' && 'bg-blue-500'
                                 )} />
-                                {index < events.length - 1 && <div className="w-px h-12 bg-border mt-2" />}
+                                {index < events.length - 1 && <div className="w-px h-16 bg-border mt-2" />}
                             </div>
                             <div>
                                 <p className="text-xs text-muted-foreground">{formatDistanceToNow(event.time, { addSuffix: true })}</p>
                                 <p className="font-medium text-foreground text-sm">{event.description}</p>
+                                {event.action && (
+                                    <Button variant="link" size="sm" className="p-0 h-auto text-xs" onClick={() => onSetModule(event.action!.module)}>
+                                        {event.action.label} <ArrowRight className="ml-1 h-3 w-3" />
+                                    </Button>
+                                )}
                             </div>
                         </div>
                     ))}
@@ -260,10 +296,36 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
     const { vixState, isLoading, updateVixValue, generateChoppyDay } = useVixState();
     const [timeRange, setTimeRange] = useState<'24H' | '7D'>('24H');
     const [regimeShift, setRegimeShift] = useState<{ previous: VixZone, current: VixZone } | null>(null);
+    const [persona, setPersona] = useState<PersonaType | null>(null);
+
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            const storedPersona = localStorage.getItem("ec_prototype_persona") || (localStorage.getItem("ec_persona_final") || localStorage.getItem("ec_persona_base"));
+            if (storedPersona) {
+                try {
+                    const parsed = JSON.parse(storedPersona);
+                    setPersona(parsed.primaryPersonaName || 'Beginner');
+                } catch {
+                     setPersona(storedPersona as PersonaType);
+                }
+            }
+        }
+    }, []);
+
+    const handlePersonaChange = (newPersona: PersonaType) => {
+        setPersona(newPersona);
+        if (typeof window !== "undefined") {
+            localStorage.setItem("ec_prototype_persona", newPersona);
+        }
+    };
 
     const askArjun = () => {
         if (!vixState) return;
-        onSetModule('aiCoaching', { initialMessage: `How should I adapt my trading to the current volatility of ${vixState.value} (${vixState.zoneLabel})?` });
+        const currentPosture = persona ? postureSuggestions[vixState.zoneLabel]?.[persona] : null;
+        const prompt = currentPosture
+            ? `Arjun, volatility is ${vixState.zoneLabel}. You've suggested my rule for today is: "${currentPosture.rule}". Can we break that down further for my ${persona} persona?`
+            : `How should I adapt my trading to the current volatility of ${vixState.value} (${vixState.zoneLabel})?`;
+        onSetModule('aiCoaching', { initialMessage: prompt });
     }
 
     const chartData = useMemo(() => {
@@ -358,7 +420,7 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
     }
     
     const { value: currentVix, zoneLabel: currentZone, updatedAt, components } = vixState;
-    const posture = postureSuggestions[currentZone] || postureSuggestions.Normal;
+    const posture = persona ? postureSuggestions[currentZone]?.[persona] : null;
 
     const VixGauge = ({ value, zone }: { value: number, zone: string }) => {
         const colorConfig: Record<string, string> = {
@@ -444,20 +506,54 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                                 </Card>
                                <Card className="bg-primary/10 border-primary/20">
                                     <CardHeader>
-                                        <CardTitle className="text-base flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary" /> Suggested Posture: {posture.title}</CardTitle>
+                                        <CardTitle className="text-base flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary" /> Suggested Posture</CardTitle>
+                                         {!persona && (
+                                            <CardDescription className="text-xs">Select a persona to get personalized advice.</CardDescription>
+                                        )}
                                     </CardHeader>
                                     <CardContent className="space-y-3">
-                                        <p className="text-sm text-primary/90">Arjun recommends these adjustments based on current conditions:</p>
-                                        <div className="flex flex-wrap gap-2">
-                                            {posture.actions.map((action, i) => (
-                                                <Badge key={i} variant="outline" className="text-xs border-primary/30 text-primary/90">{action}</Badge>
-                                            ))}
-                                        </div>
-                                        <div className="pt-2">
-                                            <Button variant="link" size="sm" className="p-0 h-auto text-primary/90" onClick={askArjun}>
-                                                Discuss this with Arjun <ArrowRight className="ml-2 h-4 w-4" />
-                                            </Button>
-                                        </div>
+                                        {!persona ? (
+                                            <Select onValueChange={(value) => handlePersonaChange(value as PersonaType)}>
+                                                <SelectTrigger className="w-[220px]">
+                                                    <SelectValue placeholder="Select Persona (Prototype)" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="Impulsive Sprinter">Impulsive Sprinter</SelectItem>
+                                                    <SelectItem value="Fearful Analyst">Fearful Analyst</SelectItem>
+                                                    <SelectItem value="Disciplined Scalper">Disciplined Scalper</SelectItem>
+                                                    <SelectItem value="Beginner">Beginner</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        ) : posture ? (
+                                            <>
+                                                <div className="flex justify-between items-center">
+                                                    <p className="font-semibold text-primary">{posture.title}</p>
+                                                    <Select value={persona} onValueChange={(value) => handlePersonaChange(value as PersonaType)}>
+                                                        <SelectTrigger className="w-[180px] h-8 text-xs">
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="Impulsive Sprinter">Impulsive Sprinter</SelectItem>
+                                                            <SelectItem value="Fearful Analyst">Fearful Analyst</SelectItem>
+                                                            <SelectItem value="Disciplined Scalper">Disciplined Scalper</SelectItem>
+                                                            <SelectItem value="Beginner">Beginner</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+
+                                                <p className="text-sm text-primary/90 italic"><strong>Rule for today:</strong> "{posture.rule}"</p>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {posture.actions.map((action, i) => (
+                                                        <Badge key={i} variant="outline" className="text-xs border-primary/30 text-primary/90">{action}</Badge>
+                                                    ))}
+                                                </div>
+                                                <div className="pt-2">
+                                                    <Button variant="link" size="sm" className="p-0 h-auto text-primary/90" onClick={askArjun}>
+                                                        Discuss this with Arjun <ArrowRight className="ml-2 h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            </>
+                                        ) : <p className="text-sm text-muted-foreground">Could not load suggestions.</p>}
                                     </CardContent>
                                </Card>
                             </div>
@@ -541,7 +637,7 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                         </CardFooter>
                     </Card>
 
-                    <KeyEventsTimeline chartData={chartData} />
+                    <KeyEventsTimeline chartData={chartData} onSetModule={onSetModule} />
 
                     {driverTrendData && (
                         <Card className="bg-muted/30 border-border/50">
