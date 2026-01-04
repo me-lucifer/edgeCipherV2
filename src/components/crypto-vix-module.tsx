@@ -5,31 +5,31 @@
 import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Bot, LineChart, Gauge, TrendingUp, TrendingDown, Info, AlertTriangle, SlidersHorizontal, Flame, Droplets, Newspaper, Sparkles, ArrowRight, X, BarChartHorizontal, Timer, Calendar } from "lucide-react";
+import { Bot, LineChart, Gauge, TrendingUp, TrendingDown, Info, AlertTriangle, SlidersHorizontal, Flame, Droplets, Newspaper, Sparkles, ArrowRight, X, BarChartHorizontal, Timer, Calendar, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Line, ResponsiveContainer, CartesianGrid, XAxis, YAxis, ComposedChart, ReferenceLine, ReferenceDot } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "./ui/chart";
 import { useVixState, type VixState, type VixZone } from "@/hooks/use-vix-state";
 import { Skeleton } from "./ui/skeleton";
-import { formatDistanceToNow, subHours, subDays } from "date-fns";
+import { formatDistanceToNow } from "date-fns";
 import { Slider } from "./ui/slider";
 import { Label } from "./ui/label";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Badge } from "./ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
 
 
 interface CryptoVixModuleProps {
     onSetModule: (module: any, context?: any) => void;
 }
 
-const zoneData: { zone: VixZone, range: string, color: string, impact: string, recommendation: string }[] = [
-    { zone: "Extremely Calm", range: "0-20", color: "bg-green-500", impact: "Low volatility, may lead to choppy price action.", recommendation: "Range-trading strategies may excel." },
-    { zone: "Normal", range: "21-40", color: "bg-green-500", impact: "Standard market conditions, good for most strategies.", recommendation: "Follow your plan." },
-    { zone: "Volatile", range: "41-60", color: "bg-yellow-500", impact: "Increased chop, risk of stop-hunts.", recommendation: "Consider reducing size." },
-    { zone: "High Volatility", range: "61-80", color: "bg-orange-500", impact: "High risk of erratic moves and liquidations.", recommendation: "Defense-first. Minimum size." },
-    { zone: "Extreme", range: "81-100", color: "bg-red-500", impact: "Dangerously unpredictable, 'black swan' risk.", recommendation: "Avoid taking new positions." },
+const zoneData: { zone: VixZone, range: string, color: string, impact: string, recommendation: string, behavior: string, actions: string[] }[] = [
+    { zone: "Extremely Calm", range: "0-20", color: "bg-green-500", impact: "Low volatility, may lead to choppy price action.", recommendation: "Range-trading strategies may excel.", behavior: "Price action is often choppy and lacks clear direction. Breakouts tend to fail.", actions: ["Consider range-trading strategies.", "Be patient and wait for clear, high-probability setups."] },
+    { zone: "Normal", range: "21-40", color: "bg-green-500", impact: "Standard market conditions, good for most strategies.", recommendation: "Follow your plan.", behavior: "Healthy trends can form. Pullbacks are generally reliable.", actions: ["Execute your standard trading plan.", "No special risk adjustments are typically needed."] },
+    { zone: "Volatile", range: "41-60", color: "bg-yellow-500", impact: "Increased chop, risk of stop-hunts.", recommendation: "Consider reducing size.", behavior: "Moves are faster and more erratic. Wicks get larger, increasing the risk of being stopped out.", actions: ["Consider reducing position size by 25-50%.", "Widen stop-losses slightly to account for noise."] },
+    { zone: "High Volatility", range: "61-80", color: "bg-orange-500", impact: "High risk of erratic moves and liquidations.", recommendation: "Defense-first. Minimum size.", behavior: "High risk of cascading liquidations and violent price swings in both directions.", actions: ["Drastically reduce size or avoid trading.", "Focus on capital preservation, not profit-making."] },
+    { zone: "Extreme", range: "81-100", color: "bg-red-500", impact: "Dangerously unpredictable, 'black swan' risk.", recommendation: "Avoid taking new positions.", behavior: "Market is in a state of panic or euphoria. Rational analysis often fails.", actions: ["Strongly consider not trading at all.", "If you must trade, use minimal size and extremely wide stops."] },
 ];
 
 const postureSuggestions: Record<VixZone, { title: string, actions: string[] }> = {
@@ -89,18 +89,6 @@ function VixSimulationControls({ vixState, updateVixValue }: { vixState: VixStat
                         </Button>
                     ))}
                 </div>
-            </CardContent>
-        </Card>
-    );
-}
-
-function ScoreComponentCard({ icon: Icon, title, value, colorClass }: { icon: React.ElementType, title: string, value: number, colorClass: string }) {
-    return (
-        <Card className="bg-muted/50 text-center">
-            <CardContent className="p-4">
-                <Icon className={cn("h-5 w-5 mx-auto mb-2", colorClass)} />
-                <p className="text-2xl font-bold font-mono text-foreground">{value.toFixed(0)}</p>
-                <p className="text-xs text-muted-foreground">{title}</p>
             </CardContent>
         </Card>
     );
@@ -181,6 +169,14 @@ function DriverTrendChart({ data, name, color }: { data: any[]; name: string; co
     );
 }
 
+function getVixZoneFromValue(value: number): VixZone {
+    if (value <= 20) return "Extremely Calm";
+    if (value <= 40) return "Normal";
+    if (value <= 60) return "Volatile";
+    if (value <= 80) return "High Volatility";
+    return "Extreme";
+}
+
 function KeyEventsTimeline({ chartData }: { chartData: { hour: string; day: string; value: number; spike: string | null }[] }) {
     const events = useMemo(() => {
         const generatedEvents: { time: Date, description: string, severity: 'High' | 'Medium' | 'Low' }[] = [];
@@ -189,11 +185,11 @@ function KeyEventsTimeline({ chartData }: { chartData: { hour: string; day: stri
         for (let i = 1; i < chartData.length; i++) {
             const prev = chartData[i - 1];
             const current = chartData[i];
-            const prevZone = getVixZone(prev.value);
-            const currentZone = getVixZone(current.value);
+            const prevZone = getVixZoneFromValue(prev.value);
+            const currentZone = getVixZoneFromValue(current.value);
 
             const now = new Date();
-            const time = i === chartData.length - 1 ? now : subHours(now, (chartData.length - 1 - i) * 4);
+            const time = i === chartData.length - 1 ? now : new Date(now.getTime() - (chartData.length - 1 - i) * 4 * 60 * 60 * 1000);
 
             if (prevZone !== currentZone) {
                 generatedEvents.push({
@@ -285,16 +281,8 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
         const currentPoint = chartData[chartData.length - 1];
         const previousPoint = chartData[chartData.length - 2];
         
-        const getVixZone = (value: number): VixZone => {
-            if (value <= 20) return "Extremely Calm";
-            if (value <= 40) return "Normal";
-            if (value <= 60) return "Volatile";
-            if (value <= 80) return "High Volatility";
-            return "Extreme";
-        };
-
-        const currentZone = getVixZone(currentPoint.value);
-        const previousZone = getVixZone(previousPoint.value);
+        const currentZone = getVixZoneFromValue(currentPoint.value);
+        const previousZone = getVixZoneFromValue(previousPoint.value);
         
         if (currentZone !== previousZone) {
             const shiftKey = `${previousZone}_${currentZone}`;
@@ -397,17 +385,7 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
             </div>
         );
     };
-    
-    const getComponentColor = (value: number) => {
-        if (value > 75) return "text-red-500";
-        if (value > 55) return "text-orange-500";
-        if (value > 40) return "text-yellow-500";
-        return "text-green-500";
-    }
-
-    const newsSentiment = components.newsSentiment > 60 ? "Greed" : components.newsSentiment < 40 ? "Fear" : "Neutral";
-    const newsSentimentColor = newsSentiment === "Fear" ? "text-red-500" : newsSentiment === "Greed" ? "text-green-500" : "text-yellow-500";
-    
+        
     const chartKey = timeRange === '24H' ? 'hour' : 'day';
 
     return (
@@ -552,7 +530,7 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                             </ChartContainer>
                         </CardContent>
                         <CardFooter className="flex-col items-start gap-4">
-                           <p className="text-xs text-muted-foreground">This chart shows the daily closing VIX value over the past {timeRange === '7D' ? '7 days' : '24 hours'}.</p>
+                           <p className="text-xs text-muted-foreground">This chart shows the VIX value over the past {timeRange === '7D' ? '7 days' : '24 hours'}.</p>
                            {timeRange === '24H' && <HeatStrip data={vixState.series.series24h} />}
                         </CardFooter>
                     </Card>
@@ -580,30 +558,27 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
                     <VixSimulationControls vixState={vixState} updateVixValue={updateVixValue} />
                     <Card className="bg-muted/30 border-border/50">
                          <CardHeader>
-                            <CardTitle className="flex items-center gap-2"><Info className="h-5 w-5"/>Understanding the Zones</CardTitle>
+                            <CardTitle className="flex items-center gap-2"><Info className="h-5 w-5"/>How to Interpret Crypto VIX</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Zone</TableHead>
-                                        <TableHead>Impact</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {zoneData.map(d => (
-                                        <TableRow key={d.zone}>
-                                            <TableCell className="text-sm">
-                                                <span className="flex items-center gap-2">
-                                                    <div className={cn("w-2 h-2 rounded-full", d.color)} />
-                                                    {d.range}
-                                                </span>
-                                            </TableCell>
-                                            <TableCell className="text-xs text-muted-foreground">{d.impact}</TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
+                            <Accordion type="single" collapsible className="w-full">
+                                {zoneData.map(d => (
+                                    <AccordionItem value={d.zone} key={d.zone}>
+                                        <AccordionTrigger>
+                                            <span className="flex items-center gap-3">
+                                                <div className={cn("w-3 h-3 rounded-full", d.color)} />
+                                                <span className="font-semibold">{d.zone} ({d.range})</span>
+                                            </span>
+                                        </AccordionTrigger>
+                                        <AccordionContent className="space-y-3 pt-2">
+                                            <p className="text-sm text-muted-foreground italic">"{d.behavior}"</p>
+                                            <ul className="space-y-1 list-disc list-inside text-sm text-muted-foreground">
+                                                {d.actions.map((action, i) => <li key={i}>{action}</li>)}
+                                            </ul>
+                                        </AccordionContent>
+                                    </AccordionItem>
+                                ))}
+                            </Accordion>
                         </CardContent>
                     </Card>
                     <Card className="bg-muted/30 border-primary/20">
