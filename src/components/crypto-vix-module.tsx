@@ -162,10 +162,10 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
     };
     
     const getComponentColor = (value: number) => {
-      if (value > 75) return "text-red-500";
-      if (value > 50) return "text-orange-500";
-      if (value > 25) return "text-yellow-500";
-      return "text-green-500";
+        if (value > 75) return "text-red-500";
+        if (value > 55) return "text-orange-500";
+        if (value > 40) return "text-yellow-500";
+        return "text-green-500";
     }
 
     const newsSentiment = components.newsSentiment > 60 ? "Greed" : components.newsSentiment < 40 ? "Fear" : "Neutral";
