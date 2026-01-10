@@ -24,6 +24,8 @@ interface NewsModuleProps {
 type Sentiment = "Positive" | "Negative" | "Neutral";
 type VolatilityImpact = "Low" | "Medium" | "High";
 type NewsCategory = "Regulatory" | "Macro" | "Exchange" | "ETF" | "Liquidations" | "Altcoins" | "Security" | "Tech";
+type PersonaType = "Impulsive Sprinter" | "Fearful Analyst" | "Disciplined Scalper" | "Beginner";
+
 
 export type NewsItem = {
     id: string;
@@ -90,6 +92,29 @@ const mockNewsSource: NewsItem[] = Array.from({ length: 25 }, (_, i) => {
     };
 });
 
+const personaBasedMeanings: Record<PersonaType, Record<VolatilityImpact, { meaning: string; action: string }>> = {
+    "Impulsive Sprinter": {
+        "High": { meaning: "This is a high-risk environment where FOMO is strongest. Chasing candles now is a direct path to giving back profits. Your edge is patience.", action: "Do not trade based on this news. Reduce open leverage and wait for a clean A+ setup based on your own plan." },
+        "Medium": { meaning: "This news will cause chop and noise. Your impulse might be to jump in, but the real risk is getting stopped out on a random wick.", action: "Wait for the market to digest the news. If you trade, use half your normal size." },
+        "Low": { meaning: "This news is unlikely to cause a major directional move. It's a distraction, not a signal. Your biggest risk is overtrading out of boredom.", action: "Ignore this and stick to your trading plan. This is not a reason to take a trade." },
+    },
+    "Fearful Analyst": {
+        "High": { meaning: "This is a period of high uncertainty where even good analysis can fail. It is okay to feel hesitant; that's your risk management instinct kicking in.", action: "Protect your capital. Watching from the sidelines is a professional decision. Do not feel pressured to participate." },
+        "Medium": { meaning: "Expect noise and potentially failed breakouts. Your fear of getting stopped out is valid here. The key is to trade small if you trade at all.", action: "If you have a high-conviction A+ setup, trade it with 25% of your normal size. Otherwise, wait for clarity." },
+        "Low": { meaning: "This news is unlikely to invalidate your current trade theses. Your analysis is more important than this headline.", action: "Trust the analysis you've already done. This news should not cause you to second-guess a well-planned trade." },
+    },
+    "Disciplined Scalper": {
+        "High": { meaning: "Your strategy is at high risk. Liquidity is thin and spreads widen, making clean entries/exits difficult. Your discipline is best shown by not participating.", action: "Switch to 'wait-and-see' mode. Preserve capital until volatility returns to normal levels." },
+        "Medium": { meaning: "Volatility is increasing, which can be good for scalping, but also riskier. Your rules are critical now.", action: "Adhere strictly to your entry/exit rules. Take profits quickly and do not let small winners turn into losers." },
+        "Low": { meaning: "This news is unlikely to create the volatility your strategy needs. Price action may be choppy and directionless.", action: "Be patient. Wait for price to reach a key level before considering a trade. Avoid trading in the middle of a range." },
+    },
+    "Beginner": {
+        "High": { meaning: "This is a 'danger zone' for new traders. Professionals are either sitting out or managing risk carefully. You should not be trading.", action: "Do not trade. Open the charts and watch how price reacts. This is a live lesson in market chaos." },
+        "Medium": { meaning: "The market is unpredictable right now. It's very easy to lose money by guessing the direction.", action: "Stay flat. Review your trading plan or watch educational videos. Don't risk capital in uncertain conditions." },
+        "Low": { meaning: "This news is minor. It's more important to focus on learning your strategy and following your rules.", action: "Focus on your process. If you have a planned trade, this news is not a reason to change it." },
+    },
+};
+
 
 const NEWS_CACHE_KEY = "ec_news_state_v2";
 const VIX_CACHE_KEY = "ec_vix_state";
@@ -125,6 +150,8 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
     const [readNewsIds, setReadNewsIds] = useState<string[]>([]);
     const [savedNewsIds, setSavedNewsIds] = useState<string[]>([]);
     const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
+    const [persona, setPersona] = useState<PersonaType | null>(null);
+
 
     const allCategories = useMemo(() => ['All', ...[...new Set(mockNewsSource.map(item => item.category))]], []);
     const popularCoins = ["BTC", "ETH", "SOL", "BNB", "XRP"];
@@ -230,6 +257,17 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         } catch (error) {
             console.error("Failed to parse read/saved news IDs:", error);
         }
+
+        try {
+            const storedPersona = localStorage.getItem("ec_persona_final") || localStorage.getItem("ec_persona_base");
+            if (storedPersona) {
+                setPersona(JSON.parse(storedPersona).primaryPersonaName || "Beginner");
+            } else {
+                setPersona("Beginner");
+            }
+        } catch (e) {
+            setPersona("Beginner");
+        }
     }, []);
 
     const filteredNews = useMemo(() => {
@@ -275,7 +313,8 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
     };
 
     const discussWithArjun = (item: NewsItem) => {
-        const prompt = `Arjun, how should I think about this news headline: "${item.headline}"? My current focus is on [your current strategy/coin]. Does this news impact my plan?`;
+        const insight = getPersonaInsight(item, persona);
+        const prompt = `Arjun, this news came up: "${item.headline}". Your advice was: "${insight.action}". Can you elaborate on why this is the right move for my ${persona} persona?`;
         onSetModule('aiCoaching', { initialMessage: prompt });
         setSelectedNews(null); // Close drawer
     }
@@ -314,6 +353,12 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
             localStorage.setItem(SAVED_IDS_KEY, JSON.stringify(newIds));
             return newIds;
         });
+    };
+
+    const getPersonaInsight = (newsItem: NewsItem, persona: PersonaType | null) => {
+        const defaultPersona: PersonaType = 'Beginner';
+        const p = persona || defaultPersona;
+        return personaBasedMeanings[p][newsItem.volatilityImpact] || personaBasedMeanings[defaultPersona][newsItem.volatilityImpact];
     };
 
 
@@ -560,12 +605,12 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                     <CardContent className="space-y-4">
                                         <div>
                                             <h4 className="text-sm font-semibold text-foreground mb-1">What this means for you:</h4>
-                                            <p className="text-sm text-primary/90 italic">"{selectedNews.arjunMeaning}"</p>
+                                            <p className="text-sm text-primary/90 italic">"{getPersonaInsight(selectedNews, persona).meaning}"</p>
                                         </div>
                                         <Separator />
                                         <div>
                                             <h4 className="text-sm font-semibold text-foreground mb-1">Recommended Action:</h4>
-                                            <p className="text-sm font-semibold text-primary/90">{selectedNews.recommendedAction}</p>
+                                            <p className="text-sm font-semibold text-primary/90">{getPersonaInsight(selectedNews, persona).action}</p>
                                         </div>
                                     </CardContent>
                                     <CardFooter>
