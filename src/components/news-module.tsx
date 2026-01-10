@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark, Timer, Gauge, Star, Calendar } from "lucide-react";
+import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark, Timer, Gauge, Star, Calendar, Copy, Clipboard, ThumbsUp, ThumbsDown, Meh } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "./ui/skeleton";
@@ -239,6 +239,108 @@ function UpcomingEventsCard({ onSetRiskWindow }: { onSetRiskWindow: (event: any)
                         </div>
                     </div>
                 ))}
+            </CardContent>
+        </Card>
+    );
+}
+
+function DailyBriefCard({ newsItems }: { newsItems: NewsItem[] }) {
+    const { toast } = useToast();
+    const { mood, volatilityRisk, topRisks } = useMemo(() => {
+        const now = new Date();
+        const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        const recentNews = newsItems.filter(item => new Date(item.publishedAt) > last24h);
+
+        if (recentNews.length === 0) {
+            return {
+                mood: 'Neutral',
+                volatilityRisk: 'Low',
+                topRisks: ["No major news events in the last 24 hours."]
+            };
+        }
+
+        const sentimentScore = recentNews.reduce((acc, item) => {
+            if (item.sentiment === 'Positive') return acc + 1;
+            if (item.sentiment === 'Negative') return acc - 1;
+            return acc;
+        }, 0);
+
+        const mood = sentimentScore > 1 ? 'Bullish' : sentimentScore < -1 ? 'Bearish' : 'Neutral';
+
+        const hasHighImpact = recentNews.some(item => item.volatilityImpact === 'High');
+        const hasMediumImpact = recentNews.some(item => item.volatilityImpact === 'Medium');
+        const volatilityRisk = hasHighImpact ? 'High' : hasMediumImpact ? 'Medium' : 'Low';
+        
+        const topRisks = recentNews
+            .filter(item => item.sentiment === 'Negative' || item.volatilityImpact === 'High')
+            .sort((a, b) => b.volatilityRiskScore - a.volatilityRiskScore)
+            .slice(0, 3)
+            .map(item => item.headline);
+            
+        if (topRisks.length === 0) {
+            topRisks.push("No significant risk drivers detected in recent news.");
+        }
+
+        return { mood, volatilityRisk, topRisks };
+    }, [newsItems]);
+
+    const handleCopyBrief = () => {
+        const briefText = `
+### Daily News Brief ###
+Mood: ${mood}
+Volatility Risk: ${volatilityRisk}
+
+Top Risks Today:
+${topRisks.map(risk => `- ${risk}`).join('\n')}
+        `.trim();
+        navigator.clipboard.writeText(briefText);
+        toast({ title: "Brief copied to clipboard" });
+    };
+
+    const moodConfig = {
+        Bullish: { icon: ThumbsUp, color: 'text-green-400' },
+        Neutral: { icon: Meh, color: 'text-muted-foreground' },
+        Bearish: { icon: ThumbsDown, color: 'text-red-400' },
+    };
+    const { icon: MoodIcon, color: moodColor } = moodConfig[mood];
+
+    const volConfig = {
+        Low: { color: 'text-green-400' },
+        Medium: { color: 'text-amber-400' },
+        High: { color: 'text-red-400' },
+    };
+
+    return (
+        <Card className="bg-muted/30 border-border/50">
+            <CardHeader>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <CardTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary" /> Daily Intelligence Brief</CardTitle>
+                    <Button variant="outline" size="sm" onClick={handleCopyBrief}>
+                        <Clipboard className="mr-2 h-4 w-4" /> Copy Brief
+                    </Button>
+                </div>
+            </CardHeader>
+            <CardContent className="grid md:grid-cols-3 gap-6">
+                <div className="flex flex-col items-center justify-center text-center p-4 bg-muted rounded-lg border">
+                    <p className="text-sm font-semibold text-muted-foreground">Market Mood</p>
+                    <div className={cn("flex items-center gap-2 text-lg font-bold mt-2", moodColor)}>
+                        <MoodIcon className="h-5 w-5" />
+                        <span>{mood}</span>
+                    </div>
+                </div>
+                <div className="flex flex-col items-center justify-center text-center p-4 bg-muted rounded-lg border">
+                    <p className="text-sm font-semibold text-muted-foreground">Volatility Risk</p>
+                    <div className={cn("flex items-center gap-2 text-lg font-bold mt-2", volConfig[volatilityRisk].color)}>
+                        <TrendingUp className="h-5 w-5" />
+                        <span>{volatilityRisk}</span>
+                    </div>
+                </div>
+                <div className="md:col-span-1 space-y-2 p-4 bg-muted rounded-lg border">
+                    <h4 className="text-sm font-semibold text-muted-foreground">Top Risks Today</h4>
+                    <ul className="space-y-1 list-disc list-inside text-xs text-foreground">
+                        {topRisks.map((risk, i) => <li key={i} className="truncate">{risk}</li>)}
+                    </ul>
+                </div>
             </CardContent>
         </Card>
     );
@@ -502,18 +604,15 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         const defaultPersona: PersonaType = 'Beginner';
         const p = persona || defaultPersona;
         
-        const zone = getVixZoneFromVolatility(newsItem.volatilityImpact);
+        const impactMap: Record<VolatilityImpact, VixZone> = {
+            'High': 'High Volatility',
+            'Medium': 'Volatile',
+            'Low': 'Normal',
+        };
+        const zone = impactMap[newsItem.volatilityImpact] || 'Normal';
+
         return postureSuggestions[zone]?.[p] || postureSuggestions.Normal[defaultPersona];
     };
-
-    const getVixZoneFromVolatility = (impact: VolatilityImpact): VixZone => {
-        switch (impact) {
-            case 'High': return 'High Volatility';
-            case 'Medium': return 'Volatile';
-            case 'Low': return 'Normal';
-            default: return 'Normal';
-        }
-    }
 
     const setRiskWindowFromEvent = (event: { name: string; impact: VolatilityImpact }) => {
         const riskWindowMins = event.impact === 'High' ? 120 : 60;
@@ -562,6 +661,8 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                 <h1 className="text-2xl font-bold tracking-tight text-foreground">News Intelligence</h1>
                 <p className="text-muted-foreground">AI-curated crypto futures news with sentiment + volatility impact—so you don’t trade blind.</p>
             </div>
+
+            <DailyBriefCard newsItems={newsItems} />
             
             <div className="grid lg:grid-cols-3 gap-8 items-start">
                 <div className="lg:col-span-2 space-y-6">
