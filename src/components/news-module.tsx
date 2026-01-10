@@ -15,7 +15,7 @@ import { Switch } from "./ui/switch";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format, formatDistanceToNow } from 'date-fns';
-import type { VixState, RiskEvent, VixZone } from "@/hooks/use-risk-state";
+import type { VixState, RiskEvent } from "@/hooks/use-risk-state";
 import { Progress } from "./ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { useToast } from "@/hooks/use-toast";
