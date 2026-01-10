@@ -134,18 +134,20 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                 }
 
                 // If cache is expired or doesn't exist, regenerate
-                const newItems = [...mockNewsSource].sort(() => 0.5 - Math.random());
-                const newCache = {
-                    items: newItems,
-                    lastFetchedAt: new Date().toISOString(),
-                };
-                localStorage.setItem(NEWS_CACHE_KEY, JSON.stringify(newCache));
-                setNewsItems(newItems);
+                setTimeout(() => {
+                    const newItems = [...mockNewsSource].sort(() => 0.5 - Math.random());
+                    const newCache = {
+                        items: newItems,
+                        lastFetchedAt: new Date().toISOString(),
+                    };
+                    localStorage.setItem(NEWS_CACHE_KEY, JSON.stringify(newCache));
+                    setNewsItems(newItems);
+                    setIsLoading(false);
+                }, 1000); // Simulate network delay
 
             } catch (error) {
                 console.error("Failed to load or cache news data:", error);
                 setNewsItems(mockNewsSource); // Fallback to default
-            } finally {
                 setIsLoading(false);
             }
         };
@@ -206,6 +208,15 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
             coins: [],
             sortBy: 'newest',
         });
+    };
+    
+    const showHighImpact = () => {
+        setFilters(prev => ({
+            ...prev,
+            highImpactOnly: true,
+            sentiment: 'All',
+            category: 'All'
+        }));
     };
 
     return (
@@ -303,14 +314,23 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
             <div className="mt-8">
                 {isLoading ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {[...Array(9)].map((_, i) => <Skeleton key={i} className="h-56" />)}
+                        {[...Array(6)].map((_, i) => (
+                             <Card key={i} className="bg-muted/30 border-border/50">
+                                <CardHeader><Skeleton className="h-5 w-3/4" /><Skeleton className="h-3 w-1/2 mt-2" /></CardHeader>
+                                <CardContent><Skeleton className="h-10 w-full" /></CardContent>
+                                <CardFooter className="flex flex-wrap gap-2"><Skeleton className="h-5 w-16 rounded-full" /><Skeleton className="h-5 w-20 rounded-full" /><Skeleton className="h-5 w-12 rounded-full" /></CardFooter>
+                            </Card>
+                        ))}
                     </div>
                 ) : filteredNews.length === 0 ? (
                     <Card className="text-center py-12 bg-muted/30 border-border/50">
                         <CardHeader>
-                            <CardTitle>No news found</CardTitle>
-                            <CardDescription>Try adjusting your filters or check back later.</CardDescription>
+                            <CardTitle>No items match these filters.</CardTitle>
                         </CardHeader>
+                        <CardContent className="flex justify-center gap-4">
+                            <Button variant="outline" onClick={clearFilters}>Clear filters</Button>
+                            <Button onClick={showHighImpact}>Show High Impact</Button>
+                        </CardContent>
                     </Card>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -336,8 +356,8 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                 <CardFooter className="flex flex-wrap items-center gap-2">
                                     <Badge variant="outline" className={cn(
                                         'text-xs whitespace-nowrap',
-                                        item.sentiment === 'Positive' && 'bg-green-500/20 text-green-400 border-green-500/30',
-                                        item.sentiment === 'Negative' && 'bg-red-500/20 text-red-400 border-red-500/30',
+                                        item.sentiment === 'Positive' && 'bg-green-500/20 text-green-300 border-green-500/30',
+                                        item.sentiment === 'Negative' && 'bg-red-500/20 text-red-300 border-red-500/30',
                                         item.sentiment === 'Neutral' && 'bg-secondary text-secondary-foreground border-border'
                                     )}>{item.sentiment}</Badge>
                                     <Badge variant="outline" className={cn(
@@ -369,8 +389,8 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                 <DrawerDescription className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-2">
                                      <Badge variant="outline" className={cn(
                                         'text-xs whitespace-nowrap',
-                                        selectedNews.sentiment === 'Positive' && 'bg-green-500/20 text-green-400 border-green-500/30',
-                                        selectedNews.sentiment === 'Negative' && 'bg-red-500/20 text-red-400 border-red-500/30',
+                                        selectedNews.sentiment === 'Positive' && 'bg-green-500/20 text-green-300 border-green-500/30',
+                                        selectedNews.sentiment === 'Negative' && 'bg-red-500/20 text-red-300 border-red-500/30',
                                         selectedNews.sentiment === 'Neutral' && 'bg-secondary text-secondary-foreground border-border'
                                     )}>{selectedNews.sentiment}</Badge>
                                     <Badge variant="outline" className={cn(
@@ -435,5 +455,8 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
             </Drawer>
         </div>
     );
+
+    
+}
 
     
