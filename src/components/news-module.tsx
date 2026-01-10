@@ -1,13 +1,14 @@
 
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Filter, Clock } from "lucide-react";
+import { Bot, Filter, Clock, Loader2 } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "./ui/skeleton";
 
 interface NewsModuleProps {
     onSetModule: (module: any, context?: any) => void;
@@ -25,23 +26,63 @@ type NewsItem = {
     impact: "High" | "Medium" | "Low";
 };
 
-const mockNews: NewsItem[] = [
+const mockNewsSource: NewsItem[] = [
     { id: '1', headline: "Fed hints at slower rate hikes, crypto market rallies", summary: "The market reacted positively to the recent announcement about potential changes in monetary policy.", fullText: "In a much-anticipated speech, the Federal Reserve Chair hinted at a slower pace for future interest rate hikes, citing cooling inflation data. The crypto market, along with traditional equities, saw a significant rally, with Bitcoin briefly touching $70,000.", timestamp: "2 hours ago", sentiment: "Bullish", impact: "High" },
     { id: '2', headline: "Major exchange announces new security upgrades after hack", summary: "The exchange aims to restore user confidence with the move, partnering with a leading cybersecurity firm.", fullText: "Following a recent security breach that resulted in the loss of user funds, a major cryptocurrency exchange has announced a complete overhaul of its security infrastructure. This includes multi-signature wallets, stricter internal controls, and a partnership with a top-tier cybersecurity firm. The market reaction has been muted.", timestamp: "8 hours ago", sentiment: "Neutral", impact: "Medium" },
     { id: '3', headline: "Regulatory uncertainty in Asia spooks investors", summary: "New draft regulations have caused a sell-off in regional markets as traders await clarity.", fullText: "Draft regulations proposed by financial authorities in a key Asian market have introduced significant uncertainty. The proposed rules could impact stablecoin issuance and DeFi protocols, leading to a risk-off sentiment and a broad sell-off in tokens associated with the region.", timestamp: "1 day ago", sentiment: "Bearish", impact: "High" },
     { id: '4', headline: "Ethereum's Dencun upgrade leads to significantly lower layer-2 fees", summary: "The much-anticipated network upgrade has successfully reduced transaction costs on major L2s.", fullText: "The activation of the Dencun upgrade on the Ethereum mainnet has resulted in an immediate and drastic reduction in transaction fees for layer-2 rollups. Arbitrum and Optimism have reported fee reductions of over 90%, a move that is expected to spur adoption and user activity.", timestamp: "2 days ago", sentiment: "Bullish", impact: "High" },
-    { id: '5', headline: "Stablecoin issuer partners with major payment processor", summary: "The partnership will allow millions of merchants to accept USDC payments globally.", fullText: "A leading stablecoin issuer has announced a landmark partnership with a global payment processing giant. The integration will enable merchants to accept USDC payments directly, potentially bridging the gap between traditional finance and the digital asset economy.", timestamp: "3 days ago", sentiment: "Bullish", impact: "Medium" },
+    { id: '5', headline: "Stablecoin issuer partners with major payment processor", summary: "The partnership will allow millions of merchants to accept USDC payments directly.", fullText: "A leading stablecoin issuer has announced a landmark partnership with a global payment processing giant. The integration will enable merchants to accept USDC payments directly, potentially bridging the gap between traditional finance and the digital asset economy.", timestamp: "3 days ago", sentiment: "Bullish", impact: "Medium" },
     { id: '6', headline: "SEC delays decision on spot Bitcoin ETF application again", summary: "The commission has once again pushed back the deadline, citing the need for further review.", fullText: "The U.S. Securities and Exchange Commission has extended the review period for another spot Bitcoin ETF application, a move that was widely expected by market analysts. The continued delays have dampened some institutional interest, though the long-term outlook remains positive for many.", timestamp: "4 days ago", sentiment: "Neutral", impact: "Low" },
 ];
 
+const NEWS_CACHE_KEY = "ec_news_state";
+const NEWS_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
 export function NewsModule({ onSetModule }: NewsModuleProps) {
+    const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     const [sentimentFilter, setSentimentFilter] = useState<Sentiment | "All">("All");
     const [selectedNews, setSelectedNews] = useState<NewsItem | null>(null);
 
+    useEffect(() => {
+        const loadNews = () => {
+            setIsLoading(true);
+            try {
+                const storedData = localStorage.getItem(NEWS_CACHE_KEY);
+                if (storedData) {
+                    const cachedData = JSON.parse(storedData);
+                    const isExpired = new Date().getTime() - new Date(cachedData.lastFetchedAt).getTime() > NEWS_TTL_MS;
+                    if (!isExpired) {
+                        setNewsItems(cachedData.items);
+                        setIsLoading(false);
+                        return;
+                    }
+                }
+
+                // If cache is expired or doesn't exist, regenerate
+                const newItems = [...mockNewsSource].sort(() => 0.5 - Math.random()); // Shuffle to simulate new data
+                const newCache = {
+                    items: newItems,
+                    lastFetchedAt: new Date().toISOString(),
+                };
+                localStorage.setItem(NEWS_CACHE_KEY, JSON.stringify(newCache));
+                setNewsItems(newItems);
+
+            } catch (error) {
+                console.error("Failed to load or cache news data:", error);
+                setNewsItems(mockNewsSource); // Fallback to default
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        loadNews();
+    }, []);
+
     const filteredNews = useMemo(() => {
-        if (sentimentFilter === "All") return mockNews;
-        return mockNews.filter(item => item.sentiment === sentimentFilter);
-    }, [sentimentFilter]);
+        if (sentimentFilter === "All") return newsItems;
+        return newsItems.filter(item => item.sentiment === sentimentFilter);
+    }, [sentimentFilter, newsItems]);
 
     const discussWithArjun = (item: NewsItem) => {
         const prompt = `Arjun, how should I think about this news headline: "${item.headline}"? Does it impact my open trades or current strategy?`;
@@ -80,40 +121,46 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {filteredNews.map(item => (
-                            <Card 
-                                key={item.id}
-                                onClick={() => setSelectedNews(item)}
-                                className="bg-muted/30 border-border/50 cursor-pointer transition-all hover:border-primary/40 hover:bg-muted/50"
-                            >
-                                <CardHeader>
-                                    <div className="flex justify-between items-start gap-4">
-                                        <CardTitle className="text-base leading-tight">{item.headline}</CardTitle>
-                                        <Badge variant="secondary" className={cn(
-                                            'text-xs whitespace-nowrap',
-                                            item.sentiment === 'Bullish' && 'bg-green-500/20 text-green-400 border-green-500/30',
-                                            item.sentiment === 'Bearish' && 'bg-red-500/20 text-red-400 border-red-500/30'
-                                        )}>{item.sentiment}</Badge>
-                                    </div>
-                                    <CardDescription className="flex items-center gap-2 text-xs pt-1">
-                                        <Clock className="h-3 w-3" />
-                                        {item.timestamp}
-                                    </CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    <p className="text-sm text-muted-foreground">{item.summary}</p>
-                                     <Badge variant="outline" className={cn(
-                                         "mt-4 text-xs",
-                                         item.impact === 'High' && 'border-red-500/50 text-red-400',
-                                         item.impact === 'Medium' && 'border-amber-500/50 text-amber-400',
-                                     )}>
-                                        {item.impact} Impact
-                                    </Badge>
-                                </CardContent>
-                            </Card>
-                        ))}
-                    </div>
+                    {isLoading ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-48" />)}
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {filteredNews.map(item => (
+                                <Card 
+                                    key={item.id}
+                                    onClick={() => setSelectedNews(item)}
+                                    className="bg-muted/30 border-border/50 cursor-pointer transition-all hover:border-primary/40 hover:bg-muted/50"
+                                >
+                                    <CardHeader>
+                                        <div className="flex justify-between items-start gap-4">
+                                            <CardTitle className="text-base leading-tight">{item.headline}</CardTitle>
+                                            <Badge variant="secondary" className={cn(
+                                                'text-xs whitespace-nowrap',
+                                                item.sentiment === 'Bullish' && 'bg-green-500/20 text-green-400 border-green-500/30',
+                                                item.sentiment === 'Bearish' && 'bg-red-500/20 text-red-400 border-red-500/30'
+                                            )}>{item.sentiment}</Badge>
+                                        </div>
+                                        <CardDescription className="flex items-center gap-2 text-xs pt-1">
+                                            <Clock className="h-3 w-3" />
+                                            {item.timestamp}
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <p className="text-sm text-muted-foreground">{item.summary}</p>
+                                        <Badge variant="outline" className={cn(
+                                            "mt-4 text-xs",
+                                            item.impact === 'High' && 'border-red-500/50 text-red-400',
+                                            item.impact === 'Medium' && 'border-amber-500/50 text-amber-400',
+                                        )}>
+                                            {item.impact} Impact
+                                        </Badge>
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                    )}
                 </CardContent>
             </Card>
 
