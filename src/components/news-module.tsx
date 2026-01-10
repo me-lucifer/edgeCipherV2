@@ -190,6 +190,7 @@ const getVixZone = (vix: number): VixZone => {
 const NEWS_CACHE_KEY = "ec_news_state_v2";
 const VIX_CACHE_KEY = "ec_vix_state";
 const NEWS_RISK_CONTEXT_KEY = "ec_news_risk_context";
+const NEWS_DAY_SIGNAL_KEY = "ec_news_day_signal";
 const NEWS_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 const READ_IDS_KEY = "ec_news_read_ids";
@@ -386,12 +387,14 @@ function IntelligenceBriefCard({ allNews, filteredNews }: { allNews: NewsItem[],
 }
 
 function VolatilityRiskCard({ newsItems }: { newsItems: NewsItem[] }) {
-    const { score, distribution, level } = useMemo(() => {
+    const { score, distribution, level, isNewsDrivenDay, topReasons } = useMemo(() => {
         if (newsItems.length === 0) {
             return {
                 score: 0,
                 distribution: { High: 0, Medium: 0, Low: 100 },
-                level: 'Low'
+                level: 'Low',
+                isNewsDrivenDay: false,
+                topReasons: []
             };
         }
 
@@ -421,20 +424,24 @@ function VolatilityRiskCard({ newsItems }: { newsItems: NewsItem[] }) {
         };
 
         const level = score > 75 ? 'High' : score > 40 ? 'Medium' : 'Low';
+        const isNewsDrivenDay = counts.High >= 3 || score >= 70;
+        const topReasons = newsItems
+            .filter(item => item.volatilityImpact === 'High' || item.sentiment === 'Negative')
+            .sort((a, b) => b.volatilityRiskScore - a.volatilityRiskScore)
+            .slice(0, 3)
+            .map(item => item.headline);
 
-        return { score, distribution, level };
+        return { score, distribution, level, isNewsDrivenDay, topReasons };
     }, [newsItems]);
 
-    // Side effect to update VIX state
+    // Side effect to update global state
     useEffect(() => {
         if (typeof window !== "undefined") {
             try {
+                // Update VIX component
                 const vixStateString = localStorage.getItem(VIX_CACHE_KEY);
                 if (vixStateString) {
                     const vixState: VixState = JSON.parse(vixStateString);
-                    // Map News Risk Score (0-100) to News Sentiment (0-100, where 50 is neutral, <50 is bearish)
-                    // A higher risk score should result in a more bearish sentiment (lower number).
-                    // We'll map 0-100 risk to a 50-0 sentiment score.
                     const newsSentiment = Math.max(0, 50 - (score / 2));
                     
                     if (vixState.components.newsSentiment !== newsSentiment) {
@@ -443,11 +450,22 @@ function VolatilityRiskCard({ newsItems }: { newsItems: NewsItem[] }) {
                         window.dispatchEvent(new StorageEvent('storage', { key: VIX_CACHE_KEY }));
                     }
                 }
+
+                // Update News Day Signal
+                const newsDaySignal = {
+                    isNewsDrivenDay,
+                    score,
+                    topReasons,
+                    updatedAt: new Date().toISOString()
+                };
+                localStorage.setItem(NEWS_DAY_SIGNAL_KEY, JSON.stringify(newsDaySignal));
+                window.dispatchEvent(new StorageEvent('storage', { key: NEWS_DAY_SIGNAL_KEY }));
+
             } catch (e) {
-                console.error("Failed to update VIX with news sentiment", e);
+                console.error("Failed to update global news state", e);
             }
         }
-    }, [score]);
+    }, [score, isNewsDrivenDay, topReasons]);
     
     const levelConfig = {
         High: { label: 'High', color: 'text-red-400' },
@@ -1457,4 +1475,5 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
 }
 
 
+    
     
