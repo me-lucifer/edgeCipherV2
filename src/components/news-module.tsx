@@ -266,59 +266,59 @@ function UpcomingEventsCard({ onSetRiskWindow }: { onSetRiskWindow: (event: any)
     );
 }
 
-function DailyBriefCard({ newsItems }: { newsItems: NewsItem[] }) {
-    const { toast } = useToast();
-    const { mood, volatilityRisk, topRisks } = useMemo(() => {
-        const now = new Date();
-        const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-        const recentNews = newsItems.filter(item => new Date(item.publishedAt) > last24h);
+function IntelligenceBriefCard({ allNews, filteredNews }: { allNews: NewsItem[], filteredNews: NewsItem[] }) {
+    const [view, setView] = useState<'filtered' | 'global'>('filtered');
 
-        if (recentNews.length === 0) {
-            return {
-                mood: 'Neutral',
-                volatilityRisk: 'Low',
-                topRisks: ["No major news events in the last 24 hours."]
-            };
-        }
-
-        const sentimentScore = recentNews.reduce((acc, item) => {
-            if (item.sentiment === 'Positive') return acc + 1;
-            if (item.sentiment === 'Negative') return acc - 1;
-            return acc;
-        }, 0);
-
-        const mood = sentimentScore > 1 ? 'Bullish' : sentimentScore < -1 ? 'Bearish' : 'Neutral';
-
-        const hasHighImpact = recentNews.some(item => item.volatilityImpact === 'High');
-        const hasMediumImpact = recentNews.some(item => item.volatilityImpact === 'Medium');
-        const volatilityRisk = hasHighImpact ? 'High' : hasMediumImpact ? 'Medium' : 'Low';
-        
-        const topRisks = recentNews
-            .filter(item => item.sentiment === 'Negative' || item.volatilityImpact === 'High')
-            .sort((a, b) => b.volatilityRiskScore - a.volatilityRiskScore)
-            .slice(0, 3)
-            .map(item => item.headline);
+    const sentimentData = useMemo(() => {
+        const calculateMetrics = (items: NewsItem[]) => {
+            const now = new Date();
+            const relevantItems = items.filter(item => new Date(item.publishedAt).getTime() > now.getTime() - 24 * 60 * 60 * 1000);
             
-        if (topRisks.length === 0) {
-            topRisks.push("No significant risk drivers detected in recent news.");
-        }
+            if (relevantItems.length === 0) {
+                return {
+                    mood: 'Neutral',
+                    distribution: { Positive: 0, Negative: 0, Neutral: 100 },
+                    confidence: 'Low',
+                    topRisks: ["No recent news to analyze."]
+                };
+            }
 
-        return { mood, volatilityRisk, topRisks };
-    }, [newsItems]);
+            const sentimentCounts = { Positive: 0, Negative: 0, Neutral: 0 };
+            relevantItems.forEach(item => {
+                sentimentCounts[item.sentiment]++;
+            });
+            const total = relevantItems.length;
+            const distribution = {
+                Positive: (sentimentCounts.Positive / total) * 100,
+                Negative: (sentimentCounts.Negative / total) * 100,
+                Neutral: (sentimentCounts.Neutral / total) * 100,
+            };
 
-    const handleCopyBrief = () => {
-        const briefText = `
-### Daily News Brief ###
-Mood: ${mood}
-Volatility Risk: ${volatilityRisk}
+            const score = distribution.Positive - distribution.Negative;
+            const mood = score > 20 ? 'Bullish' : score < -20 ? 'Bearish' : 'Neutral';
 
-Top Risks Today:
-${topRisks.map(risk => `- ${risk}`).join('\n')}
-        `.trim();
-        navigator.clipboard.writeText(briefText);
-        toast({ title: "Brief copied to clipboard" });
-    };
+            const confidence = total < 5 ? 'Low' : total < 15 ? 'Medium' : 'High';
+            
+            const topRisks = relevantItems
+                .filter(item => item.sentiment === 'Negative' || item.volatilityImpact === 'High')
+                .sort((a, b) => b.volatilityRiskScore - a.volatilityRiskScore)
+                .slice(0, 3)
+                .map(item => item.headline);
 
+            if (topRisks.length === 0) topRisks.push("No significant risk drivers detected.");
+
+            return { mood, distribution, confidence, topRisks };
+        };
+
+        return {
+            filtered: calculateMetrics(filteredNews),
+            global: calculateMetrics(allNews),
+        };
+    }, [allNews, filteredNews]);
+    
+    const data = sentimentData[view];
+    const { mood, distribution, confidence, topRisks } = data;
+    
     const moodConfig = {
         Bullish: { icon: ThumbsUp, color: 'text-green-400' },
         Neutral: { icon: Meh, color: 'text-muted-foreground' },
@@ -326,38 +326,54 @@ ${topRisks.map(risk => `- ${risk}`).join('\n')}
     };
     const { icon: MoodIcon, color: moodColor } = moodConfig[mood];
 
-    const volConfig = {
-        Low: { color: 'text-green-400' },
-        Medium: { color: 'text-amber-400' },
-        High: { color: 'text-red-400' },
-    };
-
     return (
         <Card className="bg-muted/30 border-border/50">
             <CardHeader>
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <CardTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary" /> Daily Intelligence Brief</CardTitle>
-                    <Button variant="outline" size="sm" onClick={handleCopyBrief}>
-                        <Clipboard className="mr-2 h-4 w-4" /> Copy Brief
-                    </Button>
+                    <CardTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary" /> Intelligence Brief</CardTitle>
+                    <div className="flex items-center gap-1 rounded-full bg-muted p-1">
+                        <Button
+                            size="sm"
+                            variant={view === 'filtered' ? 'secondary' : 'ghost'}
+                            onClick={() => setView('filtered')}
+                            className="rounded-full h-8 px-3 text-xs"
+                        >
+                            Filtered View
+                        </Button>
+                        <Button
+                            size="sm"
+                            variant={view === 'global' ? 'secondary' : 'ghost'}
+                            onClick={() => setView('global')}
+                            className="rounded-full h-8 px-3 text-xs"
+                        >
+                            Global View
+                        </Button>
+                    </div>
                 </div>
             </CardHeader>
-            <CardContent className="grid md:grid-cols-3 gap-6">
-                <div className="flex flex-col items-center justify-center text-center p-4 bg-muted rounded-lg border">
-                    <p className="text-sm font-semibold text-muted-foreground">Market Mood</p>
-                    <div className={cn("flex items-center gap-2 text-lg font-bold mt-2", moodColor)}>
-                        <MoodIcon className="h-5 w-5" />
-                        <span>{mood}</span>
+            <CardContent className="grid md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                        <div className={cn("flex items-center gap-2 text-lg font-bold", moodColor)}>
+                            <MoodIcon className="h-5 w-5" />
+                            <span>Market Mood: {mood}</span>
+                        </div>
+                        <Badge variant="outline">Confidence: {confidence}</Badge>
+                    </div>
+                    <div>
+                        <div className="flex w-full h-2 rounded-full overflow-hidden bg-muted">
+                            <div className="bg-green-500" style={{ width: `${distribution.Positive}%` }} />
+                            <div className="bg-gray-500" style={{ width: `${distribution.Neutral}%` }} />
+                            <div className="bg-red-500" style={{ width: `${distribution.Negative}%` }} />
+                        </div>
+                        <div className="flex justify-between text-xs mt-1.5">
+                            <span className="text-green-400">{distribution.Positive.toFixed(0)}% Pos</span>
+                            <span className="text-muted-foreground">{distribution.Neutral.toFixed(0)}% Neu</span>
+                            <span className="text-red-400">{distribution.Negative.toFixed(0)}% Neg</span>
+                        </div>
                     </div>
                 </div>
-                <div className="flex flex-col items-center justify-center text-center p-4 bg-muted rounded-lg border">
-                    <p className="text-sm font-semibold text-muted-foreground">Volatility Risk</p>
-                    <div className={cn("flex items-center gap-2 text-lg font-bold mt-2", volConfig[volatilityRisk].color)}>
-                        <TrendingUp className="h-5 w-5" />
-                        <span>{volatilityRisk}</span>
-                    </div>
-                </div>
-                <div className="md:col-span-1 space-y-2 p-4 bg-muted rounded-lg border">
+                <div className="space-y-2 p-4 bg-muted rounded-lg border">
                     <h4 className="text-sm font-semibold text-muted-foreground">Top Risks Today</h4>
                     <ul className="space-y-1 list-disc list-inside text-xs text-foreground">
                         {topRisks.map((risk, i) => <li key={i} className="truncate">{risk}</li>)}
@@ -897,7 +913,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                 <p className="text-muted-foreground">AI-curated crypto futures news with sentiment + volatility impact—so you don’t trade blind.</p>
             </div>
 
-            <DailyBriefCard newsItems={newsItems} />
+            <IntelligenceBriefCard allNews={newsItems} filteredNews={filteredNews} />
             
             <div className="grid lg:grid-cols-3 gap-8 items-start">
                 <div className="lg:col-span-2 space-y-6">
