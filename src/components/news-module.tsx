@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark, Timer, Gauge, Star, Calendar, Copy, Clipboard, ThumbsUp, ThumbsDown, Meh } from "lucide-react";
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "./ui/drawer";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "./ui/skeleton";
 import { Separator } from "./ui/separator";
@@ -457,6 +457,9 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
 
     const handleNewsSelect = (item: NewsItem) => {
         setSelectedNews(item);
+        if (!readNewsIds.includes(item.id)) {
+            handleToggleRead(item.id);
+        }
 
         if (item.volatilityImpact === 'High' && item.sentiment === 'Negative') {
             const vixStateString = localStorage.getItem(VIX_CACHE_KEY);
@@ -968,6 +971,12 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                         </div>
                                     </div>
                                     <div className="flex flex-wrap gap-2 pt-4 border-t border-border/50">
+                                        <Button variant="outline" className="flex-1" onClick={() => handleToggleRead(selectedNews.id)}>
+                                            <CheckCircle className={cn("mr-2 h-4 w-4", readNewsIds.includes(selectedNews.id) && "text-primary")} /> {readNewsIds.includes(selectedNews.id) ? 'Mark as Unread' : 'Mark as Read'}
+                                        </Button>
+                                        <Button variant="outline" className="flex-1" onClick={() => handleToggleSave(selectedNews.id)}>
+                                            <Bookmark className={cn("mr-2 h-4 w-4", savedNewsIds.includes(selectedNews.id) && "text-primary fill-primary")} /> {savedNewsIds.includes(selectedNews.id) ? 'Unsave' : 'Save'}
+                                        </Button>
                                          <Button variant="outline" className="flex-1" asChild>
                                             <a href={selectedNews.linkUrl || "#"} target="_blank" rel="noopener noreferrer">
                                                 View Original Article <ArrowRight className="ml-2 h-4 w-4"/>
