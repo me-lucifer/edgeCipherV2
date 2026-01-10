@@ -1,4 +1,5 @@
 
+      
       "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -378,6 +379,107 @@ function IntelligenceBriefCard({ allNews, filteredNews }: { allNews: NewsItem[],
                     <ul className="space-y-1 list-disc list-inside text-xs text-foreground">
                         {topRisks.map((risk, i) => <li key={i} className="truncate">{risk}</li>)}
                     </ul>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
+function VolatilityRiskCard({ newsItems }: { newsItems: NewsItem[] }) {
+    const { score, distribution, level } = useMemo(() => {
+        if (newsItems.length === 0) {
+            return {
+                score: 0,
+                distribution: { High: 0, Medium: 0, Low: 100 },
+                level: 'Low'
+            };
+        }
+
+        let rawScore = 0;
+        const counts = { High: 0, Medium: 0, Low: 0 };
+
+        newsItems.forEach(item => {
+            counts[item.volatilityImpact]++;
+            let itemScore = 0;
+            if (item.volatilityImpact === 'High') itemScore = 100;
+            if (item.volatilityImpact === 'Medium') itemScore = 50;
+            if (item.volatilityImpact === 'Low') itemScore = 10;
+
+            if (item.sentiment === 'Negative') itemScore *= 1.2;
+            if (['Regulatory', 'Macro', 'Liquidations'].includes(item.category)) {
+                itemScore *= 1.3;
+            }
+            rawScore += itemScore;
+        });
+
+        const score = Math.min(100, Math.round(rawScore / newsItems.length));
+        
+        const distribution = {
+            High: (counts.High / newsItems.length) * 100,
+            Medium: (counts.Medium / newsItems.length) * 100,
+            Low: (counts.Low / newsItems.length) * 100,
+        };
+
+        const level = score > 75 ? 'High' : score > 40 ? 'Medium' : 'Low';
+
+        return { score, distribution, level };
+    }, [newsItems]);
+
+    // Side effect to update VIX state
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            try {
+                const vixStateString = localStorage.getItem(VIX_CACHE_KEY);
+                if (vixStateString) {
+                    const vixState: VixState = JSON.parse(vixStateString);
+                    // Map News Risk Score (0-100) to News Sentiment (0-100, where 50 is neutral, <50 is bearish)
+                    // A higher risk score should result in a more bearish sentiment (lower number).
+                    // We'll map 0-100 risk to a 50-0 sentiment score.
+                    const newsSentiment = Math.max(0, 50 - (score / 2));
+                    
+                    if (vixState.components.newsSentiment !== newsSentiment) {
+                        vixState.components.newsSentiment = newsSentiment;
+                        localStorage.setItem(VIX_CACHE_KEY, JSON.stringify(vixState));
+                        window.dispatchEvent(new StorageEvent('storage', { key: VIX_CACHE_KEY }));
+                    }
+                }
+            } catch (e) {
+                console.error("Failed to update VIX with news sentiment", e);
+            }
+        }
+    }, [score]);
+    
+    const levelConfig = {
+        High: { label: 'High', color: 'text-red-400' },
+        Medium: { label: 'Medium', color: 'text-amber-400' },
+        Low: { label: 'Low', color: 'text-green-400' },
+    };
+    const { label, color } = levelConfig[level];
+
+    return (
+        <Card className="bg-muted/30 border-border/50">
+            <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2"><TrendingUp className="h-5 w-5" /> Volatility Risk</CardTitle>
+                <CardDescription className="text-xs">Derived from active news feed.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="flex justify-between items-center">
+                    <div className={cn("flex items-center gap-2 text-lg font-bold", color)}>
+                        <span>Risk Level: {label}</span>
+                    </div>
+                    <div className="font-mono text-3xl font-bold text-foreground">{score}</div>
+                </div>
+                 <div>
+                    <div className="flex w-full h-2 rounded-full overflow-hidden bg-muted">
+                        <div className="bg-red-500" style={{ width: `${distribution.High}%` }} />
+                        <div className="bg-amber-500" style={{ width: `${distribution.Medium}%` }} />
+                        <div className="bg-green-500" style={{ width: `${distribution.Low}%` }} />
+                    </div>
+                    <div className="flex justify-between text-xs mt-1.5">
+                        <span className="text-red-400">{distribution.High.toFixed(0)}% High</span>
+                        <span className="text-amber-400">{distribution.Medium.toFixed(0)}% Med</span>
+                        <span className="text-green-400">{distribution.Low.toFixed(0)}% Low</span>
+                    </div>
                 </div>
             </CardContent>
         </Card>
@@ -913,7 +1015,10 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                 <p className="text-muted-foreground">AI-curated crypto futures news with sentiment + volatility impact—so you don’t trade blind.</p>
             </div>
 
-            <IntelligenceBriefCard allNews={newsItems} filteredNews={filteredNews} />
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <IntelligenceBriefCard allNews={newsItems} filteredNews={filteredNews} />
+                <VolatilityRiskCard newsItems={filteredNews} />
+            </div>
             
             <div className="grid lg:grid-cols-3 gap-8 items-start">
                 <div className="lg:col-span-2 space-y-6">
@@ -1235,20 +1340,22 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                         <CardHeader>
                                             <CardTitle className="text-base flex items-center gap-2"><Timer className="h-5 w-5"/>Risk Window Analysis</CardTitle>
                                         </CardHeader>
-                                        <CardContent className="space-y-3">
-                                            <div className="flex justify-between items-center text-sm"><span className="text-muted-foreground">Event Type:</span><Badge variant="outline">{selectedNews.eventType}</Badge></div>
-                                            <div className="flex justify-between items-center text-sm"><span className="text-muted-foreground">Impact Horizon:</span><Badge variant="outline">{getImpactHorizon(selectedNews.riskWindowMins)}</Badge></div>
-                                            <div>
-                                                <Label className="text-xs text-muted-foreground">Volatility Risk Score: {selectedNews.volatilityRiskScore}</Label>
-                                                <Progress value={selectedNews.volatilityRiskScore} indicatorClassName={cn(
-                                                    selectedNews.volatilityRiskScore > 75 && "bg-red-500",
-                                                    selectedNews.volatilityRiskScore > 50 && selectedNews.volatilityRiskScore <= 75 && "bg-amber-500",
-                                                    selectedNews.volatilityRiskScore <= 50 && "bg-green-500",
-                                                )} className="h-2 mt-1" />
+                                        <CardContent className="space-y-4">
+                                            <div className="space-y-3">
+                                                <div className="flex justify-between items-center text-sm"><span className="text-muted-foreground">Event Type:</span><Badge variant="outline">{selectedNews.eventType}</Badge></div>
+                                                <div className="flex justify-between items-center text-sm"><span className="text-muted-foreground">Impact Horizon:</span><Badge variant="outline">{getImpactHorizon(selectedNews.riskWindowMins)}</Badge></div>
+                                                <div>
+                                                    <Label className="text-xs text-muted-foreground">Volatility Risk Score: {selectedNews.volatilityRiskScore}</Label>
+                                                    <Progress value={selectedNews.volatilityRiskScore} indicatorClassName={cn(
+                                                        selectedNews.volatilityRiskScore > 75 && "bg-red-500",
+                                                        selectedNews.volatilityRiskScore > 50 && selectedNews.volatilityRiskScore <= 75 && "bg-amber-500",
+                                                        selectedNews.volatilityRiskScore <= 50 && "bg-green-500",
+                                                    )} className="h-2 mt-1" />
+                                                </div>
                                             </div>
-                                             <Separator className="my-3"/>
+                                             <Separator className="my-4"/>
                                             <div className="space-y-2">
-                                                <p className="text-xs text-muted-foreground">This event may increase market volatility.</p>
+                                                <p className="text-xs text-muted-foreground">VIX Impact: This event may increase market volatility.</p>
                                                 <Button variant="outline" size="sm" className="w-full" onClick={() => onSetModule('cryptoVix')}>
                                                     <Gauge className="mr-2 h-4 w-4" />
                                                     Open EdgeCipher Crypto VIX (0-100)
@@ -1348,3 +1455,6 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         </div>
     );
 }
+
+
+    
