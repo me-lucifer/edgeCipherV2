@@ -333,18 +333,20 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                 </CardContent>
                                 <CardFooter className="flex flex-wrap items-center gap-2">
                                     <Badge variant="outline" className={cn(
-                                    'text-xs whitespace-nowrap',
-                                    item.sentiment === 'Positive' && 'bg-green-500/20 text-green-400 border-green-500/30',
-                                    item.sentiment === 'Negative' && 'bg-red-500/20 text-red-400 border-red-500/30'
-                                )}>{item.sentiment}</Badge>
+                                        'text-xs whitespace-nowrap',
+                                        item.sentiment === 'Positive' && 'bg-green-500/20 text-green-400 border-green-500/30',
+                                        item.sentiment === 'Negative' && 'bg-red-500/20 text-red-400 border-red-500/30',
+                                        item.sentiment === 'Neutral' && 'bg-secondary text-secondary-foreground border-border'
+                                    )}>{item.sentiment}</Badge>
                                     <Badge variant="outline" className={cn(
-                                    "text-xs",
-                                    item.volatilityImpact === 'High' && 'border-red-500/50 text-red-400',
-                                    item.volatilityImpact === 'Medium' && 'border-amber-500/50 text-amber-400',
-                                )}>
-                                    <TrendingUp className="mr-1 h-3 w-3"/>
-                                    {item.volatilityImpact} Impact
-                                </Badge>
+                                        "text-xs",
+                                        item.volatilityImpact === 'High' && 'border-red-500/50 text-red-400',
+                                        item.volatilityImpact === 'Medium' && 'border-amber-500/50 text-amber-400',
+                                        item.volatilityImpact === 'Low' && 'border-green-500/50 text-green-400',
+                                    )}>
+                                        <TrendingUp className="mr-1 h-3 w-3"/>
+                                        {item.volatilityImpact} Impact
+                                    </Badge>
                                     {item.impactedCoins.map(coin => <Badge key={coin} variant="secondary" className="font-mono">{coin}</Badge>)}
                                 </CardFooter>
                             </Card>
@@ -363,12 +365,14 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                      <Badge variant="outline" className={cn(
                                         'text-xs whitespace-nowrap',
                                         selectedNews.sentiment === 'Positive' && 'bg-green-500/20 text-green-400 border-green-500/30',
-                                        selectedNews.sentiment === 'Negative' && 'bg-red-500/20 text-red-400 border-red-500/30'
+                                        selectedNews.sentiment === 'Negative' && 'bg-red-500/20 text-red-400 border-red-500/30',
+                                        selectedNews.sentiment === 'Neutral' && 'bg-secondary text-secondary-foreground border-border'
                                     )}>{selectedNews.sentiment}</Badge>
                                     <Badge variant="outline" className={cn(
                                         "text-xs",
                                         selectedNews.volatilityImpact === 'High' && 'border-red-500/50 text-red-400',
                                         selectedNews.volatilityImpact === 'Medium' && 'border-amber-500/50 text-amber-400',
+                                        selectedNews.volatilityImpact === 'Low' && 'border-green-500/50 text-green-400',
                                     )}>
                                         <TrendingUp className="mr-1 h-3 w-3"/>
                                         {selectedNews.volatilityImpact} Impact
