@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark, Timer, Gauge, Star } from "lucide-react";
+import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark, Timer, Gauge, Star, Calendar } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "./ui/skeleton";
@@ -14,7 +14,7 @@ import { Input } from "./ui/input";
 import { Switch } from "./ui/switch";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, formatDistance } from 'date-fns';
 import type { VixState } from "@/hooks/use-risk-state";
 import { Progress } from "./ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -195,6 +195,54 @@ interface NewsFilters {
 }
 
 const ITEMS_PER_PAGE = 9;
+
+function UpcomingEventsCard({ onSetRiskWindow }: { onSetRiskWindow: (event: any) => void }) {
+    const mockEvents = useMemo(() => [
+        { name: "US CPI Data Release", date: new Date(Date.now() + 2 * 60 * 60 * 1000), impact: 'High' },
+        { name: "FOMC Meeting Minutes", date: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000), impact: 'High' },
+        { name: "ETH ETF Final Deadline", date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), impact: 'High' },
+        { name: "Major Protocol Upgrade", date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), impact: 'Medium' },
+    ], []);
+
+    const [timers, setTimers] = useState<string[]>([]);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setTimers(mockEvents.map(event => formatDistanceToNow(event.date, { addSuffix: true })));
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [mockEvents]);
+
+    return (
+        <Card className="bg-muted/30 border-border/50">
+            <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2"><Calendar className="h-5 w-5" /> Upcoming Risk Events</CardTitle>
+                <CardDescription className="text-xs">Prototype data</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                {mockEvents.map((event, index) => (
+                    <div key={event.name} className="space-y-2">
+                        <div>
+                            <p className="font-semibold text-sm text-foreground">{event.name}</p>
+                            <p className="text-xs text-muted-foreground">{timers[index]}</p>
+                        </div>
+                        <div className="flex justify-between items-center">
+                            <Badge variant="outline" className={cn(
+                                event.impact === 'High' && 'border-red-500/50 text-red-400',
+                                event.impact === 'Medium' && 'border-amber-500/50 text-amber-400',
+                            )}>
+                                {event.impact} Impact
+                            </Badge>
+                            <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => onSetRiskWindow(event)}>
+                                Set as active risk window
+                            </Button>
+                        </div>
+                    </div>
+                ))}
+            </CardContent>
+        </Card>
+    );
+}
 
 export function NewsModule({ onSetModule }: NewsModuleProps) {
     const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
@@ -467,6 +515,19 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         }
     }
 
+    const setRiskWindowFromEvent = (event: { name: string; impact: VolatilityImpact }) => {
+        const riskWindowMins = event.impact === 'High' ? 120 : 60;
+        const context = {
+            active: true,
+            headline: event.name,
+            volatilityImpact: event.impact,
+            riskWindowMins: riskWindowMins,
+            expiresAt: new Date().getTime() + riskWindowMins * 60 * 1000,
+            impactedCoins: ['BTC', 'ETH'], // Assume broad market impact
+            sentiment: 'Neutral',
+        };
+        handleWarningToggle(true, context as any);
+    };
 
     const handleWarningToggle = (checked: boolean, newsItem: NewsItem) => {
         setIsWarningActive(checked);
@@ -502,192 +563,200 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                 <p className="text-muted-foreground">AI-curated crypto futures news with sentiment + volatility impact—so you don’t trade blind.</p>
             </div>
             
-            <Card className="bg-muted/30 border-border/50 sticky top-[72px] z-20">
-                <CardHeader>
-                    <div className="flex items-center justify-between">
-                         <CardTitle className="flex items-center gap-2"><Filter className="h-5 w-5"/> Filters & Sorting</CardTitle>
-                         <Button variant="ghost" size="sm" onClick={clearFilters}><X className="mr-2 h-4 w-4"/>Clear all</Button>
-                    </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input 
-                                placeholder="Search headline or source..." 
-                                className="pl-9"
-                                value={filters.search}
-                                onChange={e => setFilters(prev => ({ ...prev, search: e.target.value }))}
-                            />
-                        </div>
-                        <div className="flex items-center space-x-2">
-                            <Switch 
-                                id="high-impact" 
-                                checked={filters.highImpactOnly}
-                                onCheckedChange={checked => setFilters(prev => ({ ...prev, highImpactOnly: checked }))}
-                            />
-                            <Label htmlFor="high-impact">High Impact Only</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                            <Switch
-                                id="followed-only"
-                                checked={filters.followedOnly}
-                                onCheckedChange={checked => setFilters(prev => ({ ...prev, followedOnly: checked }))}
-                            />
-                            <Label htmlFor="followed-only">My Followed Coins</Label>
-                        </div>
-                        <Select value={filters.category} onValueChange={(v) => setFilters(prev => ({...prev, category: v as any}))}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Filter by category..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {allCategories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                         <div className="flex items-center gap-1 rounded-full bg-muted p-1">
-                            {(["All", "Positive", "Neutral", "Negative"] as const).map(s => (
-                                <Button
-                                    key={s}
-                                    size="sm"
-                                    variant={filters.sentiment === s ? 'secondary' : 'ghost'}
-                                    onClick={() => setFilters(prev => ({ ...prev, sentiment: s as Sentiment | "All" }))}
-                                    className="rounded-full h-8 px-3 text-xs"
-                                >
-                                    {s}
-                                </Button>
-                            ))}
-                        </div>
-                        <Separator orientation="vertical" className="h-6" />
-                        <div className="flex items-center gap-1">
-                            <Button
-                                size="sm"
-                                variant={filters.coins.length === 0 ? 'secondary' : 'ghost'}
-                                onClick={() => setFilters(prev => ({ ...prev, coins: [] }))}
-                                className="rounded-full h-8 px-3 text-xs"
-                            >
-                                All
-                            </Button>
-                            {popularCoins.map(coin => (
-                                <Button
-                                    key={coin}
-                                    size="sm"
-                                    variant={filters.coins.includes(coin) ? 'secondary' : 'ghost'}
-                                    onClick={() => handleCoinToggle(coin)}
-                                    className="rounded-full h-8 px-3 text-xs"
-                                >
-                                    {coin}
-                                </Button>
-                            ))}
-                        </div>
-                         <div className="flex-1" />
-                         <Select value={filters.sortBy} onValueChange={(v) => setFilters(prev => ({ ...prev, sortBy: v as any}))}>
-                            <SelectTrigger className="w-[180px]">
-                                <SelectValue placeholder="Sort by..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="newest">Newest</SelectItem>
-                                <SelectItem value="highestImpact">Highest Impact</SelectItem>
-                                <SelectItem value="mostNegative">Most Negative</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                </CardContent>
-            </Card>
-
-            <div className="mt-8">
-                {isLoading ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {[...Array(6)].map((_, i) => (
-                             <Card key={i} className="bg-muted/30 border-border/50">
-                                <CardHeader><Skeleton className="h-5 w-3/4" /><Skeleton className="h-3 w-1/2 mt-2" /></CardHeader>
-                                <CardContent><Skeleton className="h-10 w-full" /></CardContent>
-                                <CardFooter className="flex flex-wrap gap-2"><Skeleton className="h-5 w-16 rounded-full" /><Skeleton className="h-5 w-20 rounded-full" /><Skeleton className="h-5 w-12 rounded-full" /></CardFooter>
-                            </Card>
-                        ))}
-                    </div>
-                ) : filteredNews.length === 0 ? (
-                    <Card className="text-center py-12 bg-muted/30 border-border/50">
+            <div className="grid lg:grid-cols-3 gap-8 items-start">
+                <div className="lg:col-span-2 space-y-6">
+                    <Card className="bg-muted/30 border-border/50 sticky top-[72px] z-20">
                         <CardHeader>
-                            <CardTitle>No items match these filters.</CardTitle>
+                            <div className="flex items-center justify-between">
+                                <CardTitle className="flex items-center gap-2"><Filter className="h-5 w-5"/> Filters & Sorting</CardTitle>
+                                <Button variant="ghost" size="sm" onClick={clearFilters}><X className="mr-2 h-4 w-4"/>Clear all</Button>
+                            </div>
                         </CardHeader>
-                        <CardContent className="flex justify-center gap-4">
-                            <Button variant="outline" onClick={clearFilters}>Clear filters</Button>
-                            <Button onClick={showHighImpact}>Show High Impact</Button>
+                        <CardContent className="space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Input 
+                                        placeholder="Search headline or source..." 
+                                        className="pl-9"
+                                        value={filters.search}
+                                        onChange={e => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                                    />
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    <Switch 
+                                        id="high-impact" 
+                                        checked={filters.highImpactOnly}
+                                        onCheckedChange={checked => setFilters(prev => ({ ...prev, highImpactOnly: checked }))}
+                                    />
+                                    <Label htmlFor="high-impact">High Impact Only</Label>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    <Switch
+                                        id="followed-only"
+                                        checked={filters.followedOnly}
+                                        onCheckedChange={checked => setFilters(prev => ({ ...prev, followedOnly: checked }))}
+                                    />
+                                    <Label htmlFor="followed-only">My Followed Coins</Label>
+                                </div>
+                                <Select value={filters.category} onValueChange={(v) => setFilters(prev => ({...prev, category: v as any}))}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Filter by category..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {allCategories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                                <div className="flex items-center gap-1 rounded-full bg-muted p-1">
+                                    {(["All", "Positive", "Neutral", "Negative"] as const).map(s => (
+                                        <Button
+                                            key={s}
+                                            size="sm"
+                                            variant={filters.sentiment === s ? 'secondary' : 'ghost'}
+                                            onClick={() => setFilters(prev => ({ ...prev, sentiment: s as Sentiment | "All" }))}
+                                            className="rounded-full h-8 px-3 text-xs"
+                                        >
+                                            {s}
+                                        </Button>
+                                    ))}
+                                </div>
+                                <Separator orientation="vertical" className="h-6" />
+                                <div className="flex items-center gap-1">
+                                    <Button
+                                        size="sm"
+                                        variant={filters.coins.length === 0 ? 'secondary' : 'ghost'}
+                                        onClick={() => setFilters(prev => ({ ...prev, coins: [] }))}
+                                        className="rounded-full h-8 px-3 text-xs"
+                                    >
+                                        All
+                                    </Button>
+                                    {popularCoins.map(coin => (
+                                        <Button
+                                            key={coin}
+                                            size="sm"
+                                            variant={filters.coins.includes(coin) ? 'secondary' : 'ghost'}
+                                            onClick={() => handleCoinToggle(coin)}
+                                            className="rounded-full h-8 px-3 text-xs"
+                                        >
+                                            {coin}
+                                        </Button>
+                                    ))}
+                                </div>
+                                <div className="flex-1" />
+                                <Select value={filters.sortBy} onValueChange={(v) => setFilters(prev => ({ ...prev, sortBy: v as any}))}>
+                                    <SelectTrigger className="w-[180px]">
+                                        <SelectValue placeholder="Sort by..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="newest">Newest</SelectItem>
+                                        <SelectItem value="highestImpact">Highest Impact</SelectItem>
+                                        <SelectItem value="mostNegative">Most Negative</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </CardContent>
                     </Card>
-                ) : (
-                    <>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {filteredNews.slice(0, visibleCount).map(item => {
-                                const isRead = readNewsIds.includes(item.id);
-                                const isSaved = savedNewsIds.includes(item.id);
-                                return (
-                                    <Card 
-                                        key={item.id}
-                                        className={cn(
-                                            "bg-muted/30 border-border/50 flex flex-col transition-all",
-                                            isRead ? "opacity-60 hover:opacity-100" : "hover:border-primary/40 hover:bg-muted/50"
-                                        )}
-                                    >
-                                        <div onClick={() => handleNewsSelect(item)} className="cursor-pointer flex-1 flex flex-col">
-                                            <CardHeader>
-                                                <CardTitle className="text-base leading-tight">{item.headline}</CardTitle>
-                                                <CardDescription className="flex items-center gap-2 text-xs pt-1">
-                                                    <span>{item.sourceName}</span>
-                                                </CardDescription>
-                                            </CardHeader>
-                                            <CardContent className="flex-1">
-                                                <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
-                                                    {item.summaryBullets.slice(0,2).map((bullet, i) => <li key={i}>{bullet}</li>)}
-                                                </ul>
-                                            </CardContent>
-                                        </div>
-                                        <CardFooter className="flex-col items-start gap-4">
-                                            <div className="flex flex-wrap items-center gap-2">
-                                                <Badge variant="outline" className={cn(
-                                                    'text-xs whitespace-nowrap',
-                                                    item.sentiment === 'Positive' && 'bg-green-500/20 text-green-300 border-green-500/30',
-                                                    item.sentiment === 'Negative' && 'bg-red-500/20 text-red-300 border-red-500/30',
-                                                    item.sentiment === 'Neutral' && 'bg-secondary text-secondary-foreground border-border'
-                                                )}>{item.sentiment}</Badge>
-                                                <Badge variant="outline" className={cn(
-                                                    "text-xs",
-                                                    item.volatilityImpact === 'High' && 'border-red-500/50 text-red-400',
-                                                    item.volatilityImpact === 'Medium' && 'border-amber-500/50 text-amber-400',
-                                                    item.volatilityImpact === 'Low' && 'border-green-500/50 text-green-400',
-                                                )}>
-                                                    <TrendingUp className="mr-1 h-3 w-3"/>
-                                                    {item.volatilityImpact} Impact
-                                                </Badge>
-                                                <Badge variant="outline" className="text-xs">
-                                                    <Clock className="mr-1 h-3 w-3"/>
-                                                    {getImpactHorizon(item.riskWindowMins)}
-                                                </Badge>
-                                            </div>
-                                            <div className="w-full pt-2 border-t border-border/50 flex justify-end items-center gap-1">
-                                                <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => handleToggleRead(item.id)}>
-                                                    <CheckCircle className={cn("mr-2 h-4 w-4", isRead && "text-primary")} /> {isRead ? "Unread" : "Mark read"}
-                                                </Button>
-                                                <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => handleToggleSave(item.id)}>
-                                                    <Bookmark className={cn("mr-2 h-4 w-4", isSaved && "text-primary fill-primary")} /> {isSaved ? "Unsave" : "Save"}
-                                                </Button>
-                                            </div>
-                                        </CardFooter>
+
+                    <div className="mt-8">
+                        {isLoading ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {[...Array(6)].map((_, i) => (
+                                    <Card key={i} className="bg-muted/30 border-border/50">
+                                        <CardHeader><Skeleton className="h-5 w-3/4" /><Skeleton className="h-3 w-1/2 mt-2" /></CardHeader>
+                                        <CardContent><Skeleton className="h-10 w-full" /></CardContent>
+                                        <CardFooter className="flex flex-wrap gap-2"><Skeleton className="h-5 w-16 rounded-full" /><Skeleton className="h-5 w-20 rounded-full" /><Skeleton className="h-5 w-12 rounded-full" /></CardFooter>
                                     </Card>
-                                )
-                            })}
-                        </div>
-                        {visibleCount < filteredNews.length && (
-                            <div className="mt-8 text-center">
-                                <Button variant="outline" onClick={() => setVisibleCount(prev => prev + ITEMS_PER_PAGE)}>
-                                    Load More ({filteredNews.length - visibleCount} remaining)
-                                </Button>
+                                ))}
                             </div>
+                        ) : filteredNews.length === 0 ? (
+                            <Card className="text-center py-12 bg-muted/30 border-border/50">
+                                <CardHeader>
+                                    <CardTitle>No items match these filters.</CardTitle>
+                                </CardHeader>
+                                <CardContent className="flex justify-center gap-4">
+                                    <Button variant="outline" onClick={clearFilters}>Clear filters</Button>
+                                    <Button onClick={showHighImpact}>Show High Impact</Button>
+                                </CardContent>
+                            </Card>
+                        ) : (
+                            <>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {filteredNews.slice(0, visibleCount).map(item => {
+                                        const isRead = readNewsIds.includes(item.id);
+                                        const isSaved = savedNewsIds.includes(item.id);
+                                        return (
+                                            <Card 
+                                                key={item.id}
+                                                className={cn(
+                                                    "bg-muted/30 border-border/50 flex flex-col transition-all",
+                                                    isRead ? "opacity-60 hover:opacity-100" : "hover:border-primary/40 hover:bg-muted/50"
+                                                )}
+                                            >
+                                                <div onClick={() => handleNewsSelect(item)} className="cursor-pointer flex-1 flex flex-col">
+                                                    <CardHeader>
+                                                        <CardTitle className="text-base leading-tight">{item.headline}</CardTitle>
+                                                        <CardDescription className="flex items-center gap-2 text-xs pt-1">
+                                                            <span>{item.sourceName}</span>
+                                                        </CardDescription>
+                                                    </CardHeader>
+                                                    <CardContent className="flex-1">
+                                                        <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
+                                                            {item.summaryBullets.slice(0,2).map((bullet, i) => <li key={i}>{bullet}</li>)}
+                                                        </ul>
+                                                    </CardContent>
+                                                </div>
+                                                <CardFooter className="flex-col items-start gap-4">
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        <Badge variant="outline" className={cn(
+                                                            'text-xs whitespace-nowrap',
+                                                            item.sentiment === 'Positive' && 'bg-green-500/20 text-green-300 border-green-500/30',
+                                                            item.sentiment === 'Negative' && 'bg-red-500/20 text-red-300 border-red-500/30',
+                                                            item.sentiment === 'Neutral' && 'bg-secondary text-secondary-foreground border-border'
+                                                        )}>{item.sentiment}</Badge>
+                                                        <Badge variant="outline" className={cn(
+                                                            "text-xs",
+                                                            item.volatilityImpact === 'High' && 'border-red-500/50 text-red-400',
+                                                            item.volatilityImpact === 'Medium' && 'border-amber-500/50 text-amber-400',
+                                                            item.volatilityImpact === 'Low' && 'border-green-500/50 text-green-400',
+                                                        )}>
+                                                            <TrendingUp className="mr-1 h-3 w-3"/>
+                                                            {item.volatilityImpact} Impact
+                                                        </Badge>
+                                                        <Badge variant="outline" className="text-xs">
+                                                            <Clock className="mr-1 h-3 w-3"/>
+                                                            {getImpactHorizon(item.riskWindowMins)}
+                                                        </Badge>
+                                                    </div>
+                                                    <div className="w-full pt-2 border-t border-border/50 flex justify-end items-center gap-1">
+                                                        <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => handleToggleRead(item.id)}>
+                                                            <CheckCircle className={cn("mr-2 h-4 w-4", isRead && "text-primary")} /> {isRead ? "Unread" : "Mark read"}
+                                                        </Button>
+                                                        <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => handleToggleSave(item.id)}>
+                                                            <Bookmark className={cn("mr-2 h-4 w-4", isSaved && "text-primary fill-primary")} /> {isSaved ? "Unsave" : "Save"}
+                                                        </Button>
+                                                    </div>
+                                                </CardFooter>
+                                            </Card>
+                                        )
+                                    })}
+                                </div>
+                                {visibleCount < filteredNews.length && (
+                                    <div className="mt-8 text-center">
+                                        <Button variant="outline" onClick={() => setVisibleCount(prev => prev + ITEMS_PER_PAGE)}>
+                                            Load More ({filteredNews.length - visibleCount} remaining)
+                                        </Button>
+                                    </div>
+                                )}
+                            </>
                         )}
-                    </>
-                )}
+                    </div>
+                </div>
+
+                <div className="lg:col-span-1 space-y-6">
+                    <UpcomingEventsCard onSetRiskWindow={setRiskWindowFromEvent} />
+                </div>
             </div>
 
             <Drawer open={!!selectedNews} onOpenChange={(open) => !open && setSelectedNews(null)}>
@@ -765,7 +834,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                                 <p className="text-xs text-muted-foreground">This event may increase market volatility.</p>
                                                 <Button variant="outline" size="sm" className="w-full" onClick={() => onSetModule('cryptoVix')}>
                                                     <Gauge className="mr-2 h-4 w-4" />
-                                                    Open Crypto VIX
+                                                    Open EdgeCipher Crypto VIX (0-100)
                                                 </Button>
                                             </div>
                                         </CardContent>
@@ -856,6 +925,3 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         </div>
     );
 }
-
-
-
