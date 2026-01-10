@@ -3,7 +3,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
@@ -14,6 +14,7 @@ import { Input } from "./ui/input";
 import { Switch } from "./ui/switch";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { formatDistanceToNow } from 'date-fns';
 
 interface NewsModuleProps {
     onSetModule: (module: any, context?: any) => void;
@@ -42,7 +43,6 @@ type NewsItem = {
 const mockNewsSource: NewsItem[] = Array.from({ length: 25 }, (_, i) => {
     const categories: NewsCategory[] = ["Regulatory", "Macro", "Exchange", "ETF", "Liquidations", "Altcoins", "Security", "Tech"];
     const sentiments: Sentiment[] = ["Positive", "Negative", "Neutral"];
-    const impacts: VolatilityImpact[] = ["Low", "Medium", "High"];
     const sources = ["Blocksource", "CryptoWire", "Asia Crypto Today", "The Defiant", "ETF Weekly", "Liquidations.info", "ExchangeWire", "MacroScope", "DeFi Pulse", "Binance Blog"];
     const coins = ["BTC", "ETH", "SOL", "BNB", "XRP", "ADA", "DOGE", "AVAX", "DOT", "MATIC"];
     
@@ -65,7 +65,7 @@ const mockNewsSource: NewsItem[] = Array.from({ length: 25 }, (_, i) => {
     ];
 
     const randomElement = <T,>(arr: T[]) => arr[Math.floor(Math.random() * arr.length)];
-    const randomImpact = () => (Math.random() < 0.25 ? 'High' : Math.random() < 0.6 ? 'Medium' : 'Low');
+    const randomImpact = (): VolatilityImpact => (Math.random() < 0.25 ? 'High' : Math.random() < 0.6 ? 'Medium' : 'Low');
 
     return {
         id: `${i + 1}`,
@@ -323,32 +323,30 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                      <CardDescription className="flex items-center gap-2 text-xs pt-1">
                                         <span>{item.sourceName}</span>
                                         <span className="text-muted-foreground/50">&bull;</span>
-                                        <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {new Date(item.publishedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                        <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {formatDistanceToNow(new Date(item.publishedAt), { addSuffix: true })}</span>
                                     </CardDescription>
                                 </CardHeader>
-                                <CardContent className="flex-1 flex flex-col justify-between">
+                                <CardContent className="flex-1">
                                     <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
                                         {item.summaryBullets.slice(0,2).map((bullet, i) => <li key={i}>{bullet}</li>)}
                                     </ul>
                                 </CardContent>
-                                <CardContent>
-                                    <div className="flex flex-wrap items-center gap-2 mt-4">
-                                            <Badge variant="outline" className={cn(
-                                            'text-xs whitespace-nowrap',
-                                            item.sentiment === 'Positive' && 'bg-green-500/20 text-green-400 border-green-500/30',
-                                            item.sentiment === 'Negative' && 'bg-red-500/20 text-red-400 border-red-500/30'
-                                        )}>{item.sentiment}</Badge>
-                                            <Badge variant="outline" className={cn(
-                                            "text-xs",
-                                            item.volatilityImpact === 'High' && 'border-red-500/50 text-red-400',
-                                            item.volatilityImpact === 'Medium' && 'border-amber-500/50 text-amber-400',
-                                        )}>
-                                            <TrendingUp className="mr-1 h-3 w-3"/>
-                                            {item.volatilityImpact} Impact
-                                        </Badge>
-                                            <Badge variant="secondary" className="text-xs">{item.category}</Badge>
-                                    </div>
-                                </CardContent>
+                                <CardFooter className="flex flex-wrap items-center gap-2">
+                                    <Badge variant="outline" className={cn(
+                                    'text-xs whitespace-nowrap',
+                                    item.sentiment === 'Positive' && 'bg-green-500/20 text-green-400 border-green-500/30',
+                                    item.sentiment === 'Negative' && 'bg-red-500/20 text-red-400 border-red-500/30'
+                                )}>{item.sentiment}</Badge>
+                                    <Badge variant="outline" className={cn(
+                                    "text-xs",
+                                    item.volatilityImpact === 'High' && 'border-red-500/50 text-red-400',
+                                    item.volatilityImpact === 'Medium' && 'border-amber-500/50 text-amber-400',
+                                )}>
+                                    <TrendingUp className="mr-1 h-3 w-3"/>
+                                    {item.volatilityImpact} Impact
+                                </Badge>
+                                    {item.impactedCoins.map(coin => <Badge key={coin} variant="secondary" className="font-mono">{coin}</Badge>)}
+                                </CardFooter>
                             </Card>
                         ))}
                     </div>
