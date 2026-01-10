@@ -638,16 +638,18 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
             return newCoins;
         });
     };
+    
+    const getVixZone = (vix: number): VixZone => {
+        if (vix <= 20) return "Extremely Calm";
+        if (vix <= 40) return "Normal";
+        if (vix <= 60) return "Volatile";
+        if (vix <= 80) return "High Volatility";
+        return "Extreme";
+    };
 
     const getPersonaInsight = (newsItem: NewsItem, persona: PersonaType | null): { meaning: string; action: string } => {
         const defaultPersona: PersonaType = 'Beginner';
         const p = persona || defaultPersona;
-        
-        const impactMap: Record<VolatilityImpact, VixZone> = {
-            'High': 'High Volatility',
-            'Medium': 'Volatile',
-            'Low': 'Normal',
-        };
         const zone = getVixZone(newsItem.volatilityRiskScore);
 
         return postureSuggestions[zone]?.[p] || postureSuggestions.Normal[defaultPersona];
