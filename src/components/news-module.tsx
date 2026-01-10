@@ -329,7 +329,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                 if (parsedContext.active && parsedContext.headline === selectedNews.headline) {
                     setIsWarningActive(true);
                 } else {
-                    setIsWarningActive(false);
+                     setIsWarningActive(false);
                 }
             } else {
                  setIsWarningActive(false);
