@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark, Timer, Gauge } from "lucide-react";
+import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark, Timer, Gauge, Star } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "./ui/skeleton";
@@ -14,11 +14,12 @@ import { Input } from "./ui/input";
 import { Switch } from "./ui/switch";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { format, formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 import type { VixState } from "@/hooks/use-risk-state";
 import { Progress } from "./ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 
 interface NewsModuleProps {
     onSetModule: (module: any, context?: any) => void;
@@ -176,12 +177,12 @@ const getImpactHorizon = (riskWindowMins: number): "Immediate" | "Today" | "Mult
 
 const NEWS_CACHE_KEY = "ec_news_state_v2";
 const VIX_CACHE_KEY = "ec_vix_state";
-const RISK_EVENTS_KEY = "ec_risk_events_today";
 const NEWS_RISK_CONTEXT_KEY = "ec_news_risk_context";
 const NEWS_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 const READ_IDS_KEY = "ec_news_read_ids";
 const SAVED_IDS_KEY = "ec_news_saved_ids";
+const FOLLOWED_COINS_KEY = "ec_followed_coins";
 
 interface NewsFilters {
     search: string;
@@ -190,6 +191,7 @@ interface NewsFilters {
     category: NewsCategory | "All";
     coins: string[];
     sortBy: "newest" | "highestImpact" | "mostNegative";
+    followedOnly: boolean;
 }
 
 const ITEMS_PER_PAGE = 9;
@@ -205,9 +207,11 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         category: 'All',
         coins: [],
         sortBy: 'newest',
+        followedOnly: false,
     });
     const [readNewsIds, setReadNewsIds] = useState<string[]>([]);
     const [savedNewsIds, setSavedNewsIds] = useState<string[]>([]);
+    const [followedCoins, setFollowedCoins] = useState<string[]>([]);
     const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
     const [persona, setPersona] = useState<PersonaType | null>(null);
     const [isWarningActive, setIsWarningActive] = useState(false);
@@ -260,48 +264,10 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                         console.error("Failed to parse VIX state for news integration", e);
                     }
 
-                    let newsSentimentScore = 50; 
-                    const impactMap = { Low: 1, Medium: 2, High: 4 };
-                    
-                    newItems.slice(0, 10).forEach(item => { 
-                        if (item.sentiment === 'Negative') {
-                            newsSentimentScore -= 2 * impactMap[item.volatilityImpact];
-                        } else if (item.sentiment === 'Positive') {
-                            newsSentimentScore += 1 * impactMap[item.volatilityImpact];
-                        }
-                    });
-                    
-                    newsSentimentScore = Math.max(0, Math.min(100, newsSentimentScore));
-
                     if (vixState) {
-                        vixState.components.newsSentiment = newsSentimentScore;
+                        vixState.components.newsSentiment = 50; // Reset on new fetch
                         localStorage.setItem(VIX_CACHE_KEY, JSON.stringify(vixState));
                         window.dispatchEvent(new StorageEvent('storage', { key: VIX_CACHE_KEY }));
-                    }
-
-                    const existingEvents: RiskEvent[] = JSON.parse(localStorage.getItem(RISK_EVENTS_KEY) || '[]');
-                    const newRiskEvents: RiskEvent[] = [];
-                    
-                    const recentHighImpactNews = newItems.filter(
-                        item => item.volatilityImpact === 'High' && 
-                        (new Date().getTime() - new Date(item.publishedAt).getTime() < 60 * 60 * 1000)
-                    );
-
-                    recentHighImpactNews.forEach(item => {
-                        const eventExists = existingEvents.some(e => e.description.includes(item.headline));
-                        if (!eventExists) {
-                            const severity = (vixState?.marketRisk.vixZone === 'Volatile' || vixState?.marketRisk.vixZone === 'High Volatility' || vixState?.marketRisk.vixZone === 'Extreme') ? 'red' : 'yellow';
-                            newRiskEvents.push({
-                                time: format(new Date(), 'HH:mm'),
-                                description: `High-impact news: ${item.headline}`,
-                                level: severity,
-                            });
-                        }
-                    });
-
-                    if (newRiskEvents.length > 0) {
-                        localStorage.setItem(RISK_EVENTS_KEY, JSON.stringify([...existingEvents, ...newRiskEvents]));
-                        window.dispatchEvent(new StorageEvent('storage', { key: RISK_EVENTS_KEY }));
                     }
 
                     setIsLoading(false);
@@ -319,10 +285,12 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         try {
             const storedReadIds = localStorage.getItem(READ_IDS_KEY);
             const storedSavedIds = localStorage.getItem(SAVED_IDS_KEY);
+            const storedFollowedCoins = localStorage.getItem(FOLLOWED_COINS_KEY);
             if (storedReadIds) setReadNewsIds(JSON.parse(storedReadIds));
             if (storedSavedIds) setSavedNewsIds(JSON.parse(storedSavedIds));
+            if (storedFollowedCoins) setFollowedCoins(JSON.parse(storedFollowedCoins));
         } catch (error) {
-            console.error("Failed to parse read/saved news IDs:", error);
+            console.error("Failed to parse persisted news states:", error);
         }
 
         try {
@@ -374,6 +342,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
     const filteredNews = useMemo(() => {
         let items = newsItems
             .filter(item => {
+                if (filters.followedOnly && !item.impactedCoins.some(coin => followedCoins.includes(coin))) return false;
                 const searchLower = filters.search.toLowerCase();
                 if (filters.search && !item.headline.toLowerCase().includes(searchLower) && !item.sourceName.toLowerCase().includes(searchLower)) return false;
                 if (filters.sentiment !== "All" && item.sentiment !== filters.sentiment) return false;
@@ -398,7 +367,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         });
         
         return items;
-    }, [filters, newsItems]);
+    }, [filters, newsItems, followedCoins]);
 
     const relatedNews = useMemo(() => {
         if (!selectedNews) return [];
@@ -441,6 +410,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
             category: 'All',
             coins: [],
             sortBy: 'newest',
+            followedOnly: false,
         });
     };
     
@@ -466,6 +436,17 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
             const newIds = prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id];
             localStorage.setItem(SAVED_IDS_KEY, JSON.stringify(newIds));
             return newIds;
+        });
+    };
+
+    const handleToggleFollow = (coin: string) => {
+        setFollowedCoins(prev => {
+            const newCoins = prev.includes(coin) ? prev.filter(c => c !== coin) : [...prev, coin];
+            localStorage.setItem(FOLLOWED_COINS_KEY, JSON.stringify(newCoins));
+            toast({
+                title: newCoins.includes(coin) ? `Following ${coin}` : `Unfollowed ${coin}`,
+            });
+            return newCoins;
         });
     };
 
@@ -547,22 +528,20 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                             />
                             <Label htmlFor="high-impact">High Impact Only</Label>
                         </div>
+                        <div className="flex items-center space-x-2">
+                            <Switch
+                                id="followed-only"
+                                checked={filters.followedOnly}
+                                onCheckedChange={checked => setFilters(prev => ({ ...prev, followedOnly: checked }))}
+                            />
+                            <Label htmlFor="followed-only">My Followed Coins</Label>
+                        </div>
                         <Select value={filters.category} onValueChange={(v) => setFilters(prev => ({...prev, category: v as any}))}>
                             <SelectTrigger>
                                 <SelectValue placeholder="Filter by category..." />
                             </SelectTrigger>
                             <SelectContent>
                                 {allCategories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
-                        <Select value={filters.sortBy} onValueChange={(v) => setFilters(prev => ({ ...prev, sortBy: v as any}))}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Sort by..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="newest">Newest</SelectItem>
-                                <SelectItem value="highestImpact">Highest Impact</SelectItem>
-                                <SelectItem value="mostNegative">Most Negative</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -602,6 +581,17 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                 </Button>
                             ))}
                         </div>
+                         <div className="flex-1" />
+                         <Select value={filters.sortBy} onValueChange={(v) => setFilters(prev => ({ ...prev, sortBy: v as any}))}>
+                            <SelectTrigger className="w-[180px]">
+                                <SelectValue placeholder="Sort by..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="newest">Newest</SelectItem>
+                                <SelectItem value="highestImpact">Highest Impact</SelectItem>
+                                <SelectItem value="mostNegative">Most Negative</SelectItem>
+                            </SelectContent>
+                        </Select>
                     </div>
                 </CardContent>
             </Card>
@@ -723,7 +713,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                         {selectedNews.volatilityImpact} Impact
                                     </Badge>
                                      <Badge variant="secondary" className="text-xs">{selectedNews.category}</Badge>
-                                    <span className="flex items-center gap-2 text-muted-foreground text-sm"><Clock className="h-4 w-4" />{new Date(selectedNews.publishedAt).toLocaleString()}</span>
+                                    <span className="flex items-center gap-2 text-muted-foreground text-sm"><Clock className="h-4 w-4" />{formatDistanceToNow(new Date(selectedNews.publishedAt), { addSuffix: true })} via {selectedNews.sourceName}</span>
                                 </DrawerDescription>
                             </DrawerHeader>
                              
@@ -772,7 +762,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                             </div>
                                              <Separator className="my-3"/>
                                             <div className="space-y-2">
-                                                <p className="text-xs text-muted-foreground">This event is likely to increase market volatility.</p>
+                                                <p className="text-xs text-muted-foreground">This event may increase market volatility.</p>
                                                 <Button variant="outline" size="sm" className="w-full" onClick={() => onSetModule('cryptoVix')}>
                                                     <Gauge className="mr-2 h-4 w-4" />
                                                     Open Crypto VIX
@@ -789,7 +779,22 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                     <div>
                                         <h3 className="font-semibold text-foreground mb-2">Impacted Coins</h3>
                                         <div className="flex flex-wrap gap-2">
-                                            {selectedNews.impactedCoins.map(coin => <Badge key={coin} variant="secondary">{coin}</Badge>)}
+                                            {selectedNews.impactedCoins.map(coin => (
+                                                <Popover key={coin}>
+                                                    <PopoverTrigger asChild>
+                                                        <Badge variant="secondary" className="cursor-pointer hover:bg-primary/10 hover:text-primary">{coin}</Badge>
+                                                    </PopoverTrigger>
+                                                    <PopoverContent className="w-auto p-0">
+                                                        <Button
+                                                            variant="ghost"
+                                                            className="w-full justify-start"
+                                                            onClick={() => handleToggleFollow(coin)}
+                                                        >
+                                                            {followedCoins.includes(coin) ? 'Unfollow' : 'Follow'} {coin}
+                                                        </Button>
+                                                    </PopoverContent>
+                                                </Popover>
+                                            ))}
                                         </div>
                                     </div>
                                     <div className="flex flex-wrap gap-2 pt-4 border-t border-border/50">
@@ -851,5 +856,6 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         </div>
     );
 }
+
 
 
