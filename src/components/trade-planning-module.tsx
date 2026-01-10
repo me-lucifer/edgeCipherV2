@@ -1855,6 +1855,22 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
         // Context states
         const [session, setSession] = useState<'Asia' | 'London' | 'New York'>('New York');
         const [vixZone, setVixZone] = useState<VixZone>('Normal');
+
+        const [newsRiskContext, setNewsRiskContext] = useState<any>(null);
+
+        useEffect(() => {
+            if (typeof window !== 'undefined') {
+                const storedContext = localStorage.getItem("ec_news_risk_context");
+                if (storedContext) {
+                    const parsed = JSON.parse(storedContext);
+                    if (new Date().getTime() < parsed.expiresAt) {
+                        setNewsRiskContext(parsed);
+                    } else {
+                        localStorage.removeItem("ec_news_risk_context");
+                    }
+                }
+            }
+        }, []);
     
     
         const reviewHeadingRef = useRef<HTMLDivElement>(null);
@@ -2211,6 +2227,15 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
                                 <X className="h-4 w-4" />
                             </Button>
                         </div>
+                    </Alert>
+                )}
+                 {newsRiskContext && (
+                    <Alert variant="default" className="bg-amber-950/30 border-amber-500/20 text-amber-300">
+                        <AlertTriangle className="h-4 w-4 text-amber-400" />
+                        <AlertTitle className="text-amber-400">High-Impact News Window Active</AlertTitle>
+                        <AlertDescription>
+                            "{newsRiskContext.headline}" - Consider reducing size or waiting until this risk window passes.
+                        </AlertDescription>
                     </Alert>
                 )}
                 

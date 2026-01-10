@@ -18,6 +18,7 @@ import { format, formatDistanceToNow } from 'date-fns';
 import type { VixState, RiskEvent, VixZone } from "@/hooks/use-risk-state";
 import { Progress } from "./ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
+import { useToast } from "@/hooks/use-toast";
 
 interface NewsModuleProps {
     onSetModule: (module: any, context?: any) => void;
@@ -158,6 +159,7 @@ const personaBasedMeanings: Record<PersonaType, Record<VolatilityImpact, { meani
 const NEWS_CACHE_KEY = "ec_news_state_v2";
 const VIX_CACHE_KEY = "ec_vix_state";
 const RISK_EVENTS_KEY = "ec_risk_events_today";
+const NEWS_RISK_CONTEXT_KEY = "ec_news_risk_context";
 const NEWS_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 const READ_IDS_KEY = "ec_news_read_ids";
@@ -190,7 +192,8 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
     const [savedNewsIds, setSavedNewsIds] = useState<string[]>([]);
     const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
     const [persona, setPersona] = useState<PersonaType | null>(null);
-
+    const [isWarningActive, setIsWarningActive] = useState(false);
+    const { toast } = useToast();
 
     const allCategories = useMemo(() => ['All', ...[...new Set(mockNewsSource.map(item => item.category))]], []);
     const popularCoins = ["BTC", "ETH", "SOL", "BNB", "XRP"];
@@ -318,6 +321,22 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         }
     }, []);
 
+    useEffect(() => {
+        if (selectedNews) {
+            const context = localStorage.getItem(NEWS_RISK_CONTEXT_KEY);
+            if(context) {
+                const parsedContext = JSON.parse(context);
+                if (parsedContext.active && parsedContext.headline === selectedNews.headline) {
+                    setIsWarningActive(true);
+                } else {
+                    setIsWarningActive(false);
+                }
+            } else {
+                 setIsWarningActive(false);
+            }
+        }
+    }, [selectedNews]);
+
     const filteredNews = useMemo(() => {
         let items = newsItems
             .filter(item => {
@@ -407,6 +426,32 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         const defaultPersona: PersonaType = 'Beginner';
         const p = persona || defaultPersona;
         return personaBasedMeanings[p][newsItem.volatilityImpact] || personaBasedMeanings[defaultPersona][newsItem.volatilityImpact];
+    };
+
+    const handleWarningToggle = (checked: boolean, newsItem: NewsItem) => {
+        setIsWarningActive(checked);
+        if (checked) {
+            const newsRiskContext = {
+                active: true,
+                headline: newsItem.headline,
+                volatilityImpact: newsItem.volatilityImpact,
+                riskWindowMins: newsItem.riskWindowMins,
+                expiresAt: new Date().getTime() + newsItem.riskWindowMins * 60 * 1000,
+                impactedCoins: newsItem.impactedCoins,
+                sentiment: newsItem.sentiment,
+            };
+            localStorage.setItem(NEWS_RISK_CONTEXT_KEY, JSON.stringify(newsRiskContext));
+            toast({
+                title: "Risk Warning Activated",
+                description: `A warning will be shown in Trade Planning for the next ${newsItem.riskWindowMins} minutes.`,
+            });
+        } else {
+            localStorage.removeItem(NEWS_RISK_CONTEXT_KEY);
+            toast({
+                title: "Risk Warning Deactivated",
+                variant: 'destructive',
+            });
+        }
     };
 
 
@@ -642,8 +687,12 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                     </div>
                                     <div className="flex items-center justify-between mt-4 pt-4 border-t border-destructive/30">
                                         <div className="flex items-center space-x-2">
-                                            <Switch id="send-warning" disabled />
-                                            <Label htmlFor="send-warning" className="text-xs">Send warning to Trade Planning (prototype)</Label>
+                                            <Switch
+                                                id="send-warning"
+                                                checked={isWarningActive}
+                                                onCheckedChange={(checked) => handleWarningToggle(checked, selectedNews)}
+                                            />
+                                            <Label htmlFor="send-warning" className="text-xs">Send warning to Trade Planning</Label>
                                         </div>
                                     </div>
                                 </Alert>
