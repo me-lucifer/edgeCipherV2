@@ -177,6 +177,13 @@ const getImpactHorizon = (riskWindowMins: number): "Immediate" | "Today" | "Mult
   return "Multi-day";
 };
 
+const getVixZone = (vix: number): VixZone => {
+    if (vix <= 20) return "Extremely Calm";
+    if (vix <= 40) return "Normal";
+    if (vix <= 60) return "Volatile";
+    if (vix <= 80) return "High Volatility";
+    return "Extreme";
+};
 
 const NEWS_CACHE_KEY = "ec_news_state_v2";
 const VIX_CACHE_KEY = "ec_vix_state";
@@ -608,6 +615,21 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         localStorage.removeItem(LAST_PRESET_KEY);
     };
 
+    const handleQuickFilterToggle = (filter: {type: string, key?: keyof NewsFilters, value?: any}) => {
+        if (filter.type === 'toggle' && filter.key) {
+            handleFilterChange(filter.key, !filters[filter.key]);
+        } else if (filter.type === 'category' && filter.value) {
+            const currentCategory = filters.category;
+            handleFilterChange('category', currentCategory === filter.value ? 'All' : filter.value);
+        } else if (filter.type === 'coin' && filter.value) {
+            const currentCoins = filters.coins;
+            const newCoins = currentCoins.includes(filter.value)
+                ? currentCoins.filter(c => c !== filter.value)
+                : [...currentCoins, filter.value];
+            handleFilterChange('coins', newCoins);
+        }
+    };
+
     const showHighImpact = () => {
         handleFilterChange('highImpactOnly', true);
     };
@@ -639,14 +661,6 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         });
     };
     
-    const getVixZone = (vix: number): VixZone => {
-        if (vix <= 20) return "Extremely Calm";
-        if (vix <= 40) return "Normal";
-        if (vix <= 60) return "Volatile";
-        if (vix <= 80) return "High Volatility";
-        return "Extreme";
-    };
-
     const getPersonaInsight = (newsItem: NewsItem, persona: PersonaType | null): { meaning: string; action: string } => {
         const defaultPersona: PersonaType = 'Beginner';
         const p = persona || defaultPersona;
@@ -745,6 +759,24 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         }
         toast({ title: "Preset deleted", variant: 'destructive' });
     };
+
+    const quickFilters = [
+        { label: 'High Impact', type: 'toggle', key: 'highImpactOnly' },
+        { label: 'Regulatory', type: 'category', value: 'Regulatory' },
+        { label: 'ETF', type: 'category', value: 'ETF' },
+        { label: 'Liquidations', type: 'category', value: 'Liquidations' },
+        { label: 'Macro', type: 'category', value: 'Macro' },
+        { label: 'BTC', type: 'coin', value: 'BTC' },
+        { label: 'ETH', type: 'coin', value: 'ETH' },
+        { label: 'SOL', type: 'coin', value: 'SOL' },
+    ];
+    
+    const isQuickFilterActive = (filter: any) => {
+        if (filter.type === 'toggle') return filters[filter.key as keyof NewsFilters];
+        if (filter.type === 'category') return filters.category === filter.value;
+        if (filter.type === 'coin') return filters.coins.includes(filter.value);
+        return false;
+    }
 
 
     return (
@@ -914,6 +946,20 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                         <Save className="mr-2 h-4 w-4" /> {activePresetId ? 'Update' : 'Save'}
                                     </Button>
                                 </div>
+                            </div>
+                            <Separator />
+                            <div className="flex flex-wrap gap-2 pt-2">
+                                {quickFilters.map((qf, i) => (
+                                    <Button
+                                        key={i}
+                                        variant={isQuickFilterActive(qf) ? 'secondary' : 'outline'}
+                                        size="sm"
+                                        className="h-7 text-xs"
+                                        onClick={() => handleQuickFilterToggle(qf)}
+                                    >
+                                        {qf.label}
+                                    </Button>
+                                ))}
                             </div>
                         </CardContent>
                     </Card>
