@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle } from "lucide-react";
+import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "./ui/skeleton";
@@ -96,6 +96,9 @@ const VIX_CACHE_KEY = "ec_vix_state";
 const RISK_EVENTS_KEY = "ec_risk_events_today";
 const NEWS_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
+const READ_IDS_KEY = "ec_news_read_ids";
+const SAVED_IDS_KEY = "ec_news_saved_ids";
+
 interface NewsFilters {
     search: string;
     sentiment: Sentiment | "All";
@@ -117,6 +120,8 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         coins: [],
         sortBy: 'newest',
     });
+    const [readNewsIds, setReadNewsIds] = useState<string[]>([]);
+    const [savedNewsIds, setSavedNewsIds] = useState<string[]>([]);
 
     const allCategories = useMemo(() => ['All', ...[...new Set(mockNewsSource.map(item => item.category))]], []);
     const popularCoins = ["BTC", "ETH", "SOL", "BNB", "XRP"];
@@ -213,6 +218,15 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         };
 
         loadNews();
+
+        try {
+            const storedReadIds = localStorage.getItem(READ_IDS_KEY);
+            const storedSavedIds = localStorage.getItem(SAVED_IDS_KEY);
+            if (storedReadIds) setReadNewsIds(JSON.parse(storedReadIds));
+            if (storedSavedIds) setSavedNewsIds(JSON.parse(storedSavedIds));
+        } catch (error) {
+            console.error("Failed to parse read/saved news IDs:", error);
+        }
     }, []);
 
     const filteredNews = useMemo(() => {
@@ -278,6 +292,23 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
             category: 'All'
         }));
     };
+
+    const handleToggleRead = (id: string) => {
+        setReadNewsIds(prev => {
+            const newIds = prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id];
+            localStorage.setItem(READ_IDS_KEY, JSON.stringify(newIds));
+            return newIds;
+        });
+    };
+
+    const handleToggleSave = (id: string) => {
+        setSavedNewsIds(prev => {
+            const newIds = prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id];
+            localStorage.setItem(SAVED_IDS_KEY, JSON.stringify(newIds));
+            return newIds;
+        });
+    };
+
 
     return (
         <div className="space-y-8">
@@ -394,48 +425,66 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                     </Card>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {filteredNews.map(item => (
-                            <Card 
-                                key={item.id}
-                                onClick={() => setSelectedNews(item)}
-                                className="bg-muted/30 border-border/50 cursor-pointer transition-all hover:border-primary/40 hover:bg-muted/50 flex flex-col"
-                            >
-                                <CardHeader>
-                                    <CardTitle className="text-base leading-tight">{item.headline}</CardTitle>
-                                     <CardDescription className="flex items-center gap-2 text-xs pt-1">
-                                        <span>{item.sourceName}</span>
-                                        <span className="text-muted-foreground/50">&bull;</span>
-                                        <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {formatDistanceToNow(new Date(item.publishedAt), { addSuffix: true })}</span>
-                                    </CardDescription>
-                                </CardHeader>
-                                <CardContent className="flex-1">
-                                    <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
-                                        {item.summaryBullets.slice(0,2).map((bullet, i) => <li key={i}>{bullet}</li>)}
-                                    </ul>
-                                </CardContent>
-                                <CardFooter className="flex flex-wrap items-center gap-2">
-                                    <Badge variant="outline" className={cn(
-                                        'text-xs whitespace-nowrap',
-                                        item.sentiment === 'Positive' && 'bg-green-500/20 text-green-300 border-green-500/30',
-                                        item.sentiment === 'Negative' && 'bg-red-500/20 text-red-300 border-red-500/30',
-                                        item.sentiment === 'Neutral' && 'bg-secondary text-secondary-foreground border-border'
-                                    )}>{item.sentiment}</Badge>
-                                    <Badge variant="outline" className={cn(
-                                        "text-xs",
-                                        item.volatilityImpact === 'High' && 'border-red-500/50 text-red-400',
-                                        item.volatilityImpact === 'Medium' && 'border-amber-500/50 text-amber-400',
-                                        item.volatilityImpact === 'Low' && 'border-green-500/50 text-green-400',
-                                    )}>
-                                        <TrendingUp className="mr-1 h-3 w-3"/>
-                                        {item.volatilityImpact} Impact
-                                    </Badge>
-                                    {item.impactedCoins.slice(0, 3).map(coin => <Badge key={coin} variant="secondary" className="font-mono">{coin}</Badge>)}
-                                    {item.impactedCoins.length > 3 && (
-                                        <Badge variant="secondary" className="font-mono">+{item.impactedCoins.length - 3}</Badge>
+                        {filteredNews.map(item => {
+                            const isRead = readNewsIds.includes(item.id);
+                            const isSaved = savedNewsIds.includes(item.id);
+                            return (
+                                <Card 
+                                    key={item.id}
+                                    className={cn(
+                                        "bg-muted/30 border-border/50 flex flex-col transition-all",
+                                        isRead ? "opacity-60 hover:opacity-100" : "hover:border-primary/40 hover:bg-muted/50"
                                     )}
-                                </CardFooter>
-                            </Card>
-                        ))}
+                                >
+                                    <div onClick={() => setSelectedNews(item)} className="cursor-pointer flex-1 flex flex-col">
+                                        <CardHeader>
+                                            <CardTitle className="text-base leading-tight">{item.headline}</CardTitle>
+                                            <CardDescription className="flex items-center gap-2 text-xs pt-1">
+                                                <span>{item.sourceName}</span>
+                                                <span className="text-muted-foreground/50">&bull;</span>
+                                                <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {formatDistanceToNow(new Date(item.publishedAt), { addSuffix: true })}</span>
+                                            </CardDescription>
+                                        </CardHeader>
+                                        <CardContent className="flex-1">
+                                            <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
+                                                {item.summaryBullets.slice(0,2).map((bullet, i) => <li key={i}>{bullet}</li>)}
+                                            </ul>
+                                        </CardContent>
+                                    </div>
+                                    <CardFooter className="flex-col items-start gap-4">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <Badge variant="outline" className={cn(
+                                                'text-xs whitespace-nowrap',
+                                                item.sentiment === 'Positive' && 'bg-green-500/20 text-green-300 border-green-500/30',
+                                                item.sentiment === 'Negative' && 'bg-red-500/20 text-red-300 border-red-500/30',
+                                                item.sentiment === 'Neutral' && 'bg-secondary text-secondary-foreground border-border'
+                                            )}>{item.sentiment}</Badge>
+                                            <Badge variant="outline" className={cn(
+                                                "text-xs",
+                                                item.volatilityImpact === 'High' && 'border-red-500/50 text-red-400',
+                                                item.volatilityImpact === 'Medium' && 'border-amber-500/50 text-amber-400',
+                                                item.volatilityImpact === 'Low' && 'border-green-500/50 text-green-400',
+                                            )}>
+                                                <TrendingUp className="mr-1 h-3 w-3"/>
+                                                {item.volatilityImpact} Impact
+                                            </Badge>
+                                            {item.impactedCoins.slice(0, 3).map(coin => <Badge key={coin} variant="secondary" className="font-mono">{coin}</Badge>)}
+                                            {item.impactedCoins.length > 3 && (
+                                                <Badge variant="secondary" className="font-mono">+{item.impactedCoins.length - 3}</Badge>
+                                            )}
+                                        </div>
+                                         <div className="w-full pt-2 border-t border-border/50 flex justify-end items-center gap-1">
+                                            <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => handleToggleRead(item.id)}>
+                                                <CheckCircle className={cn("mr-2 h-4 w-4", isRead && "text-primary")} /> {isRead ? "Unread" : "Mark read"}
+                                            </Button>
+                                            <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => handleToggleSave(item.id)}>
+                                                <Bookmark className={cn("mr-2 h-4 w-4", isSaved && "text-primary fill-primary")} /> {isSaved ? "Unsave" : "Save"}
+                                            </Button>
+                                        </div>
+                                    </CardFooter>
+                                </Card>
+                            )
+                        })}
                     </div>
                 )}
             </div>
@@ -518,5 +567,3 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
 
     
 }
-
-    
