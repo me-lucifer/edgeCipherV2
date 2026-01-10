@@ -108,6 +108,8 @@ interface NewsFilters {
     sortBy: "newest" | "highestImpact" | "mostNegative";
 }
 
+const ITEMS_PER_PAGE = 9;
+
 export function NewsModule({ onSetModule }: NewsModuleProps) {
     const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -122,6 +124,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
     });
     const [readNewsIds, setReadNewsIds] = useState<string[]>([]);
     const [savedNewsIds, setSavedNewsIds] = useState<string[]>([]);
+    const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
 
     const allCategories = useMemo(() => ['All', ...[...new Set(mockNewsSource.map(item => item.category))]], []);
     const popularCoins = ["BTC", "ETH", "SOL", "BNB", "XRP"];
@@ -258,6 +261,10 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         return items;
     }, [filters, newsItems]);
     
+    useEffect(() => {
+        setVisibleCount(ITEMS_PER_PAGE);
+    }, [filters]);
+
     const handleCoinToggle = (coin: string) => {
         setFilters(prev => {
             const newCoins = prev.coins.includes(coin)
@@ -424,68 +431,77 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                         </CardContent>
                     </Card>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {filteredNews.map(item => {
-                            const isRead = readNewsIds.includes(item.id);
-                            const isSaved = savedNewsIds.includes(item.id);
-                            return (
-                                <Card 
-                                    key={item.id}
-                                    className={cn(
-                                        "bg-muted/30 border-border/50 flex flex-col transition-all",
-                                        isRead ? "opacity-60 hover:opacity-100" : "hover:border-primary/40 hover:bg-muted/50"
-                                    )}
-                                >
-                                    <div onClick={() => setSelectedNews(item)} className="cursor-pointer flex-1 flex flex-col">
-                                        <CardHeader>
-                                            <CardTitle className="text-base leading-tight">{item.headline}</CardTitle>
-                                            <CardDescription className="flex items-center gap-2 text-xs pt-1">
-                                                <span>{item.sourceName}</span>
-                                                <span className="text-muted-foreground/50">&bull;</span>
-                                                <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {formatDistanceToNow(new Date(item.publishedAt), { addSuffix: true })}</span>
-                                            </CardDescription>
-                                        </CardHeader>
-                                        <CardContent className="flex-1">
-                                            <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
-                                                {item.summaryBullets.slice(0,2).map((bullet, i) => <li key={i}>{bullet}</li>)}
-                                            </ul>
-                                        </CardContent>
-                                    </div>
-                                    <CardFooter className="flex-col items-start gap-4">
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            <Badge variant="outline" className={cn(
-                                                'text-xs whitespace-nowrap',
-                                                item.sentiment === 'Positive' && 'bg-green-500/20 text-green-300 border-green-500/30',
-                                                item.sentiment === 'Negative' && 'bg-red-500/20 text-red-300 border-red-500/30',
-                                                item.sentiment === 'Neutral' && 'bg-secondary text-secondary-foreground border-border'
-                                            )}>{item.sentiment}</Badge>
-                                            <Badge variant="outline" className={cn(
-                                                "text-xs",
-                                                item.volatilityImpact === 'High' && 'border-red-500/50 text-red-400',
-                                                item.volatilityImpact === 'Medium' && 'border-amber-500/50 text-amber-400',
-                                                item.volatilityImpact === 'Low' && 'border-green-500/50 text-green-400',
-                                            )}>
-                                                <TrendingUp className="mr-1 h-3 w-3"/>
-                                                {item.volatilityImpact} Impact
-                                            </Badge>
-                                            {item.impactedCoins.slice(0, 3).map(coin => <Badge key={coin} variant="secondary" className="font-mono">{coin}</Badge>)}
-                                            {item.impactedCoins.length > 3 && (
-                                                <Badge variant="secondary" className="font-mono">+{item.impactedCoins.length - 3}</Badge>
-                                            )}
+                    <>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {filteredNews.slice(0, visibleCount).map(item => {
+                                const isRead = readNewsIds.includes(item.id);
+                                const isSaved = savedNewsIds.includes(item.id);
+                                return (
+                                    <Card 
+                                        key={item.id}
+                                        className={cn(
+                                            "bg-muted/30 border-border/50 flex flex-col transition-all",
+                                            isRead ? "opacity-60 hover:opacity-100" : "hover:border-primary/40 hover:bg-muted/50"
+                                        )}
+                                    >
+                                        <div onClick={() => setSelectedNews(item)} className="cursor-pointer flex-1 flex flex-col">
+                                            <CardHeader>
+                                                <CardTitle className="text-base leading-tight">{item.headline}</CardTitle>
+                                                <CardDescription className="flex items-center gap-2 text-xs pt-1">
+                                                    <span>{item.sourceName}</span>
+                                                    <span className="text-muted-foreground/50">&bull;</span>
+                                                    <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {formatDistanceToNow(new Date(item.publishedAt), { addSuffix: true })}</span>
+                                                </CardDescription>
+                                            </CardHeader>
+                                            <CardContent className="flex-1">
+                                                <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
+                                                    {item.summaryBullets.slice(0,2).map((bullet, i) => <li key={i}>{bullet}</li>)}
+                                                </ul>
+                                            </CardContent>
                                         </div>
-                                         <div className="w-full pt-2 border-t border-border/50 flex justify-end items-center gap-1">
-                                            <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => handleToggleRead(item.id)}>
-                                                <CheckCircle className={cn("mr-2 h-4 w-4", isRead && "text-primary")} /> {isRead ? "Unread" : "Mark read"}
-                                            </Button>
-                                            <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => handleToggleSave(item.id)}>
-                                                <Bookmark className={cn("mr-2 h-4 w-4", isSaved && "text-primary fill-primary")} /> {isSaved ? "Unsave" : "Save"}
-                                            </Button>
-                                        </div>
-                                    </CardFooter>
-                                </Card>
-                            )
-                        })}
-                    </div>
+                                        <CardFooter className="flex-col items-start gap-4">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <Badge variant="outline" className={cn(
+                                                    'text-xs whitespace-nowrap',
+                                                    item.sentiment === 'Positive' && 'bg-green-500/20 text-green-300 border-green-500/30',
+                                                    item.sentiment === 'Negative' && 'bg-red-500/20 text-red-300 border-red-500/30',
+                                                    item.sentiment === 'Neutral' && 'bg-secondary text-secondary-foreground border-border'
+                                                )}>{item.sentiment}</Badge>
+                                                <Badge variant="outline" className={cn(
+                                                    "text-xs",
+                                                    item.volatilityImpact === 'High' && 'border-red-500/50 text-red-400',
+                                                    item.volatilityImpact === 'Medium' && 'border-amber-500/50 text-amber-400',
+                                                    item.volatilityImpact === 'Low' && 'border-green-500/50 text-green-400',
+                                                )}>
+                                                    <TrendingUp className="mr-1 h-3 w-3"/>
+                                                    {item.volatilityImpact} Impact
+                                                </Badge>
+                                                {item.impactedCoins.slice(0, 3).map(coin => <Badge key={coin} variant="secondary" className="font-mono">{coin}</Badge>)}
+                                                {item.impactedCoins.length > 3 && (
+                                                    <Badge variant="secondary" className="font-mono">+{item.impactedCoins.length - 3}</Badge>
+                                                )}
+                                            </div>
+                                            <div className="w-full pt-2 border-t border-border/50 flex justify-end items-center gap-1">
+                                                <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => handleToggleRead(item.id)}>
+                                                    <CheckCircle className={cn("mr-2 h-4 w-4", isRead && "text-primary")} /> {isRead ? "Unread" : "Mark read"}
+                                                </Button>
+                                                <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => handleToggleSave(item.id)}>
+                                                    <Bookmark className={cn("mr-2 h-4 w-4", isSaved && "text-primary fill-primary")} /> {isSaved ? "Unsave" : "Save"}
+                                                </Button>
+                                            </div>
+                                        </CardFooter>
+                                    </Card>
+                                )
+                            })}
+                        </div>
+                        {visibleCount < filteredNews.length && (
+                            <div className="mt-8 text-center">
+                                <Button variant="outline" onClick={() => setVisibleCount(prev => prev + ITEMS_PER_PAGE)}>
+                                    Load More ({filteredNews.length - visibleCount} remaining)
+                                </Button>
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
 
