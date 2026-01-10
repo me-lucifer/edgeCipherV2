@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark, Timer, Gauge, Star, Calendar, Copy, Clipboard, ThumbsUp, ThumbsDown, Meh } from "lucide-react";
+import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark, Timer, Gauge, Star, Calendar, Copy, Clipboard, ThumbsUp, ThumbsDown, Meh, PlusCircle, MoreHorizontal, Save } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "./ui/drawer";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "./ui/skeleton";
@@ -20,6 +20,9 @@ import { Progress } from "./ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "./ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "./ui/dropdown-menu";
+
 
 interface NewsModuleProps {
     onSetModule: (module: any, context?: any) => void;
@@ -183,6 +186,9 @@ const NEWS_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const READ_IDS_KEY = "ec_news_read_ids";
 const SAVED_IDS_KEY = "ec_news_saved_ids";
 const FOLLOWED_COINS_KEY = "ec_followed_coins";
+const PRESETS_KEY = "ec_news_filter_presets";
+const LAST_PRESET_KEY = "ec_news_last_preset_id";
+
 
 interface NewsFilters {
     search: string;
@@ -192,6 +198,12 @@ interface NewsFilters {
     coins: string[];
     sortBy: "newest" | "highestImpact" | "mostNegative";
     followedOnly: boolean;
+}
+
+interface NewsFilterPreset {
+    id: string;
+    name: string;
+    filters: NewsFilters;
 }
 
 const ITEMS_PER_PAGE = 9;
@@ -366,6 +378,11 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
     const [persona, setPersona] = useState<PersonaType | null>(null);
     const [isWarningActive, setIsWarningActive] = useState(false);
     const { toast } = useToast();
+    const [filterPresets, setFilterPresets] = useState<NewsFilterPreset[]>([]);
+    const [activePresetId, setActivePresetId] = useState<string | null>(null);
+    const [showSavePresetDialog, setShowSavePresetDialog] = useState(false);
+    const [newPresetName, setNewPresetName] = useState("");
+
 
     const allCategories = useMemo(() => ['All', ...[...new Set(mockNewsSource.map(item => item.category))]], []);
     const popularCoins = ["BTC", "ETH", "SOL", "BNB", "XRP"];
@@ -436,9 +453,24 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
             const storedReadIds = localStorage.getItem(READ_IDS_KEY);
             const storedSavedIds = localStorage.getItem(SAVED_IDS_KEY);
             const storedFollowedCoins = localStorage.getItem(FOLLOWED_COINS_KEY);
+            const storedPresets = localStorage.getItem(PRESETS_KEY);
+            const lastPresetId = localStorage.getItem(LAST_PRESET_KEY);
+            
             if (storedReadIds) setReadNewsIds(JSON.parse(storedReadIds));
             if (storedSavedIds) setSavedNewsIds(JSON.parse(storedSavedIds));
             if (storedFollowedCoins) setFollowedCoins(JSON.parse(storedFollowedCoins));
+            if (storedPresets) {
+                const parsedPresets = JSON.parse(storedPresets);
+                setFilterPresets(parsedPresets);
+                if (lastPresetId) {
+                    const presetToLoad = parsedPresets.find((p: NewsFilterPreset) => p.id === lastPresetId);
+                    if (presetToLoad) {
+                        setFilters(presetToLoad.filters);
+                        setActivePresetId(presetToLoad.id);
+                    }
+                }
+            }
+
         } catch (error) {
             console.error("Failed to parse persisted news states:", error);
         }
@@ -546,6 +578,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                 : [...prev.coins, coin];
             return { ...prev, coins: newCoins };
         });
+        setActivePresetId(null);
     };
 
     const discussWithArjun = (item: NewsItem) => {
@@ -565,15 +598,18 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
             sortBy: 'newest',
             followedOnly: false,
         });
+        setActivePresetId(null);
+        localStorage.removeItem(LAST_PRESET_KEY);
     };
     
+    const handleFilterChange = (key: keyof NewsFilters, value: any) => {
+        setFilters(prev => ({ ...prev, [key]: value }));
+        setActivePresetId(null);
+        localStorage.removeItem(LAST_PRESET_KEY);
+    };
+
     const showHighImpact = () => {
-        setFilters(prev => ({
-            ...prev,
-            highImpactOnly: true,
-            sentiment: 'All',
-            category: 'All'
-        }));
+        handleFilterChange('highImpactOnly', true);
     };
 
     const handleToggleRead = (id: string) => {
@@ -612,7 +648,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
             'Medium': 'Volatile',
             'Low': 'Normal',
         };
-        const zone = impactMap[newsItem.volatilityImpact] || 'Normal';
+        const zone = getVixZone(newsItem.volatilityRiskScore);
 
         return postureSuggestions[zone]?.[p] || postureSuggestions.Normal[defaultPersona];
     };
@@ -656,10 +692,85 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
             });
         }
     };
+    
+    // Preset logic
+    const handleSavePreset = () => {
+        if (!newPresetName) {
+            toast({ variant: 'destructive', title: "Preset name required" });
+            return;
+        }
+
+        let updatedPresets;
+        if (activePresetId) {
+            // Update existing preset
+            updatedPresets = filterPresets.map(p => 
+                p.id === activePresetId ? { ...p, name: newPresetName, filters: { ...filters } } : p
+            );
+            toast({ title: `Preset "${newPresetName}" updated` });
+        } else {
+            // Create new preset
+            const newPreset: NewsFilterPreset = {
+                id: `preset-${Date.now()}`,
+                name: newPresetName,
+                filters: { ...filters }
+            };
+            updatedPresets = [...filterPresets, newPreset];
+            setActivePresetId(newPreset.id);
+            localStorage.setItem(LAST_PRESET_KEY, newPreset.id);
+            toast({ title: `Preset "${newPresetName}" saved` });
+        }
+
+        setFilterPresets(updatedPresets);
+        localStorage.setItem(PRESETS_KEY, JSON.stringify(updatedPresets));
+        setShowSavePresetDialog(false);
+        setNewPresetName("");
+    };
+    
+    const handleLoadPreset = (preset: NewsFilterPreset) => {
+        setFilters(preset.filters);
+        setActivePresetId(preset.id);
+        localStorage.setItem(LAST_PRESET_KEY, preset.id);
+        toast({ title: `Preset "${preset.name}" loaded` });
+    };
+
+    const handleDeletePreset = (presetId: string) => {
+        const updatedPresets = filterPresets.filter(p => p.id !== presetId);
+        setFilterPresets(updatedPresets);
+        localStorage.setItem(PRESETS_KEY, JSON.stringify(updatedPresets));
+        if (activePresetId === presetId) {
+            setActivePresetId(null);
+            localStorage.removeItem(LAST_PRESET_KEY);
+        }
+        toast({ title: "Preset deleted", variant: 'destructive' });
+    };
 
 
     return (
         <div className="space-y-8">
+             <Dialog open={showSavePresetDialog} onOpenChange={setShowSavePresetDialog}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>{activePresetId ? 'Update' : 'Save'} Filter Preset</DialogTitle>
+                        <DialogDescription>
+                            Save your current filter and sort settings as a workspace for quick access later.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <Label htmlFor="preset-name">Preset Name</Label>
+                        <Input
+                            id="preset-name"
+                            value={newPresetName}
+                            onChange={(e) => setNewPresetName(e.target.value)}
+                            placeholder="e.g., 'High Impact BTC'"
+                        />
+                    </div>
+                    <DialogFooter>
+                        <DialogClose asChild><Button variant="ghost">Cancel</Button></DialogClose>
+                        <Button onClick={handleSavePreset}>{activePresetId ? 'Update' : 'Save'}</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
             <div>
                 <h1 className="text-2xl font-bold tracking-tight text-foreground">News Intelligence</h1>
                 <p className="text-muted-foreground">AI-curated crypto futures news with sentiment + volatility impact—so you don’t trade blind.</p>
@@ -678,20 +789,20 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-                                <div className="relative">
+                                <div className="relative md:col-span-2 lg:col-span-4">
                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                     <Input 
                                         placeholder="Search headline or source..." 
                                         className="pl-9"
                                         value={filters.search}
-                                        onChange={e => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                                        onChange={e => handleFilterChange('search', e.target.value)}
                                     />
                                 </div>
                                 <div className="flex items-center space-x-2">
                                     <Switch 
                                         id="high-impact" 
                                         checked={filters.highImpactOnly}
-                                        onCheckedChange={checked => setFilters(prev => ({ ...prev, highImpactOnly: checked }))}
+                                        onCheckedChange={checked => handleFilterChange('highImpactOnly', checked)}
                                     />
                                     <Label htmlFor="high-impact">High Impact Only</Label>
                                 </div>
@@ -699,16 +810,26 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                     <Switch
                                         id="followed-only"
                                         checked={filters.followedOnly}
-                                        onCheckedChange={checked => setFilters(prev => ({ ...prev, followedOnly: checked }))}
+                                        onCheckedChange={checked => handleFilterChange('followedOnly', checked)}
                                     />
                                     <Label htmlFor="followed-only">My Followed Coins</Label>
                                 </div>
-                                <Select value={filters.category} onValueChange={(v) => setFilters(prev => ({...prev, category: v as any}))}>
+                                <Select value={filters.category} onValueChange={(v) => handleFilterChange('category', v as any)}>
                                     <SelectTrigger>
                                         <SelectValue placeholder="Filter by category..." />
                                     </SelectTrigger>
                                     <SelectContent>
                                         {allCategories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                                 <Select value={filters.sortBy} onValueChange={(v) => handleFilterChange('sortBy', v as any)}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Sort by..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="newest">Newest</SelectItem>
+                                        <SelectItem value="highestImpact">Highest Impact</SelectItem>
+                                        <SelectItem value="mostNegative">Most Negative</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -719,7 +840,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                             key={s}
                                             size="sm"
                                             variant={filters.sentiment === s ? 'secondary' : 'ghost'}
-                                            onClick={() => setFilters(prev => ({ ...prev, sentiment: s as Sentiment | "All" }))}
+                                            onClick={() => handleFilterChange('sentiment', s as Sentiment | "All")}
                                             className="rounded-full h-8 px-3 text-xs"
                                         >
                                             {s}
@@ -731,7 +852,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                     <Button
                                         size="sm"
                                         variant={filters.coins.length === 0 ? 'secondary' : 'ghost'}
-                                        onClick={() => setFilters(prev => ({ ...prev, coins: [] }))}
+                                        onClick={() => handleFilterChange('coins', [])}
                                         className="rounded-full h-8 px-3 text-xs"
                                     >
                                         All
@@ -749,16 +870,48 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                     ))}
                                 </div>
                                 <div className="flex-1" />
-                                <Select value={filters.sortBy} onValueChange={(v) => setFilters(prev => ({ ...prev, sortBy: v as any}))}>
-                                    <SelectTrigger className="w-[180px]">
-                                        <SelectValue placeholder="Sort by..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="newest">Newest</SelectItem>
-                                        <SelectItem value="highestImpact">Highest Impact</SelectItem>
-                                        <SelectItem value="mostNegative">Most Negative</SelectItem>
-                                    </SelectContent>
-                                </Select>
+                                <div className="flex items-center gap-2">
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="outline" size="sm" className="w-40 justify-between">
+                                                <span>{activePresetId ? filterPresets.find(p => p.id === activePresetId)?.name : 'Presets'}</span>
+                                                <MoreHorizontal className="h-4 w-4" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end" className="w-56">
+                                            <DropdownMenuSeparator />
+                                            {filterPresets.map(preset => (
+                                                <DropdownMenuItem key={preset.id} onSelect={() => handleLoadPreset(preset)}>
+                                                    <span className="flex-1">{preset.name}</span>
+                                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleDeletePreset(preset.id); }}>
+                                                        <X className="h-3 w-3" />
+                                                    </Button>
+                                                </DropdownMenuItem>
+                                            ))}
+                                            {filterPresets.length === 0 && <DropdownMenuItem disabled>No presets saved</DropdownMenuItem>}
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuItem onSelect={clearFilters}>
+                                                Clear Active Preset
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                     <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => {
+                                            if (activePresetId) {
+                                                const preset = filterPresets.find(p => p.id === activePresetId);
+                                                setNewPresetName(preset?.name || "");
+                                                setShowSavePresetDialog(true);
+                                            } else {
+                                                setNewPresetName("");
+                                                setShowSavePresetDialog(true);
+                                            }
+                                        }}
+                                    >
+                                        <Save className="mr-2 h-4 w-4" /> {activePresetId ? 'Update' : 'Save'}
+                                    </Button>
+                                </div>
                             </div>
                         </CardContent>
                     </Card>
