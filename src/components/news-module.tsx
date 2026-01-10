@@ -17,7 +17,7 @@ interface NewsModuleProps {
 
 type Sentiment = "Positive" | "Negative" | "Neutral";
 type VolatilityImpact = "Low" | "Medium" | "High";
-type NewsCategory = "Regulatory" | "Macro" | "Exchange" | "ETF" | "Liquidations" | "Altcoins" | "Security";
+type NewsCategory = "Regulatory" | "Macro" | "Exchange" | "ETF" | "Liquidations" | "Altcoins" | "Security" | "Tech";
 
 type NewsItem = {
     id: string;
@@ -103,12 +103,121 @@ const mockNewsSource: NewsItem[] = [
         sentiment: "Positive",
         volatilityImpact: "Medium",
         impactedCoins: ["ETH", "ARB", "OP"],
-        category: "Altcoins",
+        category: "Tech",
         arjunMeaning: "This is a fundamental improvement for the Ethereum ecosystem. Reduced transaction costs make DeFi and other on-chain activities more accessible, which is a long-term bullish catalyst for ETH and its L2 ecosystem.",
         recommendedAction: "Look for strength in L2 tokens. This could be a sustained narrative trade. Consider it a bullish factor in any ETH-related analysis.",
         linkUrl: "#"
+    },
+    {
+        id: '5',
+        headline: "US Spot Bitcoin ETFs See Record Inflow Day",
+        sourceName: "ETF Weekly",
+        publishedAt: "3 hours ago",
+        summaryBullets: [
+            "Over $1 billion in net inflows recorded yesterday across all spot Bitcoin ETFs.",
+            "BlackRock's IBIT led the pack with over $800M in single-day inflows.",
+            "This marks the largest single day of inflows since the ETFs launched in January."
+        ],
+        sentiment: "Positive",
+        volatilityImpact: "High",
+        impactedCoins: ["BTC"],
+        category: "ETF",
+        arjunMeaning: "Massive institutional demand is a strong bullish signal. This level of inflow suggests large players are accumulating, which can absorb selling pressure and potentially lead to price appreciation.",
+        recommendedAction: "This validates a long-term bullish thesis. For short-term traders, be aware of potential volatility as large orders are filled.",
+        linkUrl: "#"
+    },
+    {
+        id: '6',
+        headline: "$300M in Longs Liquidated as BTC Dips to $62k",
+        sourceName: "Liquidations.info",
+        publishedAt: "1 hour ago",
+        summaryBullets: [
+            "A sudden market dip triggered a cascade of long liquidations.",
+            "The majority of liquidations occurred on Bybit and Binance.",
+            "Funding rates have reset, indicating a healthier, less-leveraged market."
+        ],
+        sentiment: "Negative",
+        volatilityImpact: "High",
+        impactedCoins: ["BTC", "ETH", "SOL"],
+        category: "Liquidations",
+        arjunMeaning: "A liquidation cascade cleans out over-leveraged positions, which is painful short-term but healthy long-term. It often marks a local bottom as forced selling is exhausted.",
+        recommendedAction: "Look for potential bounce or reversal setups now that the leverage has been flushed. Be cautious of immediate re-leveraging.",
+        linkUrl: "#"
+    },
+    {
+        id: '7',
+        headline: "Coinbase Announces Support for New Solana-Based Token",
+        sourceName: "ExchangeWire",
+        publishedAt: "12 hours ago",
+        summaryBullets: [
+            "Coinbase will list the WIF token on its spot market.",
+            "Trading is expected to begin tomorrow if liquidity conditions are met.",
+            "This is part of a broader push to list more Solana ecosystem assets."
+        ],
+        sentiment: "Positive",
+        volatilityImpact: "Medium",
+        impactedCoins: ["SOL", "WIF"],
+        category: "Exchange",
+        arjunMeaning: "A 'Coinbase listing' is a powerful short-term catalyst. It dramatically increases accessibility and perceived legitimacy for a token, often leading to a price pump.",
+        recommendedAction: "This is a classic catalyst trade. High-risk, but often profitable if timed well. Be wary of 'buy the rumor, sell the news' price action.",
+        linkUrl: "#"
+    },
+    {
+        id: '8',
+        headline: "US CPI data comes in slightly cooler than expected",
+        sourceName: "MacroScope",
+        publishedAt: "5 hours ago",
+        summaryBullets: [
+            "Consumer Price Index rose 3.1% year-over-year, below the 3.2% consensus.",
+            "Core CPI also showed signs of easing inflationary pressures.",
+            "The data gives the Federal Reserve more flexibility on future rate decisions."
+        ],
+        sentiment: "Positive",
+        volatilityImpact: "Medium",
+        impactedCoins: ["BTC", "ETH"],
+        category: "Macro",
+        arjunMeaning: "Cooler inflation is bullish for risk assets like crypto. It decreases the likelihood of hawkish Fed policy (rate hikes), which tends to suppress asset prices.",
+        recommendedAction: "This supports a risk-on sentiment. Look for strength in major assets. This could be the macro backdrop for a leg up.",
+        linkUrl: "#"
+    },
+    {
+        id: '9',
+        headline: "Uniswap Foundation Delays Fee Switch Vote",
+        sourceName: "DeFi Pulse",
+        publishedAt: "22 hours ago",
+        summaryBullets: [
+            "The vote to turn on the 'fee switch' for UNI holders has been postponed.",
+            "Concerns were raised by a major stakeholder regarding implementation details.",
+            "The UNI token price dipped 5% on the news."
+        ],
+        sentiment: "Negative",
+        volatilityImpact: "Medium",
+        impactedCoins: ["UNI"],
+        category: "Tech",
+        arjunMeaning: "This is a governance-related catalyst. The fee switch is a key part of UNI's value proposition, so a delay introduces uncertainty and is bearish in the short term.",
+        recommendedAction: "Monitor governance forums for updates. The long-term thesis might be intact, but short-term price action will be choppy.",
+        linkUrl: "#"
+    },
+    {
+        id: '10',
+        headline: "Binance Completes System Upgrade, Trading Resumes",
+        sourceName: "Binance Blog",
+        publishedAt: "14 hours ago",
+        summaryBullets: [
+            "A scheduled system upgrade was completed successfully with minimal downtime.",
+            "All deposits, withdrawals, and trading functions are now fully operational.",
+            "The upgrade aims to improve system performance and stability."
+        ],
+        sentiment: "Neutral",
+        volatilityImpact: "Low",
+        impactedCoins: ["BNB"],
+        category: "Exchange",
+        arjunMeaning: "This is routine operational news. It's a sign of a healthy and improving exchange, but typically has no direct, tradable impact on price.",
+        recommendedAction: "No action required. This is background noise, not a trading signal.",
+        linkUrl: "#"
     }
 ];
+
 
 const NEWS_CACHE_KEY = "ec_news_state_v2"; // Changed key for new data structure
 const NEWS_TTL_MS = 5 * 60 * 1000; // 5 minutes
