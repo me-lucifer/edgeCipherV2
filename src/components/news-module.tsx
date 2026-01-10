@@ -57,7 +57,7 @@ const getRiskWindow = (category: NewsCategory, impact: VolatilityImpact): { risk
         case 'Macro':
         case 'Regulatory':
         case 'ETF':
-            riskWindowMins = impact === 'High' ? 120 : 60;
+            riskWindowMins = impact === 'High' ? 240 : 60;
             eventType = category === 'Macro' ? 'Scheduled' : 'Developing';
             baseScore += 15;
             break;
@@ -166,6 +166,13 @@ const postureSuggestions: Record<VixZone, Record<PersonaType, { meaning: string;
         "Beginner": { meaning: "DO NOT TRADE. DANGER. Watch from a distance to learn that sometimes the best action is no action.", action: "Observe the chaos from the sidelines. Survive to trade another day." },
     }
 };
+
+const getImpactHorizon = (riskWindowMins: number): "Immediate" | "Today" | "Multi-day" => {
+  if (riskWindowMins <= 60) return "Immediate";
+  if (riskWindowMins <= 240) return "Today";
+  return "Multi-day";
+};
+
 
 const NEWS_CACHE_KEY = "ec_news_state_v2";
 const VIX_CACHE_KEY = "ec_vix_state";
@@ -639,8 +646,6 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                                 <CardTitle className="text-base leading-tight">{item.headline}</CardTitle>
                                                 <CardDescription className="flex items-center gap-2 text-xs pt-1">
                                                     <span>{item.sourceName}</span>
-                                                    <span className="text-muted-foreground/50">&bull;</span>
-                                                    <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {formatDistanceToNow(new Date(item.publishedAt), { addSuffix: true })}</span>
                                                 </CardDescription>
                                             </CardHeader>
                                             <CardContent className="flex-1">
@@ -666,10 +671,10 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                                     <TrendingUp className="mr-1 h-3 w-3"/>
                                                     {item.volatilityImpact} Impact
                                                 </Badge>
-                                                {item.impactedCoins.slice(0, 3).map(coin => <Badge key={coin} variant="secondary" className="font-mono">{coin}</Badge>)}
-                                                {item.impactedCoins.length > 3 && (
-                                                    <Badge variant="secondary" className="font-mono">+{item.impactedCoins.length - 3}</Badge>
-                                                )}
+                                                <Badge variant="outline" className="text-xs">
+                                                    <Clock className="mr-1 h-3 w-3"/>
+                                                    {getImpactHorizon(item.riskWindowMins)}
+                                                </Badge>
                                             </div>
                                             <div className="w-full pt-2 border-t border-border/50 flex justify-end items-center gap-1">
                                                 <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => handleToggleRead(item.id)}>
@@ -756,7 +761,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                         </CardHeader>
                                         <CardContent className="space-y-3">
                                             <div className="flex justify-between items-center text-sm"><span className="text-muted-foreground">Event Type:</span><Badge variant="outline">{selectedNews.eventType}</Badge></div>
-                                            <div className="flex justify-between items-center text-sm"><span className="text-muted-foreground">Risk Duration:</span><span className="font-semibold">{selectedNews.riskWindowMins} minutes</span></div>
+                                            <div className="flex justify-between items-center text-sm"><span className="text-muted-foreground">Impact Horizon:</span><Badge variant="outline">{getImpactHorizon(selectedNews.riskWindowMins)}</Badge></div>
                                             <div>
                                                 <Label className="text-xs text-muted-foreground">Volatility Risk Score: {selectedNews.volatilityRiskScore}</Label>
                                                 <Progress value={selectedNews.volatilityRiskScore} indicatorClassName={cn(
@@ -846,4 +851,5 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         </div>
     );
 }
+
 
