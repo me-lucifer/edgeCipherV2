@@ -52,8 +52,8 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
     return (
         <div className="space-y-8">
             <div>
-                <h1 className="text-2xl font-bold tracking-tight text-foreground">Crypto News</h1>
-                <p className="text-muted-foreground">Stay updated on market-moving events.</p>
+                <h1 className="text-2xl font-bold tracking-tight text-foreground">News Intelligence</h1>
+                <p className="text-muted-foreground">AI-curated crypto futures news with sentiment + volatility impact—so you don’t trade blind.</p>
             </div>
             
             <Card className="bg-muted/30 border-border/50">
