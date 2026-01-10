@@ -44,7 +44,7 @@ const mockNewsSource: NewsItem[] = Array.from({ length: 25 }, (_, i) => {
     const categories: NewsCategory[] = ["Regulatory", "Macro", "Exchange", "ETF", "Liquidations", "Altcoins", "Security", "Tech"];
     const sentiments: Sentiment[] = ["Positive", "Negative", "Neutral"];
     const sources = ["Blocksource", "CryptoWire", "Asia Crypto Today", "The Defiant", "ETF Weekly", "Liquidations.info", "ExchangeWire", "MacroScope", "DeFi Pulse", "Binance Blog"];
-    const coins = ["BTC", "ETH", "SOL", "BNB", "XRP", "ADA", "DOGE", "AVAX", "DOT", "MATIC"];
+    const coins = ["BTC", "ETH", "SOL", "BNB", "XRP", "ADA", "DOGE", "AVAX", "DOT", "MATIC", "LINK", "TRX", "SHIB"];
     
     const headlines = [
         "Fed hints at slower rate hikes, crypto market rallies",
@@ -66,6 +66,8 @@ const mockNewsSource: NewsItem[] = Array.from({ length: 25 }, (_, i) => {
 
     const randomElement = <T,>(arr: T[]) => arr[Math.floor(Math.random() * arr.length)];
     const randomImpact = (): VolatilityImpact => (Math.random() < 0.25 ? 'High' : Math.random() < 0.6 ? 'Medium' : 'Low');
+    const randomNumberOfCoins = Math.floor(Math.random() * 5) + 1;
+    const impactedCoins = [...new Set(Array.from({ length: randomNumberOfCoins }, () => randomElement(coins)))];
 
     return {
         id: `${i + 1}`,
@@ -79,7 +81,7 @@ const mockNewsSource: NewsItem[] = Array.from({ length: 25 }, (_, i) => {
         ],
         sentiment: randomElement(sentiments),
         volatilityImpact: randomImpact(),
-        impactedCoins: [randomElement(coins), randomElement(coins.slice(1))].filter((v, i, a) => a.indexOf(v) === i),
+        impactedCoins: impactedCoins,
         category: randomElement(categories),
         arjunMeaning: "This is Arjun's mock interpretation of the news event, explaining what it means in the context of trading psychology and market dynamics.",
         recommendedAction: "This is a mock recommended action. It provides a clear, concise next step for a trader to consider based on the news.",
@@ -347,7 +349,10 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                         <TrendingUp className="mr-1 h-3 w-3"/>
                                         {item.volatilityImpact} Impact
                                     </Badge>
-                                    {item.impactedCoins.map(coin => <Badge key={coin} variant="secondary" className="font-mono">{coin}</Badge>)}
+                                    {item.impactedCoins.slice(0, 3).map(coin => <Badge key={coin} variant="secondary" className="font-mono">{coin}</Badge>)}
+                                    {item.impactedCoins.length > 3 && (
+                                        <Badge variant="secondary" className="font-mono">+{item.impactedCoins.length - 3}</Badge>
+                                    )}
                                 </CardFooter>
                             </Card>
                         ))}
@@ -430,4 +435,5 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
             </Drawer>
         </div>
     );
-}
+
+    
