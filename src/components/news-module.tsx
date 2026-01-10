@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark, Timer } from "lucide-react";
+import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark, Timer, Gauge } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "./ui/skeleton";
@@ -15,7 +15,7 @@ import { Switch } from "./ui/switch";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format, formatDistanceToNow } from 'date-fns';
-import type { VixState, RiskEvent } from "@/hooks/use-risk-state";
+import type { VixState } from "@/hooks/use-risk-state";
 import { Progress } from "./ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
@@ -132,27 +132,38 @@ const mockNewsSource: Omit<NewsItem, 'riskWindowMins' | 'eventType' | 'volatilit
     };
 });
 
-const personaBasedMeanings: Record<VolatilityImpact, Record<PersonaType, { meaning: string; action: string }>> = {
-    "High": {
-        "Impulsive Sprinter": { meaning: "This is a high-risk environment where FOMO is strongest. Chasing candles now is a direct path to giving back profits. Your edge is patience.", action: "Do not trade based on this news. Reduce open leverage and wait for a clean A+ setup based on your own plan." },
-        "Fearful Analyst": { meaning: "This is a period of high uncertainty where even good analysis can fail. It is okay to feel hesitant; that's your risk management instinct kicking in.", action: "Protect your capital. Watching from the sidelines is a professional decision. Do not feel pressured to participate." },
-        "Disciplined Scalper": { meaning: "Your strategy is at high risk. Liquidity is thin and spreads widen, making clean entries/exits difficult. Your discipline is best shown by not participating.", action: "Switch to 'wait-and-see' mode. Preserve capital until volatility returns to normal levels." },
-        "Beginner": { meaning: "This is a 'danger zone' for new traders. Professionals are either sitting out or managing risk carefully. You should not be trading.", action: "Do not trade. Open the charts and watch how price reacts. This is a live lesson in market chaos." },
+const postureSuggestions: Record<VixZone, Record<PersonaType, { meaning: string; action: string }>> = {
+    "Extremely Calm": {
+        "Impulsive Sprinter": { meaning: "Calm markets can feel slow, which may trigger your impulse to force trades. Patience is your primary edge today.", action: "Do not invent setups; wait for the market to present a clear opportunity." },
+        "Fearful Analyst": { meaning: "These low-stress conditions are perfect for building confidence. Use this time to observe and plan without pressure.", action: "Focus on planning and analysis, not forced execution." },
+        "Disciplined Scalper": { meaning: "Range-bound strategies often perform well. Trust your system but be quick to cut trades that don't show immediate follow-through.", action: "Execute your plan, but protect your capital from choppy price action." },
+        "Beginner": { meaning: "This is the ideal environment to study market structure without high risk. Observe and learn, don't trade.", action: "Today is for learning and observation, not for aggressive trading." },
     },
-    "Medium": {
-        "Impulsive Sprinter": { meaning: "This news will cause chop and noise. Your impulse might be to jump in, but the real risk is getting stopped out on a random wick.", action: "Wait for the market to digest the news. If you trade, use half your normal size." },
-        "Fearful Analyst": { meaning: "Expect noise and potentially failed breakouts. Your fear of getting stopped out is valid here. The key is to trade small if you trade at all.", action: "If you have a high-conviction A+ setup, trade it with 25% of your normal size. Otherwise, wait for clarity." },
-        "Disciplined Scalper": { meaning: "Volatility is increasing, which can be good for scalping, but also riskier. Your rules are critical now.", action: "Adhere strictly to your entry/exit rules. Take profits quickly and do not let small winners turn into losers." },
-        "Beginner": { meaning: "The market is unpredictable right now. It's very easy to lose money by guessing the direction.", action: "Stay flat. Review your trading plan or watch educational videos. Don't risk capital in uncertain conditions." },
+    "Normal": {
+        "Impulsive Sprinter": { meaning: "Normal conditions can still trigger impatience. Your biggest risk is deviating from your plan. The goal is consistent execution.", action: "Follow your plan without exception; no adding to losers or revenge trading." },
+        "Fearful Analyst": { meaning: "The market is providing good conditions for well-planned trades. Now is the time to trust your analysis.", action: "Trust your analysis and execute your A+ setups with confidence." },
+        "Disciplined Scalper": { meaning: "These are your prime conditions. Your edge is sharpest now. Focus on disciplined execution of your best setups.", action: "Execute your A+ setups without hesitation and adhere to your rules." },
+        "Beginner": { meaning: "This is a good environment to practice. Focus on executing one or two simple setups with very small size.", action: "Practice disciplined execution with a minimal position size." },
     },
-    "Low": {
-        "Impulsive Sprinter": { meaning: "This news is unlikely to cause a major directional move. It's a distraction, not a signal. Your biggest risk is overtrading out of boredom.", action: "Ignore this and stick to your trading plan. This is not a reason to take a trade." },
-        "Fearful Analyst": { meaning: "This news is unlikely to invalidate your current trade theses. Your analysis is more important than this headline.", action: "Trust the analysis you've already done. This news should not cause you to second-guess a well-planned trade." },
-        "Disciplined Scalper": { meaning: "This news is unlikely to create the volatility your strategy needs. Price action may be choppy and directionless.", action: "Be patient. Wait for price to reach a key level before considering a trade. Avoid trading in the middle of a range." },
-        "Beginner": { meaning: "This news is minor. It's more important to focus on learning your strategy and following your rules.", action: "Focus on your process. If you have a planned trade, this news is not a reason to change it." },
+    "Volatile": {
+        "Impulsive Sprinter": { meaning: "This is a danger zone for you. Volatility can feel like a constant stream of opportunities, but it's where your impulses are most costly.", action: "Cut position size by 50%. Wait for crystal-clear A+ setups." },
+        "Fearful Analyst": { meaning: "Analysis is difficult in choppy markets. It is perfectly acceptable to sit out. A flat day is a winning day.", action: "If you are not 100% confident in a setup, the best trade is no trade." },
+        "Disciplined Scalper": { meaning: "Your strategy is at high risk. Widen stops, reduce size, or wait for the market to normalize.", action: "Adapt your parameters for volatility or wait for calmer conditions." },
+        "Beginner": { meaning: "This is a 'sit on your hands' day. Watching the chaos from the sidelines is the most valuable lesson.", action: "Observe the market, do not participate." },
     },
+    "High Volatility": {
+        "Impulsive Sprinter": { meaning: "This is a 'red alert' for your persona. The market is erratic. Trying to trade in these conditions is gambling.", action: "Your only job today is to protect your capital by not trading." },
+        "Fearful Analyst": { meaning: "Your analysis is unreliable in these conditions. The market is driven by liquidations and fear. The pros are waiting.", action: "Stay flat. Pros are waiting, and so should you." },
+        "Disciplined Scalper": { meaning: "Your edge does not exist in these market conditions. Your discipline is best expressed by not participating.", action: "Cash is the strongest position right now. Preserve your capital." },
+        "Beginner": { meaning: "This is the environment where new traders lose their accounts. Do not trade. Your only job is to watch from a distance.", action: "Do not trade. Your goal is to survive to trade another day." },
+    },
+    "Extreme": {
+        "Impulsive Sprinter": { meaning: "Catastrophic risk is present. Close your platform and walk away. The only winning move is not to play.", action: "DO NOT TRADE. The only trade that matters is protecting your account." },
+        "Fearful Analyst": { meaning: "The market is completely irrational. Your analysis does not apply. Trust your fear and stay flat.", action: "Stay flat. This is a spectator sport right now." },
+        "Disciplined Scalper": { meaning: "There is no edge here. Any position taken is a gamble. Stepping aside is the highest form of discipline.", action: "Stay flat. There is no trading edge in a liquidation cascade." },
+        "Beginner": { meaning: "DO NOT TRADE. DANGER. Watch from a distance to learn that sometimes the best action is no action.", action: "Observe the chaos from the sidelines. Survive to trade another day." },
+    }
 };
-
 
 const NEWS_CACHE_KEY = "ec_news_state_v2";
 const VIX_CACHE_KEY = "ec_vix_state";
@@ -218,7 +229,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                         return { 
                             ...item, 
                             ...riskWindow,
-                            arjunMeaning: "Default meaning", // These will be dynamically generated
+                            arjunMeaning: "Default meaning",
                             recommendedAction: "Default action",
                          };
                     });
@@ -240,11 +251,10 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                         console.error("Failed to parse VIX state for news integration", e);
                     }
 
-                    // Compute news sentiment score and update VIX state
-                    let newsSentimentScore = 50; // Start neutral
+                    let newsSentimentScore = 50; 
                     const impactMap = { Low: 1, Medium: 2, High: 4 };
                     
-                    newItems.slice(0, 10).forEach(item => { // Consider top 10 recent items
+                    newItems.slice(0, 10).forEach(item => { 
                         if (item.sentiment === 'Negative') {
                             newsSentimentScore -= 2 * impactMap[item.volatilityImpact];
                         } else if (item.sentiment === 'Positive') {
@@ -260,13 +270,12 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                         window.dispatchEvent(new StorageEvent('storage', { key: VIX_CACHE_KEY }));
                     }
 
-                    // Add high-impact news to risk events
                     const existingEvents: RiskEvent[] = JSON.parse(localStorage.getItem(RISK_EVENTS_KEY) || '[]');
                     const newRiskEvents: RiskEvent[] = [];
                     
                     const recentHighImpactNews = newItems.filter(
                         item => item.volatilityImpact === 'High' && 
-                        (new Date().getTime() - new Date(item.publishedAt).getTime() < 60 * 60 * 1000) // Within the last hour
+                        (new Date().getTime() - new Date(item.publishedAt).getTime() < 60 * 60 * 1000)
                     );
 
                     recentHighImpactNews.forEach(item => {
@@ -318,6 +327,24 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
             setPersona("Beginner");
         }
     }, []);
+
+    const handleNewsSelect = (item: NewsItem) => {
+        setSelectedNews(item);
+
+        if (item.volatilityImpact === 'High' && item.sentiment === 'Negative') {
+            const vixStateString = localStorage.getItem(VIX_CACHE_KEY);
+            if (vixStateString) {
+                try {
+                    const vixState: VixState = JSON.parse(vixStateString);
+                    vixState.components.newsSentiment = 20; // More bearish
+                    localStorage.setItem(VIX_CACHE_KEY, JSON.stringify(vixState));
+                    window.dispatchEvent(new StorageEvent('storage', { key: VIX_CACHE_KEY, newValue: JSON.stringify(vixState) }));
+                } catch (e) {
+                    console.error("Failed to update VIX state on news select", e);
+                }
+            }
+        }
+    };
 
     useEffect(() => {
         if (selectedNews) {
@@ -420,11 +447,24 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         });
     };
 
-    const getPersonaInsight = (newsItem: NewsItem, persona: PersonaType | null) => {
+    const getPersonaInsight = (newsItem: NewsItem, persona: PersonaType | null): { meaning: string; action: string } => {
         const defaultPersona: PersonaType = 'Beginner';
         const p = persona || defaultPersona;
-        return personaBasedMeanings[newsItem.volatilityImpact][p] || personaBasedMeanings[newsItem.volatilityImpact][defaultPersona];
+        
+        // This is where the error was. The structure is VixZone -> PersonaType, not the other way around.
+        const zone = getVixZoneFromVolatility(newsItem.volatilityImpact);
+        return postureSuggestions[zone]?.[p] || postureSuggestions.Normal[defaultPersona];
     };
+
+    const getVixZoneFromVolatility = (impact: VolatilityImpact): VixZone => {
+        switch (impact) {
+            case 'High': return 'High Volatility';
+            case 'Medium': return 'Volatile';
+            case 'Low': return 'Normal';
+            default: return 'Normal';
+        }
+    }
+
 
     const handleWarningToggle = (checked: boolean, newsItem: NewsItem) => {
         setIsWarningActive(checked);
@@ -580,7 +620,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                             isRead ? "opacity-60 hover:opacity-100" : "hover:border-primary/40 hover:bg-muted/50"
                                         )}
                                     >
-                                        <div onClick={() => setSelectedNews(item)} className="cursor-pointer flex-1 flex flex-col">
+                                        <div onClick={() => handleNewsSelect(item)} className="cursor-pointer flex-1 flex flex-col">
                                             <CardHeader>
                                                 <CardTitle className="text-base leading-tight">{item.headline}</CardTitle>
                                                 <CardDescription className="flex items-center gap-2 text-xs pt-1">
@@ -679,9 +719,6 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                                 Arjun recommends caution.
                                             </AlertDescription>
                                         </div>
-                                        <Badge variant="outline" className="border-destructive/50 text-destructive-foreground bg-destructive/80">
-                                            Reduce Size
-                                        </Badge>
                                     </div>
                                     <div className="flex items-center justify-between mt-4 pt-4 border-t border-destructive/30">
                                         <div className="flex items-center space-x-2">
@@ -713,6 +750,14 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                                     selectedNews.volatilityRiskScore > 50 && selectedNews.volatilityRiskScore <= 75 && "bg-amber-500",
                                                     selectedNews.volatilityRiskScore <= 50 && "bg-green-500",
                                                 )} className="h-2 mt-1" />
+                                            </div>
+                                             <Separator className="my-3"/>
+                                            <div className="space-y-2">
+                                                <p className="text-xs text-muted-foreground">This event is likely to increase market volatility.</p>
+                                                <Button variant="outline" size="sm" className="w-full" onClick={() => onSetModule('cryptoVix')}>
+                                                    <Gauge className="mr-2 h-4 w-4" />
+                                                    Open Crypto VIX
+                                                </Button>
                                             </div>
                                         </CardContent>
                                     </Card>
@@ -766,5 +811,3 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         </div>
     );
 }
-
-    
