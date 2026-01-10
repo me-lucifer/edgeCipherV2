@@ -36,6 +36,17 @@ const getVixZone = (vix: number): VixZone => {
     return "Extreme";
 };
 
+const calculateVixValue = (components: VixComponents): number => {
+    const { btcVol, ethVol, fundingPressure, liquidationSpike, newsSentiment } = components;
+    // Simplified formula for prototype
+    // News sentiment: 50 is neutral. < 50 is bearish (increases VIX), > 50 is bullish (decreases VIX)
+    const sentimentImpact = (50 - newsSentiment) * 0.5; // A score of 30 adds 10 to VIX, a score of 70 subtracts 10
+
+    const rawVix = (btcVol * 0.3) + (ethVol * 0.3) + (fundingPressure * 0.15) + (liquidationSpike * 0.25) + sentimentImpact;
+    return Math.max(0, Math.min(100, rawVix));
+};
+
+
 // Seeded random for deterministic data
 function seededRandom(seed: number) {
     let state = seed;
@@ -74,19 +85,20 @@ const generateVixSeries = (baseValue: number, mode: 'normal' | 'choppy' = 'norma
 };
 
 const generateDefaultState = (): VixState => {
-    const value = 37;
+    const components = {
+        btcVol: 35,
+        ethVol: 45,
+        fundingPressure: 20,
+        liquidationSpike: 10,
+        newsSentiment: 50, // Neutral
+    };
+    const value = calculateVixValue(components);
     const series = generateVixSeries(value);
     return {
         value,
         zoneLabel: getVixZone(value),
         updatedAt: new Date().toISOString(),
-        components: {
-            btcVol: 35,
-            ethVol: 45,
-            fundingPressure: 20,
-            liquidationSpike: 10,
-            newsSentiment: 40,
-        },
+        components,
         series,
     };
 };
@@ -103,15 +115,24 @@ export function useVixState() {
                 const storedState = localStorage.getItem(VIX_STATE_CACHE_KEY);
                 if (storedState) {
                     state = JSON.parse(storedState);
-                    // Ensure series data is present
+                    // Recalculate VIX value to incorporate any updated components
+                    const newValue = calculateVixValue(state.components);
+                    state.value = newValue;
+                    state.zoneLabel = getVixZone(newValue);
+
+                    // Ensure series data is present and update last point
                     if (!state.series) {
                          state.series = generateVixSeries(state.value);
+                    } else {
+                        state.series.series24h[state.series.series24h.length - 1].value = newValue;
+                        state.series.series7d[state.series.series7d.length - 1].value = newValue;
                     }
+
                 } else {
                     state = generateDefaultState();
                 }
 
-                // Check for override
+                // Check for override (for demo purposes)
                 const vixOverride = localStorage.getItem("ec_vix_override");
                 if (vixOverride) {
                     const newValue = parseInt(vixOverride, 10);
@@ -152,12 +173,12 @@ export function useVixState() {
                 zoneLabel: getVixZone(newValue),
                 updatedAt: new Date().toISOString(),
                 series: newSeries,
-                components: {
+                components: { // Update components based on new overall value
                     btcVol: newValue * 0.8 + Math.random() * 10,
                     ethVol: newValue * 0.9 + Math.random() * 15,
                     fundingPressure: newValue * 0.5 + Math.random() * 20,
                     liquidationSpike: newValue > 60 ? newValue * 0.7 + Math.random() * 30 : 10,
-                    newsSentiment: 50 - (newValue * 0.3) + (Math.random() - 0.5) * 20,
+                    newsSentiment: currentState.components.newsSentiment, // Preserve news sentiment
                 },
             };
 
@@ -208,3 +229,5 @@ export function useVixState() {
 
     return { vixState, isLoading, updateVixValue, generateChoppyDay, refresh: loadVixState };
 }
+
+    

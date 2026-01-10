@@ -15,6 +15,7 @@ import { Switch } from "./ui/switch";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { formatDistanceToNow } from 'date-fns';
+import type { VixState } from "@/hooks/use-vix-state";
 
 interface NewsModuleProps {
     onSetModule: (module: any, context?: any) => void;
@@ -91,6 +92,7 @@ const mockNewsSource: NewsItem[] = Array.from({ length: 25 }, (_, i) => {
 
 
 const NEWS_CACHE_KEY = "ec_news_state_v2";
+const VIX_CACHE_KEY = "ec_vix_state";
 const NEWS_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 interface NewsFilters {
@@ -142,6 +144,35 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                     };
                     localStorage.setItem(NEWS_CACHE_KEY, JSON.stringify(newCache));
                     setNewsItems(newItems);
+
+                    // Compute news sentiment score and update VIX state
+                    let newsSentimentScore = 50; // Start neutral
+                    const impactMap = { Low: 1, Medium: 2, High: 4 };
+                    
+                    newItems.slice(0, 10).forEach(item => { // Consider top 10 recent items
+                        if (item.sentiment === 'Negative') {
+                            newsSentimentScore -= 2 * impactMap[item.volatilityImpact];
+                        } else if (item.sentiment === 'Positive') {
+                            newsSentimentScore += 1 * impactMap[item.volatilityImpact];
+                        }
+                    });
+                    
+                    // Clamp the score between 0 and 100
+                    newsSentimentScore = Math.max(0, Math.min(100, newsSentimentScore));
+
+                    try {
+                        const vixStateString = localStorage.getItem(VIX_CACHE_KEY);
+                        if (vixStateString) {
+                            const vixState: VixState = JSON.parse(vixStateString);
+                            vixState.components.newsSentiment = newsSentimentScore;
+                            localStorage.setItem(VIX_CACHE_KEY, JSON.stringify(vixState));
+                            // Dispatch storage event to notify other hooks like useRiskState
+                            window.dispatchEvent(new StorageEvent('storage', { key: VIX_CACHE_KEY }));
+                        }
+                    } catch (e) {
+                        console.error("Failed to update VIX state with news sentiment", e);
+                    }
+
                     setIsLoading(false);
                 }, 1000); // Simulate network delay
 
