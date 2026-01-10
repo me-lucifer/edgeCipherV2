@@ -1,11 +1,11 @@
 
-"use client";
+      "use client";
 
 import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark } from "lucide-react";
+import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark, Timer } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "./ui/skeleton";
@@ -16,6 +16,7 @@ import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format, formatDistanceToNow } from 'date-fns';
 import type { VixState, RiskEvent, VixZone } from "@/hooks/use-risk-state";
+import { Progress } from "./ui/progress";
 
 interface NewsModuleProps {
     onSetModule: (module: any, context?: any) => void;
@@ -25,7 +26,7 @@ type Sentiment = "Positive" | "Negative" | "Neutral";
 type VolatilityImpact = "Low" | "Medium" | "High";
 type NewsCategory = "Regulatory" | "Macro" | "Exchange" | "ETF" | "Liquidations" | "Altcoins" | "Security" | "Tech";
 type PersonaType = "Impulsive Sprinter" | "Fearful Analyst" | "Disciplined Scalper" | "Beginner";
-
+type EventType = "Scheduled" | "Breaking" | "Developing";
 
 export type NewsItem = {
     id: string;
@@ -39,11 +40,50 @@ export type NewsItem = {
     category: NewsCategory;
     arjunMeaning: string;
     recommendedAction: string;
+    riskWindowMins: number;
+    eventType: EventType;
+    volatilityRiskScore: number;
     linkUrl?: string;
 };
 
+const getRiskWindow = (category: NewsCategory, impact: VolatilityImpact): { riskWindowMins: number; eventType: EventType; volatilityRiskScore: number } => {
+    let riskWindowMins = 30;
+    let eventType: EventType = 'Developing';
+    let baseScore = impact === 'Low' ? 20 : impact === 'Medium' ? 50 : 80;
 
-const mockNewsSource: NewsItem[] = Array.from({ length: 25 }, (_, i) => {
+    switch (category) {
+        case 'Macro':
+        case 'Regulatory':
+        case 'ETF':
+            riskWindowMins = impact === 'High' ? 120 : 60;
+            eventType = category === 'Macro' ? 'Scheduled' : 'Developing';
+            baseScore += 15;
+            break;
+        case 'Liquidations':
+        case 'Security':
+            riskWindowMins = impact === 'High' ? 60 : 30;
+            eventType = 'Breaking';
+            baseScore += 20;
+            break;
+        case 'Exchange':
+            riskWindowMins = 45;
+            eventType = 'Developing';
+            baseScore += 5;
+            break;
+        default:
+            riskWindowMins = 30;
+            eventType = 'Developing';
+            break;
+    }
+
+    return {
+        riskWindowMins,
+        eventType,
+        volatilityRiskScore: Math.min(100, Math.round(baseScore)),
+    };
+};
+
+const mockNewsSource: Omit<NewsItem, 'riskWindowMins' | 'eventType' | 'volatilityRiskScore'>[] = Array.from({ length: 25 }, (_, i) => {
     const categories: NewsCategory[] = ["Regulatory", "Macro", "Exchange", "ETF", "Liquidations", "Altcoins", "Security", "Tech"];
     const sentiments: Sentiment[] = ["Positive", "Negative", "Neutral"];
     const sources = ["Blocksource", "CryptoWire", "Asia Crypto Today", "The Defiant", "ETF Weekly", "Liquidations.info", "ExchangeWire", "MacroScope", "DeFi Pulse", "Binance Blog"];
@@ -173,7 +213,11 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
 
                 // If cache is expired or doesn't exist, regenerate
                 setTimeout(() => {
-                    const newItems = [...mockNewsSource].sort(() => 0.5 - Math.random());
+                    const newItems = [...mockNewsSource].sort(() => 0.5 - Math.random()).map(item => {
+                        const riskWindow = getRiskWindow(item.category, item.volatilityImpact);
+                        return { ...item, ...riskWindow };
+                    });
+
                     const newCache = {
                         items: newItems,
                         lastFetchedAt: new Date().toISOString(),
@@ -242,7 +286,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
 
             } catch (error) {
                 console.error("Failed to load or cache news data:", error);
-                setNewsItems(mockNewsSource);
+                setNewsItems([]);
                 setIsLoading(false);
             }
         };
@@ -578,6 +622,23 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                             </DrawerHeader>
                             <div className="px-4 py-6 grid md:grid-cols-2 gap-8">
                                 <div className="space-y-6">
+                                     <Card className="bg-muted/30 border-border/50">
+                                        <CardHeader>
+                                            <CardTitle className="text-base flex items-center gap-2"><Timer className="h-5 w-5"/>Risk Window Analysis</CardTitle>
+                                        </CardHeader>
+                                        <CardContent className="space-y-3">
+                                            <div className="flex justify-between items-center text-sm"><span className="text-muted-foreground">Event Type:</span><Badge variant="outline">{selectedNews.eventType}</Badge></div>
+                                            <div className="flex justify-between items-center text-sm"><span className="text-muted-foreground">Risk Duration:</span><span className="font-semibold">{selectedNews.riskWindowMins} minutes</span></div>
+                                            <div>
+                                                <Label className="text-xs text-muted-foreground">Volatility Risk Score: {selectedNews.volatilityRiskScore}</Label>
+                                                <Progress value={selectedNews.volatilityRiskScore} indicatorClassName={cn(
+                                                    selectedNews.volatilityRiskScore > 75 && "bg-red-500",
+                                                    selectedNews.volatilityRiskScore > 50 && selectedNews.volatilityRiskScore <= 75 && "bg-amber-500",
+                                                    selectedNews.volatilityRiskScore <= 50 && "bg-green-500",
+                                                )} className="h-2 mt-1" />
+                                            </div>
+                                        </CardContent>
+                                    </Card>
                                      <div>
                                         <h3 className="font-semibold text-foreground mb-2">Key points from {selectedNews.sourceName}</h3>
                                         <ul className="text-sm text-muted-foreground list-disc list-inside space-y-2">
@@ -604,7 +665,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                     </CardHeader>
                                     <CardContent className="space-y-4">
                                         <div>
-                                            <h4 className="text-sm font-semibold text-foreground mb-1">What this means for you:</h4>
+                                            <h4 className="text-sm font-semibold text-foreground mb-1">What this means for you ({persona || 'Beginner'}):</h4>
                                             <p className="text-sm text-primary/90 italic">"{getPersonaInsight(selectedNews, persona).meaning}"</p>
                                         </div>
                                         <Separator />
