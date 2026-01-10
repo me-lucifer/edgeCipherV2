@@ -24,7 +24,7 @@ type Sentiment = "Positive" | "Negative" | "Neutral";
 type VolatilityImpact = "Low" | "Medium" | "High";
 type NewsCategory = "Regulatory" | "Macro" | "Exchange" | "ETF" | "Liquidations" | "Altcoins" | "Security" | "Tech";
 
-type NewsItem = {
+export type NewsItem = {
     id: string;
     headline: string;
     sourceName: string;
@@ -229,7 +229,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
             <Card className="bg-muted/30 border-border/50 sticky top-[72px] z-20">
                 <CardHeader>
                     <div className="flex items-center justify-between">
-                         <CardTitle className="flex items-center gap-2"><Filter className="h-5 w-5"/> Filters & Sorting</CardTitle>
+                         <CardTitle className="flex items-center gap-2"><FilterIcon className="h-5 w-5"/> Filters & Sorting</CardTitle>
                          <Button variant="ghost" size="sm" onClick={clearFilters}><X className="mr-2 h-4 w-4"/>Clear all</Button>
                     </div>
                 </CardHeader>
@@ -458,5 +458,3 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
 
     
 }
-
-    

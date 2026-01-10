@@ -21,6 +21,8 @@ import { ModuleContext } from "./authenticated-app-shell";
 import { Alert, AlertTitle, AlertDescription } from "./ui/alert";
 import { useVixState } from "@/hooks/use-vix-state";
 import { VixBadge } from "./ui/vix-badge";
+import type { NewsItem } from './news-module';
+import { formatDistanceToNow } from "date-fns";
 
 interface Persona {
     primaryPersonaName?: string;
@@ -40,12 +42,6 @@ const features = [
 const openPositions = [
     { symbol: 'BTC-PERP', direction: 'Long', size: '0.5', entry: 68500.0, last: 68969.5, pnl: 234.50, risk: 'Medium' },
     { symbol: 'ETH-PERP', direction: 'Short', size: '12', entry: 3605.0, last: 3597.65, pnl: -88.12, risk: 'Low' },
-]
-
-const newsItems = [
-    { instrument: 'BTC-PERP', headline: "Fed hints at slower rate hikes, crypto market rallies", sentiment: "Bullish", summary: "The market reacted positively to the recent announcement." },
-    { instrument: 'ETH-PERP', headline: "Major exchange announces new security upgrades after hack", sentiment: "Neutral", summary: "The exchange aims to restore user confidence with the move." },
-    { instrument: 'BTC-PERP', headline: "Regulatory uncertainty in Asia spooks investors", sentiment: "Bearish", summary: "New draft regulations have caused a sell-off in regional markets." },
 ]
 
 const defaultGrowthPlanItems = [
@@ -415,60 +411,105 @@ function PerformanceSummary({ dailyPnl7d, dailyPnl30d, performanceState, hasHist
     );
 }
 
-function NewsSnapshot({ onSetModule }: { onSetModule: (module: any, context?: ModuleContext) => void }) {
+function SentimentDot({ sentiment }: { sentiment: NewsItem['sentiment'] }) {
+    const sentimentColor = {
+        'Positive': 'bg-green-500',
+        'Negative': 'bg-red-500',
+        'Neutral': 'bg-gray-500',
+    }[sentiment];
+
     return (
-         <Card className="bg-muted/30 border-border/50">
+        <TooltipProvider>
+            <Tooltip>
+                <TooltipTrigger>
+                    <div className={cn("h-2.5 w-2.5 rounded-full", sentimentColor)} />
+                </TooltipTrigger>
+                <TooltipContent>
+                    <p>Sentiment: {sentiment}</p>
+                </TooltipContent>
+            </Tooltip>
+        </TooltipProvider>
+    );
+}
+
+function NewsSnapshot({ onSetModule }: { onSetModule: (module: any, context?: ModuleContext) => void }) {
+    const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const loadNews = () => {
+            setIsLoading(true);
+            try {
+                const storedData = localStorage.getItem("ec_news_state_v2");
+                if (storedData) {
+                    const { items } = JSON.parse(storedData);
+                    setNewsItems(items.slice(0, 3));
+                } else {
+                    // Fallback to generating some data if cache is empty
+                    // This could happen if user visits dashboard before news module
+                    // In a real app, this would be an API call.
+                    // For now, we rely on the news module to populate the cache.
+                }
+            } catch (error) {
+                console.error("Failed to load news snapshot data:", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        loadNews();
+        // Listen for changes to the news cache, e.g., if the user visits the news page
+        const handleStorageChange = (e: StorageEvent) => {
+            if (e.key === 'ec_news_state_v2') {
+                loadNews();
+            }
+        };
+        window.addEventListener('storage', handleStorageChange);
+        return () => window.removeEventListener('storage', handleStorageChange);
+    }, []);
+
+    if (isLoading) {
+        return (
+            <Card className="bg-muted/30 border-border/50">
+                <CardHeader>
+                    <CardTitle className="text-base flex items-center gap-2">
+                        <Newspaper className="h-5 w-5" />
+                        News Snapshot
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <Skeleton className="h-6 w-full" />
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-6 w-full" />
+                    <Skeleton className="h-4 w-1/2" />
+                </CardContent>
+            </Card>
+        )
+    }
+
+    return (
+        <Card className="bg-muted/30 border-border/50">
             <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
                     <Newspaper className="h-5 w-5" />
                     News Snapshot
                 </CardTitle>
-                 <CardDescription>
-                     <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                               <span className="flex items-center gap-1.5 cursor-help">
-                                    Headlines can trigger sharp moves. Use them as context.
-                                </span>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p className="max-w-xs">Don’t chase every story. Use news as additional context for your planned trades.</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
-                </CardDescription>
             </CardHeader>
             <CardContent>
                 <div className="space-y-4">
-                    {newsItems.map((item, index) => (
+                    {newsItems.length > 0 ? newsItems.map((item, index) => (
                         <div key={index} className="border-b border-border/50 pb-3 last:border-b-0 last:pb-0">
-                            <div className="flex justify-between items-start">
-                                <p className="font-semibold text-foreground text-sm pr-4">{item.headline}</p>
-                                <Badge variant="secondary" className={cn(
-                                    'text-xs',
-                                    item.sentiment === 'Bullish' && 'bg-green-500/20 text-green-400 border-green-500/30',
-                                    item.sentiment === 'Bearish' && 'bg-red-500/20 text-red-400 border-red-500/30'
-                                )}>{item.sentiment}</Badge>
-                            </div>
-                            <div className="flex items-center justify-between mt-1">
-                                <p className="text-xs text-muted-foreground">{item.summary}</p>
-                                <Button 
-                                    variant="link" 
-                                    size="sm"
-                                    className="text-xs h-auto p-0 text-primary/80 hover:text-primary whitespace-nowrap"
-                                    onClick={() => onSetModule('tradePlanning', { planContext: {
-                                        instrument: item.instrument,
-                                        direction: item.sentiment === 'Bullish' ? 'Long' : (item.sentiment === 'Bearish' ? 'Short' : undefined),
-                                        origin: 'News Snapshot'
-                                    } })}
-                                >
-                                    Plan trade
-                                </Button>
+                            <p className="font-semibold text-foreground text-sm leading-tight">{item.headline}</p>
+                            <div className="flex items-center gap-2 mt-1.5">
+                                <SentimentDot sentiment={item.sentiment} />
+                                <p className="text-xs text-muted-foreground">{item.sourceName} &bull; {formatDistanceToNow(new Date(item.publishedAt), { addSuffix: true })}</p>
                             </div>
                         </div>
-                    ))}
+                    )) : (
+                        <p className="text-sm text-muted-foreground text-center py-4">No news items available. Visit the News module to fetch data.</p>
+                    )}
                 </div>
-                 <Button variant="link" className="px-0 mt-4 text-primary/90 hover:text-primary" onClick={() => onSetModule('news')}>
+                <Button variant="link" className="px-0 mt-4 text-primary/90 hover:text-primary" onClick={() => onSetModule('news')}>
                     Open full News module <ArrowRight className="ml-1 h-4 w-4" />
                 </Button>
             </CardContent>
