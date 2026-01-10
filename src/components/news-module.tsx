@@ -132,6 +132,8 @@ const mockNewsSource: Omit<NewsItem, 'riskWindowMins' | 'eventType' | 'volatilit
     };
 });
 
+type VixZone = "Extremely Calm" | "Normal" | "Volatile" | "High Volatility" | "Extreme";
+
 const postureSuggestions: Record<VixZone, Record<PersonaType, { meaning: string; action: string }>> = {
     "Extremely Calm": {
         "Impulsive Sprinter": { meaning: "Calm markets can feel slow, which may trigger your impulse to force trades. Patience is your primary edge today.", action: "Do not invent setups; wait for the market to present a clear opportunity." },
@@ -390,6 +392,19 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         
         return items;
     }, [filters, newsItems]);
+
+    const relatedNews = useMemo(() => {
+        if (!selectedNews) return [];
+        
+        return newsItems
+            .filter(item => {
+                if (item.id === selectedNews.id) return false;
+                const hasCommonCoin = item.impactedCoins.some(coin => selectedNews.impactedCoins.includes(coin));
+                const hasSameCategory = item.category === selectedNews.category;
+                return hasCommonCoin || hasSameCategory;
+            })
+            .slice(0, 4);
+    }, [selectedNews, newsItems]);
     
     useEffect(() => {
         setVisibleCount(ITEMS_PER_PAGE);
@@ -451,7 +466,6 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         const defaultPersona: PersonaType = 'Beginner';
         const p = persona || defaultPersona;
         
-        // This is where the error was. The structure is VixZone -> PersonaType, not the other way around.
         const zone = getVixZoneFromVolatility(newsItem.volatilityImpact);
         return postureSuggestions[zone]?.[p] || postureSuggestions.Normal[defaultPersona];
     };
@@ -684,7 +698,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
             <Drawer open={!!selectedNews} onOpenChange={(open) => !open && setSelectedNews(null)}>
                 <DrawerContent>
                     {selectedNews && (
-                        <div className="mx-auto w-full max-w-2xl p-4 md:p-6">
+                        <div className="mx-auto w-full max-w-4xl p-4 md:p-6">
                             <DrawerHeader>
                                 <DrawerTitle className="text-2xl">{selectedNews.headline}</DrawerTitle>
                                 <DrawerDescription className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-2">
@@ -734,8 +748,8 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                 </div>
                             )}
 
-                            <div className="px-4 py-6 grid md:grid-cols-2 gap-8">
-                                <div className="space-y-6">
+                            <div className="px-4 py-6 grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                                <div className="lg:col-span-2 space-y-6">
                                      <Card className="bg-muted/30 border-border/50">
                                         <CardHeader>
                                             <CardTitle className="text-base flex items-center gap-2"><Timer className="h-5 w-5"/>Risk Window Analysis</CardTitle>
@@ -781,28 +795,49 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                         </Button>
                                     </div>
                                 </div>
-                                <Card className="bg-primary/10 border-primary/20">
-                                    <CardHeader>
-                                        <CardTitle className="text-base flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary"/>Arjun's Insight</CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="space-y-4">
-                                        <div>
-                                            <h4 className="text-sm font-semibold text-foreground mb-1">What this means for you ({persona || 'Beginner'}):</h4>
-                                            <p className="text-sm text-primary/90 italic">"{getPersonaInsight(selectedNews, persona).meaning}"</p>
-                                        </div>
-                                        <Separator />
-                                        <div>
-                                            <h4 className="text-sm font-semibold text-foreground mb-1">Recommended Action:</h4>
-                                            <p className="text-sm font-semibold text-primary/90">{getPersonaInsight(selectedNews, persona).action}</p>
-                                        </div>
-                                    </CardContent>
-                                    <CardFooter>
-                                         <Button className="w-full" onClick={() => discussWithArjun(selectedNews)}>
-                                            <Bot className="mr-2 h-4 w-4" />
-                                            Discuss with Arjun
-                                        </Button>
-                                    </CardFooter>
-                                </Card>
+                                <div className="space-y-6">
+                                    <Card className="bg-primary/10 border-primary/20">
+                                        <CardHeader>
+                                            <CardTitle className="text-base flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary"/>Arjun's Insight</CardTitle>
+                                        </CardHeader>
+                                        <CardContent className="space-y-4">
+                                            <div>
+                                                <h4 className="text-sm font-semibold text-foreground mb-1">What this means for you ({persona || 'Beginner'}):</h4>
+                                                <p className="text-sm text-primary/90 italic">"{getPersonaInsight(selectedNews, persona).meaning}"</p>
+                                            </div>
+                                            <Separator />
+                                            <div>
+                                                <h4 className="text-sm font-semibold text-foreground mb-1">Recommended Action:</h4>
+                                                <p className="text-sm font-semibold text-primary/90">{getPersonaInsight(selectedNews, persona).action}</p>
+                                            </div>
+                                        </CardContent>
+                                        <CardFooter>
+                                             <Button className="w-full" onClick={() => discussWithArjun(selectedNews)}>
+                                                <Bot className="mr-2 h-4 w-4" />
+                                                Discuss with Arjun
+                                            </Button>
+                                        </CardFooter>
+                                    </Card>
+                                    <Card className="bg-muted/30 border-border/50">
+                                        <CardHeader>
+                                            <CardTitle className="text-base">Related Intelligence</CardTitle>
+                                        </CardHeader>
+                                        <CardContent className="space-y-2">
+                                            {relatedNews.length > 0 ? relatedNews.map(item => (
+                                                <button
+                                                    key={item.id}
+                                                    onClick={() => handleNewsSelect(item)}
+                                                    className="block w-full text-left p-2 rounded-md hover:bg-muted"
+                                                >
+                                                    <p className="text-sm font-medium text-foreground truncate">{item.headline}</p>
+                                                    <p className="text-xs text-muted-foreground">{item.sourceName} &bull; <Badge variant="secondary" className="text-xs">{item.category}</Badge></p>
+                                                </button>
+                                            )) : (
+                                                <p className="text-sm text-muted-foreground">No related items found.</p>
+                                            )}
+                                        </CardContent>
+                                    </Card>
+                                </div>
                             </div>
                         </div>
                     )}
@@ -811,3 +846,4 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         </div>
     );
 }
+
