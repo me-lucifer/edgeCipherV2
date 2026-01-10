@@ -22,6 +22,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "./ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "./ui/dropdown-menu";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 
 
 interface NewsModuleProps {
@@ -195,6 +196,8 @@ const SAVED_IDS_KEY = "ec_news_saved_ids";
 const FOLLOWED_COINS_KEY = "ec_followed_coins";
 const PRESETS_KEY = "ec_news_filter_presets";
 const LAST_PRESET_KEY = "ec_news_last_preset_id";
+const WATCH_REGULATORY_KEY = "ec_watch_regulatory";
+const WATCH_EXCHANGE_KEY = "ec_watch_exchange";
 
 
 interface NewsFilters {
@@ -365,6 +368,76 @@ ${topRisks.map(risk => `- ${risk}`).join('\n')}
     );
 }
 
+function WatchlistCard({ followedCoins, onFilter, filters, setWatchRegulatory, watchRegulatory, setWatchExchange, watchExchange }: { followedCoins: string[]; onFilter: (key: keyof NewsFilters, value: any) => void; filters: NewsFilters; watchRegulatory: boolean; setWatchRegulatory: (val: boolean) => void; watchExchange: boolean; setWatchExchange: (val: boolean) => void; }) {
+
+    const handleTopicClick = (category: NewsCategory) => {
+        onFilter('category', filters.category === category ? 'All' : category);
+    };
+
+    return (
+        <Card className="bg-muted/30 border-border/50">
+            <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2"><Star className="h-5 w-5" /> Watchlist</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <Tabs defaultValue="coins" className="w-full">
+                    <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="coins">Coins</TabsTrigger>
+                        <TabsTrigger value="topics">Topics</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="coins" className="pt-4">
+                        {followedCoins.length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                                {followedCoins.map(coin => (
+                                    <Button
+                                        key={coin}
+                                        variant={filters.coins.includes(coin) ? 'secondary' : 'outline'}
+                                        size="sm"
+                                        className="text-xs"
+                                        onClick={() => onFilter('coins', filters.coins.includes(coin) ? [] : [coin])}
+                                    >
+                                        {coin}
+                                    </Button>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-sm text-muted-foreground text-center py-4">
+                                No followed coins. Click a coin in a news item to follow it.
+                            </p>
+                        )}
+                    </TabsContent>
+                    <TabsContent value="topics" className="pt-4 space-y-2">
+                        <div className="flex items-center justify-between rounded-lg border p-3 bg-muted/50">
+                            <Label htmlFor="watch-regulatory" className="text-sm">Regulatory News</Label>
+                            <Switch id="watch-regulatory" checked={watchRegulatory} onCheckedChange={setWatchRegulatory} />
+                        </div>
+                        <div className="flex items-center justify-between rounded-lg border p-3 bg-muted/50">
+                            <Label htmlFor="watch-exchange" className="text-sm">Exchange News</Label>
+                            <Switch id="watch-exchange" checked={watchExchange} onCheckedChange={setWatchExchange} />
+                        </div>
+                        <div className="pt-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full"
+                                onClick={() => {
+                                    const categories: NewsCategory[] = [];
+                                    if (watchRegulatory) categories.push('Regulatory');
+                                    if (watchExchange) categories.push('Exchange');
+                                    handleTopicClick(categories.length > 0 ? categories[0] : 'All'); // Simplified for now
+                                }}
+                                disabled={!watchRegulatory && !watchExchange}
+                            >
+                                Apply Watched Topics
+                            </Button>
+                        </div>
+                    </TabsContent>
+                </Tabs>
+            </CardContent>
+        </Card>
+    );
+}
+
 export function NewsModule({ onSetModule }: NewsModuleProps) {
     const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -389,6 +462,8 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
     const [activePresetId, setActivePresetId] = useState<string | null>(null);
     const [showSavePresetDialog, setShowSavePresetDialog] = useState(false);
     const [newPresetName, setNewPresetName] = useState("");
+    const [watchRegulatory, setWatchRegulatory] = useState(false);
+    const [watchExchange, setWatchExchange] = useState(false);
 
 
     const allCategories = useMemo(() => ['All', ...[...new Set(mockNewsSource.map(item => item.category))]], []);
@@ -462,10 +537,14 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
             const storedFollowedCoins = localStorage.getItem(FOLLOWED_COINS_KEY);
             const storedPresets = localStorage.getItem(PRESETS_KEY);
             const lastPresetId = localStorage.getItem(LAST_PRESET_KEY);
+            const storedWatchRegulatory = localStorage.getItem(WATCH_REGULATORY_KEY);
+            const storedWatchExchange = localStorage.getItem(WATCH_EXCHANGE_KEY);
             
             if (storedReadIds) setReadNewsIds(JSON.parse(storedReadIds));
             if (storedSavedIds) setSavedNewsIds(JSON.parse(storedSavedIds));
             if (storedFollowedCoins) setFollowedCoins(JSON.parse(storedFollowedCoins));
+            if (storedWatchRegulatory) setWatchRegulatory(JSON.parse(storedWatchRegulatory));
+            if (storedWatchExchange) setWatchExchange(JSON.parse(storedWatchExchange));
             if (storedPresets) {
                 const parsedPresets = JSON.parse(storedPresets);
                 setFilterPresets(parsedPresets);
@@ -493,6 +572,14 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
             setPersona("Beginner");
         }
     }, []);
+    
+     useEffect(() => {
+        localStorage.setItem(WATCH_REGULATORY_KEY, JSON.stringify(watchRegulatory));
+    }, [watchRegulatory]);
+
+    useEffect(() => {
+        localStorage.setItem(WATCH_EXCHANGE_KEY, JSON.stringify(watchExchange));
+    }, [watchExchange]);
 
     const handleNewsSelect = (item: NewsItem) => {
         setSelectedNews(item);
@@ -1059,7 +1146,16 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                     </div>
                 </div>
 
-                <div className="lg:col-span-1 space-y-6">
+                 <div className="lg:col-span-1 space-y-6 sticky top-24">
+                    <WatchlistCard 
+                        followedCoins={followedCoins} 
+                        onFilter={handleFilterChange}
+                        filters={filters}
+                        watchRegulatory={watchRegulatory}
+                        setWatchRegulatory={setWatchRegulatory}
+                        watchExchange={watchExchange}
+                        setWatchExchange={setWatchExchange}
+                    />
                     <UpcomingEventsCard onSetRiskWindow={setRiskWindowFromEvent} />
                 </div>
             </div>
