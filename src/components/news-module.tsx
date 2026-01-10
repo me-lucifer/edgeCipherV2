@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { format, formatDistanceToNow } from 'date-fns';
 import type { VixState, RiskEvent } from "@/hooks/use-risk-state";
 import { Progress } from "./ui/progress";
-import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 
 interface NewsModuleProps {
@@ -132,26 +132,24 @@ const mockNewsSource: Omit<NewsItem, 'riskWindowMins' | 'eventType' | 'volatilit
     };
 });
 
-const personaBasedMeanings: Record<PersonaType, Record<VolatilityImpact, { meaning: string; action: string }>> = {
-    "Impulsive Sprinter": {
-        "High": { meaning: "This is a high-risk environment where FOMO is strongest. Chasing candles now is a direct path to giving back profits. Your edge is patience.", action: "Do not trade based on this news. Reduce open leverage and wait for a clean A+ setup based on your own plan." },
-        "Medium": { meaning: "This news will cause chop and noise. Your impulse might be to jump in, but the real risk is getting stopped out on a random wick.", action: "Wait for the market to digest the news. If you trade, use half your normal size." },
-        "Low": { meaning: "This news is unlikely to cause a major directional move. It's a distraction, not a signal. Your biggest risk is overtrading out of boredom.", action: "Ignore this and stick to your trading plan. This is not a reason to take a trade." },
+const personaBasedMeanings: Record<VolatilityImpact, Record<PersonaType, { meaning: string; action: string }>> = {
+    "High": {
+        "Impulsive Sprinter": { meaning: "This is a high-risk environment where FOMO is strongest. Chasing candles now is a direct path to giving back profits. Your edge is patience.", action: "Do not trade based on this news. Reduce open leverage and wait for a clean A+ setup based on your own plan." },
+        "Fearful Analyst": { meaning: "This is a period of high uncertainty where even good analysis can fail. It is okay to feel hesitant; that's your risk management instinct kicking in.", action: "Protect your capital. Watching from the sidelines is a professional decision. Do not feel pressured to participate." },
+        "Disciplined Scalper": { meaning: "Your strategy is at high risk. Liquidity is thin and spreads widen, making clean entries/exits difficult. Your discipline is best shown by not participating.", action: "Switch to 'wait-and-see' mode. Preserve capital until volatility returns to normal levels." },
+        "Beginner": { meaning: "This is a 'danger zone' for new traders. Professionals are either sitting out or managing risk carefully. You should not be trading.", action: "Do not trade. Open the charts and watch how price reacts. This is a live lesson in market chaos." },
     },
-    "Fearful Analyst": {
-        "High": { meaning: "This is a period of high uncertainty where even good analysis can fail. It is okay to feel hesitant; that's your risk management instinct kicking in.", action: "Protect your capital. Watching from the sidelines is a professional decision. Do not feel pressured to participate." },
-        "Medium": { meaning: "Expect noise and potentially failed breakouts. Your fear of getting stopped out is valid here. The key is to trade small if you trade at all.", action: "If you have a high-conviction A+ setup, trade it with 25% of your normal size. Otherwise, wait for clarity." },
-        "Low": { meaning: "This news is unlikely to invalidate your current trade theses. Your analysis is more important than this headline.", action: "Trust the analysis you've already done. This news should not cause you to second-guess a well-planned trade." },
+    "Medium": {
+        "Impulsive Sprinter": { meaning: "This news will cause chop and noise. Your impulse might be to jump in, but the real risk is getting stopped out on a random wick.", action: "Wait for the market to digest the news. If you trade, use half your normal size." },
+        "Fearful Analyst": { meaning: "Expect noise and potentially failed breakouts. Your fear of getting stopped out is valid here. The key is to trade small if you trade at all.", action: "If you have a high-conviction A+ setup, trade it with 25% of your normal size. Otherwise, wait for clarity." },
+        "Disciplined Scalper": { meaning: "Volatility is increasing, which can be good for scalping, but also riskier. Your rules are critical now.", action: "Adhere strictly to your entry/exit rules. Take profits quickly and do not let small winners turn into losers." },
+        "Beginner": { meaning: "The market is unpredictable right now. It's very easy to lose money by guessing the direction.", action: "Stay flat. Review your trading plan or watch educational videos. Don't risk capital in uncertain conditions." },
     },
-    "Disciplined Scalper": {
-        "High": { meaning: "Your strategy is at high risk. Liquidity is thin and spreads widen, making clean entries/exits difficult. Your discipline is best shown by not participating.", action: "Switch to 'wait-and-see' mode. Preserve capital until volatility returns to normal levels." },
-        "Medium": { meaning: "Volatility is increasing, which can be good for scalping, but also riskier. Your rules are critical now.", action: "Adhere strictly to your entry/exit rules. Take profits quickly and do not let small winners turn into losers." },
-        "Low": { meaning: "This news is unlikely to create the volatility your strategy needs. Price action may be choppy and directionless.", action: "Be patient. Wait for price to reach a key level before considering a trade. Avoid trading in the middle of a range." },
-    },
-    "Beginner": {
-        "High": { meaning: "This is a 'danger zone' for new traders. Professionals are either sitting out or managing risk carefully. You should not be trading.", action: "Do not trade. Open the charts and watch how price reacts. This is a live lesson in market chaos." },
-        "Medium": { meaning: "The market is unpredictable right now. It's very easy to lose money by guessing the direction.", action: "Stay flat. Review your trading plan or watch educational videos. Don't risk capital in uncertain conditions." },
-        "Low": { meaning: "This news is minor. It's more important to focus on learning your strategy and following your rules.", action: "Focus on your process. If you have a planned trade, this news is not a reason to change it." },
+    "Low": {
+        "Impulsive Sprinter": { meaning: "This news is unlikely to cause a major directional move. It's a distraction, not a signal. Your biggest risk is overtrading out of boredom.", action: "Ignore this and stick to your trading plan. This is not a reason to take a trade." },
+        "Fearful Analyst": { meaning: "This news is unlikely to invalidate your current trade theses. Your analysis is more important than this headline.", action: "Trust the analysis you've already done. This news should not cause you to second-guess a well-planned trade." },
+        "Disciplined Scalper": { meaning: "This news is unlikely to create the volatility your strategy needs. Price action may be choppy and directionless.", action: "Be patient. Wait for price to reach a key level before considering a trade. Avoid trading in the middle of a range." },
+        "Beginner": { meaning: "This news is minor. It's more important to focus on learning your strategy and following your rules.", action: "Focus on your process. If you have a planned trade, this news is not a reason to change it." },
     },
 };
 
@@ -425,7 +423,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
     const getPersonaInsight = (newsItem: NewsItem, persona: PersonaType | null) => {
         const defaultPersona: PersonaType = 'Beginner';
         const p = persona || defaultPersona;
-        return personaBasedMeanings[p][newsItem.volatilityImpact] || personaBasedMeanings[defaultPersona][newsItem.volatilityImpact];
+        return personaBasedMeanings[newsItem.volatilityImpact][p] || personaBasedMeanings[newsItem.volatilityImpact][defaultPersona];
     };
 
     const handleWarningToggle = (checked: boolean, newsItem: NewsItem) => {
@@ -768,3 +766,5 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         </div>
     );
 }
+
+    
