@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { format, formatDistanceToNow } from 'date-fns';
 import type { VixState, RiskEvent, VixZone } from "@/hooks/use-risk-state";
 import { Progress } from "./ui/progress";
+import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 
 interface NewsModuleProps {
     onSetModule: (module: any, context?: any) => void;
@@ -83,7 +84,7 @@ const getRiskWindow = (category: NewsCategory, impact: VolatilityImpact): { risk
     };
 };
 
-const mockNewsSource: Omit<NewsItem, 'riskWindowMins' | 'eventType' | 'volatilityRiskScore'>[] = Array.from({ length: 25 }, (_, i) => {
+const mockNewsSource: Omit<NewsItem, 'riskWindowMins' | 'eventType' | 'volatilityRiskScore' | 'arjunMeaning' | 'recommendedAction'>[] = Array.from({ length: 25 }, (_, i) => {
     const categories: NewsCategory[] = ["Regulatory", "Macro", "Exchange", "ETF", "Liquidations", "Altcoins", "Security", "Tech"];
     const sentiments: Sentiment[] = ["Positive", "Negative", "Neutral"];
     const sources = ["Blocksource", "CryptoWire", "Asia Crypto Today", "The Defiant", "ETF Weekly", "Liquidations.info", "ExchangeWire", "MacroScope", "DeFi Pulse", "Binance Blog"];
@@ -126,8 +127,6 @@ const mockNewsSource: Omit<NewsItem, 'riskWindowMins' | 'eventType' | 'volatilit
         volatilityImpact: randomImpact(),
         impactedCoins: impactedCoins,
         category: randomElement(categories),
-        arjunMeaning: "This is Arjun's mock interpretation of the news event, explaining what it means in the context of trading psychology and market dynamics.",
-        recommendedAction: "This is a mock recommended action. It provides a clear, concise next step for a trader to consider based on the news.",
         linkUrl: "#"
     };
 });
@@ -215,7 +214,12 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                 setTimeout(() => {
                     const newItems = [...mockNewsSource].sort(() => 0.5 - Math.random()).map(item => {
                         const riskWindow = getRiskWindow(item.category, item.volatilityImpact);
-                        return { ...item, ...riskWindow };
+                        return { 
+                            ...item, 
+                            ...riskWindow,
+                            arjunMeaning: "Default meaning", // These will be dynamically generated
+                            recommendedAction: "Default action",
+                         };
                     });
 
                     const newCache = {
@@ -620,6 +624,32 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                     <span className="flex items-center gap-2 text-muted-foreground text-sm"><Clock className="h-4 w-4" />{new Date(selectedNews.publishedAt).toLocaleString()}</span>
                                 </DrawerDescription>
                             </DrawerHeader>
+                             
+                            {(selectedNews.volatilityImpact === 'High' || selectedNews.volatilityRiskScore > 70) && (
+                                <div className="px-4 pt-4">
+                                <Alert variant="destructive">
+                                    <AlertTriangle className="h-4 w-4" />
+                                    <div className="flex items-center justify-between w-full">
+                                        <div>
+                                            <AlertTitle>High-Impact Window: Next {selectedNews.riskWindowMins} minutes</AlertTitle>
+                                            <AlertDescription>
+                                                Arjun recommends caution.
+                                            </AlertDescription>
+                                        </div>
+                                        <Badge variant="outline" className="border-destructive/50 text-destructive-foreground bg-destructive/80">
+                                            Reduce Size
+                                        </Badge>
+                                    </div>
+                                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-destructive/30">
+                                        <div className="flex items-center space-x-2">
+                                            <Switch id="send-warning" disabled />
+                                            <Label htmlFor="send-warning" className="text-xs">Send warning to Trade Planning (prototype)</Label>
+                                        </div>
+                                    </div>
+                                </Alert>
+                                </div>
+                            )}
+
                             <div className="px-4 py-6 grid md:grid-cols-2 gap-8">
                                 <div className="space-y-6">
                                      <Card className="bg-muted/30 border-border/50">
