@@ -545,10 +545,17 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                             {selectedNews.impactedCoins.map(coin => <Badge key={coin} variant="secondary">{coin}</Badge>)}
                                         </div>
                                     </div>
+                                    <div className="flex flex-wrap gap-2 pt-4 border-t border-border/50">
+                                         <Button variant="outline" className="flex-1" asChild>
+                                            <a href={selectedNews.linkUrl || "#"} target="_blank" rel="noopener noreferrer">
+                                                View Original Article <ArrowRight className="ml-2 h-4 w-4"/>
+                                            </a>
+                                        </Button>
+                                    </div>
                                 </div>
                                 <Card className="bg-primary/10 border-primary/20">
                                     <CardHeader>
-                                        <CardTitle className="text-base flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary"/>Arjun's Interpretation</CardTitle>
+                                        <CardTitle className="text-base flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary"/>Arjun's Insight</CardTitle>
                                     </CardHeader>
                                     <CardContent className="space-y-4">
                                         <div>
@@ -561,18 +568,13 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                             <p className="text-sm font-semibold text-primary/90">{selectedNews.recommendedAction}</p>
                                         </div>
                                     </CardContent>
+                                    <CardFooter>
+                                         <Button className="w-full" onClick={() => discussWithArjun(selectedNews)}>
+                                            <Bot className="mr-2 h-4 w-4" />
+                                            Discuss with Arjun
+                                        </Button>
+                                    </CardFooter>
                                 </Card>
-                            </div>
-                            <div className="p-4 border-t border-border/50 flex flex-col sm:flex-row gap-2">
-                                <Button className="w-full sm:w-auto flex-1" onClick={() => discussWithArjun(selectedNews)}>
-                                    <Bot className="mr-2 h-4 w-4" />
-                                    Discuss with Arjun
-                                </Button>
-                                <Button variant="outline" className="w-full sm:w-auto flex-1" asChild>
-                                    <a href={selectedNews.linkUrl || "#"} target="_blank" rel="noopener noreferrer">
-                                        View Original Article <ArrowRight className="ml-2 h-4 w-4"/>
-                                    </a>
-                                </Button>
                             </div>
                         </div>
                     )}
@@ -580,6 +582,4 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
             </Drawer>
         </div>
     );
-
-    
 }
