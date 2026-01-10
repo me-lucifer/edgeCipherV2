@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X } from "lucide-react";
+import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "./ui/skeleton";
@@ -13,9 +13,9 @@ import { Separator } from "./ui/separator";
 import { Input } from "./ui/input";
 import { Switch } from "./ui/switch";
 import { Label } from "./ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { formatDistanceToNow } from 'date-fns';
-import type { VixState } from "@/hooks/use-vix-state";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { format, formatDistanceToNow } from 'date-fns';
+import type { VixState, RiskEvent, VixZone } from "@/hooks/use-risk-state";
 
 interface NewsModuleProps {
     onSetModule: (module: any, context?: any) => void;
@@ -71,7 +71,7 @@ const mockNewsSource: NewsItem[] = Array.from({ length: 25 }, (_, i) => {
     const impactedCoins = [...new Set(Array.from({ length: randomNumberOfCoins }, () => randomElement(coins)))];
 
     return {
-        id: `${i + 1}`,
+        id: `${Date.now()}-${i}`,
         headline: randomElement(headlines),
         sourceName: randomElement(sources),
         publishedAt: new Date(Date.now() - Math.random() * 1000 * 60 * 60 * 24 * 3).toISOString(),
@@ -93,6 +93,7 @@ const mockNewsSource: NewsItem[] = Array.from({ length: 25 }, (_, i) => {
 
 const NEWS_CACHE_KEY = "ec_news_state_v2";
 const VIX_CACHE_KEY = "ec_vix_state";
+const RISK_EVENTS_KEY = "ec_risk_events_today";
 const NEWS_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 interface NewsFilters {
@@ -145,6 +146,16 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                     localStorage.setItem(NEWS_CACHE_KEY, JSON.stringify(newCache));
                     setNewsItems(newItems);
 
+                    let vixState: VixState | null = null;
+                    try {
+                        const vixStateString = localStorage.getItem(VIX_CACHE_KEY);
+                        if (vixStateString) {
+                            vixState = JSON.parse(vixStateString);
+                        }
+                    } catch (e) {
+                        console.error("Failed to parse VIX state for news integration", e);
+                    }
+
                     // Compute news sentiment score and update VIX state
                     let newsSentimentScore = 50; // Start neutral
                     const impactMap = { Low: 1, Medium: 2, High: 4 };
@@ -157,28 +168,46 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                         }
                     });
                     
-                    // Clamp the score between 0 and 100
                     newsSentimentScore = Math.max(0, Math.min(100, newsSentimentScore));
 
-                    try {
-                        const vixStateString = localStorage.getItem(VIX_CACHE_KEY);
-                        if (vixStateString) {
-                            const vixState: VixState = JSON.parse(vixStateString);
-                            vixState.components.newsSentiment = newsSentimentScore;
-                            localStorage.setItem(VIX_CACHE_KEY, JSON.stringify(vixState));
-                            // Dispatch storage event to notify other hooks like useRiskState
-                            window.dispatchEvent(new StorageEvent('storage', { key: VIX_CACHE_KEY }));
+                    if (vixState) {
+                        vixState.components.newsSentiment = newsSentimentScore;
+                        localStorage.setItem(VIX_CACHE_KEY, JSON.stringify(vixState));
+                        window.dispatchEvent(new StorageEvent('storage', { key: VIX_CACHE_KEY }));
+                    }
+
+                    // Add high-impact news to risk events
+                    const existingEvents: RiskEvent[] = JSON.parse(localStorage.getItem(RISK_EVENTS_KEY) || '[]');
+                    const newRiskEvents: RiskEvent[] = [];
+                    
+                    const recentHighImpactNews = newItems.filter(
+                        item => item.volatilityImpact === 'High' && 
+                        (new Date().getTime() - new Date(item.publishedAt).getTime() < 60 * 60 * 1000) // Within the last hour
+                    );
+
+                    recentHighImpactNews.forEach(item => {
+                        const eventExists = existingEvents.some(e => e.description.includes(item.headline));
+                        if (!eventExists) {
+                            const severity = (vixState?.marketRisk.vixZone === 'Volatile' || vixState?.marketRisk.vixZone === 'High Volatility' || vixState?.marketRisk.vixZone === 'Extreme') ? 'red' : 'yellow';
+                            newRiskEvents.push({
+                                time: format(new Date(), 'HH:mm'),
+                                description: `High-impact news: ${item.headline}`,
+                                level: severity,
+                            });
                         }
-                    } catch (e) {
-                        console.error("Failed to update VIX state with news sentiment", e);
+                    });
+
+                    if (newRiskEvents.length > 0) {
+                        localStorage.setItem(RISK_EVENTS_KEY, JSON.stringify([...existingEvents, ...newRiskEvents]));
+                        window.dispatchEvent(new StorageEvent('storage', { key: RISK_EVENTS_KEY }));
                     }
 
                     setIsLoading(false);
-                }, 1000); // Simulate network delay
+                }, 1000);
 
             } catch (error) {
                 console.error("Failed to load or cache news data:", error);
-                setNewsItems(mockNewsSource); // Fallback to default
+                setNewsItems(mockNewsSource);
                 setIsLoading(false);
             }
         };
