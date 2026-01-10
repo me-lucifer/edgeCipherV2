@@ -1858,24 +1858,6 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
 
         const [newsRiskContext, setNewsRiskContext] = useState<any>(null);
 
-        useEffect(() => {
-            if (typeof window !== 'undefined') {
-                const storedContext = localStorage.getItem("ec_news_risk_context");
-                if (storedContext) {
-                    const parsed = JSON.parse(storedContext);
-                    if (new Date().getTime() < parsed.expiresAt) {
-                        setNewsRiskContext(parsed);
-                    } else {
-                        localStorage.removeItem("ec_news_risk_context");
-                    }
-                }
-            }
-        }, []);
-    
-    
-        const reviewHeadingRef = useRef<HTMLDivElement>(null);
-        const executionHeadingRef = useRef<HTMLDivElement>(null);
-    
         const form = useForm<PlanFormValues>({
             resolver: zodResolver(planSchema),
             defaultValues: {
@@ -1895,6 +1877,32 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
             },
             mode: "onBlur",
         });
+
+        const instrumentValue = useWatch({ control: form.control, name: 'instrument' });
+        
+        const isInstrumentImpacted = useMemo(() => {
+            if (!newsRiskContext || !instrumentValue) return false;
+            const instrumentBase = instrumentValue.split('-')[0].toUpperCase();
+            return newsRiskContext.impactedCoins.some((coin: string) => coin.toUpperCase() === instrumentBase);
+        }, [newsRiskContext, instrumentValue]);
+
+        useEffect(() => {
+            if (typeof window !== 'undefined') {
+                const storedContext = localStorage.getItem("ec_news_risk_context");
+                if (storedContext) {
+                    const parsed = JSON.parse(storedContext);
+                    if (new Date().getTime() < parsed.expiresAt) {
+                        setNewsRiskContext(parsed);
+                    } else {
+                        localStorage.removeItem("ec_news_risk_context");
+                    }
+                }
+            }
+        }, []);
+    
+    
+        const reviewHeadingRef = useRef<HTMLDivElement>(null);
+        const executionHeadingRef = useRef<HTMLDivElement>(null);
     
         const justificationValue = useWatch({
             control: form.control,
@@ -2230,12 +2238,23 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
                     </Alert>
                 )}
                  {newsRiskContext && (
-                    <Alert variant="default" className="bg-amber-950/30 border-amber-500/20 text-amber-300">
+                    <Alert variant={isInstrumentImpacted ? 'destructive' : 'default'} className={cn(!isInstrumentImpacted && "bg-amber-950/30 border-amber-500/20 text-amber-300")}>
                         <AlertTriangle className="h-4 w-4 text-amber-400" />
-                        <AlertTitle className="text-amber-400">High-Impact News Window Active</AlertTitle>
-                        <AlertDescription>
-                            "{newsRiskContext.headline}" - Consider reducing size or waiting until this risk window passes.
-                        </AlertDescription>
+                        {isInstrumentImpacted ? (
+                            <>
+                                <AlertTitle>Direct News Impact Warning</AlertTitle>
+                                <AlertDescription>
+                                    A high-impact news event is affecting <span className="font-bold">{instrumentValue}</span>. "{newsRiskContext.headline}" - Extreme caution is advised.
+                                </AlertDescription>
+                            </>
+                        ) : (
+                            <>
+                                <AlertTitle className="text-amber-400">High-Impact News Window Active</AlertTitle>
+                                <AlertDescription>
+                                    "{newsRiskContext.headline}" - Overall market risk is elevated. Consider this in your plan.
+                                </AlertDescription>
+                            </>
+                        )}
                     </Alert>
                 )}
                 
@@ -2410,3 +2429,4 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
 
 
     
+
