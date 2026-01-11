@@ -191,6 +191,7 @@ const NEWS_CACHE_KEY = "ec_news_state_v2";
 const VIX_CACHE_KEY = "ec_vix_state";
 const NEWS_RISK_CONTEXT_KEY = "ec_news_risk_context";
 const NEWS_DAY_SIGNAL_KEY = "ec_news_day_signal";
+const NEWS_TOP_COINS_KEY = "ec_news_top_coins_today";
 const NEWS_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 const READ_IDS_KEY = "ec_news_read_ids";
@@ -442,6 +443,7 @@ function VolatilityRiskCard({ newsItems }: { newsItems: NewsItem[] }) {
                 const vixStateString = localStorage.getItem(VIX_CACHE_KEY);
                 if (vixStateString) {
                     const vixState: VixState = JSON.parse(vixStateString);
+                    // Map 0-100 risk score to 50-0 sentiment score (inverted)
                     const newsSentiment = Math.max(0, 50 - (score / 2));
                     
                     if (vixState.components.newsSentiment !== newsSentiment) {
@@ -569,6 +571,78 @@ function WatchlistCard({ followedCoins, onFilter, filters, setWatchRegulatory, w
                         </div>
                     </TabsContent>
                 </Tabs>
+            </CardContent>
+        </Card>
+    );
+}
+
+const impactOrder = { 'High': 3, 'Medium': 2, 'Low': 1 };
+type ImpactLevel = keyof typeof impactOrder;
+
+function TopImpactedCoinsCard({ newsItems, onFilter }: { newsItems: NewsItem[]; onFilter: (key: keyof NewsFilters, value: any) => void; }) {
+    const topCoins = useMemo(() => {
+        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const coinCounts: Record<string, { count: number; highestImpact: ImpactLevel }> = {};
+
+        newsItems.forEach(item => {
+            if (new Date(item.publishedAt) < twentyFourHoursAgo) return;
+
+            item.impactedCoins.forEach(coin => {
+                if (!coinCounts[coin]) {
+                    coinCounts[coin] = { count: 0, highestImpact: 'Low' };
+                }
+                coinCounts[coin].count++;
+                if (impactOrder[item.volatilityImpact] > impactOrder[coinCounts[coin].highestImpact]) {
+                    coinCounts[coin].highestImpact = item.volatilityImpact;
+                }
+            });
+        });
+
+        return Object.entries(coinCounts)
+            .map(([coin, data]) => ({ coin, ...data }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 5);
+    }, [newsItems]);
+
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            try {
+                localStorage.setItem(NEWS_TOP_COINS_KEY, JSON.stringify(topCoins));
+            } catch (e) {
+                console.error("Failed to save top coins to localStorage", e);
+            }
+        }
+    }, [topCoins]);
+
+    return (
+        <Card className="bg-muted/30 border-border/50">
+            <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">Top Impacted Coins (24h)</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <div className="space-y-3">
+                    {topCoins.map(({ coin, count, highestImpact }) => (
+                        <div key={coin} className="flex items-center justify-between">
+                            <Button
+                                variant="link"
+                                className="p-0 h-auto font-semibold text-foreground"
+                                onClick={() => onFilter('coins', [coin])}
+                            >
+                                {coin}
+                            </Button>
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground">{count} mentions</span>
+                                <Badge variant="outline" className={cn(
+                                    highestImpact === 'High' && 'border-red-500/50 text-red-400',
+                                    highestImpact === 'Medium' && 'border-amber-500/50 text-amber-400',
+                                    highestImpact === 'Low' && 'border-green-500/50 text-green-400'
+                                )}>
+                                    {highestImpact}
+                                </Badge>
+                            </div>
+                        </div>
+                    ))}
+                </div>
             </CardContent>
         </Card>
     );
@@ -1295,6 +1369,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                         watchExchange={watchExchange}
                         setWatchExchange={setWatchExchange}
                     />
+                    <TopImpactedCoinsCard newsItems={newsItems} onFilter={handleFilterChange} />
                     <UpcomingEventsCard onSetRiskWindow={setRiskWindowFromEvent} />
                 </div>
             </div>
@@ -1473,7 +1548,3 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         </div>
     );
 }
-
-
-    
-    
