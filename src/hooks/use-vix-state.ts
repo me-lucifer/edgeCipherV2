@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -10,7 +11,8 @@ export interface VixComponents {
     ethVol: number;
     fundingPressure: number;
     liquidationSpike: number;
-    newsSentiment: number;
+    newsSentimentScore: number; // Renamed from newsSentiment
+    newsMood: 'Bullish' | 'Neutral' | 'Bearish';
 }
 
 export interface VixSeries {
@@ -37,10 +39,9 @@ const getVixZone = (vix: number): VixZone => {
 };
 
 const calculateVixValue = (components: VixComponents): number => {
-    const { btcVol, ethVol, fundingPressure, liquidationSpike, newsSentiment } = components;
-    // Simplified formula for prototype
-    // News sentiment: 50 is neutral. < 50 is bearish (increases VIX), > 50 is bullish (decreases VIX)
-    const sentimentImpact = (50 - newsSentiment) * 0.5; // A score of 30 adds 10 to VIX, a score of 70 subtracts 10
+    const { btcVol, ethVol, fundingPressure, liquidationSpike, newsSentimentScore } = components;
+    // Corrected formula: higher score (more bearish) increases VIX
+    const sentimentImpact = (newsSentimentScore - 50) * 0.2; // Score of 70 adds 4, score of 30 subtracts 4
 
     const rawVix = (btcVol * 0.3) + (ethVol * 0.3) + (fundingPressure * 0.15) + (liquidationSpike * 0.25) + sentimentImpact;
     return Math.max(0, Math.min(100, rawVix));
@@ -90,7 +91,8 @@ const generateDefaultState = (): VixState => {
         ethVol: 45,
         fundingPressure: 20,
         liquidationSpike: 10,
-        newsSentiment: 50, // Neutral
+        newsSentimentScore: 50, // Neutral
+        newsMood: 'Neutral' as 'Neutral',
     };
     const value = calculateVixValue(components);
     const series = generateVixSeries(value);
@@ -174,11 +176,11 @@ export function useVixState() {
                 updatedAt: new Date().toISOString(),
                 series: newSeries,
                 components: { // Update components based on new overall value
+                    ...currentState.components,
                     btcVol: newValue * 0.8 + Math.random() * 10,
                     ethVol: newValue * 0.9 + Math.random() * 15,
                     fundingPressure: newValue * 0.5 + Math.random() * 20,
                     liquidationSpike: newValue > 60 ? newValue * 0.7 + Math.random() * 30 : 10,
-                    newsSentiment: currentState.components.newsSentiment, // Preserve news sentiment
                 },
             };
 
@@ -230,4 +232,3 @@ export function useVixState() {
     return { vixState, isLoading, updateVixValue, generateChoppyDay, refresh: loadVixState };
 }
 
-    
