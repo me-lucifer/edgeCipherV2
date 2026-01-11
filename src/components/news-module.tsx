@@ -229,6 +229,7 @@ const LAST_PRESET_KEY = "ec_news_last_preset_id";
 const WATCH_REGULATORY_KEY = "ec_watch_regulatory";
 const WATCH_EXCHANGE_KEY = "ec_watch_exchange";
 const BREAKING_MODE_KEY = "ec_news_breaking_mode";
+const REGULATORY_MODE_KEY = "ec_news_regulatory_mode";
 
 
 interface NewsFilters {
@@ -1203,6 +1204,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
     const [watchRegulatory, setWatchRegulatory] = useState(false);
     const [watchExchange, setWatchExchange] = useState(false);
     const [isBreakingMode, setIsBreakingMode] = useState(false);
+    const [isRegulatoryMode, setIsRegulatoryMode] = useState(false);
     const [selectedCoinForDrawer, setSelectedCoinForDrawer] = useState<string | null>(null);
 
 
@@ -1283,6 +1285,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
             const storedWatchRegulatory = localStorage.getItem(WATCH_REGULATORY_KEY);
             const storedWatchExchange = localStorage.getItem(WATCH_EXCHANGE_KEY);
             const storedBreakingMode = localStorage.getItem(BREAKING_MODE_KEY);
+            const storedRegulatoryMode = localStorage.getItem(REGULATORY_MODE_KEY);
             
             if (storedReadIds) setReadNewsIds(JSON.parse(storedReadIds));
             if (storedSavedIds) setSavedNewsIds(JSON.parse(storedSavedIds));
@@ -1290,6 +1293,8 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
             if (storedWatchRegulatory) setWatchRegulatory(JSON.parse(storedWatchRegulatory));
             if (storedWatchExchange) setWatchExchange(JSON.parse(storedWatchExchange));
             if (storedBreakingMode) setIsBreakingMode(JSON.parse(storedBreakingMode));
+            if (storedRegulatoryMode) setIsRegulatoryMode(JSON.parse(storedRegulatoryMode));
+
             if (storedPresets) {
                 const parsedPresets = JSON.parse(storedPresets);
                 setFilterPresets(parsedPresets);
@@ -1329,6 +1334,10 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
     useEffect(() => {
         localStorage.setItem(BREAKING_MODE_KEY, JSON.stringify(isBreakingMode));
     }, [isBreakingMode]);
+
+     useEffect(() => {
+        localStorage.setItem(REGULATORY_MODE_KEY, JSON.stringify(isRegulatoryMode));
+    }, [isRegulatoryMode]);
 
     const handleNewsSelect = (item: NewsItem) => {
         setSelectedNews(item);
@@ -1384,19 +1393,25 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
             );
         }
 
+        let effectiveFilters = { ...filters };
+        if (isRegulatoryMode) {
+            effectiveFilters.category = "Regulatory";
+            effectiveFilters.sortBy = 'highestImpact';
+        }
+
         items = items.filter(item => {
-            if (filters.followedOnly && !item.impactedCoins.some(coin => followedCoins.includes(coin))) return false;
-            const searchLower = filters.search.toLowerCase();
-            if (filters.search && !item.headline.toLowerCase().includes(searchLower) && !item.sourceName.toLowerCase().includes(searchLower)) return false;
-            if (filters.sentiment !== "All" && item.sentiment !== filters.sentiment) return false;
-            if (filters.highImpactOnly && item.volatilityImpact !== 'High') return false;
-            if (filters.category !== 'All' && item.category !== filters.category) return false;
-            if (filters.coins.length > 0 && !filters.coins.some(coin => item.impactedCoins.includes(coin))) return false;
+            if (effectiveFilters.followedOnly && !item.impactedCoins.some(coin => followedCoins.includes(coin))) return false;
+            const searchLower = effectiveFilters.search.toLowerCase();
+            if (effectiveFilters.search && !item.headline.toLowerCase().includes(searchLower) && !item.sourceName.toLowerCase().includes(searchLower)) return false;
+            if (effectiveFilters.sentiment !== "All" && item.sentiment !== effectiveFilters.sentiment) return false;
+            if (effectiveFilters.highImpactOnly && item.volatilityImpact !== 'High') return false;
+            if (effectiveFilters.category !== 'All' && item.category !== effectiveFilters.category) return false;
+            if (effectiveFilters.coins.length > 0 && !effectiveFilters.coins.some(coin => item.impactedCoins.includes(coin))) return false;
             return true;
         });
 
         items.sort((a, b) => {
-            switch (filters.sortBy) {
+            switch (effectiveFilters.sortBy) {
                 case 'highestImpact':
                     const impactOrder = { 'High': 3, 'Medium': 2, 'Low': 1 };
                     return impactOrder[b.volatilityImpact] - impactOrder[a.volatilityImpact];
@@ -1410,7 +1425,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         });
         
         return items;
-    }, [filters, newsItems, followedCoins, isBreakingMode, activeList, savedNewsIds, readNewsIds]);
+    }, [filters, newsItems, followedCoins, isBreakingMode, activeList, savedNewsIds, readNewsIds, isRegulatoryMode]);
     
     const clusteredItems = useMemo(() => {
         const STOP_WORDS = new Set(['a', 'an', 'the', 'is', 'in', 'on', 'of', 'for', 'to', 'with']);
@@ -1513,7 +1528,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
     
     useEffect(() => {
         setVisibleCount(ITEMS_PER_PAGE);
-    }, [filters, isBreakingMode, activeList]);
+    }, [filters, isBreakingMode, activeList, isRegulatoryMode]);
 
     const handleCoinToggle = (coin: string) => {
         setFilters(prev => {
@@ -1542,6 +1557,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
             sortBy: 'newest',
             followedOnly: false,
         });
+        setIsRegulatoryMode(false);
         setActivePresetId(null);
         localStorage.removeItem(LAST_PRESET_KEY);
     };
@@ -1775,6 +1791,16 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                 </div>
             </div>
 
+            {isRegulatoryMode && (
+                <Alert variant="default" className="bg-amber-950/40 border-amber-500/20 text-amber-300">
+                    <AlertTriangle className="h-4 w-4 text-amber-400" />
+                    <AlertTitle className="text-amber-400">Regulatory Mode is Active</AlertTitle>
+                    <AlertDescription>
+                        The feed is filtered for Regulatory news and sorted by highest impact. Trade cautiously as this news can trigger sudden volatility.
+                    </AlertDescription>
+                </Alert>
+            )}
+
              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <IntelligenceBriefCard allNews={newsItems} filteredNews={filteredNews} />
                 <VolatilityRiskCard newsItems={filteredNews} />
@@ -1812,6 +1838,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                         className="pl-9"
                                         value={filters.search}
                                         onChange={e => handleFilterChange('search', e.target.value)}
+                                        disabled={isRegulatoryMode}
                                     />
                                 </div>
                                 <div className="flex items-center space-x-2">
@@ -1824,22 +1851,23 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                 </div>
                                 <div className="flex items-center space-x-2">
                                     <Switch
+                                        id="regulatory-mode"
+                                        checked={isRegulatoryMode}
+                                        onCheckedChange={setIsRegulatoryMode}
+                                    />
+                                    <Label htmlFor="regulatory-mode" className="flex items-center gap-1.5"><Layers className="h-4 w-4 text-amber-500" /> Regulatory</Label>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    <Switch
                                         id="followed-only"
                                         checked={filters.followedOnly}
                                         onCheckedChange={checked => handleFilterChange('followedOnly', checked)}
+                                        disabled={isRegulatoryMode}
                                     />
                                     <Label htmlFor="followed-only">My Followed Coins</Label>
                                 </div>
-                                <Select value={filters.category} onValueChange={(v) => handleFilterChange('category', v as any)}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Filter by category..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {allCategories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                                 <Select value={filters.sortBy} onValueChange={(v) => handleFilterChange('sortBy', v as any)}>
-                                    <SelectTrigger>
+                                 <Select value={filters.sortBy} onValueChange={(v) => handleFilterChange('sortBy', v as any)} disabled={isRegulatoryMode}>
+                                    <SelectTrigger disabled={isRegulatoryMode}>
                                         <SelectValue placeholder="Sort by..." />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -1849,7 +1877,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                     </SelectContent>
                                 </Select>
                             </div>
-                            <div className="flex flex-wrap items-center gap-2">
+                            <div className={cn("flex flex-wrap items-center gap-2", isRegulatoryMode && "opacity-50 pointer-events-none")}>
                                 <div className="flex items-center gap-1 rounded-full bg-muted p-1">
                                     {(["All", "Positive", "Neutral", "Negative"] as const).map(s => (
                                         <Button
@@ -1928,20 +1956,6 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                         <Save className="mr-2 h-4 w-4" /> {activePresetId ? 'Update' : 'Save'}
                                     </Button>
                                 </div>
-                            </div>
-                            <Separator />
-                            <div className="flex flex-wrap gap-2 pt-2">
-                                {quickFilters.map((qf, i) => (
-                                    <Button
-                                        key={i}
-                                        variant={isQuickFilterActive(qf) ? 'secondary' : 'outline'}
-                                        size="sm"
-                                        className="h-7 text-xs"
-                                        onClick={() => handleQuickFilterToggle(qf)}
-                                    >
-                                        {qf.label}
-                                    </Button>
-                                ))}
                             </div>
                         </CardContent>
                     </Card>
@@ -2268,4 +2282,3 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         </div>
     );
 }
-
