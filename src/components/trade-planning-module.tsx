@@ -1,5 +1,5 @@
 
-"use client";
+      "use client";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -1041,6 +1041,12 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
             incrementOverrides();
         }
 
+        const newsContextTags: string[] = [];
+        if (activeNewsRisk) {
+            newsContextTags.push("News-driven day");
+            newsContextTags.push(`Active risk window: ${activeNewsRisk.headline}`);
+        }
+
         const newJournalEntry: JournalEntry = {
             id: `draft-${Date.now()}`,
             tradeId: `DELTA-${Date.now()}`,
@@ -1066,6 +1072,11 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
                 planNotes: values.notes,
                 ruleOverridesJustification: values.justification,
                 mindset: values.mindset,
+            },
+            review: {
+                pnl: 0,
+                exitPrice: 0,
+                newsContextTags: newsContextTags.join(','),
             },
             meta: {
                 strategyVersion: selectedStrategy?.versions.find(v => v.isActiveVersion)?.versionNumber.toString(),
