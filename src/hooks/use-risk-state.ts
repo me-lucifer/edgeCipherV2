@@ -195,6 +195,9 @@ export function useRiskState() {
             const storedEvents = JSON.parse(localStorage.getItem('ec_risk_events_today') || '[]');
             const riskEventsToday: RiskEvent[] = [...storedEvents];
             
+            const newsDaySignalString = localStorage.getItem("ec_news_day_signal");
+            const newsDaySignal = newsDaySignalString ? JSON.parse(newsDaySignalString) : { isNewsDrivenDay: false };
+
             const now = new Date();
 
             // 2. Compute Market Risk from ec_vix_state
@@ -468,6 +471,17 @@ export function useRiskState() {
             } else if (maxLeverage >= leverageWarnThreshold) {
                 if (level !== 'red') level = 'yellow';
                 reasons.push(`High Leverage: Open position with ${maxLeverage}x leverage detected.`);
+            }
+
+            if (newsDaySignal.isNewsDrivenDay) {
+                if (level !== 'red') level = 'yellow';
+                reasons.push("High-impact news cluster detected.");
+                if (vixZone === 'Volatile' || vixZone === 'High Volatility' || dailyCounters.lossStreak > 0) {
+                    if (level === 'yellow') {
+                        level = 'red';
+                        reasons.push("News-driven day combined with other risk factors (VIX/Loss Streak) escalates risk to RED.");
+                    }
+                }
             }
             
             const decisionMessages = {
