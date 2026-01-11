@@ -108,14 +108,14 @@ const getRiskWindow = (category: NewsCategory, impact: VolatilityImpact): { risk
 };
 
 const summaryBulletPool = [
-    "Analyzes the potential impact on major asset prices based on historical precedents.",
-    "The development is expected to reduce transaction fees on associated Layer-2 networks.",
+    "Analyzes potential impact on major asset prices based on historical precedents.",
+    "The development is expected to influence transaction fees on associated Layer-2 networks.",
     "This event is correlated with a short-term increase in market volatility.",
-    "A new date for the upcoming protocol upgrade has been confirmed.",
+    "A new date for an upcoming protocol upgrade has been confirmed.",
     "The announcement has sparked debate on the future of decentralized finance regulation.",
-    "Data indicates growing institutional adoption and capital inflows.",
+    "Data indicates a shift in institutional adoption and capital flows.",
     "The incident raises concerns about network security and fund safety.",
-    "The report outlines a new multi-year roadmap for protocol development.",
+    "The report outlines a multi-year roadmap for protocol development.",
     "The change is projected to affect staking rewards for token holders.",
     "A new governance proposal has been submitted for community review."
 ];
@@ -1019,7 +1019,27 @@ ${headlinesText || "- None"}
     );
 }
 
-function StoryClusterCard({ cluster, onNewsSelect }: { cluster: StoryCluster, onNewsSelect: (item: NewsItem) => void }) {
+const HighlightMatches = ({ text, query }: { text: string; query: string }) => {
+    if (!query) {
+        return <>{text}</>;
+    }
+    const parts = text.split(new RegExp(`(${query})`, 'gi'));
+    return (
+        <span>
+            {parts.map((part, i) =>
+                part.toLowerCase() === query.toLowerCase() ? (
+                    <span key={i} className="underline decoration-primary decoration-2 underline-offset-2">
+                        {part}
+                    </span>
+                ) : (
+                    part
+                )
+            )}
+        </span>
+    );
+};
+
+function StoryClusterCard({ cluster, onNewsSelect, query }: { cluster: StoryCluster, onNewsSelect: (item: NewsItem) => void, query: string }) {
     const summaryBullets = [
         cluster.primary.summaryBullets[0],
         cluster.related[0]?.summaryBullets[0]
@@ -1032,7 +1052,9 @@ function StoryClusterCard({ cluster, onNewsSelect }: { cluster: StoryCluster, on
                     <div className="flex-1 cursor-pointer">
                         <CardHeader>
                             <div className="flex items-start justify-between">
-                                <CardTitle className="text-base leading-tight pr-4">{cluster.primary.headline}</CardTitle>
+                                <CardTitle className="text-base leading-tight pr-4">
+                                     <HighlightMatches text={cluster.primary.headline} query={query} />
+                                </CardTitle>
                                 <Badge variant="outline" className="flex-shrink-0 bg-muted border-primary/20 text-primary">
                                     <Layers className="mr-2 h-3 w-3" />
                                     +{cluster.related.length} related
@@ -1117,7 +1139,8 @@ function CoinDetailDrawer({ coin, newsItems, followedCoins, onOpenChange, onSetM
             Neutral: (sentimentCounts.Neutral / total) * 100,
         };
 
-        const coinNewsRiskScore = Math.min(100, Math.round(riskScore / total * 20)); // Normalized score
+        const coinNewsRiskScore = Math.min(100, Math.round((riskScore / total) * (20 / coinNews.length) * 10)); // Normalized score
+
 
         return { coinSentiment, coinNewsRiskScore };
     }, [coinNews]);
@@ -1140,7 +1163,7 @@ function CoinDetailDrawer({ coin, newsItems, followedCoins, onOpenChange, onSetM
                                     <CardContent className="p-3">
                                         <p className="font-semibold text-sm leading-tight">{item.headline}</p>
                                         <div className="flex items-center gap-2 mt-1.5 text-xs text-muted-foreground">
-                                            <span>{item.sourceName}</span>
+                                            <span>{item.sourceName} (Tier {item.sourceTier})</span>
                                             <span>&bull;</span>
                                             <span>{formatDistanceToNow(new Date(item.publishedAt), { addSuffix: true })}</span>
                                             <Badge variant="outline" className={cn(
@@ -1844,7 +1867,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                     <Card className="bg-muted/30 border-border/50 sticky top-[72px] z-20">
                         <CardHeader>
                             <div className="flex items-center justify-between">
-                                <CardTitle className="flex items-center gap-2"><Filter /> Filters & Sorting</CardTitle>
+                                <CardTitle className="flex items-center gap-2"><Filter /> Filters & Sorting ({clusteredItems.length})</CardTitle>
                                 <Button variant="ghost" size="sm" onClick={clearFilters}><X className="mr-2 h-4 w-4"/>Clear all</Button>
                             </div>
                         </CardHeader>
@@ -2021,7 +2044,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                             <div className={cn("grid grid-cols-1 md:grid-cols-2 gap-6", isBreakingMode && "md:grid-cols-3")}>
                                                 {items.slice(0, visibleCount).map(item => {
                                                     if (item.type === 'cluster') {
-                                                        return <StoryClusterCard key={item.id} cluster={item} onNewsSelect={handleNewsSelect} />
+                                                        return <StoryClusterCard key={item.id} cluster={item} onNewsSelect={handleNewsSelect} query={filters.search} />
                                                     }
                                                     
                                                     const newsItem = item as NewsItem;
@@ -2039,7 +2062,9 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                                         >
                                                             <div onClick={() => handleNewsSelect(newsItem)} className="cursor-pointer flex-1 flex flex-col">
                                                                 <CardHeader>
-                                                                    <CardTitle className="text-base leading-tight">{newsItem.headline}</CardTitle>
+                                                                    <CardTitle className="text-base leading-tight">
+                                                                        <HighlightMatches text={newsItem.headline} query={filters.search} />
+                                                                    </CardTitle>
                                                                     <CardDescription className="flex items-center gap-2 text-xs pt-1">
                                                                         <span>{newsItem.sourceName} (Tier {newsItem.sourceTier})</span>
                                                                     </CardDescription>
@@ -2309,3 +2334,4 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         </div>
     );
 }
+
