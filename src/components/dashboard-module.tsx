@@ -411,102 +411,84 @@ function PerformanceSummary({ dailyPnl7d, dailyPnl30d, performanceState, hasHist
     );
 }
 
-function SentimentDot({ sentiment }: { sentiment: NewsItem['sentiment'] }) {
-    const sentimentColor = {
-        'Positive': 'bg-green-500',
-        'Negative': 'bg-red-500',
-        'Neutral': 'bg-gray-500',
-    }[sentiment];
-
-    return (
-        <TooltipProvider>
-            <Tooltip>
-                <TooltipTrigger>
-                    <div className={cn("h-2.5 w-2.5 rounded-full", sentimentColor)} />
-                </TooltipTrigger>
-                <TooltipContent>
-                    <p>Sentiment: {sentiment}</p>
-                </TooltipContent>
-            </Tooltip>
-        </TooltipProvider>
-    );
-}
-
-function NewsSnapshot({ onSetModule }: { onSetModule: (module: any, context?: ModuleContext) => void }) {
-    const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
+function TopRisksCard({ onSetModule }: { onSetModule: (module: any, context?: any) => void }) {
+    const [topRisks, setTopRisks] = useState<{ id: string; headline: string; volatilityImpact: NewsItem['volatilityImpact']; impactedCoins: string[] }[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        const loadNews = () => {
+        const loadRisks = () => {
             setIsLoading(true);
             try {
-                const storedData = localStorage.getItem("ec_news_state_v2");
-                if (storedData) {
-                    const { items } = JSON.parse(storedData);
-                    setNewsItems(items.slice(0, 3));
-                } else {
-                    // Fallback to generating some data if cache is empty
-                    // This could happen if user visits dashboard before news module
-                    // In a real app, this would be an API call.
-                    // For now, we rely on the news module to populate the cache.
+                const newsCache = localStorage.getItem("ec_news_state_v2");
+                if (newsCache) {
+                    const { items } = JSON.parse(newsCache);
+                    const highImpactNews = items
+                        .filter((item: NewsItem) => item.volatilityImpact === 'High' || item.sentiment === 'Negative')
+                        .sort((a: NewsItem, b: NewsItem) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
+                        .slice(0, 3);
+                    setTopRisks(highImpactNews);
                 }
             } catch (error) {
-                console.error("Failed to load news snapshot data:", error);
+                console.error("Failed to load top risks data:", error);
             } finally {
                 setIsLoading(false);
             }
         };
 
-        loadNews();
-        // Listen for changes to the news cache, e.g., if the user visits the news page
-        const handleStorageChange = (e: StorageEvent) => {
+        loadRisks();
+        window.addEventListener('storage', (e) => {
             if (e.key === 'ec_news_state_v2') {
-                loadNews();
+                loadRisks();
             }
-        };
-        window.addEventListener('storage', handleStorageChange);
-        return () => window.removeEventListener('storage', handleStorageChange);
+        });
     }, []);
+
+    const handleRiskClick = (risk: { headline: string }) => {
+        onSetModule('news', { filters: { search: risk.headline } });
+    };
 
     if (isLoading) {
         return (
             <Card className="bg-muted/30 border-border/50">
                 <CardHeader>
                     <CardTitle className="text-base flex items-center gap-2">
-                        <Newspaper className="h-5 w-5" />
-                        News Snapshot
+                        <AlertTriangle className="h-5 w-5" />
+                        Top Risks Today
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <Skeleton className="h-6 w-full" />
-                    <Skeleton className="h-4 w-3/4" />
-                    <Skeleton className="h-6 w-full" />
-                    <Skeleton className="h-4 w-1/2" />
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
                 </CardContent>
             </Card>
         )
     }
-
+    
     return (
         <Card className="bg-muted/30 border-border/50">
             <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
-                    <Newspaper className="h-5 w-5" />
-                    News Snapshot
+                    <AlertTriangle className="h-5 w-5 text-amber-400" />
+                    Top Risks Today
                 </CardTitle>
             </CardHeader>
             <CardContent>
-                <div className="space-y-4">
-                    {newsItems.length > 0 ? newsItems.map((item, index) => (
-                        <div key={index} className="border-b border-border/50 pb-3 last:border-b-0 last:pb-0">
-                            <p className="font-semibold text-foreground text-sm leading-tight">{item.headline}</p>
+                <div className="space-y-3">
+                    {topRisks.length > 0 ? topRisks.map((risk, index) => (
+                        <div key={index} className="p-3 bg-muted/50 border border-border/50 rounded-lg cursor-pointer hover:bg-muted" onClick={() => handleRiskClick(risk)}>
+                            <p className="font-semibold text-foreground text-sm leading-tight line-clamp-2">{risk.headline}</p>
                             <div className="flex items-center gap-2 mt-1.5">
-                                <SentimentDot sentiment={item.sentiment} />
-                                <p className="text-xs text-muted-foreground">{item.sourceName} &bull; {formatDistanceToNow(new Date(item.publishedAt), { addSuffix: true })}</p>
+                                <Badge variant="destructive" className="text-xs bg-red-500/10 border-red-500/20 text-red-300">
+                                    {risk.volatilityImpact} Impact
+                                </Badge>
+                                {risk.impactedCoins.slice(0,2).map(coin => (
+                                    <Badge key={coin} variant="secondary" className="text-xs">{coin}</Badge>
+                                ))}
                             </div>
                         </div>
                     )) : (
-                        <p className="text-sm text-muted-foreground text-center py-4">No news items available. Visit the News module to fetch data.</p>
+                        <p className="text-sm text-muted-foreground text-center py-4">No high-impact news items detected recently.</p>
                     )}
                 </div>
                 <Button variant="link" className="px-0 mt-4 text-primary/90 hover:text-primary" onClick={() => onSetModule('news')}>
@@ -1115,7 +1097,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
 
                 <div id="demo-highlight-4" className="grid md:grid-cols-2 gap-8">
                      <VixWidget onSetModule={onSetModule} />
-                    <NewsSnapshot onSetModule={onSetModule} />
+                    <TopRisksCard onSetModule={onSetModule} />
                 </div>
             </div>
 
