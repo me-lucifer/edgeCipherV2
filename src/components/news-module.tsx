@@ -5,7 +5,7 @@ import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark, Timer, Gauge, Star, Calendar, Copy, Clipboard, ThumbsUp, ThumbsDown, Meh, PlusCircle, MoreHorizontal, Save, Grid, Eye, Radio, RefreshCw, Layers, BarChart, FileText } from "lucide-react";
+import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark, Timer, Gauge, Star, Calendar, Copy, Clipboard, ThumbsUp, ThumbsDown, Meh, PlusCircle, MoreHorizontal, Save, Grid, Eye, Radio, RefreshCw, Layers, BarChart, FileText, ShieldAlert } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "./ui/drawer";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "./ui/skeleton";
@@ -230,6 +230,7 @@ const WATCH_REGULATORY_KEY = "ec_watch_regulatory";
 const WATCH_EXCHANGE_KEY = "ec_watch_exchange";
 const BREAKING_MODE_KEY = "ec_news_breaking_mode";
 const REGULATORY_MODE_KEY = "ec_news_regulatory_mode";
+const EXCHANGE_MODE_KEY = "ec_news_exchange_mode";
 
 
 interface NewsFilters {
@@ -1205,6 +1206,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
     const [watchExchange, setWatchExchange] = useState(false);
     const [isBreakingMode, setIsBreakingMode] = useState(false);
     const [isRegulatoryMode, setIsRegulatoryMode] = useState(false);
+    const [isExchangeMode, setIsExchangeMode] = useState(false);
     const [selectedCoinForDrawer, setSelectedCoinForDrawer] = useState<string | null>(null);
 
 
@@ -1286,6 +1288,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
             const storedWatchExchange = localStorage.getItem(WATCH_EXCHANGE_KEY);
             const storedBreakingMode = localStorage.getItem(BREAKING_MODE_KEY);
             const storedRegulatoryMode = localStorage.getItem(REGULATORY_MODE_KEY);
+            const storedExchangeMode = localStorage.getItem(EXCHANGE_MODE_KEY);
             
             if (storedReadIds) setReadNewsIds(JSON.parse(storedReadIds));
             if (storedSavedIds) setSavedNewsIds(JSON.parse(storedSavedIds));
@@ -1294,6 +1297,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
             if (storedWatchExchange) setWatchExchange(JSON.parse(storedWatchExchange));
             if (storedBreakingMode) setIsBreakingMode(JSON.parse(storedBreakingMode));
             if (storedRegulatoryMode) setIsRegulatoryMode(JSON.parse(storedRegulatoryMode));
+            if (storedExchangeMode) setIsExchangeMode(JSON.parse(storedExchangeMode));
 
             if (storedPresets) {
                 const parsedPresets = JSON.parse(storedPresets);
@@ -1338,6 +1342,11 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
      useEffect(() => {
         localStorage.setItem(REGULATORY_MODE_KEY, JSON.stringify(isRegulatoryMode));
     }, [isRegulatoryMode]);
+
+    useEffect(() => {
+        localStorage.setItem(EXCHANGE_MODE_KEY, JSON.stringify(isExchangeMode));
+    }, [isExchangeMode]);
+
 
     const handleNewsSelect = (item: NewsItem) => {
         setSelectedNews(item);
@@ -1398,6 +1407,11 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
             effectiveFilters.category = "Regulatory";
             effectiveFilters.sortBy = 'highestImpact';
         }
+        if (isExchangeMode) {
+            const exchangeCategories: NewsCategory[] = ['Exchange', 'Security', 'Liquidations'];
+            items = items.filter(item => exchangeCategories.includes(item.category));
+            effectiveFilters.sortBy = 'highestImpact';
+        }
 
         items = items.filter(item => {
             if (effectiveFilters.followedOnly && !item.impactedCoins.some(coin => followedCoins.includes(coin))) return false;
@@ -1425,7 +1439,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         });
         
         return items;
-    }, [filters, newsItems, followedCoins, isBreakingMode, activeList, savedNewsIds, readNewsIds, isRegulatoryMode]);
+    }, [filters, newsItems, followedCoins, isBreakingMode, activeList, savedNewsIds, readNewsIds, isRegulatoryMode, isExchangeMode]);
     
     const clusteredItems = useMemo(() => {
         const STOP_WORDS = new Set(['a', 'an', 'the', 'is', 'in', 'on', 'of', 'for', 'to', 'with']);
@@ -1528,7 +1542,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
     
     useEffect(() => {
         setVisibleCount(ITEMS_PER_PAGE);
-    }, [filters, isBreakingMode, activeList, isRegulatoryMode]);
+    }, [filters, isBreakingMode, activeList, isRegulatoryMode, isExchangeMode]);
 
     const handleCoinToggle = (coin: string) => {
         setFilters(prev => {
@@ -1558,6 +1572,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
             followedOnly: false,
         });
         setIsRegulatoryMode(false);
+        setIsExchangeMode(false);
         setActivePresetId(null);
         localStorage.removeItem(LAST_PRESET_KEY);
     };
@@ -1566,25 +1581,6 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         setFilters(prev => ({ ...prev, [key]: value }));
         setActivePresetId(null);
         localStorage.removeItem(LAST_PRESET_KEY);
-    };
-
-    const handleQuickFilterToggle = (filter: {type: string, key?: keyof NewsFilters, value?: any}) => {
-        if (filter.type === 'toggle' && filter.key) {
-            handleFilterChange(filter.key, !filters[filter.key]);
-        } else if (filter.type === 'category' && filter.value) {
-            const currentCategory = filters.category;
-            handleFilterChange('category', currentCategory === filter.value ? 'All' : filter.value);
-        } else if (filter.type === 'coin' && filter.value) {
-            const currentCoins = filters.coins;
-            const newCoins = currentCoins.includes(filter.value)
-                ? currentCoins.filter(c => c !== filter.value)
-                : [...currentCoins, filter.value];
-            handleFilterChange('coins', newCoins);
-        }
-    };
-
-    const showHighImpact = () => {
-        handleFilterChange('highImpactOnly', true);
     };
 
     const handleToggleRead = (id: string) => {
@@ -1713,24 +1709,6 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         toast({ title: "Preset deleted", variant: 'destructive' });
     };
 
-    const quickFilters = [
-        { label: 'High Impact', type: 'toggle', key: 'highImpactOnly' },
-        { label: 'Regulatory', type: 'category', value: 'Regulatory' },
-        { label: 'ETF', type: 'category', value: 'ETF' },
-        { label: 'Liquidations', type: 'category', value: 'Liquidations' },
-        { label: 'Macro', type: 'category', value: 'Macro' },
-        { label: 'BTC', type: 'coin', value: 'BTC' },
-        { label: 'ETH', type: 'coin', value: 'ETH' },
-        { label: 'SOL', type: 'coin', value: 'SOL' },
-    ];
-    
-    const isQuickFilterActive = (filter: any) => {
-        if (filter.type === 'toggle') return filters[filter.key as keyof NewsFilters];
-        if (filter.type === 'category') return filters.category === filter.value;
-        if (filter.type === 'coin') return filters.coins.includes(filter.value);
-        return false;
-    }
-
 
     return (
         <div className="space-y-8">
@@ -1793,10 +1771,19 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
 
             {isRegulatoryMode && (
                 <Alert variant="default" className="bg-amber-950/40 border-amber-500/20 text-amber-300">
-                    <AlertTriangle className="h-4 w-4 text-amber-400" />
+                    <Layers className="h-4 w-4 text-amber-400" />
                     <AlertTitle className="text-amber-400">Regulatory Mode is Active</AlertTitle>
                     <AlertDescription>
                         The feed is filtered for Regulatory news and sorted by highest impact. Trade cautiously as this news can trigger sudden volatility.
+                    </AlertDescription>
+                </Alert>
+            )}
+             {isExchangeMode && (
+                <Alert variant="default" className="bg-blue-950/40 border-blue-500/20 text-blue-300">
+                    <ShieldAlert className="h-4 w-4 text-blue-400" />
+                    <AlertTitle className="text-blue-400">Exchange & Infrastructure Mode is Active</AlertTitle>
+                    <AlertDescription>
+                        The feed is filtered for news about exchanges, security, and liquidations. Pay attention to execution risk.
                     </AlertDescription>
                 </Alert>
             )}
@@ -1831,14 +1818,14 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-                                <div className="relative md:col-span-2 lg:col-span-4">
+                                <div className={cn("relative md:col-span-2 lg:col-span-4", (isRegulatoryMode || isExchangeMode) && "opacity-50 pointer-events-none")}>
                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                     <Input 
                                         placeholder="Search headline or source..." 
                                         className="pl-9"
                                         value={filters.search}
                                         onChange={e => handleFilterChange('search', e.target.value)}
-                                        disabled={isRegulatoryMode}
+                                        disabled={isRegulatoryMode || isExchangeMode}
                                     />
                                 </div>
                                 <div className="flex items-center space-x-2">
@@ -1853,21 +1840,29 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                     <Switch
                                         id="regulatory-mode"
                                         checked={isRegulatoryMode}
-                                        onCheckedChange={setIsRegulatoryMode}
+                                        onCheckedChange={(checked) => { setIsRegulatoryMode(checked); if (checked) setIsExchangeMode(false); }}
                                     />
                                     <Label htmlFor="regulatory-mode" className="flex items-center gap-1.5"><Layers className="h-4 w-4 text-amber-500" /> Regulatory</Label>
                                 </div>
                                 <div className="flex items-center space-x-2">
                                     <Switch
+                                        id="exchange-mode"
+                                        checked={isExchangeMode}
+                                        onCheckedChange={(checked) => { setIsExchangeMode(checked); if (checked) setIsRegulatoryMode(false); }}
+                                    />
+                                    <Label htmlFor="exchange-mode" className="flex items-center gap-1.5"><ShieldAlert className="h-4 w-4 text-blue-500" /> Exchange & Infra</Label>
+                                </div>
+                                 <div className="flex items-center space-x-2">
+                                    <Switch
                                         id="followed-only"
                                         checked={filters.followedOnly}
                                         onCheckedChange={checked => handleFilterChange('followedOnly', checked)}
-                                        disabled={isRegulatoryMode}
+                                        disabled={isRegulatoryMode || isExchangeMode}
                                     />
                                     <Label htmlFor="followed-only">My Followed Coins</Label>
                                 </div>
-                                 <Select value={filters.sortBy} onValueChange={(v) => handleFilterChange('sortBy', v as any)} disabled={isRegulatoryMode}>
-                                    <SelectTrigger disabled={isRegulatoryMode}>
+                                 <Select value={filters.sortBy} onValueChange={(v) => handleFilterChange('sortBy', v as any)} disabled={isRegulatoryMode || isExchangeMode}>
+                                    <SelectTrigger disabled={isRegulatoryMode || isExchangeMode}>
                                         <SelectValue placeholder="Sort by..." />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -1877,7 +1872,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                     </SelectContent>
                                 </Select>
                             </div>
-                            <div className={cn("flex flex-wrap items-center gap-2", isRegulatoryMode && "opacity-50 pointer-events-none")}>
+                            <div className={cn("flex flex-wrap items-center gap-2", (isRegulatoryMode || isExchangeMode) && "opacity-50 pointer-events-none")}>
                                 <div className="flex items-center gap-1 rounded-full bg-muted p-1">
                                     {(["All", "Positive", "Neutral", "Negative"] as const).map(s => (
                                         <Button
@@ -1984,7 +1979,6 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                     </CardHeader>
                                     <CardContent className="flex justify-center gap-4">
                                         <Button variant="outline" onClick={clearFilters}>Clear filters</Button>
-                                        <Button onClick={showHighImpact}>Show High Impact</Button>
                                     </CardContent>
                                 </Card>
                             ) : (
