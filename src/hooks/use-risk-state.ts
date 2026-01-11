@@ -1,6 +1,5 @@
 
-
-"use client";
+      "use client";
 
 import { useState, useEffect, useCallback } from 'react';
 import type { DemoScenario } from '@/components/dashboard-module';
@@ -202,7 +201,7 @@ export function useRiskState() {
 
             // 2. Compute Market Risk from ec_vix_state
             const vixStateString = localStorage.getItem("ec_vix_state");
-            let vixValue = 37;
+            let vixValue: number | null = 37;
             let vixZone: VixZone = 'Normal';
             let oldVixZone: VixZone = 'Normal';
 
@@ -221,7 +220,7 @@ export function useRiskState() {
             }
 
             // Check for VIX zone change and add event
-            if (vixZone !== oldVixZone) {
+            if (vixValue !== null && vixZone !== oldVixZone) {
                 const severityMap: Record<VixZone, 'red' | 'yellow' | 'green'> = {
                     "Extreme": 'red',
                     "High Volatility": 'red',
@@ -242,7 +241,7 @@ export function useRiskState() {
             }
             
             const marketRisk = {
-                vixValue,
+                vixValue: vixValue || 37,
                 vixZone,
                 message: `Volatility is ${vixZone}.`,
             };
@@ -441,10 +440,10 @@ export function useRiskState() {
                 level = "red";
                 reasons.push(`Daily Budget Exceeded: Daily loss limit of ${maxDailyLossPct}% has been reached.`);
             }
-             if (vixValue >= vixLockThreshold || vixZone === 'Extreme') {
+             if (vixValue && vixValue >= vixLockThreshold || vixZone === 'Extreme') {
                 level = "red";
                 reasons.push(`Extreme Volatility: Market VIX is in the 'Extreme' zone (Threshold: >${vixLockThreshold}).`);
-            } else if (vixValue >= vixWarnThreshold) {
+            } else if (vixValue && vixValue >= vixWarnThreshold) {
                 if (level !== 'red') level = 'yellow';
                 reasons.push(`Elevated Volatility: Market VIX is '${vixZone}' (Threshold: >${vixWarnThreshold}).`);
             }
@@ -621,3 +620,4 @@ export function useRiskState() {
 
     return { riskState, isLoading, refresh: computeRiskState };
 }
+
