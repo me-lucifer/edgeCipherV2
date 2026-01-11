@@ -182,9 +182,9 @@ function MarketRiskCard({ marketRisk, onSetModule }: { marketRisk: RiskState['ma
     const zoneInfo = {
         "Extremely Calm": { impact: 'Markets are quiet. Setups may take longer to play out; be patient.' },
         Normal: { impact: 'Standard conditions. Follow your plan as designed.' },
-        Volatile: { impact: 'Expect whipsaws and spikes. Consider reducing size.' },
-        "High Volatility": { impact: 'High risk of erratic moves. Many pros sit out.' },
-        Extreme: { impact: 'Dangerously unpredictable market. Strongly consider not trading.' }
+        Volatile: { impact: 'Increased chop and risk of stop-hunts. Consider reducing position size.' },
+        "High Volatility": { impact: 'High risk of erratic price action. Professional traders often reduce exposure or sit out.' },
+        Extreme: { impact: 'Dangerously unpredictable market. Capital preservation is the primary goal.' }
     };
     
     const { impact } = zoneInfo[vixZone] || zoneInfo.Normal;
@@ -283,9 +283,9 @@ const ScoreGauge = ({ score, label, interpretation, delta, colorClass }: { score
 function RevengeRiskCard({ revengeRiskIndex, revengeRiskLevel }: { revengeRiskIndex: number, revengeRiskLevel: 'Low' | 'Medium' | 'High' | 'Critical' }) {
     const levelConfig = {
         Low: { color: "hsl(var(--chart-2))", suggestion: "No signs of revenge trading. Stick to the plan." },
-        Medium: { color: "hsl(var(--chart-1))", suggestion: "Slight elevation. Be mindful of emotional entries." },
-        High: { color: "hsl(var(--chart-4))", suggestion: "Risk is high. A losing streak or rule override was detected." },
-        Critical: { color: "hsl(var(--chart-5))", suggestion: "Risk is critical. Consider a cooldown before taking another trade." },
+        Medium: { color: "hsl(var(--chart-1))", suggestion: "Slight elevation detected. Be mindful of emotional entries after losses." },
+        High: { color: "hsl(var(--chart-4))", suggestion: "Risk is high. A losing streak or rule override was detected. A cooldown is recommended." },
+        Critical: { color: "hsl(var(--chart-5))", suggestion: "Risk is critical. Your account is vulnerable to emotional decisions. Stop trading for the day." },
     };
 
     const config = levelConfig[revengeRiskLevel];
@@ -1833,7 +1833,7 @@ const DeltaIndicator = ({ delta, unit = "" }: { delta: number; unit?: string }) 
     const isPositive = delta > 0;
     return (
         <span className={cn(
-            "text-xs font-mono flex items-center ml-2 motion-reduce:animate-none",
+            "text-xs font-mono flex items-center ml-2",
             isPositive ? "text-green-400" : "text-red-400"
         )}>
             {isPositive ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}

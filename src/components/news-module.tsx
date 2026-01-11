@@ -106,17 +106,18 @@ const getRiskWindow = (category: NewsCategory, impact: VolatilityImpact): { risk
 };
 
 const summaryBulletPool = [
-    "Analyzes impact on major asset prices.",
-    "Reduces transaction fees on Layer-2 networks.",
-    "Triggers significant market volatility.",
-    "Confirms new date for upcoming protocol upgrade.",
-    "Sparks debate on future of decentralized finance.",
-    "Highlights growing institutional adoption.",
-    "Raises concerns about network security.",
-    "Outlines a new roadmap for protocol development.",
-    "Affects staking rewards for token holders.",
-    "Introduces a new governance proposal.",
+    "Analyzes the potential impact on major asset prices based on historical precedents.",
+    "The development is expected to reduce transaction fees on associated Layer-2 networks.",
+    "This event is correlated with a short-term increase in market volatility.",
+    "A new date for the upcoming protocol upgrade has been confirmed.",
+    "The announcement has sparked debate on the future of decentralized finance regulation.",
+    "Data indicates growing institutional adoption and capital inflows.",
+    "The incident raises concerns about network security and fund safety.",
+    "The report outlines a new multi-year roadmap for protocol development.",
+    "The change is projected to affect staking rewards for token holders.",
+    "A new governance proposal has been submitted for community review."
 ];
+
 
 const mockNewsSource: Omit<NewsItem, 'riskWindowMins' | 'eventType' | 'volatilityRiskScore' | 'arjunMeaning' | 'recommendedAction'>[] = Array.from({ length: 25 }, (_, i) => {
     const categories: NewsCategory[] = ["Regulatory", "Macro", "Exchange", "ETF", "Liquidations", "Altcoins", "Security", "Tech"];
@@ -151,10 +152,9 @@ const mockNewsSource: Omit<NewsItem, 'riskWindowMins' | 'eventType' | 'volatilit
     // Smart coin parsing
     const impactedCoinsSet = new Set<string>();
     if (lowerHeadline.includes('btc') || lowerHeadline.includes('bitcoin')) impactedCoinsSet.add('BTC');
-    if (lowerHeadline.includes('eth') || lowerHeadline.includes('ethereum')) impactedCoinsSet.add('ETH');
+    if (lowerHeadline.includes('eth') || lowerHeadline.includes('ethereum') || lowerHeadline.includes('layer-2')) impactedCoinsSet.add('ETH');
     if (lowerHeadline.includes('sol') || lowerHeadline.includes('solana')) impactedCoinsSet.add('SOL');
     if (lowerHeadline.includes('etf') && lowerHeadline.includes('bitcoin')) impactedCoinsSet.add('BTC');
-    if (lowerHeadline.includes('layer-2')) impactedCoinsSet.add('ETH');
     
     // Add some random coins for variety
     const randomNumberOfCoins = Math.floor(Math.random() * 3); // 0 to 2 random coins
@@ -189,33 +189,33 @@ type VixZone = "Extremely Calm" | "Normal" | "Volatile" | "High Volatility" | "E
 
 const postureSuggestions: Record<VixZone, Record<PersonaType, { meaning: string; action: string }>> = {
     "Extremely Calm": {
-        "Impulsive Sprinter": { meaning: "Calm markets can feel slow, which may trigger your impulse to force trades. Patience is your primary edge today.", action: "Do not invent setups; wait for the market to present a clear opportunity." },
-        "Fearful Analyst": { meaning: "These low-stress conditions are perfect for building confidence. Use this time to observe and plan without pressure.", action: "Focus on planning and analysis, not forced execution." },
-        "Disciplined Scalper": { meaning: "Range-bound strategies often perform well. Trust your system but be quick to cut trades that don't show immediate follow-through.", action: "Execute your plan, but protect your capital from choppy price action." },
-        "Beginner": { meaning: "This is the ideal environment to study market structure without high risk. Observe and learn, don't trade.", action: "Today is for learning and observation, not for aggressive trading." },
+        "Impulsive Sprinter": { meaning: "Low volatility can lead to impatience and forced trades. Adherence to your plan is key.", action: "Do not invent setups; wait for the market to present a clear opportunity." },
+        "Fearful Analyst": { meaning: "These conditions are ideal for building confidence without excessive market noise. Focus on analysis.", action: "Focus on planning and analysis, not forced execution." },
+        "Disciplined Scalper": { meaning: "Range-bound strategies may perform well, but be wary of choppy price action eroding small gains.", action: "Execute your plan, but protect your capital from chop." },
+        "Beginner": { meaning: "This is the ideal environment to study market structure without high risk. Observe and learn, do not trade.", action: "Today is for learning and observation, not for aggressive trading." },
     },
     "Normal": {
-        "Impulsive Sprinter": { meaning: "Normal conditions can still trigger impatience. Your biggest risk is deviating from your plan. The goal is consistent execution.", action: "Follow your plan without exception; no adding to losers or revenge trading." },
-        "Fearful Analyst": { meaning: "The market is providing good conditions for well-planned trades. Now is the time to trust your analysis.", action: "Trust your analysis and execute your A+ setups with confidence." },
-        "Disciplined Scalper": { meaning: "These are your prime conditions. Your edge is sharpest now. Focus on disciplined execution of your best setups.", action: "Execute your A+ setups without hesitation and adhere to your rules." },
-        "Beginner": { meaning: "This is a good environment to practice. Focus on executing one or two simple setups with very small size.", action: "Practice disciplined execution with a minimal position size." },
+        "Impulsive Sprinter": { meaning: "Even in normal conditions, impatience can lead to rule-breaking. The goal is consistent execution.", action: "Follow your plan without exception; no adding to losers or revenge trading." },
+        "Fearful Analyst": { meaning: "The market is providing favorable conditions for well-planned trades. Trust your analysis.", action: "Trust your analysis and execute your A+ setups with confidence." },
+        "Disciplined Scalper": { meaning: "These are your prime conditions. The market has direction but isn't overly chaotic. Your edge is sharpest now.", action: "Execute your A+ setups without hesitation and adhere to your rules." },
+        "Beginner": { meaning: "This is a good environment to practice. Focus on executing one or two simple setups with a minimal, controlled position size.", action: "Practice disciplined execution with a minimal position size." },
     },
     "Volatile": {
-        "Impulsive Sprinter": { meaning: "This is a danger zone for you. Volatility can feel like a constant stream of opportunities, but it's where your impulses are most costly.", action: "Cut position size by 50%. Wait for crystal-clear A+ setups." },
-        "Fearful Analyst": { meaning: "Analysis is difficult in choppy markets. It is perfectly acceptable to sit out. A flat day is a winning day.", action: "If you are not 100% confident in a setup, the best trade is no trade." },
-        "Disciplined Scalper": { meaning: "Your strategy is at high risk. Widen stops, reduce size, or wait for the market to normalize.", action: "Adapt your parameters for volatility or wait for calmer conditions." },
-        "Beginner": { meaning: "This is a 'sit on your hands' day. Watching the chaos from the sidelines is the most valuable lesson.", action: "Observe the market, do not participate." },
+        "Impulsive Sprinter": { meaning: "This is a danger zone for you. Volatility feels like opportunity, but it's where impulsive errors are most costly.", action: "Cut position size by 50%. Wait for crystal-clear A+ setups." },
+        "Fearful Analyst": { meaning: "Analysis is difficult in choppy, volatile markets. It is acceptable to sit out. A flat day is a winning day.", action: "If you are not 100% confident in a setup, the best trade is no trade." },
+        "Disciplined Scalper": { meaning: "Your strategy is at high risk. Wider wicks and increased slippage can invalidate setups. Adapt or wait.", action: "Adapt your parameters for volatility or wait for calmer conditions." },
+        "Beginner": { meaning: "This is a 'sit on your hands' day. Watching the chaos from the sidelines is a valuable lesson in risk management.", action: "Observe the market; do not participate. Preserve your capital." },
     },
     "High Volatility": {
-        "Impulsive Sprinter": { meaning: "This is a 'red alert' for your persona. The market is erratic. Trying to trade in these conditions is gambling.", action: "Your only job today is to protect your capital by not trading." },
+        "Impulsive Sprinter": { meaning: "This is a red alert. The market is erratic. Trading in these conditions is gambling, not executing an edge.", action: "Your only job today is to protect your capital by not trading." },
         "Fearful Analyst": { meaning: "Your analysis is unreliable in these conditions. The market is driven by liquidations and fear. The pros are waiting.", action: "Stay flat. Pros are waiting, and so should you." },
-        "Disciplined Scalper": { meaning: "Your edge does not exist in these market conditions. Your discipline is best expressed by not participating.", action: "Cash is the strongest position right now. Preserve your capital." },
-        "Beginner": { meaning: "This is the environment where new traders lose their accounts. Do not trade. Your only job is to watch from a distance.", action: "Do not trade. Your goal is to survive to trade another day." },
+        "Disciplined Scalper": { meaning: "Your edge does not exist here. The noise is too high, and risk is not definable. Stepping aside is the highest form of discipline.", action: "Cash is the strongest position right now. Preserve your capital." },
+        "Beginner": { meaning: "This is the environment where new traders lose their accounts. Do not trade. Your only job is to watch and learn.", action: "Do not trade. Your goal is to survive to trade another day." },
     },
     "Extreme": {
-        "Impulsive Sprinter": { meaning: "Catastrophic risk is present. Close your platform and walk away. The only winning move is not to play.", action: "DO NOT TRADE. The only trade that matters is protecting your account." },
+        "Impulsive Sprinter": { meaning: "Catastrophic risk is present. Your account is in extreme danger if you trade. Close your platform and walk away.", action: "DO NOT TRADE. The only trade that matters is protecting your account." },
         "Fearful Analyst": { meaning: "The market is completely irrational. Your analysis does not apply. Trust your fear and stay flat.", action: "Stay flat. This is a spectator sport right now." },
-        "Disciplined Scalper": { meaning: "There is no edge here. Any position taken is a gamble. Stepping aside is the highest form of discipline.", action: "Stay flat. There is no trading edge in a liquidation cascade." },
+        "Disciplined Scalper": { meaning: "There is no edge here. The market is in a state of cascading liquidations. Any position taken is a gamble.", action: "Stay flat. There is no trading edge in a liquidation cascade." },
         "Beginner": { meaning: "DO NOT TRADE. DANGER. Watch from a distance to learn that sometimes the best action is no action.", action: "Observe the chaos from the sidelines. Survive to trade another day." },
     }
 };

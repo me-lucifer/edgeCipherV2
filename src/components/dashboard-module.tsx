@@ -81,7 +81,7 @@ const getArjunMessage = ({
 
     if (decision.status === 'Red') {
         return {
-            message: "Do not trade today. Your primary job is capital protection, not action.",
+            message: "Do not trade today. Your primary job is capital protection, not seeking profit.",
             reason: "The Risk Center decision is RED. This overrides all other factors. Reasons could include extreme volatility, hitting a loss limit, or a critical revenge risk level."
         };
     }
@@ -95,7 +95,7 @@ const getArjunMessage = ({
 
     if (decision.status === 'Green') {
          return {
-            message: "Conditions look normal. Execute your plan and stick to your rulebook.",
+            message: "Market conditions are favorable. Execute your plan and stick to your rulebook.",
             reason: "The Risk Center decision is GREEN. No major internal or external risk factors are currently active. Focus on disciplined execution."
         };
     }
@@ -103,18 +103,18 @@ const getArjunMessage = ({
     // Fallback logic if decision isn't red/amber/green
     if (performanceState === 'drawdown' && disciplineScore < 50) {
         return {
-            message: "You’re in a drawdown and discipline has been slipping. Today, focus on following your rules, not making back losses.",
+            message: "You’re in a drawdown and discipline has been slipping. Today, focus on following rules, not making back losses.",
             reason: "This insight combines your recent negative performance ('drawdown') with your 'Impulsive Sprinter' persona's lower discipline score, suggesting a high risk of revenge trading."
         };
     }
     if (performanceState === 'hot_streak') {
         return {
-            message: "You're on a hot streak. Protect your capital and don't get overconfident. Stick to the plan.",
-            reason: "A winning streak can often lead to overconfidence (a common trait for your persona). Arjun is reminding you to protect your recent gains by sticking to your strategy."
+            message: "You're on a hot streak. Protect your capital and avoid overconfidence. Stick to the plan.",
+            reason: "A winning streak can often lead to overconfidence. Arjun is reminding you to protect your recent gains by sticking to your strategy."
         };
     }
     return {
-        message: "Your performance has been stable recently. Keep following the plan and avoid unnecessary experimentation.",
+        message: "Your performance is stable. Continue to follow the plan and avoid unnecessary experimentation.",
         reason: "With stable performance and normal market conditions, the focus is on consistency. Arjun is encouraging you to continue executing your plan without deviation."
     };
 };
@@ -250,12 +250,12 @@ function PerformanceSummary({ dailyPnl7d, dailyPnl30d, performanceState, hasHist
 
     const getArjunPerformanceView = () => {
         if (performanceState === "drawdown") {
-            return "You’re in a drawdown, reduce size and focus on A+ setups.";
+            return "You’re in a drawdown. The data suggests reducing size and focusing on A+ setups.";
         }
         if (performanceState === "hot_streak") {
-            return "Excellent work this week. Stay focused and protect your capital.";
+            return "Excellent work this week. Stay focused and protect your capital from overconfidence.";
         }
-        return "Stable performance recently.";
+        return "Performance has been stable recently. Stick to the plan.";
     }
 
     if (!hasHistory) {

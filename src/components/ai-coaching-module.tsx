@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -45,8 +46,8 @@ const presetQuestions = [
 ];
 
 const cannedResponses = [
-    "That's a great question. Based on your recent history, it seems like holding onto losers too long is a key factor. Your average losing trade is 1.5x larger than your average winner. Let's focus on defining clear invalidation points before you enter a trade.",
-    "Interesting point. Volatility can feel like an opportunity, but it's also where most unforced errors happen. For your persona, high volatility often triggers FOMO. The best approach is to reduce your size by 50% and wait for very clear A+ setups.",
+    "That's a key question. Based on your recent history, holding onto losers too long is a major factor. Your average losing trade is 1.5x larger than your average winner. Let's focus on defining clear invalidation points before you enter a trade.",
+    "An important point. Volatility can feel like an opportunity, but it's also where most unforced errors happen. For your persona, high volatility often triggers FOMO. The data suggests the best approach is to reduce your size by 50% and wait for very clear A+ setups.",
     "Let's break that down. Overtrading is often a symptom of not having a clear plan. Your log shows you take 40% of your trades outside of your defined trading session. A good first step would be to set a hard rule: no trades outside of your 2-hour primary session for one week.",
 ];
 
