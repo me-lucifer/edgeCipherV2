@@ -1137,39 +1137,44 @@ function StoryClusterCard({ cluster, onNewsSelect, query }: { cluster: StoryClus
 }
 
 function CoinDetailDrawer({ coin, newsItems, followedCoins, onOpenChange, onSetModule, onToggleFollow }: { coin: string | null; newsItems: NewsItem[]; followedCoins: string[]; onOpenChange: (open: boolean) => void; onSetModule: (module: string, context?: any) => void; onToggleFollow: (coin: string) => void; }) {
-    const coinNews = useMemo(() => {
-        if (!coin) return [];
-        return newsItems
-            .filter(item => item.impactedCoins.includes(coin))
-            .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
-            .slice(0, 5);
+    const [relatedNews, setRelatedNews] = useState<NewsItem[]>([]);
+
+    useEffect(() => {
+        if (coin) {
+            setRelatedNews(
+                newsItems
+                .filter(item => item.impactedCoins.includes(coin))
+                .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
+                .slice(0, 5)
+            );
+        }
     }, [coin, newsItems]);
 
     const { coinSentiment, coinNewsRiskScore } = useMemo(() => {
-        if (coinNews.length === 0) return { coinSentiment: { Positive: 0, Negative: 0, Neutral: 100 }, coinNewsRiskScore: 0 };
+        if (relatedNews.length === 0) return { coinSentiment: { Positive: 0, Negative: 0, Neutral: 100 }, coinNewsRiskScore: 0 };
         
         let sentimentCounts = { Positive: 0, Negative: 0, Neutral: 0 };
         let riskScore = 0;
 
-        coinNews.forEach(item => {
+        relatedNews.forEach(item => {
             sentimentCounts[item.sentiment]++;
             if (item.volatilityImpact === 'High') riskScore += 25;
             if (item.volatilityImpact === 'Medium') riskScore += 10;
             if (item.sentiment === 'Negative') riskScore += 15;
         });
 
-        const total = coinNews.length;
+        const total = relatedNews.length;
         const coinSentiment = {
             Positive: (sentimentCounts.Positive / total) * 100,
             Negative: (sentimentCounts.Negative / total) * 100,
             Neutral: (sentimentCounts.Neutral / total) * 100,
         };
 
-        const coinNewsRiskScore = Math.min(100, Math.round((riskScore / total) * (20 / coinNews.length) * 10)); // Normalized score
+        const coinNewsRiskScore = Math.min(100, Math.round((riskScore / total) * (20 / relatedNews.length) * 10)); // Normalized score
 
 
         return { coinSentiment, coinNewsRiskScore };
-    }, [coinNews]);
+    }, [relatedNews]);
 
     if (!coin) return null;
 
@@ -1184,7 +1189,7 @@ function CoinDetailDrawer({ coin, newsItems, followedCoins, onOpenChange, onSetM
                     <div className="px-4 py-6 grid md:grid-cols-2 lg:grid-cols-3 gap-8">
                         <div className="lg:col-span-2 space-y-4">
                             <h3 className="font-semibold text-foreground">Latest Headlines</h3>
-                            {coinNews.length > 0 ? coinNews.map(item => (
+                            {relatedNews.length > 0 ? relatedNews.map(item => (
                                 <Card key={item.id} className="bg-muted/30">
                                     <CardContent className="p-3">
                                         <p className="font-semibold text-sm leading-tight">{item.headline}</p>
@@ -1271,7 +1276,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         sortBy: 'newest',
         followedOnly: false,
     });
-    const [activeList, setActiveList] = useState<'all' | 'saved' | 'read'>('all');
+    const [activeList, setActiveTab] = useState<'all' | 'saved' | 'read'>('all');
     const [readNewsIds, setReadNewsIds] = useState<string[]>([]);
     const [savedNewsIds, setSavedNewsIds] = useState<string[]>([]);
     const [followedCoins, setFollowedCoins] = useState<string[]>([]);
@@ -1289,7 +1294,6 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
     const [isRegulatoryMode, setIsRegulatoryMode] = useState(false);
     const [isExchangeMode, setIsExchangeMode] = useState(false);
     const [selectedCoinForDrawer, setSelectedCoinForDrawer] = useState<string | null>(null);
-    const [relatedNews, setRelatedNews] = useState<NewsItem[]>([]);
 
 
     const allCategories = useMemo(() => ['All', ...[...new Set(mockNewsSource.map(item => item.category))]], []);
@@ -1546,12 +1550,6 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
             } else {
                  setIsWarningActive(false);
             }
-            setRelatedNews(newsItems
-                .filter(item => 
-                    item.id !== selectedNews.id &&
-                    (item.category === selectedNews.category || item.impactedCoins.some(c => selectedNews.impactedCoins.includes(c)))
-                )
-                .slice(0, 3));
         }
     }, [selectedNews, newsItems]);
 
@@ -1921,9 +1919,18 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                             Refresh
                         </Button>
                         {lastFetchedAt && (
-                            <p className="text-xs text-muted-foreground">
-                                Updated {formatDistanceToNow(new Date(lastFetchedAt), { addSuffix: true })}
-                            </p>
+                             <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <p className="text-xs text-muted-foreground cursor-help">
+                                            Updated {formatDistanceToNow(new Date(lastFetchedAt), { addSuffix: true })}
+                                        </p>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>In production, news is cached for 5 minutes to reduce cost and keep speed.</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
                         )}
                     </div>
                 </div>
@@ -2115,7 +2122,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                         </CardContent>
                     </Card>
 
-                    <Tabs value={activeList} onValueChange={(value) => setActiveList(value as any)}>
+                    <Tabs value={activeList} onValueChange={(value) => setActiveTab(value as any)}>
                         <TabsList className="grid w-full grid-cols-3 max-w-lg">
                             <TabsTrigger value="all">All</TabsTrigger>
                             <TabsTrigger value="saved">Saved ({savedNewsIds.length})</TabsTrigger>
@@ -2416,7 +2423,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                             <CardTitle className="text-base">Related Intelligence</CardTitle>
                                         </CardHeader>
                                         <CardContent className="space-y-2">
-                                            {relatedNews.length > 0 ? relatedNews.map(item => (
+                                            {newsItems.filter(item => item.id !== selectedNews.id && item.category === selectedNews.category).slice(0, 3).length > 0 ? newsItems.filter(item => item.id !== selectedNews.id && item.category === selectedNews.category).slice(0, 3).map(item => (
                                                 <button
                                                     key={item.id}
                                                     onClick={() => handleNewsSelect(item)}
