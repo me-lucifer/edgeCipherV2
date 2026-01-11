@@ -1,7 +1,5 @@
 
-
-      "use client";
-
+"use client";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -837,3 +835,65 @@ function PlanSummary({ control, setPlanStatus, onSetModule, entryChecklist, sess
         </Card>
     );
 }
+
+const SummaryRow = ({ label, value, className }: { label: string, value: string, className?: string }) => (
+    <div className="flex justify-between items-center text-sm">
+        <p className="text-muted-foreground">{label}</p>
+        <p className={cn("font-mono font-semibold text-foreground", className)}>{value}</p>
+    </div>
+);
+
+const PriceLadder = ({ direction, entryPrice, stopLoss, takeProfit }: { direction: 'Long' | 'Short', entryPrice: number, stopLoss: number, takeProfit?: number }) => {
+    const isLong = direction === 'Long';
+    const prices = [
+        ...(takeProfit ? [{ price: takeProfit, type: 'TP', color: 'text-green-400' }] : []),
+        { price: entryPrice, type: 'Entry', color: 'text-primary' },
+        { price: stopLoss, type: 'SL', color: 'text-red-400' },
+    ].filter(p => p.price > 0).sort((a,b) => b.price - a.price);
+
+    if (prices.length < 2) return <div className="h-full w-full bg-muted rounded-md flex items-center justify-center text-sm text-muted-foreground">Enter prices to visualize</div>;
+
+    const minPrice = Math.min(...prices.map(p => p.price));
+    const maxPrice = Math.max(...prices.map(p => p.price));
+    const range = maxPrice - minPrice;
+
+    if (range <= 0) return <div className="h-full w-full bg-muted rounded-md flex items-center justify-center text-sm text-muted-foreground">Invalid prices</div>;
+
+    return (
+        <div className="relative h-full w-full flex justify-end">
+            <div className="absolute top-0 bottom-0 right-20 w-px bg-border/50" />
+            {prices.map(({price, type, color}) => {
+                const position = ((maxPrice - price) / range) * 100;
+                return (
+                    <div key={type} className="absolute w-full" style={{ top: `${position}%`, transform: 'translateY(-50%)' }}>
+                        <div className="flex items-center">
+                            <div className="flex-1 border-t border-dashed border-border/50" />
+                            <div className="text-xs text-right pr-2 w-20">
+                                <p className={cn("font-semibold font-mono", color)}>{price.toFixed(2)}</p>
+                                <p className={cn("text-xs", color)}>{type}</p>
+                            </div>
+                        </div>
+                    </div>
+                )
+            })}
+        </div>
+    )
+}
+
+const DisciplineAlerts = ({ onSetModule }: { onSetModule: (module: any) => void }) => {
+    return (
+        <div>
+            <h3 className="text-sm font-semibold text-foreground mb-2">Discipline Alerts (Prototype)</h3>
+            <div className="space-y-2">
+                <Button variant="outline" size="sm" className="w-full justify-start text-left h-auto py-2" onClick={() => onSetModule('riskCenter')}>
+                    <span className="flex items-center gap-2 font-semibold text-amber-400"><AlertTriangle className="h-4 w-4" /> VIX is elevated</span>
+                    <span className="text-xs text-muted-foreground ml-auto">Open Risk Center</span>
+                </Button>
+                <Button variant="outline" size="sm" className="w-full justify-start text-left h-auto py-2" onClick={() => onSetModule('riskCenter')}>
+                    <span className="flex items-center gap-2 font-semibold text-red-400"><XCircle className="h-4 w-4" /> Approaching daily loss limit</span>
+                    <span className="text-xs text-muted-foreground ml-auto">See Budget</span>
+                </Button>
+            </div>
+        </div>
+    );
+};
