@@ -1,11 +1,11 @@
 
       "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark, Timer, Gauge, Star, Calendar, Copy, Clipboard, ThumbsUp, ThumbsDown, Meh, PlusCircle, MoreHorizontal, Save, Grid, Eye, Radio } from "lucide-react";
+import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark, Timer, Gauge, Star, Calendar, Copy, Clipboard, ThumbsUp, ThumbsDown, Meh, PlusCircle, MoreHorizontal, Save, Grid, Eye, Radio, RefreshCw } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "./ui/drawer";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "./ui/skeleton";
@@ -821,6 +821,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
     const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedNews, setSelectedNews] = useState<NewsItem | null>(null);
+    const [lastFetchedAt, setLastFetchedAt] = useState<string | null>(null);
     const [filters, setFilters] = useState<NewsFilters>({
         search: '',
         sentiment: 'All',
@@ -849,66 +850,69 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
     const allCategories = useMemo(() => ['All', ...[...new Set(mockNewsSource.map(item => item.category))]], []);
     const popularCoins = ["BTC", "ETH", "SOL", "BNB", "XRP"];
 
-    useEffect(() => {
-        const loadNews = () => {
-            setIsLoading(true);
-            try {
-                const storedData = localStorage.getItem(NEWS_CACHE_KEY);
-                if (storedData) {
-                    const cachedData = JSON.parse(storedData);
-                    const isExpired = new Date().getTime() - new Date(cachedData.lastFetchedAt).getTime() > NEWS_TTL_MS;
-                    if (!isExpired) {
-                        setNewsItems(cachedData.items);
-                        setIsLoading(false);
-                        return;
+    const loadNews = useCallback((forceRefresh = false) => {
+        setIsLoading(true);
+        try {
+            const storedData = localStorage.getItem(NEWS_CACHE_KEY);
+            if (storedData && !forceRefresh) {
+                const cachedData = JSON.parse(storedData);
+                const isExpired = new Date().getTime() - new Date(cachedData.lastFetchedAt).getTime() > NEWS_TTL_MS;
+                if (!isExpired) {
+                    setNewsItems(cachedData.items);
+                    setLastFetchedAt(cachedData.lastFetchedAt);
+                    setIsLoading(false);
+                    return;
+                }
+            }
+
+            // If cache is expired or doesn't exist, regenerate
+            setTimeout(() => {
+                const newItems = [...mockNewsSource].sort(() => 0.5 - Math.random()).map(item => {
+                    const riskWindow = getRiskWindow(item.category, item.volatilityImpact);
+                    return { 
+                        ...item, 
+                        ...riskWindow,
+                        arjunMeaning: "Default meaning",
+                        recommendedAction: "Default action",
+                     };
+                });
+
+                const newCache = {
+                    items: newItems,
+                    lastFetchedAt: new Date().toISOString(),
+                };
+                localStorage.setItem(NEWS_CACHE_KEY, JSON.stringify(newCache));
+                setNewsItems(newItems);
+                setLastFetchedAt(newCache.lastFetchedAt);
+
+                let vixState: VixState | null = null;
+                try {
+                    const vixStateString = localStorage.getItem(VIX_CACHE_KEY);
+                    if (vixStateString) {
+                        vixState = JSON.parse(vixStateString);
                     }
+                } catch (e) {
+                    console.error("Failed to parse VIX state for news integration", e);
                 }
 
-                // If cache is expired or doesn't exist, regenerate
-                setTimeout(() => {
-                    const newItems = [...mockNewsSource].sort(() => 0.5 - Math.random()).map(item => {
-                        const riskWindow = getRiskWindow(item.category, item.volatilityImpact);
-                        return { 
-                            ...item, 
-                            ...riskWindow,
-                            arjunMeaning: "Default meaning",
-                            recommendedAction: "Default action",
-                         };
-                    });
+                if (vixState) {
+                    vixState.components.newsSentiment = 50; // Reset on new fetch
+                    localStorage.setItem(VIX_CACHE_KEY, JSON.stringify(vixState));
+                    window.dispatchEvent(new StorageEvent('storage', { key: VIX_CACHE_KEY }));
+                }
 
-                    const newCache = {
-                        items: newItems,
-                        lastFetchedAt: new Date().toISOString(),
-                    };
-                    localStorage.setItem(NEWS_CACHE_KEY, JSON.stringify(newCache));
-                    setNewsItems(newItems);
-
-                    let vixState: VixState | null = null;
-                    try {
-                        const vixStateString = localStorage.getItem(VIX_CACHE_KEY);
-                        if (vixStateString) {
-                            vixState = JSON.parse(vixStateString);
-                        }
-                    } catch (e) {
-                        console.error("Failed to parse VIX state for news integration", e);
-                    }
-
-                    if (vixState) {
-                        vixState.components.newsSentiment = 50; // Reset on new fetch
-                        localStorage.setItem(VIX_CACHE_KEY, JSON.stringify(vixState));
-                        window.dispatchEvent(new StorageEvent('storage', { key: VIX_CACHE_KEY }));
-                    }
-
-                    setIsLoading(false);
-                }, 1000);
-
-            } catch (error) {
-                console.error("Failed to load or cache news data:", error);
-                setNewsItems([]);
                 setIsLoading(false);
-            }
-        };
+                toast({ title: 'Intelligence Refreshed', description: 'The latest news feed has been loaded.' });
+            }, 800);
 
+        } catch (error) {
+            console.error("Failed to load or cache news data:", error);
+            setNewsItems([]);
+            setIsLoading(false);
+        }
+    }, [toast]);
+
+    useEffect(() => {
         loadNews();
 
         try {
@@ -953,7 +957,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         } catch (e) {
             setPersona("Beginner");
         }
-    }, []);
+    }, [loadNews]);
     
      useEffect(() => {
         localStorage.setItem(WATCH_REGULATORY_KEY, JSON.stringify(watchRegulatory));
@@ -1310,8 +1314,27 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
             </Dialog>
 
             <div>
-                <h1 className="text-2xl font-bold tracking-tight text-foreground">News Intelligence</h1>
-                <p className="text-muted-foreground">AI-curated crypto futures news with sentiment + volatility impact—so you don’t trade blind.</p>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                        <h1 className="text-2xl font-bold tracking-tight text-foreground">News Intelligence</h1>
+                        <p className="text-muted-foreground">AI-curated crypto futures news with sentiment + volatility impact—so you don’t trade blind.</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Button variant="ghost" size="sm" onClick={() => loadNews(true)} disabled={isLoading}>
+                            {isLoading ? (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                                <RefreshCw className="mr-2 h-4 w-4" />
+                            )}
+                            Refresh
+                        </Button>
+                        {lastFetchedAt && (
+                            <p className="text-xs text-muted-foreground">
+                                Updated {formatDistanceToNow(new Date(lastFetchedAt), { addSuffix: true })}
+                            </p>
+                        )}
+                    </div>
+                </div>
             </div>
 
              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1777,3 +1800,4 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         </div>
     );
 }
+
