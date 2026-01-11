@@ -61,6 +61,8 @@ const planSchema = z.object({
     notes: z.string().optional(),
     justification: z.string().optional(),
     mindset: z.string().optional(),
+    newsRiskAcknowledged: z.boolean().optional(),
+    newsRiskJustification: z.string().optional(),
 }).refine(data => {
     if (data.justification && data.justification.length > 0) return true;
     
@@ -921,6 +923,7 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
             accountCapital: 10000,
             riskPercent: 1.0,
             strategyId: "",
+            newsRiskAcknowledged: false,
         },
     });
 
@@ -973,7 +976,7 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
             }
             addLog(`Trade planning context loaded from ${planContext.origin}: ${planContext.instrument}`);
         }
-    }, [planContext, form, addLog]);
+    }, [planContext, form, addLog, toast]);
     
      useEffect(() => {
         if (typeof window !== "undefined") {
@@ -1105,6 +1108,13 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
         });
     };
 
+    const isExecuteDisabled = useMemo(() => {
+        if (isSubmitting) return true;
+        if (planStatus === 'FAIL') return true;
+        if (activeNewsRisk && !form.getValues('newsRiskAcknowledged')) return true;
+        return false;
+    }, [isSubmitting, planStatus, activeNewsRisk, form]);
+
     return (
         <div className="space-y-8">
             <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
@@ -1193,13 +1203,42 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
                         {/* --- SIDEBAR --- */}
                         <div className="lg:col-span-1 space-y-6 sticky top-24">
                            {activeNewsRisk && (
-                                <Alert variant="destructive">
-                                    <AlertTriangle className="h-4 w-4" />
-                                    <AlertTitle>Active News-Driven Risk Window</AlertTitle>
-                                    <AlertDescription>
-                                        Headline: "{activeNewsRisk.headline}". Expect higher volatility for the next {formatDistanceToNow(new Date(activeNewsRisk.expiresAt), { addSuffix: true })}.
-                                    </AlertDescription>
-                                </Alert>
+                                <Card className="bg-muted/30 border-border/50">
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-amber-400" />Active News Risk Window</CardTitle>
+                                        <CardDescription>{activeNewsRisk.headline}</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
+                                        <FormField
+                                            control={form.control}
+                                            name="newsRiskAcknowledged"
+                                            render={({ field }) => (
+                                                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                                                    <FormControl>
+                                                        <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                                                    </FormControl>
+                                                    <div className="space-y-1 leading-none">
+                                                        <FormLabel>I understand there is an active news risk window.</FormLabel>
+                                                    </div>
+                                                </FormItem>
+                                            )}
+                                        />
+                                        {activeNewsRisk.volatilityImpact === 'High' && form.getValues('instrument').includes(activeNewsRisk.impactedCoins[0]) && (
+                                            <FormField
+                                                control={form.control}
+                                                name="newsRiskJustification"
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>Why are you trading now?</FormLabel>
+                                                        <FormControl>
+                                                            <Textarea placeholder="Briefly explain your reasoning for taking this trade despite the high-impact news." {...field} />
+                                                        </FormControl>
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        )}
+                                    </CardContent>
+                                </Card>
                             )}
                             <PlanSummary control={form.control} setPlanStatus={setPlanStatus} onSetModule={onSetModule} entryChecklist={entryChecklist} session={session} vixZone={riskState?.marketRisk.vixZone || 'Normal'} form={form} />
                              <MarketContext session={session} setSession={setSession} vixZone={riskState?.marketRisk.vixZone || 'Normal'} setVixZone={() => {}} />
@@ -1211,7 +1250,7 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
                             <AlertDialogTrigger asChild>
                                 <Button
                                     type="button"
-                                    disabled={isSubmitting || planStatus === 'FAIL'}
+                                    disabled={isExecuteDisabled}
                                     className="relative w-full sm:w-auto"
                                 >
                                      {isSubmitting && <Loader2 className="absolute h-4 w-4 animate-spin" />}
