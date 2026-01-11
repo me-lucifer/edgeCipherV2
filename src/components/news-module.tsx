@@ -1,7 +1,7 @@
 
       "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -619,7 +619,7 @@ function TopImpactedCoinsCard({ newsItems, onFilter }: { newsItems: NewsItem[]; 
     return (
         <Card className="bg-muted/30 border-border/50">
             <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2"><TopImpactedCoinsCard className="h-5 w-5" /> Top Impacted Coins (24h)</CardTitle>
+                <CardTitle className="text-base flex items-center gap-2"><TrendingUp className="h-5 w-5" /> Top Impacted Coins (24h)</CardTitle>
             </CardHeader>
             <CardContent>
                 <div className="space-y-3">
