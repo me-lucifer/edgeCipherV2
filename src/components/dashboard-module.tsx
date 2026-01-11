@@ -572,7 +572,7 @@ function VixWidget({ onSetModule }: { onSetModule: (module: any, context?: Modul
                 />
                  <p className="text-sm text-muted-foreground pt-1">{impactText}</p>
                  <Button variant="link" className="px-0 h-auto text-xs text-muted-foreground hover:text-primary mt-2">
-                    Open Risk Center <ArrowRight className="ml-1 h-3 w-3" />
+                    Open Risk Center <ArrowRight className="ml-1 h-4 w-4" />
                 </Button>
             </CardContent>
         </Card>
@@ -666,6 +666,32 @@ function RecoveryModeBanner({ onEnable }: { onEnable: () => void }) {
     );
 }
 
+function NewsDrivenDayBanner({ signal, onSetModule }: { signal: any; onSetModule: (module: any, context?: any) => void }) {
+    if (!signal?.isNewsDrivenDay) return null;
+
+    return (
+        <Alert variant="default" className="bg-blue-950/50 border-blue-500/20 text-blue-300">
+            <Newspaper className="h-4 w-4 text-blue-400" />
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                    <AlertTitle className="text-blue-400">News-Driven Day</AlertTitle>
+                    <AlertDescription>
+                        Expect higher volatility. Top driver: "{signal.topReasons[0]}".
+                    </AlertDescription>
+                </div>
+                <div className="flex gap-2 mt-2 sm:mt-0">
+                    <Button variant="outline" size="sm" onClick={() => onSetModule('news')} className="bg-blue-500/20 border-blue-500/40 text-blue-200 hover:bg-blue-500/30 hover:text-blue-100">
+                        Open News
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => onSetModule('cryptoVix')} className="bg-blue-500/20 border-blue-500/40 text-blue-200 hover:bg-blue-500/30 hover:text-blue-100">
+                        Open Crypto VIX
+                    </Button>
+                </div>
+            </div>
+        </Alert>
+    );
+}
+
 interface DashboardModuleProps {
     onSetModule: (module: any, context?: ModuleContext) => void;
     isLoading: boolean;
@@ -677,6 +703,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
     const [isWhyModalOpen, setWhyModalOpen] = useState(false);
     const [animateKey, setAnimateKey] = useState(0);
     const [isRecoveryMode, setIsRecoveryMode] = useState(false);
+    const [newsDaySignal, setNewsDaySignal] = useState<any>(null);
     
     useEffect(() => {
         if (typeof window !== "undefined") {
@@ -696,7 +723,16 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
                 if (e.key === 'ec_recovery_mode') {
                     setIsRecoveryMode(e.newValue === 'true');
                 }
+                if (e.key === 'ec_news_day_signal') {
+                    setNewsDaySignal(e.newValue ? JSON.parse(e.newValue) : null);
+                }
             };
+            
+            // Initial load for news signal
+            const initialNewsSignal = localStorage.getItem('ec_news_day_signal');
+            if (initialNewsSignal) {
+                setNewsDaySignal(JSON.parse(initialNewsSignal));
+            }
     
             window.addEventListener('storage', handleStorageChange);
             return () => window.removeEventListener('storage', handleStorageChange);
@@ -923,6 +959,8 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
         </Dialog>
 
         {isInDrawdown && !isRecoveryMode && <RecoveryModeBanner onEnable={handleEnableRecoveryMode} />}
+
+        <NewsDrivenDayBanner signal={newsDaySignal} onSetModule={onSetModule} />
 
         <TradeDecisionStrip 
             vixZone={market.vixZone} 
