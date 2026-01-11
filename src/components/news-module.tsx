@@ -1,12 +1,11 @@
 
-
       "use client";
 
 import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark, Timer, Gauge, Star, Calendar, Copy, Clipboard, ThumbsUp, ThumbsDown, Meh, PlusCircle, MoreHorizontal, Save, Grid, Eye, Radio, RefreshCw, Layers, BarChart, FileText, ShieldAlert } from "lucide-react";
+import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark, Timer, Gauge, Star, Calendar, Copy, Clipboard, ThumbsUp, ThumbsDown, Meh, PlusCircle, MoreHorizontal, Save, Grid, Eye, Radio, RefreshCw, Layers, BarChart, FileText, ShieldAlert, Info } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "./ui/drawer";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "./ui/skeleton";
@@ -109,8 +108,8 @@ const getRiskWindow = (category: NewsCategory, impact: VolatilityImpact): { risk
 };
 
 const summaryBulletPool = [
-    "The analysis emphasizes risk management and adherence to pre-defined trading plans.",
-    "This development is expected to influence transaction fees but does not constitute a trading signal.",
+    "The analysis emphasizes risk management and adherence to pre-defined trading plans, not speculation.",
+    "This development could influence transaction fees but does not constitute a direct trading signal.",
     "The event is correlated with a short-term increase in market volatility; review risk parameters.",
     "A new date for an upcoming protocol upgrade has been confirmed by the core development team.",
     "The announcement has sparked debate on the future of decentralized finance regulation among policymakers.",
@@ -2441,3 +2440,4 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
     );
 }
 
+    
