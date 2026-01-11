@@ -5,7 +5,7 @@ import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark, Timer, Gauge, Star, Calendar, Copy, Clipboard, ThumbsUp, ThumbsDown, Meh, PlusCircle, MoreHorizontal, Save, Grid, Eye, Radio, RefreshCw, Layers } from "lucide-react";
+import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark, Timer, Gauge, Star, Calendar, Copy, Clipboard, ThumbsUp, ThumbsDown, Meh, PlusCircle, MoreHorizontal, Save, Grid, Eye, Radio, RefreshCw, Layers, BarChart, FileText } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "./ui/drawer";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "./ui/skeleton";
@@ -668,7 +668,7 @@ function WatchlistCard({ followedCoins, onFilter, filters, setWatchRegulatory, w
 const impactOrder = { 'High': 3, 'Medium': 2, 'Low': 1 };
 type ImpactLevel = keyof typeof impactOrder;
 
-function TopImpactedCoinsCard({ newsItems, onFilter }: { newsItems: NewsItem[]; onFilter: (key: keyof NewsFilters, value: any) => void; }) {
+function TopImpactedCoinsCard({ newsItems, onFilter, onCoinClick }: { newsItems: NewsItem[]; onFilter: (key: keyof NewsFilters, value: any) => void; onCoinClick: (coin: string) => void; }) {
     const topCoins = useMemo(() => {
         const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
         const coinCounts: Record<string, { count: number; highestImpact: ImpactLevel }> = {};
@@ -715,7 +715,7 @@ function TopImpactedCoinsCard({ newsItems, onFilter }: { newsItems: NewsItem[]; 
                             <Button
                                 variant="link"
                                 className="p-0 h-auto font-semibold text-foreground"
-                                onClick={() => onFilter('coins', [coin])}
+                                onClick={() => onCoinClick(coin)}
                             >
                                 {coin}
                             </Button>
@@ -1054,6 +1054,105 @@ function StoryClusterCard({ cluster, onNewsSelect }: { cluster: StoryCluster, on
     )
 }
 
+function CoinDetailDrawer({ coin, newsItems, followedCoins, onOpenChange, onSetModule, onToggleFollow }: { coin: string | null; newsItems: NewsItem[]; followedCoins: string[]; onOpenChange: (open: boolean) => void; onSetModule: (module: string, context?: any) => void; onToggleFollow: (coin: string) => void; }) {
+    const coinNews = useMemo(() => {
+        if (!coin) return [];
+        return newsItems
+            .filter(item => item.impactedCoins.includes(coin))
+            .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
+            .slice(0, 5);
+    }, [coin, newsItems]);
+
+    const coinSentiment = useMemo(() => {
+        if (coinNews.length === 0) return { Positive: 0, Negative: 0, Neutral: 100 };
+        const sentimentCounts = { Positive: 0, Negative: 0, Neutral: 0 };
+        coinNews.forEach(item => {
+            sentimentCounts[item.sentiment]++;
+        });
+        const total = coinNews.length;
+        return {
+            Positive: (sentimentCounts.Positive / total) * 100,
+            Negative: (sentimentCounts.Negative / total) * 100,
+            Neutral: (sentimentCounts.Neutral / total) * 100,
+        };
+    }, [coinNews]);
+
+    if (!coin) return null;
+
+    return (
+        <Drawer open={!!coin} onOpenChange={onOpenChange}>
+            <DrawerContent>
+                <div className="mx-auto w-full max-w-4xl p-4 md:p-6">
+                    <DrawerHeader>
+                        <DrawerTitle className="text-2xl">News for {coin}</DrawerTitle>
+                        <DrawerDescription>A summary of recent news impacting {coin}.</DrawerDescription>
+                    </DrawerHeader>
+                    <div className="px-4 py-6 grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        <div className="lg:col-span-2 space-y-4">
+                            <h3 className="font-semibold text-foreground">Latest Headlines</h3>
+                            {coinNews.length > 0 ? coinNews.map(item => (
+                                <Card key={item.id} className="bg-muted/30">
+                                    <CardContent className="p-3">
+                                        <p className="font-semibold text-sm leading-tight">{item.headline}</p>
+                                        <div className="flex items-center gap-2 mt-1.5 text-xs text-muted-foreground">
+                                            <span>{item.sourceName}</span>
+                                            <span>&bull;</span>
+                                            <span>{formatDistanceToNow(new Date(item.publishedAt), { addSuffix: true })}</span>
+                                            <Badge variant="outline" className={cn(
+                                                item.volatilityImpact === 'High' && 'border-red-500/50 text-red-400',
+                                                item.volatilityImpact === 'Medium' && 'border-amber-500/50 text-amber-400',
+                                            )}>{item.volatilityImpact}</Badge>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            )) : <p className="text-sm text-muted-foreground">No recent news found for {coin}.</p>}
+                        </div>
+                        <div className="space-y-6">
+                            <Card className="bg-muted/30">
+                                <CardHeader>
+                                    <CardTitle className="text-base">Sentiment Mood</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <div>
+                                        <div className="flex w-full h-2 rounded-full overflow-hidden bg-muted">
+                                            <div className="bg-green-500" style={{ width: `${coinSentiment.Positive}%` }} />
+                                            <div className="bg-gray-500" style={{ width: `${coinSentiment.Neutral}%` }} />
+                                            <div className="bg-red-500" style={{ width: `${coinSentiment.Negative}%` }} />
+                                        </div>
+                                        <div className="flex justify-between text-xs mt-1.5">
+                                            <span className="text-green-400">{coinSentiment.Positive.toFixed(0)}% Pos</span>
+                                            <span className="text-muted-foreground">{coinSentiment.Neutral.toFixed(0)}% Neu</span>
+                                            <span className="text-red-400">{coinSentiment.Negative.toFixed(0)}% Neg</span>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                            <Card className="bg-muted/30">
+                                <CardHeader>
+                                    <CardTitle className="text-base">Actions</CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-2">
+                                     <Button className="w-full" variant="outline" onClick={() => onToggleFollow(coin)}>
+                                        <Star className={cn("mr-2 h-4 w-4", followedCoins.includes(coin) && "fill-primary text-primary")} />
+                                        {followedCoins.includes(coin) ? `Unfollow ${coin}` : `Follow ${coin}`}
+                                    </Button>
+                                    <Button className="w-full" variant="outline" onClick={() => onSetModule('chart', { planContext: { instrument: `${coin}-PERP` } })}>
+                                        <BarChart className="mr-2 h-4 w-4" />
+                                        Open Chart
+                                    </Button>
+                                    <Button className="w-full" onClick={() => onSetModule('tradePlanning', { planContext: { instrument: `${coin}-PERP` } })}>
+                                        <FileText className="mr-2 h-4 w-4" />
+                                        Send to Trade Planning
+                                    </Button>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    </div>
+                </div>
+            </DrawerContent>
+        </Drawer>
+    );
+}
 
 export function NewsModule({ onSetModule }: NewsModuleProps) {
     const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
@@ -1084,6 +1183,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
     const [watchRegulatory, setWatchRegulatory] = useState(false);
     const [watchExchange, setWatchExchange] = useState(false);
     const [isBreakingMode, setIsBreakingMode] = useState(false);
+    const [selectedCoinForDrawer, setSelectedCoinForDrawer] = useState<string | null>(null);
 
 
     const allCategories = useMemo(() => ['All', ...[...new Set(mockNewsSource.map(item => item.category))]], []);
@@ -1622,6 +1722,15 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                 </DialogContent>
             </Dialog>
 
+            <CoinDetailDrawer 
+                coin={selectedCoinForDrawer}
+                onOpenChange={(open) => !open && setSelectedCoinForDrawer(null)}
+                newsItems={newsItems}
+                followedCoins={followedCoins}
+                onToggleFollow={handleToggleFollow}
+                onSetModule={onSetModule}
+            />
+
             <div>
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
@@ -1952,7 +2061,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                         watchExchange={watchExchange}
                         setWatchExchange={setWatchExchange}
                     />
-                    <TopImpactedCoinsCard newsItems={newsItems} onFilter={handleFilterChange} />
+                    <TopImpactedCoinsCard newsItems={newsItems} onFilter={handleFilterChange} onCoinClick={setSelectedCoinForDrawer} />
                     <SentimentImpactMatrix newsItems={filteredNews} onCellClick={(sentiment, impact) => { setFilters(prev => ({...prev, sentiment, highImpactOnly: impact === 'High'})) }} />
                     <UpcomingEventsCard onSetRiskWindow={setRiskWindowFromEvent} />
                 </div>
@@ -2052,7 +2161,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                             {selectedNews.impactedCoins.map(coin => (
                                                 <Popover key={coin}>
                                                     <PopoverTrigger asChild>
-                                                        <Badge variant="secondary" className="cursor-pointer hover:bg-primary/10 hover:text-primary">{coin}</Badge>
+                                                        <Badge variant="secondary" className="cursor-pointer hover:bg-primary/10 hover:text-primary" onClick={(e) => { e.stopPropagation(); }}>{coin}</Badge>
                                                     </PopoverTrigger>
                                                     <PopoverContent className="w-auto p-0">
                                                         <Button
@@ -2061,6 +2170,13 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                                             onClick={() => handleToggleFollow(coin)}
                                                         >
                                                             {followedCoins.includes(coin) ? 'Unfollow' : 'Follow'} {coin}
+                                                        </Button>
+                                                         <Button
+                                                            variant="ghost"
+                                                            className="w-full justify-start"
+                                                            onClick={() => setSelectedCoinForDrawer(coin)}
+                                                        >
+                                                            View {coin} details
                                                         </Button>
                                                     </PopoverContent>
                                                 </Popover>
