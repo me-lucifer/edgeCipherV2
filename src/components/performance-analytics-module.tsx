@@ -1,11 +1,10 @@
 
-
       "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart, Brain, Calendar, Filter, AlertCircle, Info, TrendingUp, TrendingDown, Users, DollarSign, Target, Gauge, Zap, Award, ArrowRight, XCircle, CheckCircle, Circle, Bot, AlertTriangle, Clipboard, Star, Activity, BookOpen, BarChartHorizontal, Database, View, Flag, Presentation, ChevronsUpDown, Copy, MoreHorizontal, ShieldCheck, HelpCircle, ChevronUp } from "lucide-react";
+import { BarChart, Brain, BrainCircuit, Calendar, Filter, AlertCircle, Info, TrendingUp, TrendingDown, Users, DollarSign, Target, Gauge, Zap, Award, ArrowRight, XCircle, CheckCircle, Circle, Bot, AlertTriangle, Clipboard, Star, Activity, BookOpen, BarChartHorizontal, Database, View, Flag, Presentation, ChevronsUpDown, Copy, MoreHorizontal, ShieldCheck, HelpCircle, ChevronUp } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart as RechartsBarChart, CartesianGrid, XAxis, YAxis, Bar as RechartsBar, Line, LineChart, ResponsiveContainer, ReferenceDot, Dot } from "recharts";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -1996,3 +1995,5 @@ const computeSinglePeriodAnalytics = (entries: JournalEntry[], random: () => num
         disciplineByVolatility,
     };
   }
+
+    
