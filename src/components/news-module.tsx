@@ -1,12 +1,11 @@
 
-      
       "use client";
 
 import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark, Timer, Gauge, Star, Calendar, Copy, Clipboard, ThumbsUp, ThumbsDown, Meh, PlusCircle, MoreHorizontal, Save } from "lucide-react";
+import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark, Timer, Gauge, Star, Calendar, Copy, Clipboard, ThumbsUp, ThumbsDown, Meh, PlusCircle, MoreHorizontal, Save, Grid } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "./ui/drawer";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "./ui/skeleton";
@@ -648,6 +647,95 @@ function TopImpactedCoinsCard({ newsItems, onFilter }: { newsItems: NewsItem[]; 
     );
 }
 
+function CategoryHeatmapCard({
+    newsItems,
+    onCellClick,
+}: {
+    newsItems: NewsItem[];
+    onCellClick: (category: NewsCategory, impact: VolatilityImpact) => void;
+}) {
+    const categories: NewsCategory[] = [
+        "Regulatory",
+        "Macro",
+        "Exchange",
+        "ETF",
+        "Liquidations",
+        "Security",
+        "Altcoins",
+        "Tech",
+    ];
+    const impacts: VolatilityImpact[] = ["Low", "Medium", "High"];
+
+    const heatmapData = useMemo(() => {
+        const data = new Map<NewsCategory, Record<VolatilityImpact, number>>();
+        categories.forEach(cat => data.set(cat, { Low: 0, Medium: 0, High: 0 }));
+
+        newsItems.forEach(item => {
+            const categoryData = data.get(item.category);
+            if (categoryData) {
+                categoryData[item.volatilityImpact]++;
+            }
+        });
+        return data;
+    }, [newsItems]);
+
+    const maxCount = useMemo(() => {
+        let max = 0;
+        heatmapData.forEach(impacts => {
+            Object.values(impacts).forEach(count => {
+                if (count > max) max = count;
+            });
+        });
+        return max || 1; // Avoid division by zero
+    }, [heatmapData]);
+
+    const getCellColor = (count: number) => {
+        if (count === 0) return 'bg-muted/30';
+        const opacity = Math.min(1, 0.2 + (count / maxCount) * 0.8);
+        return `bg-primary/10 border-primary/20`; // Simplified color
+    };
+
+    return (
+        <Card className="bg-muted/30 border-border/50">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Grid className="h-5 w-5" />News Telemetry Heatmap</CardTitle>
+                <CardDescription>Volume of news by category and impact. Click a cell to filter.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="grid gap-px" style={{ gridTemplateColumns: 'auto repeat(3, 1fr)' }}>
+                    <div />
+                    {impacts.map(impact => (
+                        <div key={impact} className="text-center text-xs font-semibold text-muted-foreground pb-2">{impact}</div>
+                    ))}
+                    {categories.map(category => (
+                        <React.Fragment key={category}>
+                            <div className="text-xs text-muted-foreground text-right pr-2 py-2 flex items-center justify-end">{category}</div>
+                            {impacts.map(impact => {
+                                const count = heatmapData.get(category)?.[impact] || 0;
+                                return (
+                                    <div
+                                        key={impact}
+                                        onClick={() => onCellClick(category, impact)}
+                                        className={cn(
+                                            "h-12 flex items-center justify-center rounded-md cursor-pointer transition-colors hover:border-primary",
+                                            "border",
+                                            count > 0 ? "border-primary/20" : "border-border/30",
+                                            getCellColor(count),
+                                        )}
+                                        style={{ opacity: count > 0 ? 0.4 + (count / maxCount) * 0.6 : 0.4 }}
+                                    >
+                                        <span className="font-mono font-bold text-foreground">{count}</span>
+                                    </div>
+                                );
+                            })}
+                        </React.Fragment>
+                    ))}
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
 export function NewsModule({ onSetModule }: NewsModuleProps) {
     const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -1111,6 +1199,20 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                 <IntelligenceBriefCard allNews={newsItems} filteredNews={filteredNews} />
                 <VolatilityRiskCard newsItems={filteredNews} />
             </div>
+
+            <CategoryHeatmapCard
+                newsItems={filteredNews}
+                onCellClick={(category, impact) => {
+                    setFilters(prev => ({
+                        ...prev,
+                        category,
+                        highImpactOnly: impact === 'High',
+                        sentiment: 'All', // Reset other filters for clarity
+                        coins: []
+                    }));
+                    setActivePresetId(null);
+                }}
+            />
             
             <div className="grid lg:grid-cols-3 gap-8 items-start">
                 <div className="lg:col-span-2 space-y-6">
