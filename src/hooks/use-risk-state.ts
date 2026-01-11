@@ -1,4 +1,5 @@
 
+
       "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -427,11 +428,6 @@ export function useRiskState() {
             }
 
 
-            if (recoveryMode && level !== 'red') {
-                level = 'yellow';
-                reasons.push("Recovery Mode is active, enforcing stricter risk protocols.");
-            }
-
             if (todaysLimits.cooldownActive) {
                 level = "red";
                 reasons.push(`Cooldown Active: Loss streak limit of 2 was met.`);
@@ -443,43 +439,52 @@ export function useRiskState() {
              if (vixValue && vixValue >= vixLockThreshold || vixZone === 'Extreme') {
                 level = "red";
                 reasons.push(`Extreme Volatility: Market VIX is in the 'Extreme' zone (Threshold: >${vixLockThreshold}).`);
-            } else if (vixValue && vixValue >= vixWarnThreshold) {
-                if (level !== 'red') level = 'yellow';
-                reasons.push(`Elevated Volatility: Market VIX is '${vixZone}' (Threshold: >${vixWarnThreshold}).`);
             }
-
+            
             if (revengeRiskLevel === 'Critical') {
                 level = "red";
                 reasons.push("Critical Revenge Risk: Index is at a critical level, indicating high probability of emotional trading.");
             }
-            if (revengeRiskLevel === 'High') {
-                if(level !== 'red') level = 'yellow';
-                reasons.push("High Revenge Risk: Index is high; caution advised.");
-            }
-            if (personalRisk.disciplineScore < 50) {
-                if (level !== 'red') level = "yellow";
-                reasons.push(`Low Discipline Score: Recent score of ${personalRisk.disciplineScore} suggests rule-breaking tendency.`);
-            }
-            
-            const maxLeverage = Math.max(...mockPositions.map(p => p.leverage), 0);
-            if (maxLeverage >= leverageFailThreshold || (maxLeverage >= leverageWarnThreshold && (vixZone === 'High Volatility' || vixZone === 'Extreme'))) {
-                if (level !== 'red') {
+
+            // Yellow warnings that don't automatically set red
+            if (level !== 'red') {
+                if (recoveryMode) {
+                    level = 'yellow';
+                    reasons.push("Recovery Mode is active, enforcing stricter risk protocols.");
+                }
+                if (vixValue && vixValue >= vixWarnThreshold) {
+                    level = 'yellow';
+                    reasons.push(`Elevated Volatility: Market VIX is '${vixZone}' (Threshold: >${vixWarnThreshold}).`);
+                }
+                if (revengeRiskLevel === 'High') {
+                    level = 'yellow';
+                    reasons.push("High Revenge Risk: Index is high; caution advised.");
+                }
+                if (personalRisk.disciplineScore < 50) {
+                    level = "yellow";
+                    reasons.push(`Low Discipline Score: Recent score of ${personalRisk.disciplineScore} suggests rule-breaking tendency.`);
+                }
+                const maxLeverage = Math.max(...mockPositions.map(p => p.leverage), 0);
+                if (maxLeverage >= leverageFailThreshold || (maxLeverage >= leverageWarnThreshold && (vixZone === 'High Volatility' || vixZone === 'Extreme'))) {
                     level = 'yellow';
                     reasons.push(`Excessive Leverage: High leverage (${maxLeverage}x) detected in high volatility (${vixZone}), increasing liquidation risk.`);
+                } else if (maxLeverage >= leverageWarnThreshold) {
+                    level = 'yellow';
+                    reasons.push(`High Leverage: Open position with ${maxLeverage}x leverage detected.`);
                 }
-            } else if (maxLeverage >= leverageWarnThreshold) {
-                if (level !== 'red') level = 'yellow';
-                reasons.push(`High Leverage: Open position with ${maxLeverage}x leverage detected.`);
             }
-
+            
+            // News reason with prioritization
             if (newsDaySignal.isNewsDrivenDay) {
-                if (level !== 'red') level = 'yellow';
-                reasons.push("High-impact news cluster detected.");
-                if (vixZone === 'Volatile' || vixZone === 'High Volatility' || dailyCounters.lossStreak > 0) {
-                    if (level === 'yellow') {
-                        level = 'red';
-                        reasons.push("News-driven day combined with other risk factors (VIX/Loss Streak) escalates risk to RED.");
-                    }
+                const newsReason = "High-impact news cluster detected.";
+                if (level !== 'red') {
+                    level = 'yellow';
+                    // If level is already yellow from something else, add news as a secondary factor.
+                    // If it was green, news makes it yellow.
+                    reasons.push(newsReason);
+                } else {
+                    // If already red, news is a supporting factor, not the primary one.
+                    reasons.push(`Supporting factor: ${newsReason}`);
                 }
             }
             
@@ -620,4 +625,5 @@ export function useRiskState() {
 
     return { riskState, isLoading, refresh: computeRiskState };
 }
+
 
