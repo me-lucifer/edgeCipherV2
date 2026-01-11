@@ -1,4 +1,5 @@
 
+
       "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -1887,17 +1888,35 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
         }, [newsRiskContext, instrumentValue]);
 
         useEffect(() => {
-            if (typeof window !== 'undefined') {
-                const storedContext = localStorage.getItem("ec_news_risk_context");
-                if (storedContext) {
-                    const parsed = JSON.parse(storedContext);
-                    if (new Date().getTime() < parsed.expiresAt) {
-                        setNewsRiskContext(parsed);
+            const handleStorageChange = (e: StorageEvent) => {
+                if (e.key === "ec_news_risk_context") {
+                    if (e.newValue) {
+                         const parsed = JSON.parse(e.newValue);
+                         if (new Date().getTime() < parsed.expiresAt) {
+                            setNewsRiskContext(parsed);
+                        } else {
+                            localStorage.removeItem("ec_news_risk_context");
+                            setNewsRiskContext(null);
+                        }
                     } else {
-                        localStorage.removeItem("ec_news_risk_context");
+                        setNewsRiskContext(null);
                     }
                 }
+            };
+            
+            // Initial load
+            const storedContext = localStorage.getItem("ec_news_risk_context");
+            if (storedContext) {
+                const parsed = JSON.parse(storedContext);
+                if (new Date().getTime() < parsed.expiresAt) {
+                    setNewsRiskContext(parsed);
+                } else {
+                    localStorage.removeItem("ec_news_risk_context");
+                }
             }
+        
+            window.addEventListener('storage', handleStorageChange);
+            return () => window.removeEventListener('storage', handleStorageChange);
         }, []);
     
     
@@ -2429,4 +2448,5 @@ function PlanStep({ form, onSetModule, setPlanStatus, onApplyTemplate, isNewUser
 
 
     
+
 
