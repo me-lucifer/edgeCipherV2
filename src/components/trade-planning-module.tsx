@@ -63,6 +63,7 @@ const planSchema = z.object({
     mindset: z.string().optional(),
     newsRiskAcknowledged: z.boolean().optional(),
     newsRiskJustification: z.string().optional(),
+    checkedNewsRisk: z.boolean().default(true).optional(),
 }).refine(data => {
     if (data.justification && data.justification.length > 0) return true;
     
@@ -924,6 +925,7 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
             riskPercent: 1.0,
             strategyId: "",
             newsRiskAcknowledged: false,
+            checkedNewsRisk: true,
         },
     });
 
@@ -1009,6 +1011,15 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
     }, []);
 
     const activeStrategyId = useWatch({ control: form.control, name: 'strategyId' });
+    const instrumentValue = useWatch({ control: form.control, name: 'instrument' });
+
+     useEffect(() => {
+        if (activeNewsRisk && activeNewsRisk.impactedCoins.some((coin: string) => instrumentValue.includes(coin))) {
+            form.setValue('checkedNewsRisk', false);
+        } else {
+            form.setValue('checkedNewsRisk', true);
+        }
+    }, [activeNewsRisk, instrumentValue, form]);
 
     useEffect(() => {
         const strat = strategies.find(s => s.strategyId === activeStrategyId);
@@ -1123,8 +1134,11 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
         if (isSubmitting) return true;
         if (planStatus === 'FAIL') return true;
         if (activeNewsRisk && !form.getValues('newsRiskAcknowledged')) return true;
+        if (activeNewsRisk && !form.getValues('checkedNewsRisk')) return true;
         return false;
     }, [isSubmitting, planStatus, activeNewsRisk, form]);
+
+    const activeRules = selectedStrategy?.versions.find(v => v.isActiveVersion)?.ruleSet.entryRules.conditions || [];
 
     return (
         <div className="space-y-8">
@@ -1195,7 +1209,7 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
                                     </CardHeader>
                                     <CardContent>
                                         <div className="space-y-2">
-                                            {selectedStrategy.versions.find(v => v.isActiveVersion)?.ruleSet.entryRules.conditions.map((rule, i) => (
+                                            {activeRules.map((rule, i) => (
                                                 <div key={i} className="flex items-center space-x-2">
                                                     <Checkbox
                                                         id={`checklist-${i}`}
@@ -1205,6 +1219,7 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
                                                     <Label htmlFor={`checklist-${i}`} className="text-sm font-normal">{rule}</Label>
                                                 </div>
                                             ))}
+                                            {activeRules.length === 0 && <p className="text-sm text-muted-foreground">No entry conditions defined in this strategy.</p>}
                                         </div>
                                     </CardContent>
                                 </Card>
@@ -1214,9 +1229,9 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
                         {/* --- SIDEBAR --- */}
                         <div className="lg:col-span-1 space-y-6 sticky top-24">
                            {activeNewsRisk && (
-                                <Card className="bg-muted/30 border-border/50">
+                                <Card className="bg-muted/30 border-destructive/20">
                                     <CardHeader>
-                                        <CardTitle className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-amber-400" />Active News Risk Window</CardTitle>
+                                        <CardTitle className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-destructive" />Active News Risk Window</CardTitle>
                                         <CardDescription>{activeNewsRisk.headline}</CardDescription>
                                     </CardHeader>
                                     <CardContent className="space-y-4">
@@ -1234,7 +1249,7 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
                                                 </FormItem>
                                             )}
                                         />
-                                        {activeNewsRisk.volatilityImpact === 'High' && form.getValues('instrument').includes(activeNewsRisk.impactedCoins[0]) && (
+                                        {activeNewsRisk.volatilityImpact === 'High' && instrumentValue.includes(activeNewsRisk.impactedCoins[0]) && (
                                             <FormField
                                                 control={form.control}
                                                 name="newsRiskJustification"
@@ -1255,34 +1270,66 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
                              <MarketContext session={session} setSession={setSession} vixZone={riskState?.marketRisk.vixZone || 'Normal'} setVixZone={() => {}} />
                         </div>
                     </div>
-                     <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:items-center gap-2 pt-6 border-t border-border/50">
-                        <Button variant="ghost" type="button" onClick={handleSaveDraft}>Save Draft</Button>
-                        <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                                <Button
-                                    type="button"
-                                    disabled={isExecuteDisabled}
-                                    className="relative w-full sm:w-auto"
-                                >
-                                     {isSubmitting && <Loader2 className="absolute h-4 w-4 animate-spin" />}
-                                    <span className={cn(isSubmitting && 'invisible')}>Execute Trade (Prototype)</span>
-                                </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                                <AlertDialogHeader>
-                                    <AlertDialogTitle>Confirm Execution (Prototype)</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        This is a prototype. No real trade will be placed. A draft will be created in your journal for review.
-                                    </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => onExecuteTrade(getValues())}>
-                                        Confirm
-                                    </AlertDialogAction>
-                                </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
+                     <div className="pt-6 border-t border-border/50 space-y-4">
+                         <Card className="bg-muted/30">
+                            <CardHeader>
+                                <CardTitle className="text-base">Pre-Flight Checklist</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <FormField
+                                    control={form.control}
+                                    name="checkedNewsRisk"
+                                    render={({ field }) => (
+                                        <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                                            <FormControl>
+                                                <Checkbox
+                                                    checked={field.value}
+                                                    onCheckedChange={field.onChange}
+                                                    disabled={!activeNewsRisk || !instrumentValue.includes(activeNewsRisk.impactedCoins[0])}
+                                                />
+                                            </FormControl>
+                                            <div className="space-y-1 leading-none">
+                                                <FormLabel>I have checked for news-driven risk relevant to my trade.</FormLabel>
+                                                {!field.value && activeNewsRisk && (
+                                                    <FormDescription className="text-destructive">
+                                                        Manual confirmation required due to active news risk.
+                                                    </FormDescription>
+                                                )}
+                                            </div>
+                                        </FormItem>
+                                    )}
+                                />
+                            </CardContent>
+                        </Card>
+                         <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:items-center gap-2">
+                            <Button variant="ghost" type="button" onClick={handleSaveDraft}>Save Draft</Button>
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button
+                                        type="button"
+                                        disabled={isExecuteDisabled}
+                                        className="relative w-full sm:w-auto"
+                                    >
+                                        {isSubmitting && <Loader2 className="absolute h-4 w-4 animate-spin" />}
+                                        <span className={cn(isSubmitting && 'invisible')}>Execute Trade (Prototype)</span>
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Confirm Execution (Prototype)</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            This is a prototype. No real trade will be placed. A draft will be created in your journal for review.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => onExecuteTrade(getValues())}>
+                                            Confirm
+                                        </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        </div>
                     </div>
                 </form>
             </Form>
