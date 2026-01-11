@@ -1,4 +1,5 @@
 
+
       "use client";
 
 import React, { useState, useMemo, useEffect, useCallback } from "react";
@@ -14,7 +15,7 @@ import { Input } from "./ui/input";
 import { Switch } from "./ui/switch";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { formatDistanceToNow, formatDistance, isToday, isYesterday, differenceInHours } from 'date-fns';
+import { format, formatDistanceToNow, isToday, isYesterday, differenceInHours } from 'date-fns';
 import type { VixState } from "@/hooks/use-risk-state";
 import { Progress } from "./ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -108,9 +109,9 @@ const getRiskWindow = (category: NewsCategory, impact: VolatilityImpact): { risk
 };
 
 const summaryBulletPool = [
-    "The analysis suggests a potential short-term impact on major asset prices, but it is not a recommendation to trade.",
-    "This development is expected to influence transaction fees on associated Layer-2 networks.",
-    "The event is correlated with a short-term increase in market volatility; adherence to risk parameters is advised.",
+    "The analysis emphasizes risk management and adherence to pre-defined trading plans.",
+    "This development is expected to influence transaction fees but does not constitute a trading signal.",
+    "The event is correlated with a short-term increase in market volatility; review risk parameters.",
     "A new date for an upcoming protocol upgrade has been confirmed by the core development team.",
     "The announcement has sparked debate on the future of decentralized finance regulation among policymakers.",
     "On-chain data indicates a shift in capital flows following the news. This is an observation, not a predictive signal.",
@@ -509,23 +510,26 @@ function IntelligenceBriefCard({ allNews, filteredNews }: { allNews: NewsItem[],
 }
 
 function VolatilityRiskCard({ newsItems }: { newsItems: NewsItem[] }) {
-    const { score, distribution, level, isNewsDrivenDay, topReasons } = useMemo(() => {
+    const { score, distribution, level, isNewsDrivenDay, topReasons, mood } = useMemo(() => {
         if (newsItems.length === 0) {
             return {
                 score: 0,
                 distribution: { High: 0, Medium: 0, Low: 100 },
                 level: 'Low',
                 isNewsDrivenDay: false,
-                topReasons: []
+                topReasons: [],
+                mood: 'Neutral' as 'Neutral',
             };
         }
 
         let rawScore = 0;
         const counts = { High: 0, Medium: 0, Low: 0 };
+        const sentimentCounts = { Positive: 0, Negative: 0, Neutral: 0 };
         let highImpactCount = 0;
 
         newsItems.forEach(item => {
             counts[item.volatilityImpact]++;
+            sentimentCounts[item.sentiment]++;
             if (item.volatilityImpact === 'High') highImpactCount++;
             let itemScore = 0;
             if (item.volatilityImpact === 'High') itemScore = 100;
@@ -538,13 +542,22 @@ function VolatilityRiskCard({ newsItems }: { newsItems: NewsItem[] }) {
             }
             rawScore += itemScore;
         });
+        
+        const total = newsItems.length;
+        const sentimentDistribution = {
+            Positive: (sentimentCounts.Positive / total) * 100,
+            Negative: (sentimentCounts.Negative / total) * 100,
+            Neutral: (sentimentCounts.Neutral / total) * 100,
+        };
+        const sentimentScore = sentimentDistribution.Positive - sentimentDistribution.Negative;
+        const mood = sentimentScore > 20 ? 'Bullish' : sentimentScore < -20 ? 'Bearish' : 'Neutral';
 
         const score = Math.min(100, Math.round(rawScore / newsItems.length));
         
         const distribution = {
-            High: (counts.High / newsItems.length) * 100,
-            Medium: (counts.Medium / newsItems.length) * 100,
-            Low: (counts.Low / newsItems.length) * 100,
+            High: (counts.High / total) * 100,
+            Medium: (counts.Medium / total) * 100,
+            Low: (counts.Low / total) * 100,
         };
 
         const level = score > 75 ? 'High' : score > 40 ? 'Medium' : 'Low';
@@ -555,7 +568,7 @@ function VolatilityRiskCard({ newsItems }: { newsItems: NewsItem[] }) {
             .slice(0, 3)
             .map(item => item.headline);
 
-        return { score, distribution, level, isNewsDrivenDay, topReasons };
+        return { score, distribution, level, isNewsDrivenDay, topReasons, mood };
     }, [newsItems]);
 
     // Side effect to update global state
@@ -566,11 +579,11 @@ function VolatilityRiskCard({ newsItems }: { newsItems: NewsItem[] }) {
                 const vixStateString = localStorage.getItem(VIX_CACHE_KEY);
                 if (vixStateString) {
                     const vixState: VixState = JSON.parse(vixStateString);
-                    // Map 0-100 risk score to 50-0 sentiment score (inverted)
-                    const newsSentiment = Math.max(0, 50 - (score / 2));
+                    const newsSentimentScore = Math.round(50 + (score / -2)); // Invert score
                     
-                    if (vixState.components.newsSentiment !== newsSentiment) {
-                        vixState.components.newsSentiment = newsSentiment;
+                    if (vixState.components.newsSentimentScore !== newsSentimentScore) {
+                        vixState.components.newsSentimentScore = newsSentimentScore;
+                        vixState.components.newsMood = mood;
                         localStorage.setItem(VIX_CACHE_KEY, JSON.stringify(vixState));
                         window.dispatchEvent(new StorageEvent('storage', { key: VIX_CACHE_KEY }));
                     }
@@ -590,7 +603,7 @@ function VolatilityRiskCard({ newsItems }: { newsItems: NewsItem[] }) {
                 console.error("Failed to update global news state", e);
             }
         }
-    }, [score, isNewsDrivenDay, topReasons]);
+    }, [score, isNewsDrivenDay, topReasons, mood]);
     
     const levelConfig = {
         High: { label: 'High', color: 'text-red-400' },
@@ -602,8 +615,19 @@ function VolatilityRiskCard({ newsItems }: { newsItems: NewsItem[] }) {
     return (
         <Card className="bg-muted/30 border-border/50">
             <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2"><TrendingUp className="h-5 w-5" /> Volatility Risk</CardTitle>
-                <CardDescription className="text-xs">Derived from active news feed.</CardDescription>
+                <CardTitle className="text-base flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5" /> Volatility Risk
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger>
+                                <Info className="h-4 w-4 text-muted-foreground/80 cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p className="max-w-xs">This score is a VIX driver. It's calculated from the impact and sentiment of the active news feed.</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
                 <div className="flex justify-between items-center">
@@ -1050,7 +1074,7 @@ function StoryClusterCard({ cluster, onNewsSelect, query }: { cluster: StoryClus
             <Card className="bg-muted/40 border-primary/20 flex flex-col h-full">
                 <CollapsibleTrigger asChild>
                     <div className="flex-1 cursor-pointer">
-                        <CardHeader>
+                        <CardHeader className="pb-4">
                             <div className="flex items-start justify-between">
                                 <CardTitle className="text-base leading-tight pr-4 line-clamp-2">
                                      <HighlightMatches text={cluster.primary.headline} query={query} />
@@ -1319,7 +1343,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                 }
 
                 if (vixState) {
-                    vixState.components.newsSentiment = 50; // Reset on new fetch
+                    vixState.components.newsSentimentScore = 50; // Reset on new fetch
                     localStorage.setItem(VIX_CACHE_KEY, JSON.stringify(vixState));
                     window.dispatchEvent(new StorageEvent('storage', { key: VIX_CACHE_KEY }));
                 }
@@ -1334,6 +1358,87 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
             setIsLoading(false);
         }
     }, [toast, persona]);
+    
+    const handleSimulateShock = () => {
+        try {
+            const shockItems: NewsItem[] = [
+                {
+                    id: `shock-${Date.now()}-1`,
+                    headline: "BREAKING: US Treasury announces emergency measures targeting self-custody crypto wallets",
+                    sourceName: "Blocksource",
+                    sourceTier: 'A',
+                    publishedAt: new Date().toISOString(),
+                    summaryBullets: ["Treasury statement hints at potential for new, stricter KYC/AML regulations for decentralized protocols.", "Market reacts with immediate sell-off across major assets."],
+                    sentiment: "Negative",
+                    volatilityImpact: "High",
+                    impactedCoins: ["BTC", "ETH", "USDC"],
+                    category: "Regulatory",
+                    eventType: "Breaking",
+                    riskWindowMins: 240,
+                    volatilityRiskScore: 95,
+                    arjunMeaning: "This is a significant market-moving event. The risk of unpredictable, cascading price action is extremely high.",
+                    recommendedAction: "Cease all new trade planning. Protect capital. Wait for clarity.",
+                },
+                {
+                    id: `shock-${Date.now()}-2`,
+                    headline: "Reports of major exchange halting withdrawals due to technical issues",
+                    sourceName: "CryptoWire",
+                    sourceTier: 'A',
+                    publishedAt: new Date().toISOString(),
+                    summaryBullets: ["The exchange has confirmed they are investigating 'system irregularities' but has not given an ETA for a fix.", "This event adds to market uncertainty and may cause contagion fear."],
+                    sentiment: "Negative",
+                    volatilityImpact: "High",
+                    impactedCoins: ["BTC", "ETH"],
+                    category: "Exchange",
+                    eventType: "Breaking",
+                    riskWindowMins: 120,
+                    volatilityRiskScore: 90,
+                    arjunMeaning: "An exchange outage during a volatile period introduces execution risk and can exacerbate price swings.",
+                    recommendedAction: "Avoid trading on affected exchanges. Be aware of potential for wider market impact."
+                }
+            ];
+
+            // 1. Inject news
+            setNewsItems(prev => [...shockItems, ...prev]);
+            const newCache = { items: [ ...shockItems, ...newsItems ], lastFetchedAt: new Date().toISOString() };
+            localStorage.setItem(NEWS_CACHE_KEY, JSON.stringify(newCache));
+
+            // 2. Push VIX up
+            const vixStateString = localStorage.getItem(VIX_CACHE_KEY);
+            if (vixStateString) {
+                const vixState = JSON.parse(vixStateString);
+                const newVixValue = Math.min(100, vixState.value + 20 + Math.random() * 10);
+                vixState.value = newVixValue;
+                vixState.zoneLabel = getVixZone(newVixValue);
+                vixState.components.newsSentimentScore = 20; // More bearish
+                vixState.components.newsMood = 'Bearish';
+                localStorage.setItem(VIX_CACHE_KEY, JSON.stringify(vixState));
+                window.dispatchEvent(new StorageEvent('storage', { key: VIX_CACHE_KEY }));
+            }
+            
+            // 3. Add risk event
+            const riskEventsString = localStorage.getItem('ec_risk_events_today');
+            const riskEvents = riskEventsString ? JSON.parse(riskEventsString) : [];
+            const newEvent = {
+                time: format(new Date(), "HH:mm"),
+                description: "Regime shift likely due to breaking news shock.",
+                level: 'red'
+            };
+            localStorage.setItem('ec_risk_events_today', JSON.stringify([...riskEvents, newEvent]));
+             window.dispatchEvent(new StorageEvent('storage', { key: 'ec_risk_events_today' }));
+
+            toast({
+                title: "News Shock Simulated",
+                description: "High-impact news injected, VIX increased. Check Risk Center.",
+                variant: 'destructive',
+            });
+            setActiveTab('all');
+            setFilters(prev => ({...prev, search: 'BREAKING'}));
+        } catch (e) {
+            console.error("Failed to simulate news shock:", e);
+            toast({ title: "Simulation failed", variant: "destructive" });
+        }
+    };
 
     useEffect(() => {
         loadNews();
@@ -1419,7 +1524,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
             if (vixStateString) {
                 try {
                     const vixState: VixState = JSON.parse(vixStateString);
-                    vixState.components.newsSentiment = 20; // More bearish
+                    vixState.components.newsSentimentScore = 20; // More bearish
                     localStorage.setItem(VIX_CACHE_KEY, JSON.stringify(vixState));
                     window.dispatchEvent(new StorageEvent('storage', { key: VIX_CACHE_KEY, newValue: JSON.stringify(vixState) }));
                 } catch (e) {
@@ -1805,6 +1910,9 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                         <p className="text-muted-foreground">AI-curated crypto futures news with sentiment + volatility impact—so you don’t trade blind.</p>
                     </div>
                     <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" onClick={handleSimulateShock}>
+                            <Zap className="mr-2 h-4 w-4" /> Simulate Shock
+                        </Button>
                         <Button variant="ghost" size="sm" onClick={() => loadNews(true)} disabled={isLoading}>
                             {isLoading ? (
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -2059,7 +2167,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                                             )}
                                                         >
                                                             <div onClick={() => handleNewsSelect(newsItem)} className="cursor-pointer flex-1 flex flex-col">
-                                                                <CardHeader>
+                                                                <CardHeader className="pb-4">
                                                                     <CardTitle className="text-base leading-tight line-clamp-2">
                                                                         <HighlightMatches text={newsItem.headline} query={filters.search} />
                                                                     </CardTitle>
@@ -2332,3 +2440,4 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         </div>
     );
 }
+
