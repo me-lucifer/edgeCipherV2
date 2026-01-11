@@ -1063,18 +1063,29 @@ function CoinDetailDrawer({ coin, newsItems, followedCoins, onOpenChange, onSetM
             .slice(0, 5);
     }, [coin, newsItems]);
 
-    const coinSentiment = useMemo(() => {
-        if (coinNews.length === 0) return { Positive: 0, Negative: 0, Neutral: 100 };
+    const { coinSentiment, coinNewsRiskScore } = useMemo(() => {
+        if (coinNews.length === 0) return { coinSentiment: { Positive: 0, Negative: 0, Neutral: 100 }, coinNewsRiskScore: 0 };
+        
         const sentimentCounts = { Positive: 0, Negative: 0, Neutral: 0 };
+        let riskScore = 0;
+
         coinNews.forEach(item => {
             sentimentCounts[item.sentiment]++;
+            if (item.volatilityImpact === 'High') riskScore += 25;
+            if (item.volatilityImpact === 'Medium') riskScore += 10;
+            if (item.sentiment === 'Negative') riskScore += 15;
         });
+
         const total = coinNews.length;
-        return {
+        const coinSentiment = {
             Positive: (sentimentCounts.Positive / total) * 100,
             Negative: (sentimentCounts.Negative / total) * 100,
             Neutral: (sentimentCounts.Neutral / total) * 100,
         };
+
+        const coinNewsRiskScore = Math.min(100, Math.round(riskScore / total * 20)); // Normalized score
+
+        return { coinSentiment, coinNewsRiskScore };
     }, [coinNews]);
 
     if (!coin) return null;
@@ -1108,6 +1119,15 @@ function CoinDetailDrawer({ coin, newsItems, followedCoins, onOpenChange, onSetM
                             )) : <p className="text-sm text-muted-foreground">No recent news found for {coin}.</p>}
                         </div>
                         <div className="space-y-6">
+                             <Card className="bg-muted/30">
+                                <CardHeader>
+                                    <CardTitle className="text-base">{coin} News Risk Score</CardTitle>
+                                </CardHeader>
+                                <CardContent className="text-center">
+                                    <p className="text-5xl font-bold font-mono">{coinNewsRiskScore}</p>
+                                    <p className="text-sm text-muted-foreground">{getVixZone(coinNewsRiskScore)}</p>
+                                </CardContent>
+                            </Card>
                             <Card className="bg-muted/30">
                                 <CardHeader>
                                     <CardTitle className="text-base">Sentiment Mood</CardTitle>
@@ -2248,3 +2268,4 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         </div>
     );
 }
+
