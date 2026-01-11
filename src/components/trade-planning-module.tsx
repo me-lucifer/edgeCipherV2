@@ -897,3 +897,345 @@ const DisciplineAlerts = ({ onSetModule }: { onSetModule: (module: any) => void 
         </div>
     );
 };
+
+export function TradePlanningModule({ onSetModule, planContext }: TradePlanningModuleProps) {
+    const { toast } = useToast();
+    const { addLog, toggleEventLog } = useEventLog();
+    const { incrementTrades, incrementOverrides } = useDailyCounters();
+    const [strategies, setStrategies] = useState<Strategy[]>([]);
+    const [selectedStrategy, setSelectedStrategy] = useState<Strategy | null>(null);
+    const [entryChecklist, setEntryChecklist] = useState<Record<string, boolean>>({});
+    const [session, setSession] = useState<'Asia' | 'London' | 'New York'>('New York');
+    const { riskState } = useRiskState();
+    const [planStatus, setPlanStatus] = useState<PlanStatusType>('incomplete');
+    const [tempVolatilityPolicy, setTempVolatilityPolicy] = useState<'follow' | 'conservative' | 'strict' | null>(null);
+    const [activeNewsRisk, setActiveNewsRisk] = useState<any>(null);
+
+    const form = useForm<PlanFormValues>({
+        resolver: zodResolver(planSchema),
+        defaultValues: {
+            instrument: "",
+            direction: "Long",
+            entryType: "Market",
+            leverage: 10,
+            accountCapital: 10000,
+            riskPercent: 1.0,
+            strategyId: "",
+        },
+    });
+
+    useEffect(() => {
+        if(typeof window !== "undefined") {
+            const storedStrategies = localStorage.getItem("ec_strategies");
+            if(storedStrategies) {
+                setStrategies(JSON.parse(storedStrategies));
+            }
+            
+            const lastUsedStrategyId = localStorage.getItem("ec_last_used_strategy");
+            if (lastUsedStrategyId) {
+                form.setValue('strategyId', lastUsedStrategyId);
+            }
+
+            const storedCapital = localStorage.getItem("ec_assumed_capital");
+            if (storedCapital) {
+                form.setValue('accountCapital', parseFloat(storedCapital));
+            }
+
+            const draftString = localStorage.getItem("ec_trade_plan_draft");
+            if (draftString) {
+                try {
+                    const draft = JSON.parse(draftString);
+                    form.reset(draft.formData);
+                    toast({
+                        title: "Draft Loaded",
+                        description: "Your previous unfinished trade plan has been restored.",
+                    });
+                } catch(e) {
+                     localStorage.removeItem("ec_trade_plan_draft");
+                }
+            }
+        }
+    }, [form, toast]);
+    
+    useEffect(() => {
+        if (planContext) {
+            form.setValue('instrument', planContext.instrument);
+            if (planContext.direction) {
+                form.setValue('direction', planContext.direction);
+            }
+            if(planContext.safeMode) {
+                setTempVolatilityPolicy('conservative');
+                toast({
+                    title: "Conservative Mode Active",
+                    description: "Stricter volatility rules are temporarily being enforced.",
+                    variant: "destructive"
+                });
+            }
+            addLog(`Trade planning context loaded from ${planContext.origin}: ${planContext.instrument}`);
+        }
+    }, [planContext, form, addLog]);
+    
+     useEffect(() => {
+        if (typeof window !== "undefined") {
+            const updateNewsRisk = () => {
+                const context = localStorage.getItem(NEWS_RISK_CONTEXT_KEY);
+                if (context) {
+                    const parsed = JSON.parse(context);
+                    if (parsed.active && parsed.expiresAt > Date.now()) {
+                        setActiveNewsRisk(parsed);
+                    } else {
+                        setActiveNewsRisk(null);
+                        localStorage.removeItem(NEWS_RISK_CONTEXT_KEY);
+                    }
+                } else {
+                    setActiveNewsRisk(null);
+                }
+            };
+
+            updateNewsRisk();
+            const interval = setInterval(updateNewsRisk, 5000);
+            window.addEventListener('storage', updateNewsRisk);
+
+            return () => {
+                clearInterval(interval);
+                window.removeEventListener('storage', updateNewsRisk);
+            };
+        }
+    }, []);
+
+    const activeStrategyId = useWatch({ control: form.control, name: 'strategyId' });
+
+    useEffect(() => {
+        const strat = strategies.find(s => s.strategyId === activeStrategyId);
+        setSelectedStrategy(strat || null);
+
+        // Reset checklist when strategy changes
+        const newChecklist: Record<string, boolean> = {};
+        strat?.versions.find(v => v.isActiveVersion)?.ruleSet.entryRules.conditions.forEach(rule => {
+            newChecklist[rule] = false;
+        });
+        setEntryChecklist(newChecklist);
+        
+        if(strat) {
+            localStorage.setItem("ec_last_used_strategy", strat.strategyId);
+        }
+
+    }, [activeStrategyId, strategies]);
+    
+     const {
+        handleSubmit,
+        formState: { isSubmitting },
+        getValues,
+    } = form;
+
+    const onExecuteTrade = (values: PlanFormValues) => {
+        addLog(`Executing trade plan for ${values.instrument}`);
+        incrementTrades(values.strategyId);
+        
+        if (planStatus === 'overridden') {
+            incrementOverrides();
+        }
+
+        const newJournalEntry: JournalEntry = {
+            id: `draft-${Date.now()}`,
+            tradeId: `DELTA-${Date.now()}`,
+            status: 'pending',
+            timestamps: {
+                plannedAt: new Date().toISOString(),
+                executedAt: new Date().toISOString(),
+                closedAt: undefined,
+            },
+            technical: {
+                instrument: values.instrument,
+                direction: values.direction,
+                entryPrice: values.entryPrice,
+                stopLoss: values.stopLoss,
+                takeProfit: values.takeProfit,
+                leverage: values.leverage,
+                positionSize: 0, // Should be calculated
+                riskPercent: values.riskPercent,
+                rrRatio: 0, // Should be calculated
+                strategy: selectedStrategy?.name || 'Unknown',
+            },
+            planning: {
+                planNotes: values.notes,
+                ruleOverridesJustification: values.justification,
+                mindset: values.mindset,
+            },
+            meta: {
+                strategyVersion: selectedStrategy?.versions.find(v => v.isActiveVersion)?.versionNumber.toString(),
+                vixOnExecute: {
+                    value: riskState?.marketRisk.vixValue || 0,
+                    zone: riskState?.marketRisk.vixZone || 'Normal',
+                },
+                ruleAdherenceSummary: {
+                    followedEntryRules: true, // Placeholder
+                    movedSL: false,
+                    exitedEarly: false,
+                    rrBelowMin: false
+                }
+            }
+        };
+
+        const existingDrafts = JSON.parse(localStorage.getItem('ec_journal_drafts') || '[]');
+        localStorage.setItem('ec_journal_drafts', JSON.stringify([newJournalEntry, ...existingDrafts]));
+        localStorage.removeItem('ec_trade_plan_draft');
+
+        toast({
+            title: "Trade Executed (Prototype)",
+            description: "A draft has been created in your trade journal.",
+        });
+        onSetModule('tradeJournal');
+    };
+    
+    const handleSaveDraft = () => {
+        const currentData = getValues();
+        const draft: SavedDraft = {
+            formData: currentData,
+            draftStep: 'plan',
+            timestamp: new Date().toISOString(),
+        };
+        localStorage.setItem('ec_trade_plan_draft', JSON.stringify(draft));
+        addLog("Trade plan draft saved.");
+        toast({
+            title: "Draft Saved",
+            description: "Your trade plan has been saved for later.",
+        });
+    };
+
+    return (
+        <div className="space-y-8">
+            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold tracking-tight text-foreground">Trade Planning</h1>
+                    <p className="text-muted-foreground">This is where you build your case for a trade.</p>
+                </div>
+                <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => onSetModule('strategyManagement')}>
+                        <BookOpen className="mr-2 h-4 w-4" /> My Rulebooks
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={toggleEventLog}>Toggle Event Log</Button>
+                </div>
+            </div>
+            
+            <Form {...form}>
+                <form onSubmit={handleSubmit(onExecuteTrade)} className="space-y-8">
+                    <div className="grid lg:grid-cols-3 gap-8 items-start">
+                        {/* --- FORM FIELDS --- */}
+                        <div className="lg:col-span-2 space-y-6">
+                            <Card className="bg-muted/30 border-border/50">
+                                <CardHeader>
+                                    <CardTitle>Trade Idea</CardTitle>
+                                    <CardDescription>
+                                        Define the instrument and core parameters for your trade.
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                     <div className="flex flex-col sm:flex-row gap-4">
+                                        <div className="flex-1">
+                                            <FormField control={form.control} name="instrument" render={({ field }) => ( <FormItem><FormLabel>Instrument</FormLabel><FormControl><Input placeholder="e.g., BTC-PERP" {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                                        </div>
+                                         <FormField control={form.control} name="direction" render={({ field }) => ( <FormItem className="space-y-3"><FormLabel>Direction</FormLabel><FormControl> <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex items-center space-x-4"> <FormItem className="flex items-center space-x-3 space-y-0"> <FormControl><RadioGroupItem value="Long" /></FormControl><FormLabel className="font-normal text-green-400">Long</FormLabel> </FormItem> <FormItem className="flex items-center space-x-3 space-y-0"> <FormControl><RadioGroupItem value="Short" /></FormControl><FormLabel className="font-normal text-red-400">Short</FormLabel> </FormItem> </RadioGroup> </FormControl><FormMessage /></FormItem> )}/>
+                                     </div>
+                                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                          <FormField control={form.control} name="entryPrice" render={({ field }) => ( <FormItem><FormLabel>Entry Price</FormLabel><FormControl><Input type="number" placeholder="69000.0" {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                                          <FormField control={form.control} name="stopLoss" render={({ field }) => ( <FormItem><FormLabel>Stop Loss</FormLabel><FormControl><Input type="number" placeholder="68500.0" {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                                          <FormField control={form.control} name="takeProfit" render={({ field }) => ( <FormItem><FormLabel>Take Profit (Optional)</FormLabel><FormControl><Input type="number" placeholder="71000.0" {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                                      </div>
+                                </CardContent>
+                            </Card>
+                             <Card className="bg-muted/30 border-border/50">
+                                <CardHeader>
+                                    <CardTitle>Risk & Sizing</CardTitle>
+                                </CardHeader>
+                                <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                     <FormField control={form.control} name="leverage" render={({ field }) => ( <FormItem><FormLabel>Leverage</FormLabel><FormControl><Input type="number" placeholder="10" {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                                    <FormField control={form.control} name="riskPercent" render={({ field }) => ( <FormItem><FormLabel>Risk (%)</FormLabel><FormControl><Input type="number" step="0.1" {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                                    <FormField control={form.control} name="accountCapital" render={({ field }) => ( <FormItem><FormLabel>Account Capital ($)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                                </CardContent>
+                            </Card>
+                             <Card className="bg-muted/30 border-border/50">
+                                <CardHeader>
+                                    <CardTitle>Rationale</CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                     <FormField control={form.control} name="strategyId" render={({ field }) => ( <FormItem> <FormLabel>Strategy</FormLabel> <Select onValueChange={field.onChange} value={field.value}> <FormControl><SelectTrigger><SelectValue placeholder="Select a strategy from your playbook..." /></SelectTrigger></FormControl> <SelectContent> {strategies.filter(s => s.status === 'active').map(s => <SelectItem key={s.strategyId} value={s.strategyId}>{s.name}</SelectItem>)} </SelectContent> </Select> <FormMessage /> </FormItem> )}/>
+                                     <FormField control={form.control} name="notes" render={({ field }) => ( <FormItem><FormLabel>Trade thesis / Rationale</FormLabel><FormControl><Textarea placeholder="e.g., 'Price is retesting a key broken support level which should now act as resistance...'" {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                                     <FormField control={form.control} name="mindset" render={({ field }) => ( <FormItem><FormLabel>Pre-trade mindset</FormLabel><FormControl><Input placeholder="e.g., Focused, a bit anxious due to volatility" {...field} /></FormControl><FormDescription className="text-xs">Your self-reported mindset before entering. Be honest.</FormDescription><FormMessage /></FormItem> )}/>
+                                </CardContent>
+                            </Card>
+                             {selectedStrategy && (
+                                <Card className="bg-muted/30 border-border/50">
+                                    <CardHeader>
+                                        <CardTitle>Entry Confirmation Checklist</CardTitle>
+                                        <CardDescription>Confirm your strategy's entry conditions are met.</CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="space-y-2">
+                                            {selectedStrategy.versions.find(v => v.isActiveVersion)?.ruleSet.entryRules.conditions.map((rule, i) => (
+                                                <div key={i} className="flex items-center space-x-2">
+                                                    <Checkbox
+                                                        id={`checklist-${i}`}
+                                                        checked={entryChecklist[rule] || false}
+                                                        onCheckedChange={(checked) => setEntryChecklist(prev => ({ ...prev, [rule]: !!checked }))}
+                                                    />
+                                                    <Label htmlFor={`checklist-${i}`} className="text-sm font-normal">{rule}</Label>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            )}
+                        </div>
+
+                        {/* --- SIDEBAR --- */}
+                        <div className="lg:col-span-1 space-y-6 sticky top-24">
+                           {activeNewsRisk && (
+                                <Alert variant="destructive">
+                                    <AlertTriangle className="h-4 w-4" />
+                                    <AlertTitle>Active News-Driven Risk Window</AlertTitle>
+                                    <AlertDescription>
+                                        Headline: "{activeNewsRisk.headline}". Expect higher volatility for the next {formatDistanceToNow(new Date(activeNewsRisk.expiresAt))}.
+                                    </AlertDescription>
+                                </Alert>
+                            )}
+                            <PlanSummary control={form.control} setPlanStatus={setPlanStatus} onSetModule={onSetModule} entryChecklist={entryChecklist} session={session} vixZone={riskState?.marketRisk.vixZone || 'Normal'} form={form} />
+                             <MarketContext session={session} setSession={setSession} vixZone={riskState?.marketRisk.vixZone || 'Normal'} setVixZone={() => {}} />
+                        </div>
+                    </div>
+                     <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:items-center gap-2 pt-6 border-t border-border/50">
+                        <Button variant="ghost" type="button" onClick={handleSaveDraft}>Save Draft</Button>
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button
+                                    type="button"
+                                    disabled={isSubmitting || planStatus === 'FAIL'}
+                                    className="relative w-full sm:w-auto"
+                                >
+                                     {isSubmitting && <Loader2 className="absolute h-4 w-4 animate-spin" />}
+                                    <span className={cn(isSubmitting && 'invisible')}>Execute Trade (Prototype)</span>
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Confirm Execution (Prototype)</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        This is a prototype. No real trade will be placed. A draft will be created in your journal for review.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => onExecuteTrade(getValues())}>
+                                        Confirm
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                    </div>
+                </form>
+            </Form>
+        </div>
+    );
+};
+
+    
