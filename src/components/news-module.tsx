@@ -108,16 +108,16 @@ const getRiskWindow = (category: NewsCategory, impact: VolatilityImpact): { risk
 };
 
 const summaryBulletPool = [
-    "The analysis suggests a potential short-term impact on major asset prices based on historical precedents. It is not a recommendation to trade.",
-    "This development is expected to influence transaction fees on associated Layer-2 networks, which may affect user costs.",
-    "This event is correlated with a short-term increase in market volatility; caution and adherence to risk parameters are advised.",
-    "A new date for an upcoming protocol upgrade has been confirmed by the core development team, which could affect roadmaps.",
-    "The announcement has sparked debate on the future of decentralized finance regulation among policymakers, with no clear outcome yet.",
+    "The analysis suggests a potential short-term impact on major asset prices, but it is not a recommendation to trade.",
+    "This development is expected to influence transaction fees on associated Layer-2 networks.",
+    "The event is correlated with a short-term increase in market volatility; adherence to risk parameters is advised.",
+    "A new date for an upcoming protocol upgrade has been confirmed by the core development team.",
+    "The announcement has sparked debate on the future of decentralized finance regulation among policymakers.",
     "On-chain data indicates a shift in capital flows following the news. This is an observation, not a predictive signal.",
-    "The incident raises serious concerns about network security and the safety of user funds. Review your own security practices.",
-    "The report outlines a multi-year roadmap for protocol development and ecosystem growth, subject to change.",
-    "This change is projected to affect staking rewards for token holders in the upcoming epoch. DYOR.",
-    "A new governance proposal has been submitted for community review and voting. The outcome is uncertain."
+    "The incident raises concerns about network security and the safety of user funds. Review your own security practices.",
+    "The report outlines a multi-year roadmap for protocol development and ecosystem growth.",
+    "This change is projected to affect staking rewards for token holders in the upcoming epoch.",
+    "A new governance proposal has been submitted for community review and voting; the outcome is uncertain."
 ];
 
 
@@ -213,22 +213,22 @@ const postureSuggestions: Record<VixZone, Record<PersonaType, { meaning: string;
         "Beginner": { meaning: "This is a good environment to practice. Focus on executing one or two simple setups with a minimal, controlled position size.", action: "Practice disciplined execution with a minimal position size." },
     },
     "Volatile": {
-        "Impulsive Sprinter": { meaning: "This is a danger zone for you. Volatility feels like opportunity, but it's where impulsive errors are most costly.", action: "Cut position size by 50%. Wait for crystal-clear A+ setups." },
-        "Fearful Analyst": { meaning: "Analysis is difficult in choppy, volatile markets. It is acceptable to sit out. A flat day is a winning day.", action: "If you are not 100% confident in a setup, the best trade is no trade." },
-        "Disciplined Scalper": { meaning: "Your strategy is at high risk. Wider wicks and increased slippage can invalidate setups. Adapt or wait.", action: "Adapt your parameters for volatility or wait for calmer conditions." },
-        "Beginner": { meaning: "This is a 'sit on your hands' day. Watching the chaos from the sidelines is a valuable lesson in risk management.", action: "Observe the market; do not participate. Preserve your capital." },
+        "Impulsive Sprinter": { meaning: "This is a danger zone. Volatility feels like opportunity, but it's where impulsive errors are most costly.", action: "Cut position size by 50%. Wait for crystal-clear A+ setups." },
+        "Fearful Analyst": { meaning: "Analysis is difficult in choppy markets. It is acceptable to sit out. A flat day is a winning day.", action: "If you are not 100% confident in a setup, the best trade is no trade." },
+        "Disciplined Scalper": { meaning: "Your strategy is at high risk. Wider wicks can invalidate setups. Adapt or wait.", action: "Adapt your parameters for volatility or wait for calmer conditions." },
+        "Beginner": { meaning: "This is a 'sit on your hands' day. Watching the chaos from the sidelines is a valuable lesson.", action: "Observe the market; do not participate. Preserve your capital." },
     },
     "High Volatility": {
-        "Impulsive Sprinter": { meaning: "This is a red alert. The market is erratic. Trading in these conditions is gambling, not executing an edge.", action: "Your only job today is to protect your capital by not trading." },
-        "Fearful Analyst": { meaning: "Your analysis is unreliable in these conditions. The market is driven by liquidations and fear. The pros are waiting.", action: "Stay flat. Pros are waiting, and so should you." },
-        "Disciplined Scalper": { meaning: "Your edge does not exist here. The noise is too high, and risk is not definable. Stepping aside is the highest form of discipline.", action: "Cash is the strongest position right now. Preserve your capital." },
-        "Beginner": { meaning: "This is the environment where new traders lose their accounts. Do not trade. Your only job is to watch and learn.", action: "Do not trade. Your goal is to survive to trade another day." },
+        "Impulsive Sprinter": { meaning: "This is a red alert. The market is erratic. Trading now is gambling, not executing an edge.", action: "Your only job today is to protect your capital by not trading." },
+        "Fearful Analyst": { meaning: "Your analysis is unreliable in these conditions. Pros are waiting on the sidelines, and so should you.", action: "Stay flat. Pros are waiting, and so should you." },
+        "Disciplined Scalper": { meaning: "Your edge does not exist here. The noise is too high. Stepping aside is the highest form of discipline.", action: "Cash is the strongest position right now. Preserve your capital." },
+        "Beginner": { meaning: "This is where new traders lose accounts. Do not trade. Your only job is to watch and learn.", action: "Do not trade. Your goal is to survive to trade another day." },
     },
     "Extreme": {
-        "Impulsive Sprinter": { meaning: "Catastrophic risk is present. Your account is in extreme danger if you trade. Close your platform and walk away.", action: "DO NOT TRADE. The only trade that matters is protecting your account." },
-        "Fearful Analyst": { meaning: "The market is completely irrational. Your analysis does not apply. Trust your fear and stay flat.", action: "Stay flat. This is a spectator sport right now." },
-        "Disciplined Scalper": { meaning: "There is no edge here. The market is in a state of cascading liquidations. Any position taken is a gamble.", action: "Stay flat. There is no trading edge in a liquidation cascade." },
-        "Beginner": { meaning: "DO NOT TRADE. DANGER. Watch from a distance to learn that sometimes the best action is no action.", action: "Observe the chaos from the sidelines. Survive to trade another day." },
+        "Impulsive Sprinter": { meaning: "Catastrophic risk is present. Close your platform and walk away.", action: "DO NOT TRADE. The only trade that matters is protecting your account." },
+        "Fearful Analyst": { meaning: "The market is irrational. Your analysis does not apply. Trust your fear and stay flat.", action: "Stay flat. This is a spectator sport right now." },
+        "Disciplined Scalper": { meaning: "There is no edge here. The market is in a state of cascading liquidations. Any position is a gamble.", action: "Stay flat. There is no trading edge in a liquidation cascade." },
+        "Beginner": { meaning: "DO NOT TRADE. DANGER. This is where new traders lose accounts.", action: "Observe the chaos from the sidelines. Survive to trade another day." },
     }
 };
 
@@ -1052,7 +1052,7 @@ function StoryClusterCard({ cluster, onNewsSelect, query }: { cluster: StoryClus
                     <div className="flex-1 cursor-pointer">
                         <CardHeader>
                             <div className="flex items-start justify-between">
-                                <CardTitle className="text-base leading-tight pr-4">
+                                <CardTitle className="text-base leading-tight pr-4 line-clamp-2">
                                      <HighlightMatches text={cluster.primary.headline} query={query} />
                                 </CardTitle>
                                 <Badge variant="outline" className="flex-shrink-0 bg-muted border-primary/20 text-primary">
@@ -1060,40 +1060,43 @@ function StoryClusterCard({ cluster, onNewsSelect, query }: { cluster: StoryClus
                                     +{cluster.related.length} related
                                 </Badge>
                             </div>
-                            <CardDescription className="flex items-center gap-2 text-xs pt-1">
-                                <Badge variant="outline" className={cn(
-                                    'text-xs whitespace-nowrap',
-                                    cluster.sentiment === 'Positive' && 'bg-green-500/20 text-green-300 border-green-500/30',
-                                    cluster.sentiment === 'Negative' && 'bg-red-500/20 text-red-300 border-red-500/30',
-                                )}>{cluster.sentiment}</Badge>
-                                <Badge variant="outline" className={cn(
-                                    "text-xs",
-                                    cluster.impact === 'High' && 'border-red-500/50 text-red-400',
-                                    cluster.impact === 'Medium' && 'border-amber-500/50 text-amber-400',
-                                )}>
-                                    <TrendingUp className="mr-1 h-3 w-3"/>
-                                    {cluster.impact} Impact
-                                </Badge>
-                                <Badge variant="secondary" className="text-xs">{cluster.category}</Badge>
+                            <CardDescription className="text-xs pt-1">
+                                {cluster.primary.sourceName} &bull; {formatDistanceToNow(new Date(cluster.primary.publishedAt), { addSuffix: true })}
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
                              <div className="space-y-2">
-                                <p className="text-xs font-semibold text-muted-foreground">Story Summary:</p>
                                 <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
-                                    {summaryBullets.map((bullet, i) => bullet && <li key={i}>{bullet}</li>)}
+                                    {summaryBullets.slice(0, 2).map((bullet, i) => bullet && <li key={i} className="line-clamp-2">{bullet}</li>)}
                                 </ul>
                             </div>
                         </CardContent>
                     </div>
                 </CollapsibleTrigger>
+                <CardFooter className="flex-col items-start gap-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="outline" className={cn(
+                            'text-xs whitespace-nowrap',
+                            cluster.sentiment === 'Positive' && 'bg-green-500/20 text-green-300 border-green-500/30',
+                            cluster.sentiment === 'Negative' && 'bg-red-500/20 text-red-300 border-red-500/30',
+                        )}>{cluster.sentiment}</Badge>
+                        <Badge variant="outline" className={cn(
+                            "text-xs",
+                            cluster.impact === 'High' && 'border-red-500/50 text-red-400',
+                            cluster.impact === 'Medium' && 'border-amber-500/50 text-amber-400',
+                        )}>
+                            <TrendingUp className="mr-1 h-3 w-3"/>
+                            {cluster.impact} Impact
+                        </Badge>
+                        <Badge variant="secondary" className="text-xs">{cluster.category}</Badge>
+                    </div>
+                </CardFooter>
                 <CollapsibleContent>
                     <CardContent>
-                         <p className="text-sm text-muted-foreground mb-4">{cluster.primary.summaryBullets.slice(0,1)}</p>
                         <div className="space-y-3">
                             {cluster.related.map(item => (
                                 <div key={item.id} className="p-3 bg-muted/50 border rounded-md cursor-pointer hover:bg-muted" onClick={() => onNewsSelect(item)}>
-                                    <p className="text-sm font-medium text-foreground">{item.headline}</p>
+                                    <p className="text-sm font-medium text-foreground line-clamp-1">{item.headline}</p>
                                     <p className="text-xs text-muted-foreground mt-1">{item.sourceName} &bull; {formatDistanceToNow(new Date(item.publishedAt), { addSuffix: true })}</p>
                                 </div>
                             ))}
@@ -1263,6 +1266,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
     const [isRegulatoryMode, setIsRegulatoryMode] = useState(false);
     const [isExchangeMode, setIsExchangeMode] = useState(false);
     const [selectedCoinForDrawer, setSelectedCoinForDrawer] = useState<string | null>(null);
+    const [relatedNews, setRelatedNews] = useState<NewsItem[]>([]);
 
 
     const allCategories = useMemo(() => ['All', ...[...new Set(mockNewsSource.map(item => item.category))]], []);
@@ -1424,7 +1428,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
             }
         }
     };
-
+    
     useEffect(() => {
         if (selectedNews) {
             const context = localStorage.getItem(NEWS_RISK_CONTEXT_KEY);
@@ -1438,8 +1442,14 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
             } else {
                  setIsWarningActive(false);
             }
+            setRelatedNews(newsItems
+                .filter(item => 
+                    item.id !== selectedNews.id &&
+                    (item.category === selectedNews.category || item.impactedCoins.some(c => selectedNews.impactedCoins.includes(c)))
+                )
+                .slice(0, 3));
         }
-    }, [selectedNews]);
+    }, [selectedNews, newsItems]);
 
     const filteredNews = useMemo(() => {
         let items = newsItems;
@@ -1753,16 +1763,6 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         toast({ title: "Preset deleted", variant: 'destructive' });
     };
 
-    const relatedNews = useMemo(() => {
-        if (!selectedNews) return [];
-        return newsItems
-            .filter(item => 
-                item.id !== selectedNews.id &&
-                (item.category === selectedNews.category || item.impactedCoins.some(c => selectedNews.impactedCoins.includes(c)))
-            )
-            .slice(0, 3);
-    }, [selectedNews, newsItems]);
-
     return (
         <div className="space-y-8">
              <Dialog open={showSavePresetDialog} onOpenChange={setShowSavePresetDialog}>
@@ -2060,7 +2060,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                                         >
                                                             <div onClick={() => handleNewsSelect(newsItem)} className="cursor-pointer flex-1 flex flex-col">
                                                                 <CardHeader>
-                                                                    <CardTitle className="text-base leading-tight">
+                                                                    <CardTitle className="text-base leading-tight line-clamp-2">
                                                                         <HighlightMatches text={newsItem.headline} query={filters.search} />
                                                                     </CardTitle>
                                                                     <CardDescription className="flex items-center gap-2 text-xs pt-1">
@@ -2070,7 +2070,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                                                 {!isBreakingMode && (
                                                                     <CardContent className="flex-1">
                                                                         <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
-                                                                            {newsItem.summaryBullets.slice(0,2).map((bullet, i) => <li key={i}>{bullet}</li>)}
+                                                                            {newsItem.summaryBullets.slice(0,2).map((bullet, i) => <li key={i} className="line-clamp-2">{bullet}</li>)}
                                                                         </ul>
                                                                     </CardContent>
                                                                 )}
@@ -2332,6 +2332,3 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         </div>
     );
 }
-
-
-
