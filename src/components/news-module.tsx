@@ -108,16 +108,16 @@ const getRiskWindow = (category: NewsCategory, impact: VolatilityImpact): { risk
 };
 
 const summaryBulletPool = [
-    "The analysis suggests a potential short-term impact on major asset prices based on historical precedents.",
-    "This development is expected to influence transaction fees on associated Layer-2 networks.",
-    "This event is correlated with a short-term increase in market volatility; caution is advised.",
-    "A new date for an upcoming protocol upgrade has been confirmed by the core development team.",
-    "The announcement has sparked debate on the future of decentralized finance regulation among policymakers.",
-    "On-chain data indicates a shift in institutional adoption and capital flows following the news.",
-    "The incident raises serious concerns about network security and the safety of user funds.",
-    "The report outlines a multi-year roadmap for protocol development and ecosystem growth.",
-    "This change is projected to affect staking rewards for token holders in the upcoming epoch.",
-    "A new governance proposal has been submitted for community review and voting."
+    "The analysis suggests a potential short-term impact on major asset prices based on historical precedents. It is not a recommendation to trade.",
+    "This development is expected to influence transaction fees on associated Layer-2 networks, which may affect user costs.",
+    "This event is correlated with a short-term increase in market volatility; caution and adherence to risk parameters are advised.",
+    "A new date for an upcoming protocol upgrade has been confirmed by the core development team, which could affect roadmaps.",
+    "The announcement has sparked debate on the future of decentralized finance regulation among policymakers, with no clear outcome yet.",
+    "On-chain data indicates a shift in capital flows following the news. This is an observation, not a predictive signal.",
+    "The incident raises serious concerns about network security and the safety of user funds. Review your own security practices.",
+    "The report outlines a multi-year roadmap for protocol development and ecosystem growth, subject to change.",
+    "This change is projected to affect staking rewards for token holders in the upcoming epoch. DYOR.",
+    "A new governance proposal has been submitted for community review and voting. The outcome is uncertain."
 ];
 
 
@@ -1287,11 +1287,12 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
             setTimeout(() => {
                 const newItems = [...mockNewsSource].sort(() => 0.5 - Math.random()).map(item => {
                     const riskWindow = getRiskWindow(item.category, item.volatilityImpact);
+                    const personaInsight = getPersonaInsight({ ...item, ...riskWindow }, persona);
                     return { 
                         ...item, 
                         ...riskWindow,
-                        arjunMeaning: "Default meaning",
-                        recommendedAction: "Default action",
+                        arjunMeaning: personaInsight.meaning,
+                        recommendedAction: personaInsight.action,
                      };
                 });
 
@@ -1328,7 +1329,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
             setNewsItems([]);
             setIsLoading(false);
         }
-    }, [toast]);
+    }, [toast, persona]);
 
     useEffect(() => {
         loadNews();
@@ -1752,6 +1753,15 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         toast({ title: "Preset deleted", variant: 'destructive' });
     };
 
+    const relatedNews = useMemo(() => {
+        if (!selectedNews) return [];
+        return newsItems
+            .filter(item => 
+                item.id !== selectedNews.id &&
+                (item.category === selectedNews.category || item.impactedCoins.some(c => selectedNews.impactedCoins.includes(c)))
+            )
+            .slice(0, 3);
+    }, [selectedNews, newsItems]);
 
     return (
         <div className="space-y-8">
@@ -2322,5 +2332,6 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         </div>
     );
 }
+
 
 
