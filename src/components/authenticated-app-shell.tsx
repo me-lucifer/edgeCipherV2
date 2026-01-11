@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useAuth } from '@/context/auth-provider';
-import { LayoutDashboard, Bot, FileText, Gauge, BarChart, Settings, HelpCircle, Bell, UserCircle, LogOut, Cpu, PanelLeft, Book, BrainCircuit, LineChart, Newspaper, Users, Sparkles, Menu, Terminal, AlertTriangle, ArrowRight, BarChartHorizontal } from 'lucide-react';
+import { LayoutDashboard, Bot, FileText, Gauge, BarChart, Settings, HelpCircle, Bell, UserCircle, LogOut, Cpu, PanelLeft, Book, BrainCircuit, LineChart, Newspaper, Users, Sparkles, Menu, Terminal, AlertTriangle, ArrowRight, BarChartHorizontal, Wifi, WifiOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DashboardModule } from './dashboard-module';
 import {
@@ -50,6 +50,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ChartModule } from './chart-module';
 import { useRiskState } from '@/hooks/use-risk-state';
+import { useIntelStatus } from '@/hooks/use-intel-status';
 
 export type Module = 
   | 'dashboard' 
@@ -183,7 +184,7 @@ function ModuleView({ currentModule, onSetModule, moduleContext, isLoading, jour
     }
     
     if (currentModule === 'strategyManagement') {
-      return <StrategyManagementModule onSetModule={onSetModule} />;
+      return <StrategyManagementModule onSetModule={onSetModule} context={moduleContext} />;
     }
 
     if (currentModule === 'riskCenter') {
@@ -237,6 +238,7 @@ function AppHeader({ onSetModule, onOpenMobileNav }: { onSetModule: (module: Mod
   const [greeting, setGreeting] = useState("Welcome");
   const { toggleEventLog } = useEventLog();
   const { riskState } = useRiskState();
+  const { status: intelStatus, lastFetchedAt } = useIntelStatus();
 
   const riskLevel = riskState?.decision.level || 'green';
   const riskConfig = {
@@ -244,6 +246,13 @@ function AppHeader({ onSetModule, onOpenMobileNav }: { onSetModule: (module: Mod
     yellow: { label: 'Elevated', color: 'bg-amber-500' },
     red: { label: 'Critical', color: 'bg-red-500' }
   };
+  
+  const intelConfig = {
+    Fresh: { label: 'Fresh', icon: Wifi, className: 'border-green-500/30 bg-green-500/10 text-green-300' },
+    Stale: { label: 'Stale', icon: WifiOff, className: 'border-amber-500/30 bg-amber-500/10 text-amber-300' },
+    Loading: { label: 'Loading', icon: WifiOff, className: 'animate-pulse' }
+  };
+  const currentIntelConfig = intelConfig[intelStatus];
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -276,10 +285,20 @@ function AppHeader({ onSetModule, onOpenMobileNav }: { onSetModule: (module: Mod
             <TooltipProvider>
                 <Tooltip>
                     <TooltipTrigger asChild>
-                        <Badge variant="outline" className="hidden sm:flex cursor-help border-amber-500/50 text-amber-400">Prototype</Badge>
+                         <Badge
+                            variant="outline"
+                            className={cn(
+                                "hidden sm:flex items-center gap-1.5 cursor-pointer",
+                                currentIntelConfig.className
+                            )}
+                            onClick={() => onSetModule('news')}
+                        >
+                            <currentIntelConfig.icon className="h-3 w-3" />
+                            Intel: {currentIntelConfig.label}
+                        </Badge>
                     </TooltipTrigger>
-                    <TooltipContent side="bottom" className="max-w-xs">
-                        <p>This is a non-production prototype. Data is mocked or stored only in your browser. No real trading or live API calls happen here.</p>
+                    <TooltipContent>
+                        <p>News intelligence status. Last fetched: {lastFetchedAt || 'N/A'}</p>
                     </TooltipContent>
                 </Tooltip>
             </TooltipProvider>
@@ -646,5 +665,6 @@ export function AuthenticatedAppShell() {
 }
 
     
+
 
 
