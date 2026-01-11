@@ -249,6 +249,65 @@ interface NewsFilterPreset {
 
 const ITEMS_PER_PAGE = 9;
 
+function ActiveRiskWindowsCard({ newsItems, onNewsSelect, onSetWarning }: { newsItems: NewsItem[], onNewsSelect: (item: NewsItem) => void, onSetWarning: (item: NewsItem) => void }) {
+    const [activeWindows, setActiveWindows] = useState<NewsItem[]>([]);
+
+    useEffect(() => {
+        const updateWindows = () => {
+            const now = new Date().getTime();
+            const active = newsItems
+                .filter(item => item.riskWindowMins > 0)
+                .filter(item => {
+                    const expiresAt = new Date(item.publishedAt).getTime() + item.riskWindowMins * 60 * 1000;
+                    return expiresAt > now;
+                })
+                .sort((a,b) => (new Date(a.publishedAt).getTime() + a.riskWindowMins * 60000) - (new Date(b.publishedAt).getTime() + b.riskWindowMins * 60000));
+            
+            setActiveWindows(active);
+        };
+        
+        updateWindows();
+        const interval = setInterval(updateWindows, 10000); // Check every 10 seconds
+        return () => clearInterval(interval);
+    }, [newsItems]);
+
+    return (
+        <Card className="bg-muted/30 border-border/50">
+            <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2"><Timer className="h-5 w-5" /> Active Risk Windows</CardTitle>
+                <CardDescription className="text-xs">Time-sensitive events to be aware of.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                {activeWindows.length > 0 ? (
+                    <div className="space-y-4">
+                        {activeWindows.slice(0, 3).map(item => {
+                             const expiresAt = new Date(item.publishedAt).getTime() + item.riskWindowMins * 60 * 1000;
+                            return (
+                                <div key={item.id} className="p-3 bg-muted rounded-lg border">
+                                    <div className="flex items-center justify-between">
+                                        <p className="font-semibold text-sm text-foreground truncate pr-2">{item.headline}</p>
+                                        <Badge variant="outline" className={cn(
+                                            item.volatilityImpact === 'High' && 'border-red-500/50 text-red-400',
+                                            item.volatilityImpact === 'Medium' && 'border-amber-500/50 text-amber-400',
+                                        )}>{item.volatilityImpact}</Badge>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground mt-1">Time left: <span className="font-semibold">{formatDistanceToNow(new Date(expiresAt), { addSuffix: true })}</span></p>
+                                    <div className="flex gap-2 mt-3">
+                                        <Button size="sm" variant="ghost" className="text-xs h-7" onClick={() => onNewsSelect(item)}>Open Item</Button>
+                                        <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => onSetWarning(item)}>Set as Warning</Button>
+                                    </div>
+                                </div>
+                            )
+                        })}
+                    </div>
+                ) : (
+                    <p className="text-sm text-center text-muted-foreground py-4">No active risk windows currently.</p>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+
 function UpcomingEventsCard({ onSetRiskWindow }: { onSetRiskWindow: (event: any) => void }) {
     const mockEvents = useMemo(() => [
         { name: "US CPI Data Release", date: new Date(Date.now() + 2 * 60 * 60 * 1000), impact: 'High' },
@@ -1611,7 +1670,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                     <Card className="bg-muted/30 border-border/50 sticky top-[72px] z-20">
                         <CardHeader>
                             <div className="flex items-center justify-between">
-                                <CardTitle className="flex items-center gap-2"><Filter className="h-5 w-5"/> Filters & Sorting</CardTitle>
+                                <CardTitle className="flex items-center gap-2"><Filter /> Filters & Sorting</CardTitle>
                                 <Button variant="ghost" size="sm" onClick={clearFilters}><X className="mr-2 h-4 w-4"/>Clear all</Button>
                             </div>
                         </CardHeader>
@@ -1882,6 +1941,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                 </div>
 
                  <div className="lg:col-span-1 space-y-6 sticky top-24">
+                    <ActiveRiskWindowsCard newsItems={newsItems} onNewsSelect={handleNewsSelect} onSetWarning={handleWarningToggle} />
                     <VolatilityBriefCard newsItems={filteredNews} persona={persona} />
                     <WatchlistCard 
                         followedCoins={followedCoins} 
