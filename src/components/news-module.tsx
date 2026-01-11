@@ -91,6 +91,19 @@ const getRiskWindow = (category: NewsCategory, impact: VolatilityImpact): { risk
     };
 };
 
+const summaryBulletPool = [
+    "Analyzes impact on major asset prices.",
+    "Reduces transaction fees on Layer-2 networks.",
+    "Triggers significant market volatility.",
+    "Confirms new date for upcoming protocol upgrade.",
+    "Sparks debate on future of decentralized finance.",
+    "Highlights growing institutional adoption.",
+    "Raises concerns about network security.",
+    "Outlines a new roadmap for protocol development.",
+    "Affects staking rewards for token holders.",
+    "Introduces a new governance proposal.",
+];
+
 const mockNewsSource: Omit<NewsItem, 'riskWindowMins' | 'eventType' | 'volatilityRiskScore' | 'arjunMeaning' | 'recommendedAction'>[] = Array.from({ length: 25 }, (_, i) => {
     const categories: NewsCategory[] = ["Regulatory", "Macro", "Exchange", "ETF", "Liquidations", "Altcoins", "Security", "Tech"];
     const sentiments: Sentiment[] = ["Positive", "Negative", "Neutral"];
@@ -119,17 +132,17 @@ const mockNewsSource: Omit<NewsItem, 'riskWindowMins' | 'eventType' | 'volatilit
     const randomImpact = (): VolatilityImpact => (Math.random() < 0.25 ? 'High' : Math.random() < 0.6 ? 'Medium' : 'Low');
     const randomNumberOfCoins = Math.floor(Math.random() * 5) + 1;
     const impactedCoins = [...new Set(Array.from({ length: randomNumberOfCoins }, () => randomElement(coins)))];
+    
+    const numBullets = Math.random() < 0.7 ? 2 : 3;
+    const shuffledBullets = [...summaryBulletPool].sort(() => 0.5 - Math.random());
+    const summaryBullets = shuffledBullets.slice(0, numBullets);
 
     return {
         id: `${Date.now()}-${i}`,
         headline: randomElement(headlines),
         sourceName: randomElement(sources),
         publishedAt: new Date(Date.now() - Math.random() * 1000 * 60 * 60 * 24 * 3).toISOString(),
-        summaryBullets: [
-            "This is a generated summary bullet point for realism.",
-            "Another detail providing more context on the event.",
-            "A third point to round out the summary."
-        ],
+        summaryBullets,
         sentiment: randomElement(sentiments),
         volatilityImpact: randomImpact(),
         impactedCoins: impactedCoins,
