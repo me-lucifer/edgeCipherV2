@@ -144,22 +144,42 @@ const mockNewsSource: Omit<NewsItem, 'riskWindowMins' | 'eventType' | 'volatilit
 
     const randomElement = <T,>(arr: T[]) => arr[Math.floor(Math.random() * arr.length)];
     const randomImpact = (): VolatilityImpact => (Math.random() < 0.25 ? 'High' : Math.random() < 0.6 ? 'Medium' : 'Low');
-    const randomNumberOfCoins = Math.floor(Math.random() * 5) + 1;
-    const impactedCoins = [...new Set(Array.from({ length: randomNumberOfCoins }, () => randomElement(coins)))];
     
+    const headline = randomElement(headlines);
+    const lowerHeadline = headline.toLowerCase();
+
+    // Smart coin parsing
+    const impactedCoinsSet = new Set<string>();
+    if (lowerHeadline.includes('btc') || lowerHeadline.includes('bitcoin')) impactedCoinsSet.add('BTC');
+    if (lowerHeadline.includes('eth') || lowerHeadline.includes('ethereum')) impactedCoinsSet.add('ETH');
+    if (lowerHeadline.includes('sol') || lowerHeadline.includes('solana')) impactedCoinsSet.add('SOL');
+    if (lowerHeadline.includes('etf') && lowerHeadline.includes('bitcoin')) impactedCoinsSet.add('BTC');
+    if (lowerHeadline.includes('layer-2')) impactedCoinsSet.add('ETH');
+    
+    // Add some random coins for variety
+    const randomNumberOfCoins = Math.floor(Math.random() * 3); // 0 to 2 random coins
+    for(let j=0; j<randomNumberOfCoins; j++) {
+        impactedCoinsSet.add(randomElement(coins));
+    }
+    // Ensure there's at least one coin if none were parsed
+    if (impactedCoinsSet.size === 0) {
+        impactedCoinsSet.add(randomElement(coins));
+    }
+
+
     const numBullets = Math.random() < 0.7 ? 2 : 3;
     const shuffledBullets = [...summaryBulletPool].sort(() => 0.5 - Math.random());
     const summaryBullets = shuffledBullets.slice(0, numBullets);
 
     return {
         id: `${Date.now()}-${i}`,
-        headline: randomElement(headlines),
+        headline: headline,
         sourceName: randomElement(sources),
         publishedAt: new Date(Date.now() - Math.random() * 1000 * 60 * 60 * 24 * 3).toISOString(),
         summaryBullets,
         sentiment: randomElement(sentiments),
         volatilityImpact: randomImpact(),
-        impactedCoins: impactedCoins,
+        impactedCoins: Array.from(impactedCoinsSet),
         category: randomElement(categories),
         linkUrl: "#"
     };
@@ -1068,7 +1088,7 @@ function CoinDetailDrawer({ coin, newsItems, followedCoins, onOpenChange, onSetM
     const { coinSentiment, coinNewsRiskScore } = useMemo(() => {
         if (coinNews.length === 0) return { coinSentiment: { Positive: 0, Negative: 0, Neutral: 100 }, coinNewsRiskScore: 0 };
         
-        const sentimentCounts = { Positive: 0, Negative: 0, Neutral: 0 };
+        let sentimentCounts = { Positive: 0, Negative: 0, Neutral: 0 };
         let riskScore = 0;
 
         coinNews.forEach(item => {
