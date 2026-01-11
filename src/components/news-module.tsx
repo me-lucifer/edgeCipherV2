@@ -5,7 +5,7 @@ import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark, Timer, Gauge, Star, Calendar, Copy, Clipboard, ThumbsUp, ThumbsDown, Meh, PlusCircle, MoreHorizontal, Save, Grid, Eye, Radio, RefreshCw } from "lucide-react";
+import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark, Timer, Gauge, Star, Calendar, Copy, Clipboard, ThumbsUp, ThumbsDown, Meh, PlusCircle, MoreHorizontal, Save, Grid, Eye, Radio, RefreshCw, Layers } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "./ui/drawer";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "./ui/skeleton";
@@ -14,7 +14,7 @@ import { Input } from "./ui/input";
 import { Switch } from "./ui/switch";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { formatDistanceToNow, formatDistance, isToday, isYesterday } from 'date-fns';
+import { formatDistanceToNow, formatDistance, isToday, isYesterday, differenceInHours } from 'date-fns';
 import type { VixState } from "@/hooks/use-risk-state";
 import { Progress } from "./ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -24,6 +24,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "./ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "./ui/tooltip";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
 
 
 interface NewsModuleProps {
@@ -53,6 +54,18 @@ export type NewsItem = {
     volatilityRiskScore: number;
     linkUrl?: string;
 };
+
+type StoryCluster = {
+    type: 'cluster';
+    id: string;
+    primary: NewsItem;
+    related: NewsItem[];
+    category: NewsCategory;
+    impact: VolatilityImpact;
+};
+
+type DisplayItem = NewsItem | StoryCluster;
+
 
 const getRiskWindow = (category: NewsCategory, impact: VolatilityImpact): { riskWindowMins: number; eventType: EventType; volatilityRiskScore: number } => {
     let riskWindowMins = 30;
@@ -912,6 +925,49 @@ ${headlinesText || "- None"}
     );
 }
 
+function StoryClusterCard({ cluster, onNewsSelect }: { cluster: StoryCluster, onNewsSelect: (item: NewsItem) => void }) {
+    return (
+        <Collapsible>
+            <Card className="bg-muted/40 border-primary/20">
+                <CollapsibleTrigger className="w-full text-left">
+                    <CardHeader>
+                        <div className="flex items-center justify-between">
+                            <CardTitle className="text-base leading-tight pr-4">{cluster.primary.headline}</CardTitle>
+                            <Badge variant="outline" className="flex-shrink-0 bg-muted border-primary/20 text-primary">
+                                <Layers className="mr-2 h-3 w-3" />
+                                +{cluster.related.length} related
+                            </Badge>
+                        </div>
+                         <CardDescription className="flex items-center gap-2 text-xs pt-1">
+                            <span>{cluster.primary.sourceName}</span>
+                            &bull;
+                            <Badge variant="secondary" className="text-xs">{cluster.category}</Badge>
+                        </CardDescription>
+                    </CardHeader>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                    <CardContent>
+                         <p className="text-sm text-muted-foreground mb-4">{cluster.primary.summaryBullets.slice(0,1)}</p>
+                        <div className="space-y-3">
+                            {cluster.related.map(item => (
+                                <div key={item.id} className="p-3 bg-muted/50 border rounded-md cursor-pointer hover:bg-muted" onClick={() => onNewsSelect(item)}>
+                                    <p className="text-sm font-medium text-foreground">{item.headline}</p>
+                                    <p className="text-xs text-muted-foreground mt-1">{item.sourceName} &bull; {formatDistanceToNow(new Date(item.publishedAt), { addSuffix: true })}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </CardContent>
+                     <CardFooter>
+                        <Button variant="link" className="p-0 h-auto text-xs" onClick={() => onNewsSelect(cluster.primary)}>
+                            View primary story details
+                        </Button>
+                    </CardFooter>
+                </CollapsibleContent>
+            </Card>
+        </Collapsible>
+    )
+}
+
 
 export function NewsModule({ onSetModule }: NewsModuleProps) {
     const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
@@ -1149,16 +1205,71 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         
         return items;
     }, [filters, newsItems, followedCoins, isBreakingMode, activeList, savedNewsIds, readNewsIds]);
+    
+    const clusteredItems = useMemo(() => {
+        const STOP_WORDS = new Set(['a', 'an', 'the', 'is', 'in', 'on', 'of', 'for', 'to', 'with']);
+        const getKeywords = (headline: string) => 
+            new Set(headline.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(' ').filter(word => !STOP_WORDS.has(word) && word.length > 2));
+        
+        const clustered: DisplayItem[] = [];
+        const processedIds = new Set<string>();
+
+        for (const item of filteredNews) {
+            if (processedIds.has(item.id)) continue;
+
+            const cluster: NewsItem[] = [];
+            const itemKeywords = getKeywords(item.headline);
+
+            for (const otherItem of filteredNews) {
+                if (processedIds.has(otherItem.id) || item.id === otherItem.id) continue;
+
+                const timeDiff = Math.abs(differenceInHours(new Date(item.publishedAt), new Date(otherItem.publishedAt)));
+                if (timeDiff > 3) continue;
+
+                if (item.category !== otherItem.category) continue;
+
+                const hasCommonCoin = item.impactedCoins.some(coin => otherItem.impactedCoins.includes(coin));
+                if (!hasCommonCoin) continue;
+                
+                const otherKeywords = getKeywords(otherItem.headline);
+                const intersection = new Set([...itemKeywords].filter(x => otherKeywords.has(x)));
+                const overlap = intersection.size / Math.min(itemKeywords.size, otherKeywords.size);
+
+                if (overlap >= 0.5) { // 50% keyword overlap
+                    cluster.push(otherItem);
+                }
+            }
+
+            if (cluster.length > 0) {
+                processedIds.add(item.id);
+                cluster.forEach(c => processedIds.add(c.id));
+                clustered.push({
+                    type: 'cluster',
+                    id: `cluster-${item.id}`,
+                    primary: item,
+                    related: cluster,
+                    category: item.category,
+                    impact: item.volatilityImpact,
+                });
+            } else {
+                clustered.push(item);
+                processedIds.add(item.id);
+            }
+        }
+        
+        return clustered;
+
+    }, [filteredNews]);
 
     const groupedAndFilteredNews = useMemo(() => {
-        const groups: { [key: string]: NewsItem[] } = {
+        const groups: { [key: string]: DisplayItem[] } = {
             Today: [],
             Yesterday: [],
             Earlier: [],
         };
 
-        filteredNews.forEach(item => {
-            const itemDate = new Date(item.publishedAt);
+        clusteredItems.forEach(item => {
+            const itemDate = new Date(item.type === 'cluster' ? item.primary.publishedAt : item.publishedAt);
             if (isToday(itemDate)) {
                 groups.Today.push(item);
             } else if (isYesterday(itemDate)) {
@@ -1170,7 +1281,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
 
         return Object.entries(groups).filter(([, items]) => items.length > 0);
 
-    }, [filteredNews]);
+    }, [clusteredItems]);
 
     const relatedNews = useMemo(() => {
         if (!selectedNews) return [];
@@ -1628,7 +1739,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                         </Card>
                                     ))}
                                 </div>
-                            ) : filteredNews.length === 0 ? (
+                            ) : clusteredItems.length === 0 ? (
                                 <Card className="text-center py-12 bg-muted/30 border-border/50">
                                     <CardHeader>
                                         <CardTitle>No items match these filters.</CardTitle>
@@ -1645,27 +1756,33 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                             <h2 className="text-lg font-semibold text-foreground mb-4 pl-1">{groupName}</h2>
                                             <div className={cn("grid grid-cols-1 md:grid-cols-2 gap-6", isBreakingMode && "md:grid-cols-3")}>
                                                 {items.slice(0, visibleCount).map(item => {
-                                                    const isRead = readNewsIds.includes(item.id);
-                                                    const isSaved = savedNewsIds.includes(item.id);
+                                                    if (item.type === 'cluster') {
+                                                        return <StoryClusterCard key={item.id} cluster={item} onNewsSelect={handleNewsSelect} />
+                                                    }
+                                                    
+                                                    const newsItem = item as NewsItem;
+                                                    const isRead = readNewsIds.includes(newsItem.id);
+                                                    const isSaved = savedNewsIds.includes(newsItem.id);
+
                                                     return (
                                                         <Card 
-                                                            key={item.id}
+                                                            key={newsItem.id}
                                                             className={cn(
                                                                 "bg-muted/30 border-border/50 flex flex-col transition-all",
                                                                 isRead ? "opacity-60 hover:opacity-100" : "hover:border-primary/40 hover:bg-muted/50"
                                                             )}
                                                         >
-                                                            <div onClick={() => handleNewsSelect(item)} className="cursor-pointer flex-1 flex flex-col">
+                                                            <div onClick={() => handleNewsSelect(newsItem)} className="cursor-pointer flex-1 flex flex-col">
                                                                 <CardHeader>
-                                                                    <CardTitle className="text-base leading-tight">{item.headline}</CardTitle>
+                                                                    <CardTitle className="text-base leading-tight">{newsItem.headline}</CardTitle>
                                                                     <CardDescription className="flex items-center gap-2 text-xs pt-1">
-                                                                        <span>{item.sourceName}</span>
+                                                                        <span>{newsItem.sourceName}</span>
                                                                     </CardDescription>
                                                                 </CardHeader>
                                                                 {!isBreakingMode && (
                                                                     <CardContent className="flex-1">
                                                                         <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
-                                                                            {item.summaryBullets.slice(0,2).map((bullet, i) => <li key={i}>{bullet}</li>)}
+                                                                            {newsItem.summaryBullets.slice(0,2).map((bullet, i) => <li key={i}>{bullet}</li>)}
                                                                         </ul>
                                                                     </CardContent>
                                                                 )}
@@ -1674,29 +1791,29 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                                                 <div className="flex flex-wrap items-center gap-2">
                                                                     <Badge variant="outline" className={cn(
                                                                         'text-xs whitespace-nowrap',
-                                                                        item.sentiment === 'Positive' && 'bg-green-500/20 text-green-300 border-green-500/30',
-                                                                        item.sentiment === 'Negative' && 'bg-red-500/20 text-red-300 border-red-500/30',
-                                                                        item.sentiment === 'Neutral' && 'bg-secondary text-secondary-foreground border-border'
-                                                                    )}>{item.sentiment}</Badge>
+                                                                        newsItem.sentiment === 'Positive' && 'bg-green-500/20 text-green-300 border-green-500/30',
+                                                                        newsItem.sentiment === 'Negative' && 'bg-red-500/20 text-red-300 border-red-500/30',
+                                                                        newsItem.sentiment === 'Neutral' && 'bg-secondary text-secondary-foreground border-border'
+                                                                    )}>{newsItem.sentiment}</Badge>
                                                                     <Badge variant="outline" className={cn(
                                                                         "text-xs",
-                                                                        item.volatilityImpact === 'High' && 'border-red-500/50 text-red-400',
-                                                                        item.volatilityImpact === 'Medium' && 'border-amber-500/50 text-amber-400',
-                                                                        item.volatilityImpact === 'Low' && 'border-green-500/50 text-green-400',
+                                                                        newsItem.volatilityImpact === 'High' && 'border-red-500/50 text-red-400',
+                                                                        newsItem.volatilityImpact === 'Medium' && 'border-amber-500/50 text-amber-400',
+                                                                        newsItem.volatilityImpact === 'Low' && 'border-green-500/50 text-green-400',
                                                                     )}>
                                                                         <TrendingUp className="mr-1 h-3 w-3"/>
-                                                                        {item.volatilityImpact} Impact
+                                                                        {newsItem.volatilityImpact} Impact
                                                                     </Badge>
                                                                     <Badge variant="outline" className="text-xs">
                                                                         <Clock className="mr-1 h-3 w-3"/>
-                                                                        {getImpactHorizon(item.riskWindowMins)}
+                                                                        {getImpactHorizon(newsItem.riskWindowMins)}
                                                                     </Badge>
                                                                 </div>
                                                                 <div className="w-full pt-2 border-t border-border/50 flex justify-end items-center gap-1">
-                                                                    <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => handleToggleRead(item.id)}>
+                                                                    <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => handleToggleRead(newsItem.id)}>
                                                                         <CheckCircle className={cn("mr-2 h-4 w-4", isRead && "text-primary")} /> {isRead ? "Unread" : "Mark read"}
                                                                     </Button>
-                                                                    <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => handleToggleSave(item.id)}>
+                                                                    <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => handleToggleSave(newsItem.id)}>
                                                                         <Bookmark className={cn("mr-2 h-4 w-4", isSaved && "text-primary fill-primary")} /> {isSaved ? "Unsave" : "Save"}
                                                                     </Button>
                                                                 </div>
@@ -1707,10 +1824,10 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                             </div>
                                         </div>
                                     ))}
-                                    {visibleCount < filteredNews.length && (
+                                    {visibleCount < clusteredItems.length && (
                                         <div className="mt-8 text-center">
                                             <Button variant="outline" onClick={() => setVisibleCount(prev => prev + ITEMS_PER_PAGE)}>
-                                                Load More ({filteredNews.length - visibleCount} remaining)
+                                                Load More ({clusteredItems.length - visibleCount} remaining)
                                             </Button>
                                         </div>
                                     )}
