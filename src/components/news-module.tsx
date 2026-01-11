@@ -108,16 +108,16 @@ const getRiskWindow = (category: NewsCategory, impact: VolatilityImpact): { risk
 };
 
 const summaryBulletPool = [
-    "Analyzes potential impact on major asset prices based on historical precedents.",
-    "The development is expected to influence transaction fees on associated Layer-2 networks.",
-    "This event is correlated with a short-term increase in market volatility.",
-    "A new date for an upcoming protocol upgrade has been confirmed.",
-    "The announcement has sparked debate on the future of decentralized finance regulation.",
-    "Data indicates a shift in institutional adoption and capital flows.",
-    "The incident raises concerns about network security and fund safety.",
-    "The report outlines a multi-year roadmap for protocol development.",
-    "The change is projected to affect staking rewards for token holders.",
-    "A new governance proposal has been submitted for community review."
+    "The analysis suggests a potential short-term impact on major asset prices based on historical precedents.",
+    "This development is expected to influence transaction fees on associated Layer-2 networks.",
+    "This event is correlated with a short-term increase in market volatility; caution is advised.",
+    "A new date for an upcoming protocol upgrade has been confirmed by the core development team.",
+    "The announcement has sparked debate on the future of decentralized finance regulation among policymakers.",
+    "On-chain data indicates a shift in institutional adoption and capital flows following the news.",
+    "The incident raises serious concerns about network security and the safety of user funds.",
+    "The report outlines a multi-year roadmap for protocol development and ecosystem growth.",
+    "This change is projected to affect staking rewards for token holders in the upcoming epoch.",
+    "A new governance proposal has been submitted for community review and voting."
 ];
 
 
@@ -1561,13 +1561,14 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
     }, [filteredNews]);
 
     const groupedAndFilteredNews = useMemo(() => {
+        const itemsToDisplay = clusteredItems.slice(0, visibleCount);
         const groups: { [key: string]: DisplayItem[] } = {
             Today: [],
             Yesterday: [],
             Earlier: [],
         };
 
-        clusteredItems.forEach(item => {
+        itemsToDisplay.forEach(item => {
             const itemDate = new Date(item.type === 'cluster' ? item.primary.publishedAt : item.publishedAt);
             if (isToday(itemDate)) {
                 groups.Today.push(item);
@@ -1580,20 +1581,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
 
         return Object.entries(groups).filter(([, items]) => items.length > 0);
 
-    }, [clusteredItems]);
-
-    const relatedNews = useMemo(() => {
-        if (!selectedNews) return [];
-        
-        return newsItems
-            .filter(item => {
-                if (item.id === selectedNews.id) return false;
-                const hasCommonCoin = item.impactedCoins.some(coin => selectedNews.impactedCoins.includes(coin));
-                const hasSameCategory = item.category === selectedNews.category;
-                return hasCommonCoin || hasSameCategory;
-            })
-            .slice(0, 4);
-    }, [selectedNews, newsItems]);
+    }, [clusteredItems, visibleCount]);
     
     useEffect(() => {
         setVisibleCount(ITEMS_PER_PAGE);
@@ -2042,7 +2030,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                         <div key={groupName}>
                                             <h2 className="text-lg font-semibold text-foreground mb-4 pl-1">{groupName}</h2>
                                             <div className={cn("grid grid-cols-1 md:grid-cols-2 gap-6", isBreakingMode && "md:grid-cols-3")}>
-                                                {items.slice(0, visibleCount).map(item => {
+                                                {items.map(item => {
                                                     if (item.type === 'cluster') {
                                                         return <StoryClusterCard key={item.id} cluster={item} onNewsSelect={handleNewsSelect} query={filters.search} />
                                                     }
@@ -2334,4 +2322,5 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         </div>
     );
 }
+
 
