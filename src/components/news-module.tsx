@@ -36,11 +36,13 @@ type VolatilityImpact = "Low" | "Medium" | "High";
 type NewsCategory = "Regulatory" | "Macro" | "Exchange" | "ETF" | "Liquidations" | "Altcoins" | "Security" | "Tech";
 type PersonaType = "Impulsive Sprinter" | "Fearful Analyst" | "Disciplined Scalper" | "Beginner";
 type EventType = "Scheduled" | "Breaking" | "Developing";
+type SourceTier = 'A' | 'B' | 'C';
 
 export type NewsItem = {
     id: string;
     headline: string;
     sourceName: string;
+    sourceTier: SourceTier;
     publishedAt: string;
     summaryBullets: string[];
     sentiment: Sentiment;
@@ -122,7 +124,14 @@ const summaryBulletPool = [
 const mockNewsSource: Omit<NewsItem, 'riskWindowMins' | 'eventType' | 'volatilityRiskScore' | 'arjunMeaning' | 'recommendedAction'>[] = Array.from({ length: 25 }, (_, i) => {
     const categories: NewsCategory[] = ["Regulatory", "Macro", "Exchange", "ETF", "Liquidations", "Altcoins", "Security", "Tech"];
     const sentiments: Sentiment[] = ["Positive", "Negative", "Neutral"];
-    const sources = ["Blocksource", "CryptoWire", "Asia Crypto Today", "The Defiant", "ETF Weekly", "Liquidations.info", "ExchangeWire", "MacroScope", "DeFi Pulse", "Binance Blog"];
+    
+    const sourceTiers: Record<string, SourceTier> = {
+        "Blocksource": 'A', "CryptoWire": 'A', "The Defiant": 'A', "ETF Weekly": 'B',
+        "Liquidations.info": 'B', "ExchangeWire": 'A', "MacroScope": 'A', "DeFi Pulse": 'B',
+        "Binance Blog": 'B', "Asia Crypto Today": 'C'
+    };
+    const sources = Object.keys(sourceTiers);
+
     const coins = ["BTC", "ETH", "SOL", "BNB", "XRP", "ADA", "DOGE", "AVAX", "DOT", "MATIC", "LINK", "TRX", "SHIB"];
     
     const headlines = [
@@ -170,11 +179,14 @@ const mockNewsSource: Omit<NewsItem, 'riskWindowMins' | 'eventType' | 'volatilit
     const numBullets = Math.random() < 0.7 ? 2 : 3;
     const shuffledBullets = [...summaryBulletPool].sort(() => 0.5 - Math.random());
     const summaryBullets = shuffledBullets.slice(0, numBullets);
+    
+    const sourceName = randomElement(sources);
 
     return {
         id: `${Date.now()}-${i}`,
         headline: headline,
-        sourceName: randomElement(sources),
+        sourceName: sourceName,
+        sourceTier: sourceTiers[sourceName],
         publishedAt: new Date(Date.now() - Math.random() * 1000 * 60 * 60 * 24 * 3).toISOString(),
         summaryBullets,
         sentiment: randomElement(sentiments),
@@ -192,7 +204,7 @@ const postureSuggestions: Record<VixZone, Record<PersonaType, { meaning: string;
         "Impulsive Sprinter": { meaning: "Low volatility can lead to impatience and forced trades. Adherence to your plan is key.", action: "Do not invent setups; wait for the market to present a clear opportunity." },
         "Fearful Analyst": { meaning: "These conditions are ideal for building confidence without excessive market noise. Focus on analysis.", action: "Focus on planning and analysis, not forced execution." },
         "Disciplined Scalper": { meaning: "Range-bound strategies may perform well, but be wary of choppy price action eroding small gains.", action: "Execute your plan, but protect your capital from chop." },
-        "Beginner": { meaning: "This is the ideal environment to study market structure without high risk. Observe and learn, do not trade.", action: "Today is for learning and observation, not for aggressive trading." },
+        "Beginner": { meaning: "This is the ideal environment to study market structure without high risk. Observe and learn, do not trade aggressively.", action: "Today is for learning and observation, not for aggressive trading." },
     },
     "Normal": {
         "Impulsive Sprinter": { meaning: "Even in normal conditions, impatience can lead to rule-breaking. The goal is consistent execution.", action: "Follow your plan without exception; no adding to losers or revenge trading." },
@@ -1673,7 +1685,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
             localStorage.removeItem(NEWS_RISK_CONTEXT_KEY);
             toast({
                 title: "Risk Warning Deactivated",
-                variant: 'destructive',
+                variant: "destructive",
             });
         }
     };
@@ -2021,14 +2033,15 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                                             key={newsItem.id}
                                                             className={cn(
                                                                 "bg-muted/30 border-border/50 flex flex-col transition-all",
-                                                                isRead ? "opacity-60 hover:opacity-100" : "hover:border-primary/40 hover:bg-muted/50"
+                                                                isRead ? "opacity-60 hover:opacity-100" : "hover:border-primary/40 hover:bg-muted/50",
+                                                                newsItem.sourceTier === 'C' && 'opacity-70'
                                                             )}
                                                         >
                                                             <div onClick={() => handleNewsSelect(newsItem)} className="cursor-pointer flex-1 flex flex-col">
                                                                 <CardHeader>
                                                                     <CardTitle className="text-base leading-tight">{newsItem.headline}</CardTitle>
                                                                     <CardDescription className="flex items-center gap-2 text-xs pt-1">
-                                                                        <span>{newsItem.sourceName}</span>
+                                                                        <span>{newsItem.sourceName} (Tier {newsItem.sourceTier})</span>
                                                                     </CardDescription>
                                                                 </CardHeader>
                                                                 {!isBreakingMode && (
@@ -2138,7 +2151,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                         {selectedNews.volatilityImpact} Impact
                                     </Badge>
                                      <Badge variant="secondary" className="text-xs">{selectedNews.category}</Badge>
-                                    <span className="flex items-center gap-2 text-muted-foreground text-sm"><Clock className="h-4 w-4" />{formatDistanceToNow(new Date(selectedNews.publishedAt), { addSuffix: true })} via {selectedNews.sourceName}</span>
+                                    <span className="flex items-center gap-2 text-muted-foreground text-sm"><Clock className="h-4 w-4" />{formatDistanceToNow(new Date(selectedNews.publishedAt), { addSuffix: true })} via {selectedNews.sourceName} (Tier {selectedNews.sourceTier})</span>
                                 </DrawerDescription>
                             </DrawerHeader>
                              
