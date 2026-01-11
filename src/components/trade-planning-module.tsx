@@ -1052,11 +1052,11 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
             incrementOverrides();
         }
 
-        const newsContextTags: string[] = [];
+        let newsContextTags = '';
         if (activeNewsRisk) {
-            newsContextTags.push("News-driven day");
-            newsContextTags.push(`Active risk window: ${activeNewsRisk.headline}`);
+            newsContextTags = `News-driven day. Active risk window: ${activeNewsRisk.headline} (Impact: ${activeNewsRisk.volatilityImpact}, Sentiment: ${activeNewsRisk.sentiment})`;
         }
+
 
         const newJournalEntry: JournalEntry = {
             id: `draft-${Date.now()}`,
@@ -1087,7 +1087,7 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
             review: {
                 pnl: 0,
                 exitPrice: 0,
-                newsContextTags: newsContextTags.join(','),
+                newsContextTags: newsContextTags,
             },
             meta: {
                 strategyVersion: selectedStrategy?.versions.find(v => v.isActiveVersion)?.versionNumber.toString(),
