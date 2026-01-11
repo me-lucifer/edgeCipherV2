@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark, Timer, Gauge, Star, Calendar, Copy, Clipboard, ThumbsUp, ThumbsDown, Meh, PlusCircle, MoreHorizontal, Save, Grid, Eye } from "lucide-react";
+import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark, Timer, Gauge, Star, Calendar, Copy, Clipboard, ThumbsUp, ThumbsDown, Meh, PlusCircle, MoreHorizontal, Save, Grid, Eye, Radio } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "./ui/drawer";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "./ui/skeleton";
@@ -200,6 +200,7 @@ const PRESETS_KEY = "ec_news_filter_presets";
 const LAST_PRESET_KEY = "ec_news_last_preset_id";
 const WATCH_REGULATORY_KEY = "ec_watch_regulatory";
 const WATCH_EXCHANGE_KEY = "ec_watch_exchange";
+const BREAKING_MODE_KEY = "ec_news_breaking_mode";
 
 
 interface NewsFilters {
@@ -400,9 +401,11 @@ function VolatilityRiskCard({ newsItems }: { newsItems: NewsItem[] }) {
 
         let rawScore = 0;
         const counts = { High: 0, Medium: 0, Low: 0 };
+        let highImpactCount = 0;
 
         newsItems.forEach(item => {
             counts[item.volatilityImpact]++;
+            if (item.volatilityImpact === 'High') highImpactCount++;
             let itemScore = 0;
             if (item.volatilityImpact === 'High') itemScore = 100;
             if (item.volatilityImpact === 'Medium') itemScore = 50;
@@ -424,7 +427,7 @@ function VolatilityRiskCard({ newsItems }: { newsItems: NewsItem[] }) {
         };
 
         const level = score > 75 ? 'High' : score > 40 ? 'Medium' : 'Low';
-        const isNewsDrivenDay = counts.High >= 3 || score >= 70;
+        const isNewsDrivenDay = highImpactCount >= 3 || score >= 70;
         const topReasons = newsItems
             .filter(item => item.volatilityImpact === 'High' || item.sentiment === 'Negative')
             .sort((a, b) => b.volatilityRiskScore - a.volatilityRiskScore)
@@ -616,7 +619,7 @@ function TopImpactedCoinsCard({ newsItems, onFilter }: { newsItems: NewsItem[]; 
     return (
         <Card className="bg-muted/30 border-border/50">
             <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">Top Impacted Coins (24h)</CardTitle>
+                <CardTitle className="text-base flex items-center gap-2"><TopImpactedCoinsCard className="h-5 w-5" /> Top Impacted Coins (24h)</CardTitle>
             </CardHeader>
             <CardContent>
                 <div className="space-y-3">
@@ -826,6 +829,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
     const [newPresetName, setNewPresetName] = useState("");
     const [watchRegulatory, setWatchRegulatory] = useState(false);
     const [watchExchange, setWatchExchange] = useState(false);
+    const [isBreakingMode, setIsBreakingMode] = useState(false);
 
 
     const allCategories = useMemo(() => ['All', ...[...new Set(mockNewsSource.map(item => item.category))]], []);
@@ -901,12 +905,14 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
             const lastPresetId = localStorage.getItem(LAST_PRESET_KEY);
             const storedWatchRegulatory = localStorage.getItem(WATCH_REGULATORY_KEY);
             const storedWatchExchange = localStorage.getItem(WATCH_EXCHANGE_KEY);
+            const storedBreakingMode = localStorage.getItem(BREAKING_MODE_KEY);
             
             if (storedReadIds) setReadNewsIds(JSON.parse(storedReadIds));
             if (storedSavedIds) setSavedNewsIds(JSON.parse(storedSavedIds));
             if (storedFollowedCoins) setFollowedCoins(JSON.parse(storedFollowedCoins));
             if (storedWatchRegulatory) setWatchRegulatory(JSON.parse(storedWatchRegulatory));
             if (storedWatchExchange) setWatchExchange(JSON.parse(storedWatchExchange));
+            if (storedBreakingMode) setIsBreakingMode(JSON.parse(storedBreakingMode));
             if (storedPresets) {
                 const parsedPresets = JSON.parse(storedPresets);
                 setFilterPresets(parsedPresets);
@@ -942,6 +948,10 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
     useEffect(() => {
         localStorage.setItem(WATCH_EXCHANGE_KEY, JSON.stringify(watchExchange));
     }, [watchExchange]);
+
+    useEffect(() => {
+        localStorage.setItem(BREAKING_MODE_KEY, JSON.stringify(isBreakingMode));
+    }, [isBreakingMode]);
 
     const handleNewsSelect = (item: NewsItem) => {
         setSelectedNews(item);
@@ -981,17 +991,26 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
     }, [selectedNews]);
 
     const filteredNews = useMemo(() => {
-        let items = newsItems
-            .filter(item => {
-                if (filters.followedOnly && !item.impactedCoins.some(coin => followedCoins.includes(coin))) return false;
-                const searchLower = filters.search.toLowerCase();
-                if (filters.search && !item.headline.toLowerCase().includes(searchLower) && !item.sourceName.toLowerCase().includes(searchLower)) return false;
-                if (filters.sentiment !== "All" && item.sentiment !== filters.sentiment) return false;
-                if (filters.highImpactOnly && item.volatilityImpact !== 'High') return false;
-                if (filters.category !== 'All' && item.category !== filters.category) return false;
-                if (filters.coins.length > 0 && !filters.coins.some(coin => item.impactedCoins.includes(coin))) return false;
-                return true;
-            });
+        let items = newsItems;
+
+        if (isBreakingMode) {
+            items = items.filter(item => 
+                item.volatilityImpact === 'High' ||
+                item.eventType === 'Breaking' ||
+                item.riskWindowMins <= 60
+            );
+        }
+
+        items = items.filter(item => {
+            if (filters.followedOnly && !item.impactedCoins.some(coin => followedCoins.includes(coin))) return false;
+            const searchLower = filters.search.toLowerCase();
+            if (filters.search && !item.headline.toLowerCase().includes(searchLower) && !item.sourceName.toLowerCase().includes(searchLower)) return false;
+            if (filters.sentiment !== "All" && item.sentiment !== filters.sentiment) return false;
+            if (filters.highImpactOnly && item.volatilityImpact !== 'High') return false;
+            if (filters.category !== 'All' && item.category !== filters.category) return false;
+            if (filters.coins.length > 0 && !filters.coins.some(coin => item.impactedCoins.includes(coin))) return false;
+            return true;
+        });
 
         items.sort((a, b) => {
             switch (filters.sortBy) {
@@ -1008,7 +1027,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         });
         
         return items;
-    }, [filters, newsItems, followedCoins]);
+    }, [filters, newsItems, followedCoins, isBreakingMode]);
 
     const relatedNews = useMemo(() => {
         if (!selectedNews) return [];
@@ -1025,7 +1044,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
     
     useEffect(() => {
         setVisibleCount(ITEMS_PER_PAGE);
-    }, [filters]);
+    }, [filters, isBreakingMode]);
 
     const handleCoinToggle = (coin: string) => {
         setFilters(prev => {
@@ -1299,12 +1318,12 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                     />
                                 </div>
                                 <div className="flex items-center space-x-2">
-                                    <Switch 
-                                        id="high-impact" 
-                                        checked={filters.highImpactOnly}
-                                        onCheckedChange={checked => handleFilterChange('highImpactOnly', checked)}
+                                    <Switch
+                                        id="breaking-mode"
+                                        checked={isBreakingMode}
+                                        onCheckedChange={setIsBreakingMode}
                                     />
-                                    <Label htmlFor="high-impact">High Impact Only</Label>
+                                    <Label htmlFor="breaking-mode" className="flex items-center gap-1.5"><Radio className="h-4 w-4 text-red-500" /> Breaking</Label>
                                 </div>
                                 <div className="flex items-center space-x-2">
                                     <Switch
@@ -1453,7 +1472,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                             </Card>
                         ) : (
                             <>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className={cn("grid grid-cols-1 md:grid-cols-2 gap-6", isBreakingMode && "md:grid-cols-3")}>
                                     {filteredNews.slice(0, visibleCount).map(item => {
                                         const isRead = readNewsIds.includes(item.id);
                                         const isSaved = savedNewsIds.includes(item.id);
@@ -1472,11 +1491,13 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                                             <span>{item.sourceName}</span>
                                                         </CardDescription>
                                                     </CardHeader>
-                                                    <CardContent className="flex-1">
-                                                        <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
-                                                            {item.summaryBullets.slice(0,2).map((bullet, i) => <li key={i}>{bullet}</li>)}
-                                                        </ul>
-                                                    </CardContent>
+                                                    {!isBreakingMode && (
+                                                        <CardContent className="flex-1">
+                                                            <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
+                                                                {item.summaryBullets.slice(0,2).map((bullet, i) => <li key={i}>{bullet}</li>)}
+                                                            </ul>
+                                                        </CardContent>
+                                                    )}
                                                 </div>
                                                 <CardFooter className="flex-col items-start gap-4">
                                                     <div className="flex flex-wrap items-center gap-2">
