@@ -61,6 +61,7 @@ type StoryCluster = {
     primary: NewsItem;
     related: NewsItem[];
     category: NewsCategory;
+    sentiment: Sentiment;
     impact: VolatilityImpact;
 };
 
@@ -926,24 +927,50 @@ ${headlinesText || "- None"}
 }
 
 function StoryClusterCard({ cluster, onNewsSelect }: { cluster: StoryCluster, onNewsSelect: (item: NewsItem) => void }) {
+    const summaryBullets = [
+        cluster.primary.summaryBullets[0],
+        cluster.related[0]?.summaryBullets[0]
+    ].filter(Boolean);
+
     return (
         <Collapsible>
-            <Card className="bg-muted/40 border-primary/20">
-                <CollapsibleTrigger className="w-full text-left">
-                    <CardHeader>
-                        <div className="flex items-center justify-between">
-                            <CardTitle className="text-base leading-tight pr-4">{cluster.primary.headline}</CardTitle>
-                            <Badge variant="outline" className="flex-shrink-0 bg-muted border-primary/20 text-primary">
-                                <Layers className="mr-2 h-3 w-3" />
-                                +{cluster.related.length} related
-                            </Badge>
-                        </div>
-                         <CardDescription className="flex items-center gap-2 text-xs pt-1">
-                            <span>{cluster.primary.sourceName}</span>
-                            &bull;
-                            <Badge variant="secondary" className="text-xs">{cluster.category}</Badge>
-                        </CardDescription>
-                    </CardHeader>
+            <Card className="bg-muted/40 border-primary/20 flex flex-col h-full">
+                <CollapsibleTrigger asChild>
+                    <div className="flex-1 cursor-pointer">
+                        <CardHeader>
+                            <div className="flex items-start justify-between">
+                                <CardTitle className="text-base leading-tight pr-4">{cluster.primary.headline}</CardTitle>
+                                <Badge variant="outline" className="flex-shrink-0 bg-muted border-primary/20 text-primary">
+                                    <Layers className="mr-2 h-3 w-3" />
+                                    +{cluster.related.length} related
+                                </Badge>
+                            </div>
+                            <CardDescription className="flex items-center gap-2 text-xs pt-1">
+                                <Badge variant="outline" className={cn(
+                                    'text-xs whitespace-nowrap',
+                                    cluster.sentiment === 'Positive' && 'bg-green-500/20 text-green-300 border-green-500/30',
+                                    cluster.sentiment === 'Negative' && 'bg-red-500/20 text-red-300 border-red-500/30',
+                                )}>{cluster.sentiment}</Badge>
+                                <Badge variant="outline" className={cn(
+                                    "text-xs",
+                                    cluster.impact === 'High' && 'border-red-500/50 text-red-400',
+                                    cluster.impact === 'Medium' && 'border-amber-500/50 text-amber-400',
+                                )}>
+                                    <TrendingUp className="mr-1 h-3 w-3"/>
+                                    {cluster.impact} Impact
+                                </Badge>
+                                <Badge variant="secondary" className="text-xs">{cluster.category}</Badge>
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                             <div className="space-y-2">
+                                <p className="text-xs font-semibold text-muted-foreground">Story Summary:</p>
+                                <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
+                                    {summaryBullets.map((bullet, i) => bullet && <li key={i}>{bullet}</li>)}
+                                </ul>
+                            </div>
+                        </CardContent>
+                    </div>
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                     <CardContent>
@@ -1213,6 +1240,9 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         
         const clustered: DisplayItem[] = [];
         const processedIds = new Set<string>();
+    
+        const sentimentOrder: Record<Sentiment, number> = { 'Negative': 3, 'Neutral': 2, 'Positive': 1 };
+        const impactOrder: Record<VolatilityImpact, number> = { 'High': 3, 'Medium': 2, 'Low': 1 };
 
         for (const item of filteredNews) {
             if (processedIds.has(item.id)) continue;
@@ -1243,13 +1273,19 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
             if (cluster.length > 0) {
                 processedIds.add(item.id);
                 cluster.forEach(c => processedIds.add(c.id));
+                
+                const allItems = [item, ...cluster];
+                const highestImpact = allItems.reduce((max, item) => impactOrder[item.volatilityImpact] > impactOrder[max] ? item.volatilityImpact : max, 'Low');
+                const mostNegativeSentiment = allItems.reduce((max, item) => sentimentOrder[item.sentiment] > sentimentOrder[max] ? item.sentiment : max, 'Positive');
+                
                 clustered.push({
                     type: 'cluster',
                     id: `cluster-${item.id}`,
                     primary: item,
                     related: cluster,
                     category: item.category,
-                    impact: item.volatilityImpact,
+                    impact: highestImpact,
+                    sentiment: mostNegativeSentiment,
                 });
             } else {
                 clustered.push(item);
