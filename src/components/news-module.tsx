@@ -817,6 +817,102 @@ function SentimentImpactMatrix({ newsItems, onCellClick }: { newsItems: NewsItem
     );
 }
 
+function VolatilityBriefCard({ newsItems, persona }: { newsItems: NewsItem[], persona: PersonaType | null }) {
+    const { toast } = useToast();
+
+    const { score, currentZone, topHeadlines, posture } = useMemo(() => {
+        if (newsItems.length === 0) return { score: 0, currentZone: getVixZone(0), topHeadlines: [], posture: null };
+
+        let rawScore = 0;
+        newsItems.forEach(item => {
+            let itemScore = 0;
+            if (item.volatilityImpact === 'High') itemScore = 100;
+            if (item.volatilityImpact === 'Medium') itemScore = 50;
+            if (item.volatilityImpact === 'Low') itemScore = 10;
+            if (item.sentiment === 'Negative') itemScore *= 1.2;
+            rawScore += itemScore;
+        });
+
+        const score = Math.min(100, Math.round(rawScore / newsItems.length));
+        const currentZone = getVixZone(score);
+
+        const topHeadlines = newsItems
+            .filter(item => item.volatilityImpact === 'High')
+            .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
+            .slice(0, 3);
+            
+        const p = persona || 'Beginner';
+        const posture = postureSuggestions[currentZone]?.[p] || postureSuggestions.Normal[p];
+
+        return { score, currentZone, topHeadlines, posture };
+    }, [newsItems, persona]);
+
+
+    const generateReportText = (short = false): string => {
+        const title = `### Volatility Brief: ${new Date().toLocaleDateString()} ###`;
+        const currentStatus = `News Risk Score: ${score} (${currentZone})`;
+        
+        if (short) {
+            return `${title}\n${currentStatus}\n**Top Recommendation**: ${posture?.action || 'Review market conditions carefully.'}`;
+        }
+
+        const headlinesText = topHeadlines.map(h => `- ${h.headline}\n  - ${h.summaryBullets[0]}`).join('\n');
+
+        return `
+${title}
+
+**Current Status**: ${currentStatus}
+
+**Arjun's Recommended Stance**:
+${posture?.action || 'Review market conditions carefully.'}
+${posture ? `(Reason: ${posture.meaning})` : ''}
+
+**Top High-Impact Headlines**:
+${headlinesText || "- None"}
+        `.trim();
+    };
+
+    const handleCopy = (short: boolean) => {
+        navigator.clipboard.writeText(generateReportText(short));
+        toast({ title: "Brief copied to clipboard!" });
+    };
+
+    return (
+        <Card className="bg-muted/30 border-border/50">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Clipboard className="h-5 w-5" /> Volatility Brief</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="p-3 bg-muted rounded-lg border">
+                    <p className="text-xs text-muted-foreground">News-driven Risk Score</p>
+                    <p className="font-bold text-lg">{score} ({currentZone})</p>
+                </div>
+                 <div className="text-xs">
+                    <p className="font-semibold text-muted-foreground mb-1">Arjun's Stance:</p>
+                    <p className="italic text-muted-foreground">{posture?.action || "Select a persona for tailored advice."}</p>
+                </div>
+                 <div>
+                    <p className="font-semibold text-muted-foreground text-xs mb-2">Top Headlines:</p>
+                    <ul className="list-disc list-inside text-xs text-muted-foreground space-y-1">
+                       {topHeadlines.slice(0,3).map((item, i) => (
+                           <li key={i} className="truncate">{item.headline}</li>
+                       ))}
+                    </ul>
+                </div>
+            </CardContent>
+            <CardFooter className="flex gap-2">
+                 <Button variant="outline" size="sm" className="flex-1" onClick={() => handleCopy(true)}>
+                    <Copy className="mr-2 h-4 w-4" /> Copy Short
+                </Button>
+                <Button variant="outline" size="sm" className="flex-1" onClick={() => handleCopy(false)}>
+                    <Copy className="mr-2 h-4 w-4" /> Copy Full
+                </Button>
+            </CardFooter>
+        </Card>
+    );
+}
+
+
 export function NewsModule({ onSetModule }: NewsModuleProps) {
     const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -1633,6 +1729,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                 </div>
 
                  <div className="lg:col-span-1 space-y-6 sticky top-24">
+                    <VolatilityBriefCard newsItems={filteredNews} persona={persona} />
                     <WatchlistCard 
                         followedCoins={followedCoins} 
                         onFilter={handleFilterChange}
