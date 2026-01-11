@@ -985,7 +985,9 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
                         setActiveNewsRisk(parsed);
                     } else {
                         setActiveNewsRisk(null);
-                        localStorage.removeItem(NEWS_RISK_CONTEXT_KEY);
+                        if (parsed.expiresAt <= Date.now()) {
+                            localStorage.removeItem(NEWS_RISK_CONTEXT_KEY);
+                        }
                     }
                 } else {
                     setActiveNewsRisk(null);
@@ -1195,7 +1197,7 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
                                     <AlertTriangle className="h-4 w-4" />
                                     <AlertTitle>Active News-Driven Risk Window</AlertTitle>
                                     <AlertDescription>
-                                        Headline: "{activeNewsRisk.headline}". Expect higher volatility for the next {formatDistanceToNow(new Date(activeNewsRisk.expiresAt))}.
+                                        Headline: "{activeNewsRisk.headline}". Expect higher volatility for the next {formatDistanceToNow(new Date(activeNewsRisk.expiresAt), { addSuffix: true })}.
                                     </AlertDescription>
                                 </Alert>
                             )}
@@ -1237,5 +1239,3 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
         </div>
     );
 };
-
-    
