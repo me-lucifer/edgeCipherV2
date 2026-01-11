@@ -831,6 +831,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         sortBy: 'newest',
         followedOnly: false,
     });
+    const [activeList, setActiveList] = useState<'all' | 'saved' | 'read'>('all');
     const [readNewsIds, setReadNewsIds] = useState<string[]>([]);
     const [savedNewsIds, setSavedNewsIds] = useState<string[]>([]);
     const [followedCoins, setFollowedCoins] = useState<string[]>([]);
@@ -1011,6 +1012,12 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
     const filteredNews = useMemo(() => {
         let items = newsItems;
 
+        if (activeList === 'saved') {
+            items = items.filter(item => savedNewsIds.includes(item.id));
+        } else if (activeList === 'read') {
+            items = items.filter(item => readNewsIds.includes(item.id));
+        }
+
         if (isBreakingMode) {
             items = items.filter(item => 
                 item.volatilityImpact === 'High' ||
@@ -1045,7 +1052,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         });
         
         return items;
-    }, [filters, newsItems, followedCoins, isBreakingMode]);
+    }, [filters, newsItems, followedCoins, isBreakingMode, activeList, savedNewsIds, readNewsIds]);
 
     const groupedAndFilteredNews = useMemo(() => {
         const groups: { [key: string]: NewsItem[] } = {
@@ -1084,7 +1091,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
     
     useEffect(() => {
         setVisibleCount(ITEMS_PER_PAGE);
-    }, [filters, isBreakingMode]);
+    }, [filters, isBreakingMode, activeList]);
 
     const handleCoinToggle = (coin: string) => {
         setFilters(prev => {
@@ -1508,106 +1515,121 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                         </CardContent>
                     </Card>
 
-                    <div className="mt-8">
-                        {isLoading ? (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {[...Array(6)].map((_, i) => (
-                                    <Card key={i} className="bg-muted/30 border-border/50">
-                                        <CardHeader><Skeleton className="h-5 w-3/4" /><Skeleton className="h-3 w-1/2 mt-2" /></CardHeader>
-                                        <CardContent><Skeleton className="h-10 w-full" /></CardContent>
-                                        <CardFooter className="flex flex-wrap gap-2"><Skeleton className="h-5 w-16 rounded-full" /><Skeleton className="h-5 w-20 rounded-full" /><Skeleton className="h-5 w-12 rounded-full" /></CardFooter>
-                                    </Card>
-                                ))}
-                            </div>
-                        ) : filteredNews.length === 0 ? (
-                            <Card className="text-center py-12 bg-muted/30 border-border/50">
-                                <CardHeader>
-                                    <CardTitle>No items match these filters.</CardTitle>
-                                </CardHeader>
-                                <CardContent className="flex justify-center gap-4">
-                                    <Button variant="outline" onClick={clearFilters}>Clear filters</Button>
-                                    <Button onClick={showHighImpact}>Show High Impact</Button>
-                                </CardContent>
-                            </Card>
-                        ) : (
-                            <div className="space-y-8">
-                                {groupedAndFilteredNews.map(([groupName, items]) => (
-                                    <div key={groupName}>
-                                        <h2 className="text-lg font-semibold text-foreground mb-4 pl-1">{groupName}</h2>
-                                        <div className={cn("grid grid-cols-1 md:grid-cols-2 gap-6", isBreakingMode && "md:grid-cols-3")}>
-                                            {items.slice(0, visibleCount).map(item => {
-                                                const isRead = readNewsIds.includes(item.id);
-                                                const isSaved = savedNewsIds.includes(item.id);
-                                                return (
-                                                    <Card 
-                                                        key={item.id}
-                                                        className={cn(
-                                                            "bg-muted/30 border-border/50 flex flex-col transition-all",
-                                                            isRead ? "opacity-60 hover:opacity-100" : "hover:border-primary/40 hover:bg-muted/50"
-                                                        )}
-                                                    >
-                                                        <div onClick={() => handleNewsSelect(item)} className="cursor-pointer flex-1 flex flex-col">
-                                                            <CardHeader>
-                                                                <CardTitle className="text-base leading-tight">{item.headline}</CardTitle>
-                                                                <CardDescription className="flex items-center gap-2 text-xs pt-1">
-                                                                    <span>{item.sourceName}</span>
-                                                                </CardDescription>
-                                                            </CardHeader>
-                                                            {!isBreakingMode && (
-                                                                <CardContent className="flex-1">
-                                                                    <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
-                                                                        {item.summaryBullets.slice(0,2).map((bullet, i) => <li key={i}>{bullet}</li>)}
-                                                                    </ul>
-                                                                </CardContent>
+                    <Tabs value={activeList} onValueChange={(value) => setActiveList(value as any)}>
+                        <TabsList className="grid w-full grid-cols-3 max-w-lg">
+                            <TabsTrigger value="all">All</TabsTrigger>
+                            <TabsTrigger value="saved">Saved ({savedNewsIds.length})</TabsTrigger>
+                            <TabsTrigger value="read">Read ({readNewsIds.length})</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="all" className="mt-6">
+                            {isLoading ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {[...Array(6)].map((_, i) => (
+                                        <Card key={i} className="bg-muted/30 border-border/50">
+                                            <CardHeader><Skeleton className="h-5 w-3/4" /><Skeleton className="h-3 w-1/2 mt-2" /></CardHeader>
+                                            <CardContent><Skeleton className="h-10 w-full" /></CardContent>
+                                            <CardFooter className="flex flex-wrap gap-2"><Skeleton className="h-5 w-16 rounded-full" /><Skeleton className="h-5 w-20 rounded-full" /><Skeleton className="h-5 w-12 rounded-full" /></CardFooter>
+                                        </Card>
+                                    ))}
+                                </div>
+                            ) : filteredNews.length === 0 ? (
+                                <Card className="text-center py-12 bg-muted/30 border-border/50">
+                                    <CardHeader>
+                                        <CardTitle>No items match these filters.</CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="flex justify-center gap-4">
+                                        <Button variant="outline" onClick={clearFilters}>Clear filters</Button>
+                                        <Button onClick={showHighImpact}>Show High Impact</Button>
+                                    </CardContent>
+                                </Card>
+                            ) : (
+                                <div className="space-y-8">
+                                    {groupedAndFilteredNews.map(([groupName, items]) => (
+                                        <div key={groupName}>
+                                            <h2 className="text-lg font-semibold text-foreground mb-4 pl-1">{groupName}</h2>
+                                            <div className={cn("grid grid-cols-1 md:grid-cols-2 gap-6", isBreakingMode && "md:grid-cols-3")}>
+                                                {items.slice(0, visibleCount).map(item => {
+                                                    const isRead = readNewsIds.includes(item.id);
+                                                    const isSaved = savedNewsIds.includes(item.id);
+                                                    return (
+                                                        <Card 
+                                                            key={item.id}
+                                                            className={cn(
+                                                                "bg-muted/30 border-border/50 flex flex-col transition-all",
+                                                                isRead ? "opacity-60 hover:opacity-100" : "hover:border-primary/40 hover:bg-muted/50"
                                                             )}
-                                                        </div>
-                                                        <CardFooter className="flex-col items-start gap-4">
-                                                            <div className="flex flex-wrap items-center gap-2">
-                                                                <Badge variant="outline" className={cn(
-                                                                    'text-xs whitespace-nowrap',
-                                                                    item.sentiment === 'Positive' && 'bg-green-500/20 text-green-300 border-green-500/30',
-                                                                    item.sentiment === 'Negative' && 'bg-red-500/20 text-red-300 border-red-500/30',
-                                                                    item.sentiment === 'Neutral' && 'bg-secondary text-secondary-foreground border-border'
-                                                                )}>{item.sentiment}</Badge>
-                                                                <Badge variant="outline" className={cn(
-                                                                    "text-xs",
-                                                                    item.volatilityImpact === 'High' && 'border-red-500/50 text-red-400',
-                                                                    item.volatilityImpact === 'Medium' && 'border-amber-500/50 text-amber-400',
-                                                                    item.volatilityImpact === 'Low' && 'border-green-500/50 text-green-400',
-                                                                )}>
-                                                                    <TrendingUp className="mr-1 h-3 w-3"/>
-                                                                    {item.volatilityImpact} Impact
-                                                                </Badge>
-                                                                <Badge variant="outline" className="text-xs">
-                                                                    <Clock className="mr-1 h-3 w-3"/>
-                                                                    {getImpactHorizon(item.riskWindowMins)}
-                                                                </Badge>
+                                                        >
+                                                            <div onClick={() => handleNewsSelect(item)} className="cursor-pointer flex-1 flex flex-col">
+                                                                <CardHeader>
+                                                                    <CardTitle className="text-base leading-tight">{item.headline}</CardTitle>
+                                                                    <CardDescription className="flex items-center gap-2 text-xs pt-1">
+                                                                        <span>{item.sourceName}</span>
+                                                                    </CardDescription>
+                                                                </CardHeader>
+                                                                {!isBreakingMode && (
+                                                                    <CardContent className="flex-1">
+                                                                        <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
+                                                                            {item.summaryBullets.slice(0,2).map((bullet, i) => <li key={i}>{bullet}</li>)}
+                                                                        </ul>
+                                                                    </CardContent>
+                                                                )}
                                                             </div>
-                                                            <div className="w-full pt-2 border-t border-border/50 flex justify-end items-center gap-1">
-                                                                <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => handleToggleRead(item.id)}>
-                                                                    <CheckCircle className={cn("mr-2 h-4 w-4", isRead && "text-primary")} /> {isRead ? "Unread" : "Mark read"}
-                                                                </Button>
-                                                                <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => handleToggleSave(item.id)}>
-                                                                    <Bookmark className={cn("mr-2 h-4 w-4", isSaved && "text-primary fill-primary")} /> {isSaved ? "Unsave" : "Save"}
-                                                                </Button>
-                                                            </div>
-                                                        </CardFooter>
-                                                    </Card>
-                                                )
-                                            })}
+                                                            <CardFooter className="flex-col items-start gap-4">
+                                                                <div className="flex flex-wrap items-center gap-2">
+                                                                    <Badge variant="outline" className={cn(
+                                                                        'text-xs whitespace-nowrap',
+                                                                        item.sentiment === 'Positive' && 'bg-green-500/20 text-green-300 border-green-500/30',
+                                                                        item.sentiment === 'Negative' && 'bg-red-500/20 text-red-300 border-red-500/30',
+                                                                        item.sentiment === 'Neutral' && 'bg-secondary text-secondary-foreground border-border'
+                                                                    )}>{item.sentiment}</Badge>
+                                                                    <Badge variant="outline" className={cn(
+                                                                        "text-xs",
+                                                                        item.volatilityImpact === 'High' && 'border-red-500/50 text-red-400',
+                                                                        item.volatilityImpact === 'Medium' && 'border-amber-500/50 text-amber-400',
+                                                                        item.volatilityImpact === 'Low' && 'border-green-500/50 text-green-400',
+                                                                    )}>
+                                                                        <TrendingUp className="mr-1 h-3 w-3"/>
+                                                                        {item.volatilityImpact} Impact
+                                                                    </Badge>
+                                                                    <Badge variant="outline" className="text-xs">
+                                                                        <Clock className="mr-1 h-3 w-3"/>
+                                                                        {getImpactHorizon(item.riskWindowMins)}
+                                                                    </Badge>
+                                                                </div>
+                                                                <div className="w-full pt-2 border-t border-border/50 flex justify-end items-center gap-1">
+                                                                    <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => handleToggleRead(item.id)}>
+                                                                        <CheckCircle className={cn("mr-2 h-4 w-4", isRead && "text-primary")} /> {isRead ? "Unread" : "Mark read"}
+                                                                    </Button>
+                                                                    <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => handleToggleSave(item.id)}>
+                                                                        <Bookmark className={cn("mr-2 h-4 w-4", isSaved && "text-primary fill-primary")} /> {isSaved ? "Unsave" : "Save"}
+                                                                    </Button>
+                                                                </div>
+                                                            </CardFooter>
+                                                        </Card>
+                                                    )
+                                                })}
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
-                                {visibleCount < filteredNews.length && (
-                                    <div className="mt-8 text-center">
-                                        <Button variant="outline" onClick={() => setVisibleCount(prev => prev + ITEMS_PER_PAGE)}>
-                                            Load More ({filteredNews.length - visibleCount} remaining)
-                                        </Button>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
+                                    ))}
+                                    {visibleCount < filteredNews.length && (
+                                        <div className="mt-8 text-center">
+                                            <Button variant="outline" onClick={() => setVisibleCount(prev => prev + ITEMS_PER_PAGE)}>
+                                                Load More ({filteredNews.length - visibleCount} remaining)
+                                            </Button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </TabsContent>
+                        <TabsContent value="saved" className="mt-6">
+                            {/* Content for Saved tab */}
+                            <p className="text-muted-foreground text-sm">Showing saved items.</p>
+                        </TabsContent>
+                         <TabsContent value="read" className="mt-6">
+                            {/* Content for Read tab */}
+                            <p className="text-muted-foreground text-sm">Showing read items.</p>
+                        </TabsContent>
+                    </Tabs>
                 </div>
 
                  <div className="lg:col-span-1 space-y-6 sticky top-24">
@@ -1800,4 +1822,3 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         </div>
     );
 }
-
