@@ -177,7 +177,7 @@ const mockNewsSource: Omit<NewsItem, 'riskWindowMins' | 'eventType' | 'volatilit
 
     const numBullets = Math.random() < 0.7 ? 2 : 3;
     const shuffledBullets = [...summaryBulletPool].sort(() => 0.5 - Math.random());
-    const summaryBullets = shuffledBullets.slice(0, numBullets);
+    const summaryBullets = shuffledBullets.slice(0, numBullets).map(s => s.slice(0, 90));
     
     const sourceName = randomElement(sources);
 
@@ -1265,7 +1265,11 @@ const getPersonaInsight = (newsItem: NewsItem, persona: PersonaType | null): { m
     const defaultPersona: PersonaType = 'Beginner';
     const p = persona || defaultPersona;
     const zone = getVixZone(newsItem.volatilityRiskScore);
-    return postureSuggestions[zone]?.[p] || postureSuggestions.Normal[defaultPersona];
+    const posture = postureSuggestions[zone]?.[p] || postureSuggestions.Normal[defaultPersona];
+    return {
+        meaning: posture.meaning.slice(0, 120),
+        action: posture.action.slice(0, 120)
+    };
 };
 
 export function NewsModule({ onSetModule }: NewsModuleProps) {
@@ -2202,6 +2206,18 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                         </Card>
                                     ))}
                                 </div>
+                            ) : newsItems.length === 0 ? (
+                                <Card className="text-center py-12 bg-muted/30 border-border/50">
+                                    <CardHeader>
+                                        <CardTitle>No intelligence available right now.</CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="flex justify-center gap-4">
+                                        <Button onClick={() => loadNews(true)}>
+                                            <RefreshCw className="mr-2 h-4 w-4" />
+                                            Regenerate demo feed
+                                        </Button>
+                                    </CardContent>
+                                </Card>
                             ) : clusteredItems.length === 0 ? (
                                 <Card className="text-center py-12 bg-muted/30 border-border/50">
                                     <CardHeader>
@@ -2521,5 +2537,6 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         </div>
     );
 }
+
 
 
