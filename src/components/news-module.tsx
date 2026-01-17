@@ -5,7 +5,7 @@ import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark, Timer, Gauge, Star, Calendar, Copy, Clipboard, ThumbsUp, ThumbsDown, Meh, PlusCircle, MoreHorizontal, Save, Grid, Eye, Radio, RefreshCw, Layers, BarChart, FileText, ShieldAlert, Info } from "lucide-react";
+import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark, Timer, Gauge, Star, Calendar, Copy, Clipboard, ThumbsUp, ThumbsDown, Meh, PlusCircle, MoreHorizontal, Save, Grid, Eye, Radio, RefreshCw, Layers, BarChart, FileText, ShieldAlert, Info, HelpCircle } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "./ui/drawer";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "./ui/skeleton";
@@ -25,6 +25,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
+import { NewsTour } from "./news-tour";
 
 
 interface NewsModuleProps {
@@ -451,7 +452,7 @@ function IntelligenceBriefCard({ allNews, filteredNews }: { allNews: NewsItem[],
     const { icon: MoodIcon, color: moodColor } = moodConfig[mood];
 
     return (
-        <Card className="bg-muted/30 border-border/50">
+        <Card id="intel-brief-card" className="bg-muted/30 border-border/50">
             <CardHeader>
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <CardTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary" /> Intelligence Brief</CardTitle>
@@ -1062,14 +1063,14 @@ const HighlightMatches = ({ text, query }: { text: string; query: string }) => {
     );
 };
 
-function StoryClusterCard({ cluster, onNewsSelect, query }: { cluster: StoryCluster, onNewsSelect: (item: NewsItem) => void, query: string }) {
+function StoryClusterCard({ id, cluster, onNewsSelect, query }: { id?: string, cluster: StoryCluster, onNewsSelect: (item: NewsItem) => void, query: string }) {
     const summaryBullets = [
         cluster.primary.summaryBullets[0],
         cluster.related[0]?.summaryBullets[0]
     ].filter(Boolean);
 
     return (
-        <Collapsible>
+        <Collapsible id={id}>
             <Card className="bg-muted/40 border-primary/20 flex flex-col h-full">
                 <CollapsibleTrigger asChild>
                     <div className="flex-1 cursor-pointer">
@@ -1294,7 +1295,15 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
     const [isRegulatoryMode, setIsRegulatoryMode] = useState(false);
     const [isExchangeMode, setIsExchangeMode] = useState(false);
     const [selectedCoinForDrawer, setSelectedCoinForDrawer] = useState<string | null>(null);
+    const [isTourOpen, setIsTourOpen] = useState(false);
 
+    const getPersonaInsight = useCallback((newsItem: NewsItem, persona: PersonaType | null): { meaning: string; action: string } => {
+        const defaultPersona: PersonaType = 'Beginner';
+        const p = persona || defaultPersona;
+        const zone = getVixZone(newsItem.volatilityRiskScore);
+
+        return postureSuggestions[zone]?.[p] || postureSuggestions.Normal[defaultPersona];
+    }, []);
 
     const allCategories = useMemo(() => ['All', ...[...new Set(mockNewsSource.map(item => item.category))]], []);
     const popularCoins = ["BTC", "ETH", "SOL", "BNB", "XRP"];
@@ -1318,7 +1327,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
             setTimeout(() => {
                 const newItems = [...mockNewsSource].sort(() => 0.5 - Math.random()).map(item => {
                     const riskWindow = getRiskWindow(item.category, item.volatilityImpact);
-                    const personaInsight = getPersonaInsight({ ...item, ...riskWindow }, persona);
+                    const personaInsight = getPersonaInsight(item, persona);
                     return { 
                         ...item, 
                         ...riskWindow,
@@ -1360,7 +1369,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
             setNewsItems([]);
             setIsLoading(false);
         }
-    }, [toast, persona]);
+    }, [toast, persona, getPersonaInsight]);
     
     const handleSimulateShock = () => {
         try {
@@ -1457,6 +1466,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
             const storedBreakingMode = localStorage.getItem(BREAKING_MODE_KEY);
             const storedRegulatoryMode = localStorage.getItem(REGULATORY_MODE_KEY);
             const storedExchangeMode = localStorage.getItem(EXCHANGE_MODE_KEY);
+            const tourSeen = localStorage.getItem('ec_news_tour_seen');
             
             if (storedReadIds) setReadNewsIds(JSON.parse(storedReadIds));
             if (storedSavedIds) setSavedNewsIds(JSON.parse(storedSavedIds));
@@ -1477,6 +1487,11 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                         setActivePresetId(presetToLoad.id);
                     }
                 }
+            }
+
+            if (!tourSeen) {
+                setIsTourOpen(true);
+                localStorage.setItem('ec_news_tour_seen', 'true');
             }
 
         } catch (error) {
@@ -1562,15 +1577,11 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
             items = items.filter(item => readNewsIds.includes(item.id));
         }
 
+        let effectiveFilters = { ...filters };
         if (isBreakingMode) {
-            items = items.filter(item => 
-                item.volatilityImpact === 'High' ||
-                item.eventType === 'Breaking' ||
-                item.riskWindowMins <= 60
-            );
+             effectiveFilters.highImpactOnly = true;
         }
 
-        let effectiveFilters = { ...filters };
         if (isRegulatoryMode) {
             effectiveFilters.category = "Regulatory";
             effectiveFilters.sortBy = 'highestImpact';
@@ -1766,14 +1777,6 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         });
     };
     
-    const getPersonaInsight = (newsItem: NewsItem, persona: PersonaType | null): { meaning: string; action: string } => {
-        const defaultPersona: PersonaType = 'Beginner';
-        const p = persona || defaultPersona;
-        const zone = getVixZone(newsItem.volatilityRiskScore);
-
-        return postureSuggestions[zone]?.[p] || postureSuggestions.Normal[defaultPersona];
-    };
-
     const setRiskWindowFromEvent = (event: { name: string; impact: VolatilityImpact }) => {
         const riskWindowMins = event.impact === 'High' ? 120 : 60;
         const context = {
@@ -1907,6 +1910,10 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                         <p className="text-muted-foreground">AI-curated crypto futures news with sentiment + volatility impact—so you don’t trade blind.</p>
                     </div>
                     <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" onClick={() => setIsTourOpen(true)}>
+                            <HelpCircle className="mr-2 h-4 w-4" />
+                            Demo Tour
+                        </Button>
                         <Button variant="outline" size="sm" onClick={handleSimulateShock}>
                             <Zap className="mr-2 h-4 w-4" /> Simulate Shock
                         </Button>
@@ -1994,6 +2001,15 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                         onChange={e => handleFilterChange('search', e.target.value)}
                                         disabled={isRegulatoryMode || isExchangeMode}
                                     />
+                                </div>
+                                <div id="high-impact-filter" className="flex items-center space-x-2">
+                                    <Switch
+                                        id="high-impact-only"
+                                        checked={filters.highImpactOnly}
+                                        onCheckedChange={checked => handleFilterChange('highImpactOnly', checked)}
+                                        disabled={isRegulatoryMode || isExchangeMode}
+                                    />
+                                    <Label htmlFor="high-impact-only">High Impact Only</Label>
                                 </div>
                                 <div className="flex items-center space-x-2">
                                     <Switch
@@ -2150,13 +2166,14 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                 </Card>
                             ) : (
                                 <div className="space-y-8">
-                                    {groupedAndFilteredNews.map(([groupName, items]) => (
+                                    {groupedAndFilteredNews.map(([groupName, items], groupIndex) => (
                                         <div key={groupName}>
                                             <h2 className="text-lg font-semibold text-foreground mb-4 pl-1">{groupName}</h2>
                                             <div className={cn("grid grid-cols-1 md:grid-cols-2 gap-6", isBreakingMode && "md:grid-cols-3")}>
-                                                {items.map(item => {
+                                                {items.map((item, itemIndex) => {
                                                     if (item.type === 'cluster') {
-                                                        return <StoryClusterCard key={item.id} cluster={item} onNewsSelect={handleNewsSelect} query={filters.search} />
+                                                        const clusterId = groupIndex === 0 && itemIndex === 0 ? 'story-cluster-card' : undefined;
+                                                        return <StoryClusterCard key={item.id} id={clusterId} cluster={item} onNewsSelect={handleNewsSelect} query={filters.search} />
                                                     }
                                                     
                                                     const newsItem = item as NewsItem;
@@ -2304,7 +2321,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                             </AlertDescription>
                                         </div>
                                     </div>
-                                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-destructive/30">
+                                    <div id="risk-window-warning-toggle" className="flex items-center justify-between mt-4 pt-4 border-t border-destructive/30">
                                         <div className="flex items-center space-x-2">
                                             <Switch
                                                 id="send-warning"
@@ -2340,7 +2357,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                              <Separator className="my-4"/>
                                             <div className="space-y-2">
                                                 <p className="text-xs text-muted-foreground">VIX Impact: This event may increase market volatility.</p>
-                                                <Button variant="outline" size="sm" className="w-full" onClick={() => onSetModule('cryptoVix')}>
+                                                <Button id="risk-center-link-in-tour" variant="outline" size="sm" className="w-full" onClick={() => onSetModule('cryptoVix')}>
                                                     <Gauge className="mr-2 h-4 w-4" />
                                                     Open EdgeCipher Crypto VIX (0-100)
                                                 </Button>
@@ -2396,7 +2413,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                     </div>
                                 </div>
                                 <div className="space-y-6">
-                                    <Card className="bg-primary/10 border-primary/20">
+                                    <Card id="arjun-insight-drawer" className="bg-primary/10 border-primary/20">
                                         <CardHeader>
                                             <CardTitle className="text-base flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary"/>Arjun's Insight</CardTitle>
                                         </CardHeader>
@@ -2443,8 +2460,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                     )}
                 </DrawerContent>
             </Drawer>
+            <NewsTour isOpen={isTourOpen} onOpenChange={setIsTourOpen} />
         </div>
     );
 }
-
-    
