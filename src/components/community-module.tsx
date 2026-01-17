@@ -170,7 +170,10 @@ function FeedTab() {
         <div className="max-w-3xl mx-auto space-y-8">
             <Card className="bg-muted/30 border-border/50">
               <CardHeader>
-                <CardTitle>EdgeCipher Official</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                    EdgeCipher
+                    <Badge variant="secondary" className="text-xs bg-primary/10 text-primary">Official</Badge>
+                </CardTitle>
                 <CardDescription>Key updates and educational content from the team.</CardDescription>
               </CardHeader>
               <CardContent>
