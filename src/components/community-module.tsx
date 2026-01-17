@@ -2,6 +2,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +12,7 @@ import { ThumbsUp, MessageSquare, Bookmark, Crown, BookOpen, Video, AlertTriangl
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
+import { PlaceHolderImages } from "@/lib/placeholder-images";
 
 
 interface CommunityModuleProps {
@@ -219,7 +221,7 @@ function FeedTab() {
                                 onChange={(e) => setNewPostContent(e.target.value)}
                             />
                             <div className="flex justify-end">
-                                <Button onClick={handleCreatePost}>Post (Prototype)</Button>
+                                <Button onClick={handleCreatePost} disabled>Post (Prototype)</Button>
                             </div>
                         </div>
                     </CardContent>
@@ -233,27 +235,79 @@ function FeedTab() {
 }
 
 function LearnTab() {
+    const videoThumbnail = PlaceHolderImages.find(p => p.id === 'video-thumbnail');
+    const featuredVideo = {
+        title: "The Core Loop: How to Use EdgeCipher for Disciplined Trading",
+        description: "A 5-minute walkthrough of the Plan -> Execute -> Journal -> Analyze workflow that builds consistency."
+    };
+    const playlists = [
+        {
+            title: "Mastering Trading Psychology",
+            description: "Learn to handle drawdowns, FOMO, and revenge trading.",
+            videos: [
+                { title: "Handling Drawdowns Like a Pro", duration: "12:30" },
+                { title: "The Science of FOMO (and How to Beat It)", duration: "08:45" },
+                { title: "Building Elite Discipline", duration: "15:10" },
+                { title: "Journaling for Psychological Insight", duration: "11:05" },
+            ]
+        },
+        {
+            title: "Advanced Risk Management",
+            description: "Techniques to protect your capital and manage your exposure.",
+            videos: [
+                { title: "Position Sizing for Crypto Futures", duration: "14:55" },
+                { title: "Using the VIX to Adapt Your Risk", duration: "09:20" },
+                { title: "Setting Stop Losses That Don't Get Hunted", duration: "18:00" },
+            ]
+        }
+    ];
+
     return (
-         <div className="max-w-3xl mx-auto space-y-6">
-             <Card className="bg-muted/30 border-border/50">
+        <div className="max-w-5xl mx-auto space-y-12">
+            <Card className="bg-muted/30 border-border/50">
                 <CardHeader>
-                    <CardTitle>Learning Resources</CardTitle>
-                    <CardDescription>Curated content to sharpen your trading skills. (Phase 2)</CardDescription>
+                    <CardTitle>{featuredVideo.title}</CardTitle>
+                    <CardDescription>{featuredVideo.description}</CardDescription>
                 </CardHeader>
-                <CardContent className="grid md:grid-cols-2 gap-4">
-                    {learningResources.map((resource, i) => (
-                         <Card key={i} className="bg-muted/50 hover:bg-muted cursor-pointer transition-colors">
-                            <CardContent className="p-4 flex items-center gap-4">
-                                <resource.icon className="h-6 w-6 text-primary flex-shrink-0" />
-                                <div>
-                                    <p className="font-semibold text-foreground">{resource.title}</p>
-                                    <p className="text-xs text-muted-foreground">{resource.type}</p>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    ))}
+                <CardContent>
+                    <div className="aspect-video bg-muted rounded-lg flex items-center justify-center relative group cursor-pointer overflow-hidden">
+                        {videoThumbnail && (
+                            <Image src={videoThumbnail.imageUrl} alt="Featured video thumbnail" fill style={{ objectFit: 'cover' }} className="opacity-20 group-hover:opacity-30 transition-opacity" data-ai-hint={videoThumbnail.imageHint} />
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                        <div className="relative z-10 text-center">
+                            <div className="w-20 h-20 rounded-full bg-primary/20 text-primary flex items-center justify-center mb-4 transition-transform group-hover:scale-110">
+                                <Video className="h-10 w-10" />
+                            </div>
+                            <p className="font-semibold text-foreground">Watch Now (Prototype)</p>
+                        </div>
+                    </div>
                 </CardContent>
             </Card>
+
+            <div className="space-y-8">
+                {playlists.map(playlist => (
+                    <Card key={playlist.title} className="bg-muted/30 border-border/50">
+                        <CardHeader>
+                            <CardTitle>{playlist.title}</CardTitle>
+                            <CardDescription>{playlist.description}</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {playlist.videos.map(video => (
+                                    <div key={video.title} className="group cursor-pointer">
+                                        <div className="aspect-video bg-muted rounded-md relative overflow-hidden">
+                                            {videoThumbnail && <Image src={videoThumbnail.imageUrl} alt={video.title} fill style={{ objectFit: 'cover' }} data-ai-hint={videoThumbnail.imageHint} />}
+                                            <Badge className="absolute bottom-2 right-2 bg-black/50 text-white">{video.duration}</Badge>
+                                        </div>
+                                        <p className="font-medium text-sm mt-2 text-foreground group-hover:text-primary transition-colors">{video.title}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
         </div>
     );
 }
