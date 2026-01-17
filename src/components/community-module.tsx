@@ -1,5 +1,4 @@
 
-
       "use client";
 
 import React, { useState, useMemo, useEffect, useRef } from "react";
@@ -27,6 +26,13 @@ interface CommunityModuleProps {
     onSetModule: (module: any, context?: any) => void;
 }
 
+// =================================================================
+// LOCAL STORAGE SETUP & DATA MODELS
+// =================================================================
+const COMMUNITY_STATE_KEY = 'ec_community_state';
+const USER_PROFILE_KEY = 'ec_user_profile';
+const ARJUN_RECO_KEY = 'ec_arjun_reco';
+
 type Post = {
     id: string;
     author: {
@@ -37,7 +43,6 @@ type Post = {
     timestamp: string;
     type: 'Chart' | 'Reflection' | 'Insight';
     isHighSignal: boolean;
-    isArjunRecommended: boolean;
     content: string;
     image?: string;
     imageHint?: string;
@@ -45,24 +50,63 @@ type Post = {
         instrument: string;
         result: number;
     };
-    likes: number;
-    comments: { author: string; text: string }[];
 };
 
+type VideoData = {
+    id: string;
+    title: string;
+    duration: string;
+}
+
+type PlaylistData = {
+    title: string;
+    description: string;
+    videos: VideoData[];
+}
+
+type OfficialPost = {
+    title: string;
+    bullets: string[];
+    tag: string;
+    icon: React.ElementType; // This won't be stored in JSON, but used for rendering
+}
+
+type CommunityState = {
+    posts: Post[];
+    officialPosts: Omit<OfficialPost, 'icon'>[];
+    videos: {
+        featured: { title: string; description: string; };
+        playlists: PlaylistData[];
+    };
+    likesMap: Record<string, number>;
+    commentsMap: Record<string, { author: string; text: string }[]>;
+    savedPostIds: string[];
+};
+
+type UserProfile = {
+    username: string;
+    role: 'Member' | 'Leader';
+    persona: string;
+};
+
+type ArjunRecommendations = {
+    recommendedVideoId: string | null;
+    recommendedPostIds: string[];
+    reason: string;
+};
+
+// INITIAL DATA - used if localStorage is empty
 const chartPlaceholder = PlaceHolderImages.find(p => p.id === 'video-thumbnail');
 
-const mockPosts: Post[] = [
+const mockPostsData: Omit<Post, 'likes' | 'comments'>[] = [
     {
         id: '1',
         author: { name: "Alex R.", avatar: "/avatars/01.png", role: "Member" },
         timestamp: "2 hours ago",
         type: 'Reflection',
         isHighSignal: true,
-        isArjunRecommended: false,
         content: "What I saw: My ETH short setup was showing signs of invalidation in a choppy market.\nWhat I did: Instead of hoping, I followed my rules and cut the trade for a small loss.\nWhat I learned: A controlled loss is a win for discipline. The old me would have held and lost more.",
         trade: { instrument: "ETH-PERP", result: -1.0 },
-        likes: 15,
-        comments: [{ author: "Jane D.", text: "That's the way! A red day sticking to the plan is better than a green day breaking rules." }],
     },
     {
         id: '2',
@@ -70,13 +114,10 @@ const mockPosts: Post[] = [
         timestamp: "8 hours ago",
         type: 'Chart',
         isHighSignal: true,
-        isArjunRecommended: true,
         content: "Here's the 4H BTC chart I was watching. The key was waiting for a clean break and retest of the $68k level (blue line) before entering. Patience paid off.",
         image: chartPlaceholder?.imageUrl,
         imageHint: chartPlaceholder?.imageHint,
         trade: { instrument: "BTC-PERP", result: 3.2 },
-        likes: 42,
-        comments: [],
     },
     {
         id: '3',
@@ -84,14 +125,71 @@ const mockPosts: Post[] = [
         timestamp: "1 day ago",
         type: 'Insight',
         isHighSignal: false,
-        isArjunRecommended: false,
         content: "Mental Model: Instead of 'win rate', I'm now tracking my 'rule adherence rate'. My P&L has improved since I started focusing on executing my plan perfectly, regardless of the outcome of a single trade.",
-        likes: 28,
-        comments: [{ author: "Alex R.", text: "Great insight. Process over outcome." }],
     },
 ];
 
-function PostCard({ post, onLike, onDiscuss }: { post: Post, onLike: (id: string) => void, onDiscuss: (post: Post) => void }) {
+const initialCommunityState: CommunityState = {
+    posts: mockPostsData,
+    likesMap: { '1': 15, '2': 42, '3': 28 },
+    commentsMap: {
+        '1': [{ author: "Jane D.", text: "That's the way! A red day sticking to the plan is better than a green day breaking rules." }],
+        '3': [{ author: "Alex R.", text: "Great insight. Process over outcome." }]
+    },
+    savedPostIds: [],
+    officialPosts: [
+        { title: "The Art of the Stop Loss", bullets: ["Why your SL is your best friend.", "How to set it based on volatility, not hope."], tag: "Education" },
+        { title: "Market Warning: High VIX", bullets: ["Crypto VIX is in the 'Elevated' zone.", "Consider reducing size and avoiding low-conviction trades."], tag: "Market Warning" },
+        { title: "New Feature: Discipline Guardrails", bullets: ["Get real-time warnings in your Trade Planning module.", "Enable them in Performance Analytics."], tag: "Feature Update" },
+        { title: "Video: How to Journal a Losing Trade", bullets: ["Turn your losses into your biggest lessons.", "A step-by-step guide to effective reflection."], tag: "New Video" }
+    ],
+    videos: {
+        featured: {
+            title: "The Core Loop: How to Use EdgeCipher for Disciplined Trading",
+            description: "A 5-minute walkthrough of the Plan -> Execute -> Journal -> Analyze workflow that builds consistency."
+        },
+        playlists: [
+            {
+                title: "Mastering Trading Psychology",
+                description: "Learn to handle drawdowns, FOMO, and revenge trading.",
+                videos: [
+                    { id: "handling-drawdowns", title: "Handling Drawdowns Like a Pro", duration: "12:30" },
+                    { id: "fomo-science", title: "The Science of FOMO (and How to Beat It)", duration: "08:45" },
+                    { id: "discipline_holding", title: "Discipline: Holding Winners to Target", duration: "10:00" },
+                    { id: "elite-discipline", title: "Building Elite Discipline", duration: "15:10" },
+                    { id: "journaling-insight", title: "Journaling for Psychological Insight", duration: "11:05" },
+                ]
+            },
+            {
+                title: "Advanced Risk Management",
+                description: "Techniques to protect your capital and manage your exposure.",
+                videos: [
+                    { id: "position-sizing", title: "Position Sizing for Crypto Futures", duration: "14:55" },
+                    { id: "vix-risk", title: "Using the VIX to Adapt Your Risk", duration: "09:20" },
+                    { id: "stop-loss-strategy", title: "Setting Stop Losses That Don't Get Hunted", duration: "18:00" },
+                ]
+            }
+        ]
+    }
+};
+
+const initialUserProfile: UserProfile = {
+    username: 'You',
+    role: 'Member',
+    persona: 'The Determined Trader'
+};
+
+const initialArjunRecos: ArjunRecommendations = {
+    recommendedVideoId: null,
+    recommendedPostIds: ['2'],
+    reason: "This post about patient chart analysis aligns with an area you could improve."
+};
+
+// =================================================================
+// UI COMPONENTS
+// =================================================================
+
+function PostCard({ post, likes, commentsCount, isArjunRecommended, onLike, onDiscuss }: { post: Post, likes: number, commentsCount: number, isArjunRecommended: boolean, onLike: (id: string) => void, onDiscuss: (post: Post) => void }) {
     return (
         <Card className="bg-muted/30 border-border/50">
             <CardHeader className="pb-4">
@@ -117,7 +215,7 @@ function PostCard({ post, onLike, onDiscuss }: { post: Post, onLike: (id: string
                     </div>
                      <div className="flex items-center gap-2 flex-shrink-0">
                         {post.isHighSignal && <Badge variant="outline" className="border-amber-500/30 text-amber-300"><Sparkles className="mr-1 h-3 w-3" /> High-signal</Badge>}
-                        {post.isArjunRecommended && <Badge variant="secondary" className="bg-primary/10 text-primary"><Bot className="mr-1 h-3 w-3" /> Recommended</Badge>}
+                        {isArjunRecommended && <Badge variant="secondary" className="bg-primary/10 text-primary"><Bot className="mr-1 h-3 w-3" /> Recommended</Badge>}
                         <Badge variant="outline">{post.type}</Badge>
                     </div>
                 </div>
@@ -141,10 +239,10 @@ function PostCard({ post, onLike, onDiscuss }: { post: Post, onLike: (id: string
                 )}
                 <div className="flex items-center gap-2 mt-4 pt-4 border-t border-border/50 text-muted-foreground">
                     <Button variant="ghost" size="sm" className="flex items-center gap-2 text-xs" onClick={() => onLike(post.id)}>
-                        <ThumbsUp className="h-4 w-4" /> {post.likes}
+                        <ThumbsUp className="h-4 w-4" /> {likes}
                     </Button>
                     <Button variant="ghost" size="sm" className="flex items-center gap-2 text-xs" disabled>
-                        <MessageSquare className="h-4 w-4" /> {post.comments.length}
+                        <MessageSquare className="h-4 w-4" /> {commentsCount}
                     </Button>
                     <div className="flex-grow" />
                     <Button variant="ghost" size="sm" className="flex items-center gap-2 text-xs" onClick={() => onDiscuss(post)}>
@@ -159,8 +257,27 @@ function PostCard({ post, onLike, onDiscuss }: { post: Post, onLike: (id: string
     );
 }
 
-function FeedTab({ onSetModule }: { onSetModule: (module: any, context?: any) => void; }) {
-    const [posts, setPosts] = useState<Post[]>(mockPosts);
+function FeedTab({
+    posts,
+    officialPosts,
+    likesMap,
+    commentsMap,
+    arjunRecos,
+    userProfile,
+    onSetModule,
+    onLike,
+    onCreatePost
+}: {
+    posts: Post[];
+    officialPosts: Omit<OfficialPost, 'icon'>[];
+    likesMap: Record<string, number>;
+    commentsMap: Record<string, { author: string; text: string }[]>;
+    arjunRecos: ArjunRecommendations;
+    userProfile: UserProfile;
+    onSetModule: (module: any, context?: any) => void;
+    onLike: (id: string) => void;
+    onCreatePost: (post: Omit<Post, 'id' | 'timestamp' | 'author' | 'isHighSignal'>) => void;
+}) {
     const [newPostContent, setNewPostContent] = useState("");
     const [newPostCategory, setNewPostCategory] = useState<'Chart' | 'Reflection' | 'Insight'>('Reflection');
     const [postError, setPostError] = useState<string | null>(null);
@@ -182,19 +299,14 @@ function FeedTab({ onSetModule }: { onSetModule: (module: any, context?: any) =>
     ], []);
 
     useEffect(() => {
-        // Set initial nudge
         setNudge(coachingNudges[Math.floor(Math.random() * coachingNudges.length)]);
-
         const interval = setInterval(() => {
             setNudge(prevNudge => {
                 let newNudge = prevNudge;
-                while (newNudge === prevNudge) {
-                    newNudge = coachingNudges[Math.floor(Math.random() * coachingNudges.length)];
-                }
+                while (newNudge === prevNudge) { newNudge = coachingNudges[Math.floor(Math.random() * coachingNudges.length)]; }
                 return newNudge;
             });
-        }, 7000); // Change every 7 seconds
-
+        }, 7000);
         return () => clearInterval(interval);
     }, [coachingNudges]);
 
@@ -202,79 +314,44 @@ function FeedTab({ onSetModule }: { onSetModule: (module: any, context?: any) =>
         return posts.filter(post => {
             if (categoryFilter !== 'All' && post.type !== categoryFilter) return false;
             if (highSignalOnly && !post.isHighSignal) return false;
-            if (arjunRecommended && !post.isArjunRecommended) return false;
+            if (arjunRecommended && !arjunRecos.recommendedPostIds.includes(post.id)) return false;
             return true;
         });
-    }, [posts, categoryFilter, highSignalOnly, arjunRecommended]);
+    }, [posts, categoryFilter, highSignalOnly, arjunRecommended, arjunRecos]);
 
-    const officialPosts = [
-        {
-            title: "The Art of the Stop Loss",
-            bullets: ["Why your SL is your best friend.", "How to set it based on volatility, not hope."],
-            tag: "Education",
-            icon: BookOpen,
-        },
-        {
-            title: "Market Warning: High VIX",
-            bullets: ["Crypto VIX is in the 'Elevated' zone.", "Consider reducing size and avoiding low-conviction trades."],
-            tag: "Market Warning",
-            icon: AlertTriangle,
-        },
-        {
-            title: "New Feature: Discipline Guardrails",
-            bullets: ["Get real-time warnings in your Trade Planning module.", "Enable them in Performance Analytics."],
-            tag: "Feature Update",
-            icon: Zap,
-        },
-        {
-            title: "Video: How to Journal a Losing Trade",
-            bullets: ["Turn your losses into your biggest lessons.", "A step-by-step guide to effective reflection."],
-            tag: "New Video",
-            icon: Video,
-        }
-    ];
-
-    const handleLike = (id: string) => {
-        setPosts(posts.map(p => p.id === id ? { ...p, likes: p.likes + 1 } : p));
+    const iconMap: Record<string, React.ElementType> = {
+        "Education": BookOpen,
+        "Market Warning": AlertTriangle,
+        "Feature Update": Zap,
+        "New Video": Video
     };
 
     const handleCreatePost = () => {
         setPostError(null);
         const content = newPostContent.trim();
-
         if (content.length < 20) {
             setPostError("Post must be at least 20 characters long.");
             return;
         }
-
         const linkPattern = /(http|https|www\.)/i;
         if (linkPattern.test(content)) {
             setPostError("Community is for learning and reflection — not signals. External links are not allowed.");
             return;
         }
-
         const signalWords = ["buy now", "sell now", "entry at", "target", "guaranteed", "pump", "dump", "moon"];
-        const profanityWords = ["darn", "heck", "shoot"]; // simple examples
+        const profanityWords = ["darn", "heck", "shoot"];
         const bannedWords = [...signalWords, ...profanityWords];
         const bannedWordPattern = new RegExp(`\\b(${bannedWords.join('|')})\\b`, 'i');
-        
         if (bannedWordPattern.test(content)) {
             setPostError("Community is for learning and reflection — not signals. Please avoid signal language or profanity.");
             return;
         }
 
-        const newPost: Post = {
-            id: String(Date.now()),
-            author: { name: "You", avatar: "/avatars/user.png", role: "Member" },
-            timestamp: "Just now",
+        onCreatePost({
             type: newPostCategory,
-            isHighSignal: false,
-            isArjunRecommended: false,
             content: newPostContent,
-            likes: 0,
-            comments: [],
-        };
-        setPosts([newPost, ...posts]);
+        });
+
         setNewPostContent("");
         setIsChartConfirmed(false);
     };
@@ -297,14 +374,16 @@ function FeedTab({ onSetModule }: { onSetModule: (module: any, context?: any) =>
               <CardContent>
                 <Carousel opts={{ align: "start" }} className="w-full">
                   <CarouselContent className="-ml-4">
-                    {officialPosts.map((post, index) => (
+                    {officialPosts.map((post, index) => {
+                      const Icon = iconMap[post.tag] || BrainCircuit;
+                      return (
                       <CarouselItem key={index} className="pl-4 md:basis-1/2 lg:basis-1/3">
                         <div className="p-1 h-full">
                             <Card className="bg-muted/50 border-primary/20 h-full">
                                 <CardContent className="p-4 flex flex-col items-start gap-4 h-full">
                                     <div className="flex-1">
                                         <div className="flex items-center gap-2 mb-2">
-                                            <post.icon className="h-4 w-4 text-primary" />
+                                            <Icon className="h-4 w-4 text-primary" />
                                             <p className="font-semibold text-foreground text-sm">{post.title}</p>
                                         </div>
                                         <ul className="list-disc list-inside text-xs text-muted-foreground space-y-1">
@@ -316,7 +395,7 @@ function FeedTab({ onSetModule }: { onSetModule: (module: any, context?: any) =>
                             </Card>
                         </div>
                       </CarouselItem>
-                    ))}
+                    )})}
                   </CarouselContent>
                   <CarouselPrevious className="ml-12" />
                   <CarouselNext className="mr-12" />
@@ -366,15 +445,8 @@ function FeedTab({ onSetModule }: { onSetModule: (module: any, context?: any) =>
                                 <Sparkles className="h-4 w-4 flex-shrink-0" />
                                 <p className="italic">{nudge}</p>
                             </div>
-                            <Select value={newPostCategory} onValueChange={(v) => {
-                                setNewPostCategory(v as any);
-                                if (v !== 'Chart') {
-                                    setIsChartConfirmed(false);
-                                }
-                            }}>
-                                <SelectTrigger className="w-full sm:w-[220px]">
-                                    <SelectValue placeholder="Select post category..." />
-                                </SelectTrigger>
+                            <Select value={newPostCategory} onValueChange={(v) => { setNewPostCategory(v as any); if (v !== 'Chart') { setIsChartConfirmed(false); } }}>
+                                <SelectTrigger className="w-full sm:w-[220px]"><SelectValue placeholder="Select post category..." /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="Reflection">Reflection (what I did & learned)</SelectItem>
                                     <SelectItem value="Chart">Chart Analysis (no signals)</SelectItem>
@@ -382,43 +454,22 @@ function FeedTab({ onSetModule }: { onSetModule: (module: any, context?: any) =>
                                 </SelectContent>
                             </Select>
 
-                            <Textarea 
-                                placeholder="What did you learn today?"
-                                value={newPostContent}
-                                onChange={(e) => setNewPostContent(e.target.value)}
-                                className={cn(postError && "border-destructive focus-visible:ring-destructive")}
-                            />
-                            {postError && (
-                                <p className="text-sm text-destructive mt-2">{postError}</p>
-                            )}
+                            <Textarea placeholder="What did you learn today?" value={newPostContent} onChange={(e) => setNewPostContent(e.target.value)} className={cn(postError && "border-destructive focus-visible:ring-destructive")} />
+                            {postError && (<p className="text-sm text-destructive mt-2">{postError}</p>)}
 
                             {newPostCategory === 'Chart' && (
                                 <div className="flex items-start space-x-3 pt-2">
-                                    <Checkbox
-                                        id="chart-confirm"
-                                        checked={isChartConfirmed}
-                                        onCheckedChange={(checked) => setIsChartConfirmed(checked as boolean)}
-                                    />
+                                    <Checkbox id="chart-confirm" checked={isChartConfirmed} onCheckedChange={(checked) => setIsChartConfirmed(checked as boolean)} />
                                     <div className="grid gap-1.5 leading-none">
-                                        <Label
-                                          htmlFor="chart-confirm"
-                                          className="text-sm font-medium"
-                                        >
-                                          I confirm this is a chart screenshot.
-                                        </Label>
-                                        <p className="text-xs text-muted-foreground">
-                                          For educational purposes only. Not a buy/sell signal.
-                                        </p>
+                                        <Label htmlFor="chart-confirm" className="text-sm font-medium">I confirm this is a chart screenshot.</Label>
+                                        <p className="text-xs text-muted-foreground">For educational purposes only. Not a buy/sell signal.</p>
                                     </div>
                                 </div>
                             )}
                             
                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                                 <div className="flex items-center gap-2">
-                                     <Button variant="outline" size="sm" disabled={newPostCategory !== 'Chart'}>
-                                        <ImageUp className="mr-2 h-4 w-4" />
-                                        Upload Image
-                                    </Button>
+                                     <Button variant="outline" size="sm" disabled={newPostCategory !== 'Chart'}><ImageUp className="mr-2 h-4 w-4" />Upload Image</Button>
                                     <p className="text-xs text-muted-foreground">Chart uploads only. No links. No buy/sell calls.</p>
                                 </div>
                                 <div className="flex gap-2 self-end sm:self-center">
@@ -431,14 +482,22 @@ function FeedTab({ onSetModule }: { onSetModule: (module: any, context?: any) =>
                 </Card>
 
                 {filteredPosts.map(post => (
-                    <PostCard key={post.id} post={post} onLike={handleLike} onDiscuss={handleDiscuss} />
+                    <PostCard 
+                        key={post.id} 
+                        post={post} 
+                        likes={likesMap[post.id] || 0}
+                        commentsCount={commentsMap[post.id]?.length || 0}
+                        isArjunRecommended={arjunRecos.recommendedPostIds.includes(post.id)}
+                        onLike={onLike} 
+                        onDiscuss={handleDiscuss} 
+                    />
                 ))}
             </div>
         </div>
     );
 }
 
-function LearnTab({ highlightedVideoId, onClearHighlight }: { highlightedVideoId: string | null; onClearHighlight: () => void; }) {
+function LearnTab({ videosData, highlightedVideoId, onClearHighlight }: { videosData: CommunityState['videos'], highlightedVideoId: string | null; onClearHighlight: () => void; }) {
     const videoThumbnail = PlaceHolderImages.find(p => p.id === 'video-thumbnail');
     const videoRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
@@ -451,32 +510,7 @@ function LearnTab({ highlightedVideoId, onClearHighlight }: { highlightedVideoId
         }
     }, [highlightedVideoId]);
 
-    const featuredVideo = {
-        title: "The Core Loop: How to Use EdgeCipher for Disciplined Trading",
-        description: "A 5-minute walkthrough of the Plan -> Execute -> Journal -> Analyze workflow that builds consistency."
-    };
-    const playlists = [
-        {
-            title: "Mastering Trading Psychology",
-            description: "Learn to handle drawdowns, FOMO, and revenge trading.",
-            videos: [
-                { id: "handling-drawdowns", title: "Handling Drawdowns Like a Pro", duration: "12:30" },
-                { id: "fomo-science", title: "The Science of FOMO (and How to Beat It)", duration: "08:45" },
-                { id: "discipline_holding", title: "Discipline: Holding Winners to Target", duration: "10:00" },
-                { id: "elite-discipline", title: "Building Elite Discipline", duration: "15:10" },
-                { id: "journaling-insight", title: "Journaling for Psychological Insight", duration: "11:05" },
-            ]
-        },
-        {
-            title: "Advanced Risk Management",
-            description: "Techniques to protect your capital and manage your exposure.",
-            videos: [
-                { id: "position-sizing", title: "Position Sizing for Crypto Futures", duration: "14:55" },
-                { id: "vix-risk", title: "Using the VIX to Adapt Your Risk", duration: "09:20" },
-                { id: "stop-loss-strategy", title: "Setting Stop Losses That Don't Get Hunted", duration: "18:00" },
-            ]
-        }
-    ];
+    const { featured: featuredVideo, playlists } = videosData;
 
     return (
         <div className="max-w-5xl mx-auto space-y-12">
@@ -486,9 +520,7 @@ function LearnTab({ highlightedVideoId, onClearHighlight }: { highlightedVideoId
                     <div className="flex items-center justify-between">
                         <div>
                             <AlertTitle className="text-primary">Arjun Recommended This Lesson</AlertTitle>
-                            <AlertDescription>
-                                This video may help with patterns Arjun has noticed in your recent trading.
-                            </AlertDescription>
+                            <AlertDescription>This video may help with patterns Arjun has noticed in your recent trading.</AlertDescription>
                         </div>
                         <Button variant="ghost" size="sm" onClick={onClearHighlight}>Clear</Button>
                     </div>
@@ -526,14 +558,7 @@ function LearnTab({ highlightedVideoId, onClearHighlight }: { highlightedVideoId
                         <CardContent>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {playlist.videos.map(video => (
-                                    <div
-                                        key={video.id}
-                                        ref={el => videoRefs.current[video.id] = el}
-                                        className={cn(
-                                            "group cursor-pointer p-1",
-                                            highlightedVideoId === video.id && "ring-2 ring-primary ring-offset-2 ring-offset-background rounded-lg"
-                                        )}
-                                    >
+                                    <div key={video.id} ref={el => videoRefs.current[video.id] = el} className={cn("group cursor-pointer p-1", highlightedVideoId === video.id && "ring-2 ring-primary ring-offset-2 ring-offset-background rounded-lg")}>
                                         <div className="aspect-video bg-muted rounded-md relative overflow-hidden">
                                             {videoThumbnail && <Image src={videoThumbnail.imageUrl} alt={video.title} fill style={{ objectFit: 'cover' }} data-ai-hint={videoThumbnail.imageHint} />}
                                             <Badge className="absolute bottom-2 right-2 bg-black/50 text-white">{video.duration}</Badge>
@@ -550,41 +575,44 @@ function LearnTab({ highlightedVideoId, onClearHighlight }: { highlightedVideoId
     );
 }
 
-function LeadersTab() {
-    const leaders = [
-        { name: "Jane D.", avatar: "/avatars/04.png", score: 480, tags: ["Risk Discipline", "Journaling"] },
-        { name: "Sam K.", avatar: "/avatars/05.png", score: 450, tags: ["Psychology", "Discipline"] },
-        { name: "Eva L.", avatar: "/avatars/01.png", score: 420, tags: ["Planning", "Psychology"] },
-        { name: "Chen W.", avatar: "/avatars/03.png", score: 390, tags: ["Discipline", "Breakouts"] },
-    ];
+function LeadersTab({ posts, likesMap }: { posts: Post[], likesMap: Record<string, number> }) {
+    const leaders = useMemo(() => {
+        const leaderContributions: Record<string, { postCount: number, totalLikes: number, avatar: string }> = {};
+        posts.forEach(post => {
+            if (post.author.role === 'Leader') {
+                if (!leaderContributions[post.author.name]) {
+                    leaderContributions[post.author.name] = { postCount: 0, totalLikes: 0, avatar: post.author.avatar };
+                }
+                leaderContributions[post.author.name].postCount++;
+                leaderContributions[post.author.name].totalLikes += (likesMap[post.id] || 0);
+            }
+        });
+        
+        return Object.entries(leaderContributions).map(([name, data]) => ({
+            name,
+            avatar: data.avatar,
+            score: data.postCount * 10 + data.totalLikes,
+            tags: ["Risk Discipline", "Journaling"] // Mock tags
+        })).sort((a,b) => b.score - a.score);
+
+    }, [posts, likesMap]);
+
     return (
         <div className="max-w-4xl mx-auto space-y-8">
             <Card className="bg-muted/30 border-primary/20">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2"><Crown className="h-5 w-5 text-primary" /> How to Become a Leader</CardTitle>
-                    <CardDescription>
-                        Leaders are promoted automatically based on consistent, high-signal contributions to the community—not P&L.
-                    </CardDescription>
+                    <CardDescription>Leaders are promoted automatically based on consistent, high-signal contributions to the community—not P&L.</CardDescription>
                 </CardHeader>
-                <CardContent>
-                    <p className="text-sm text-muted-foreground">
-                        The Leader badge is earned by consistently providing helpful posts, receiving positive engagement (likes, saves), and contributing to a disciplined trading culture.
-                    </p>
-                </CardContent>
+                <CardContent><p className="text-sm text-muted-foreground">The Leader badge is earned by consistently providing helpful posts, receiving positive engagement (likes, saves), and contributing to a disciplined trading culture.</p></CardContent>
             </Card>
 
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {leaders.map(leader => (
                     <Card key={leader.name} className="bg-muted/30">
                         <CardHeader className="flex flex-row items-center gap-4">
-                            <Avatar>
-                                <AvatarImage src={leader.avatar} alt={leader.name} />
-                                <AvatarFallback>{leader.name.charAt(0)}</AvatarFallback>
-                            </Avatar>
-                            <div>
-                                <p className="font-semibold text-foreground">{leader.name}</p>
-                                <Badge variant="secondary" className="bg-primary/10 text-primary">Leader</Badge>
-                            </div>
+                            <Avatar><AvatarImage src={leader.avatar} alt={leader.name} /><AvatarFallback>{leader.name.charAt(0)}</AvatarFallback></Avatar>
+                            <div><p className="font-semibold text-foreground">{leader.name}</p><Badge variant="secondary" className="bg-primary/10 text-primary">Leader</Badge></div>
                         </CardHeader>
                         <CardContent className="space-y-4">
                              <div>
@@ -599,12 +627,8 @@ function LeadersTab() {
                             </div>
                         </CardContent>
                         <CardFooter className="flex flex-col gap-2">
-                            <Button variant="outline" className="w-full">
-                                <User className="mr-2 h-4 w-4" /> Follow
-                            </Button>
-                            <Button variant="ghost" className="w-full text-muted-foreground">
-                                View Posts
-                            </Button>
+                            <Button variant="outline" className="w-full"><User className="mr-2 h-4 w-4" /> Follow</Button>
+                            <Button variant="ghost" className="w-full text-muted-foreground">View Posts</Button>
                         </CardFooter>
                     </Card>
                 ))}
@@ -613,28 +637,121 @@ function LeadersTab() {
     );
 }
 
+// =================================================================
+// MAIN MODULE COMPONENT
+// =================================================================
+
 export function CommunityModule({ onSetModule }: CommunityModuleProps) {
     const searchParams = useSearchParams();
     const router = useRouter();
     const pathname = usePathname();
-    const recommendedVideoId = searchParams.get('video');
+    const recommendedVideoIdFromUrl = searchParams.get('video');
+    const [isLoading, setIsLoading] = useState(true);
 
-    const [activeTab, setActiveTab] = useState(recommendedVideoId ? 'learn' : 'feed');
+    const [communityState, setCommunityState] = useState<CommunityState | null>(null);
+    const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+    const [arjunRecos, setArjunRecos] = useState<ArjunRecommendations | null>(null);
+
+    const [activeTab, setActiveTab] = useState('feed');
     const [highlightedVideo, setHighlightedVideo] = useState<string | null>(null);
 
+    // Data loading and initialization
     useEffect(() => {
-        if (recommendedVideoId) {
-            setActiveTab('learn');
-            setHighlightedVideo(recommendedVideoId);
+        try {
+            // Community State
+            const communityStateRaw = localStorage.getItem(COMMUNITY_STATE_KEY);
+            if (communityStateRaw) {
+                setCommunityState(JSON.parse(communityStateRaw));
+            } else {
+                localStorage.setItem(COMMUNITY_STATE_KEY, JSON.stringify(initialCommunityState));
+                setCommunityState(initialCommunityState);
+            }
+            // User Profile
+            const userProfileRaw = localStorage.getItem(USER_PROFILE_KEY);
+            if (userProfileRaw) {
+                setUserProfile(JSON.parse(userProfileRaw));
+            } else {
+                localStorage.setItem(USER_PROFILE_KEY, JSON.stringify(initialUserProfile));
+                setUserProfile(initialUserProfile);
+            }
+            // Arjun Recos
+            const arjunRecosRaw = localStorage.getItem(ARJUN_RECO_KEY);
+            if (arjunRecosRaw) {
+                setArjunRecos(JSON.parse(arjunRecosRaw));
+            } else {
+                localStorage.setItem(ARJUN_RECO_KEY, JSON.stringify(initialArjunRecos));
+                setArjunRecos(initialArjunRecos);
+            }
+        } catch (e) {
+            console.error("Error loading community data from localStorage", e);
+            // Fallback to initial state in case of corrupted data
+            setCommunityState(initialCommunityState);
+            setUserProfile(initialUserProfile);
+            setArjunRecos(initialArjunRecos);
+        } finally {
+            setIsLoading(false);
         }
-    }, [recommendedVideoId]);
+    }, []);
+
+    // URL param handling
+    useEffect(() => {
+        const videoId = recommendedVideoIdFromUrl || arjunRecos?.recommendedVideoId;
+        if (videoId) {
+            setActiveTab('learn');
+            setHighlightedVideo(videoId);
+        }
+    }, [recommendedVideoIdFromUrl, arjunRecos]);
+
+    const updateCommunityState = (updater: (prevState: CommunityState) => CommunityState) => {
+        setCommunityState(prevState => {
+            if (!prevState) return null;
+            const newState = updater(prevState);
+            localStorage.setItem(COMMUNITY_STATE_KEY, JSON.stringify(newState));
+            return newState;
+        });
+    };
+
+    const handleLike = (postId: string) => {
+        updateCommunityState(prev => ({
+            ...prev,
+            likesMap: {
+                ...prev.likesMap,
+                [postId]: (prev.likesMap[postId] || 0) + 1,
+            }
+        }));
+    };
+
+    const handleCreatePost = (newPostData: Omit<Post, 'id' | 'timestamp' | 'author' | 'isHighSignal'>) => {
+        if (!userProfile) return;
+        const newPost: Post = {
+            ...newPostData,
+            id: String(Date.now()),
+            timestamp: "Just now",
+            author: { name: userProfile.username, avatar: "/avatars/user.png", role: userProfile.role },
+            isHighSignal: false, // This would be determined by backend logic in a real app
+        };
+        updateCommunityState(prev => ({
+            ...prev,
+            posts: [newPost, ...prev.posts]
+        }));
+    };
 
     const clearRecommendation = () => {
         setHighlightedVideo(null);
+        setArjunRecos(prev => {
+            if (!prev) return null;
+            const newRecos = { ...prev, recommendedVideoId: null };
+            localStorage.setItem(ARJUN_RECO_KEY, JSON.stringify(newRecos));
+            return newRecos;
+        });
         const params = new URLSearchParams(searchParams.toString());
         params.delete('video');
         router.replace(`${pathname}?${params.toString()}`);
     };
+
+    if (isLoading || !communityState || !userProfile || !arjunRecos) {
+        return <div>Loading...</div>; // Or a skeleton loader
+    }
 
     return (
         <div className="space-y-8">
@@ -643,25 +760,34 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
                 <p className="text-muted-foreground">High-signal reflections, charts, and insights. No signals. No hype.</p>
             </div>
             
-            <Tabs value={activeTab} onValueChange={(value) => {
-                setActiveTab(value);
-                if(value !== 'learn') {
-                    clearRecommendation();
-                }
-            }} className="w-full">
+            <Tabs value={activeTab} onValueChange={(value) => { setActiveTab(value); if(value !== 'learn') { clearRecommendation(); } }} className="w-full">
                 <TabsList className="grid w-full grid-cols-3 max-w-lg mx-auto">
                     <TabsTrigger value="feed">Feed</TabsTrigger>
                     <TabsTrigger value="learn">Learn</TabsTrigger>
                     <TabsTrigger value="leaders">Leaders</TabsTrigger>
                 </TabsList>
                 <TabsContent value="feed" className="mt-8">
-                    <FeedTab onSetModule={onSetModule} />
+                    <FeedTab 
+                        posts={communityState.posts}
+                        officialPosts={communityState.officialPosts}
+                        likesMap={communityState.likesMap}
+                        commentsMap={communityState.commentsMap}
+                        arjunRecos={arjunRecos}
+                        userProfile={userProfile}
+                        onSetModule={onSetModule}
+                        onLike={handleLike}
+                        onCreatePost={handleCreatePost}
+                    />
                 </TabsContent>
                 <TabsContent value="learn" className="mt-8">
-                    <LearnTab highlightedVideoId={highlightedVideo} onClearHighlight={clearRecommendation} />
+                    <LearnTab 
+                        videosData={communityState.videos} 
+                        highlightedVideoId={highlightedVideo} 
+                        onClearHighlight={clearRecommendation} 
+                    />
                 </TabsContent>
                 <TabsContent value="leaders" className="mt-8">
-                    <LeadersTab />
+                    <LeadersTab posts={communityState.posts} likesMap={communityState.likesMap} />
                 </TabsContent>
             </Tabs>
         </div>
