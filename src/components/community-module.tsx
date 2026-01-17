@@ -7,9 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { ThumbsUp, MessageSquare, Bookmark, Crown, Send } from "lucide-react";
+import { ThumbsUp, MessageSquare, Bookmark, Crown, BookOpen, Video } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface CommunityModuleProps {
     onSetModule: (module: any, context?: any) => void;
@@ -67,6 +67,13 @@ const leaders = [
     { name: "Eva L.", knownFor: "Psychology Tips", avatar: "/avatars/01.png" },
 ];
 
+const learningResources = [
+    { title: "The Art of the Stop Loss", type: "Article", icon: BookOpen },
+    { title: "Trading Psychology: Handling Drawdowns", type: "Video", icon: Video },
+    { title: "A Guide to Effective Journaling", type: "Article", icon: BookOpen },
+    { title: "Understanding Market Volatility (VIX)", type: "Video", icon: Video },
+]
+
 function PostCard({ post, onLike }: { post: Post, onLike: (id: string) => void }) {
     const [showComments, setShowComments] = useState(false);
     
@@ -119,7 +126,7 @@ function PostCard({ post, onLike }: { post: Post, onLike: (id: string) => void }
     );
 }
 
-export function CommunityModule({ onSetModule }: CommunityModuleProps) {
+function FeedTab() {
     const [posts, setPosts] = useState<Post[]>(mockPosts);
     const [newPostContent, setNewPostContent] = useState("");
 
@@ -142,82 +149,110 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
     };
 
     return (
+        <div className="max-w-3xl mx-auto space-y-6">
+            <Card className="bg-muted/30 border-border/50">
+                <CardHeader>
+                    <CardTitle>Share an insight</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="space-y-4">
+                        <Textarea 
+                            placeholder="What did you learn today? Share a trade breakdown, a psychological insight, or a question for the community."
+                            value={newPostContent}
+                            onChange={(e) => setNewPostContent(e.target.value)}
+                        />
+                        <div className="flex justify-end">
+                            <Button onClick={handleCreatePost}>Post (Prototype)</Button>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+            {posts.map(post => (
+                <PostCard key={post.id} post={post} onLike={handleLike} />
+            ))}
+        </div>
+    );
+}
+
+function LearnTab() {
+    return (
+         <div className="max-w-3xl mx-auto space-y-6">
+             <Card className="bg-muted/30 border-border/50">
+                <CardHeader>
+                    <CardTitle>Learning Resources</CardTitle>
+                    <CardDescription>Curated content to sharpen your trading skills. (Phase 2)</CardDescription>
+                </CardHeader>
+                <CardContent className="grid md:grid-cols-2 gap-4">
+                    {learningResources.map((resource, i) => (
+                         <Card key={i} className="bg-muted/50 hover:bg-muted cursor-pointer transition-colors">
+                            <CardContent className="p-4 flex items-center gap-4">
+                                <resource.icon className="h-6 w-6 text-primary flex-shrink-0" />
+                                <div>
+                                    <p className="font-semibold text-foreground">{resource.title}</p>
+                                    <p className="text-xs text-muted-foreground">{resource.type}</p>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    ))}
+                </CardContent>
+            </Card>
+        </div>
+    );
+}
+
+function LeadersTab() {
+    return (
+        <div className="max-w-3xl mx-auto">
+             <Card className="bg-muted/30 border-border/50">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Crown className="h-5 w-5 text-primary" /> Community Leaders</CardTitle>
+                    <CardDescription>Recognized members known for their helpful insights and discipline.</CardDescription>
+                </CardHeader>
+                <CardContent className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {leaders.map(leader => (
+                        <Card key={leader.name} className="bg-muted/50">
+                             <CardContent className="p-4 flex items-center gap-4">
+                                <Avatar>
+                                    <AvatarImage src={leader.avatar} alt={leader.name} />
+                                    <AvatarFallback>{leader.name.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                                <div>
+                                    <p className="font-semibold text-foreground">{leader.name}</p>
+                                    <p className="text-xs text-muted-foreground">Known for: {leader.knownFor}</p>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    ))}
+                </CardContent>
+            </Card>
+        </div>
+    );
+}
+
+export function CommunityModule({ onSetModule }: CommunityModuleProps) {
+    return (
         <div className="space-y-8">
             <div>
                 <h1 className="text-2xl font-bold tracking-tight text-foreground">Community — Discipline & Learning</h1>
                 <p className="text-muted-foreground">High-signal reflections, charts, and insights. No signals. No hype.</p>
             </div>
             
-            <div className="grid lg:grid-cols-3 gap-8 items-start">
-                {/* Main Feed */}
-                <div className="lg:col-span-2 space-y-6">
-                    <Card className="bg-muted/30 border-border/50">
-                        <CardHeader>
-                            <CardTitle>Share an insight</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="space-y-4">
-                                <Textarea 
-                                    placeholder="What did you learn today? Share a trade breakdown, a psychological insight, or a question for the community."
-                                    value={newPostContent}
-                                    onChange={(e) => setNewPostContent(e.target.value)}
-                                />
-                                <div className="flex justify-end">
-                                    <Button onClick={handleCreatePost}>Post (Prototype)</Button>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                    {posts.map(post => (
-                        <PostCard key={post.id} post={post} onLike={handleLike} />
-                    ))}
-                </div>
-
-                {/* Sidebar */}
-                <div className="lg:col-span-1 space-y-8 sticky top-24">
-                     <Card className="bg-muted/30 border-primary/20">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2"><Crown className="h-5 w-5 text-primary" /> Community Leaders</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            {leaders.map(leader => (
-                                <div key={leader.name} className="flex items-center gap-3">
-                                    <Avatar>
-                                        <AvatarImage src={leader.avatar} alt={leader.name} />
-                                        <AvatarFallback>{leader.name.charAt(0)}</AvatarFallback>
-                                    </Avatar>
-                                    <div>
-                                        <p className="font-semibold text-foreground">{leader.name}</p>
-                                        <p className="text-xs text-muted-foreground">Known for: {leader.knownFor}</p>
-                                    </div>
-                                </div>
-                            ))}
-                        </CardContent>
-                    </Card>
-                    <Card className="bg-muted/30 border-border/50">
-                        <CardHeader>
-                            <CardTitle>My Contributions</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4 text-center">
-                            <div className="grid grid-cols-3 gap-4">
-                                <div>
-                                    <p className="text-2xl font-bold font-mono">1</p>
-                                    <p className="text-xs text-muted-foreground">Posts</p>
-                                </div>
-                                <div>
-                                    <p className="text-2xl font-bold font-mono">28</p>
-                                    <p className="text-xs text-muted-foreground">Likes Received</p>
-                                </div>
-                                <div>
-                                    <p className="text-2xl font-bold font-mono">12</p>
-                                    <p className="text-xs text-muted-foreground">Comments</p>
-                                </div>
-                            </div>
-                            <p className="text-xs text-muted-foreground/80 italic pt-2">Continued helpful activity can promote you to a Community Leader.</p>
-                        </CardContent>
-                    </Card>
-                </div>
-            </div>
+            <Tabs defaultValue="feed" className="w-full">
+                <TabsList className="grid w-full grid-cols-3 max-w-lg mx-auto">
+                    <TabsTrigger value="feed">Feed</TabsTrigger>
+                    <TabsTrigger value="learn">Learn</TabsTrigger>
+                    <TabsTrigger value="leaders">Leaders</TabsTrigger>
+                </TabsList>
+                <TabsContent value="feed" className="mt-8">
+                    <FeedTab />
+                </TabsContent>
+                <TabsContent value="learn" className="mt-8">
+                    <LearnTab />
+                </TabsContent>
+                <TabsContent value="leaders" className="mt-8">
+                    <LeadersTab />
+                </TabsContent>
+            </Tabs>
         </div>
     );
 }
