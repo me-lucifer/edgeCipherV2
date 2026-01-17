@@ -20,6 +20,7 @@ import { Label } from "./ui/label";
 import { Switch } from "./ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "./ui/separator";
+import { Checkbox } from "./ui/checkbox";
 
 
 interface CommunityModuleProps {
@@ -169,6 +170,7 @@ function FeedTab({ onSetModule }: { onSetModule: (module: any, context?: any) =>
     const [newPostContent, setNewPostContent] = useState("");
     const [newPostCategory, setNewPostCategory] = useState<'Chart' | 'Reflection' | 'Insight'>('Reflection');
     const [postError, setPostError] = useState<string | null>(null);
+    const [isChartConfirmed, setIsChartConfirmed] = useState(false);
     
     // Filter states
     const [categoryFilter, setCategoryFilter] = useState<'All' | 'Chart' | 'Reflection' | 'Insight'>('All');
@@ -253,6 +255,7 @@ function FeedTab({ onSetModule }: { onSetModule: (module: any, context?: any) =>
         };
         setPosts([newPost, ...posts]);
         setNewPostContent("");
+        setIsChartConfirmed(false);
     };
 
     const handleDiscuss = (post: Post) => {
@@ -338,7 +341,12 @@ function FeedTab({ onSetModule }: { onSetModule: (module: any, context?: any) =>
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-4">
-                            <Select value={newPostCategory} onValueChange={(v) => setNewPostCategory(v as any)}>
+                            <Select value={newPostCategory} onValueChange={(v) => {
+                                setNewPostCategory(v as any);
+                                if (v !== 'Chart') {
+                                    setIsChartConfirmed(false);
+                                }
+                            }}>
                                 <SelectTrigger className="w-full sm:w-[220px]">
                                     <SelectValue placeholder="Select post category..." />
                                 </SelectTrigger>
@@ -358,6 +366,27 @@ function FeedTab({ onSetModule }: { onSetModule: (module: any, context?: any) =>
                             {postError && (
                                 <p className="text-sm text-destructive mt-2">{postError}</p>
                             )}
+
+                            {newPostCategory === 'Chart' && (
+                                <div className="flex items-start space-x-3 pt-2">
+                                    <Checkbox
+                                        id="chart-confirm"
+                                        checked={isChartConfirmed}
+                                        onCheckedChange={(checked) => setIsChartConfirmed(checked as boolean)}
+                                    />
+                                    <div className="grid gap-1.5 leading-none">
+                                        <Label
+                                          htmlFor="chart-confirm"
+                                          className="text-sm font-medium"
+                                        >
+                                          I confirm this is a chart screenshot.
+                                        </Label>
+                                        <p className="text-xs text-muted-foreground">
+                                          For educational purposes only. Not a buy/sell signal.
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
                             
                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                                 <div className="flex items-center gap-2">
@@ -369,7 +398,7 @@ function FeedTab({ onSetModule }: { onSetModule: (module: any, context?: any) =>
                                 </div>
                                 <div className="flex gap-2 self-end sm:self-center">
                                     <Button variant="ghost" disabled>Save draft</Button>
-                                    <Button onClick={handleCreatePost}>Post</Button>
+                                    <Button onClick={handleCreatePost} disabled={newPostCategory === 'Chart' && !isChartConfirmed}>Post</Button>
                                 </div>
                             </div>
                         </div>
