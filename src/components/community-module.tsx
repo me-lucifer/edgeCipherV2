@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { ThumbsUp, MessageSquare, Bookmark, Crown, BookOpen, Video, AlertTriangle, Zap, BrainCircuit, Sparkles, Bot, User, ImageUp } from "lucide-react";
+import { ThumbsUp, MessageSquare, Bookmark, Crown, BookOpen, Video, ArrowRight, AlertTriangle, Zap, BrainCircuit, Sparkles, Bot, User, ImageUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
@@ -181,9 +181,9 @@ const initialUserProfile: UserProfile = {
 };
 
 const initialArjunRecos: ArjunRecommendations = {
-    recommendedVideoId: null,
+    recommendedVideoId: "discipline_holding",
     recommendedPostIds: ['2'],
-    reason: "This post about patient chart analysis aligns with an area you could improve."
+    reason: "Your recent analytics show a pattern of exiting winning trades too early. This content may help."
 };
 
 // =================================================================
@@ -192,7 +192,7 @@ const initialArjunRecos: ArjunRecommendations = {
 
 function PostCard({ post, likes, commentsCount, isArjunRecommended, onLike, onDiscuss }: { post: Post, likes: number, commentsCount: number, isArjunRecommended: boolean, onLike: (id: string) => void, onDiscuss: (post: Post) => void }) {
     return (
-        <Card className="bg-muted/30 border-border/50">
+        <Card id={`post-${post.id}`} className="bg-muted/30 border-border/50">
             <CardHeader className="pb-4">
                 <div className="flex justify-between items-start">
                     <div className="flex items-center gap-3">
@@ -258,6 +258,110 @@ function PostCard({ post, likes, commentsCount, isArjunRecommended, onLike, onDi
     );
 }
 
+function ArjunRecommendationBanner({
+  arjunRecos,
+  posts,
+  videosData,
+  router,
+  pathname
+}: {
+  arjunRecos: ArjunRecommendations;
+  posts: Post[];
+  videosData: CommunityState['videos'];
+  router: any;
+  pathname: string;
+}) {
+  const recommendedPost = useMemo(() => {
+    if (!arjunRecos?.recommendedPostIds?.length) return null;
+    return posts.find(p => p.id === arjunRecos.recommendedPostIds[0]);
+  }, [posts, arjunRecos]);
+
+  const recommendedVideo = useMemo(() => {
+    if (!arjunRecos?.recommendedVideoId || !videosData) return null;
+    return videosData.playlists.flatMap(p => p.videos).find(v => v.id === arjunRecos.recommendedVideoId);
+  }, [videosData, arjunRecos]);
+
+  const videoThumbnail = PlaceHolderImages.find(p => p.id === 'video-thumbnail');
+
+  if (!recommendedPost && !recommendedVideo) {
+    return (
+      <Card className="bg-muted/30 border-border/50">
+        <CardContent className="p-6 text-center">
+          <h3 className="font-semibold text-foreground">No recommendations yet</h3>
+          <p className="text-sm text-muted-foreground mt-1">Complete your journal to unlock personalized guidance from Arjun.</p>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  const handleWatchVideo = (videoId: string) => {
+    const params = new URLSearchParams();
+    params.set('video', videoId);
+    router.push(`${pathname}?${params.toString()}`);
+  };
+
+  const handleViewPost = (postId: string) => {
+    const element = document.getElementById(`post-${postId}`);
+    if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
+
+  return (
+    <Card className="bg-muted/30 border-primary/20">
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2 text-primary">
+          <Sparkles className="h-4 w-4" />
+          Arjun recommended for you today
+        </CardTitle>
+        <CardDescription className="text-xs">{arjunRecos.reason}</CardDescription>
+      </CardHeader>
+      <CardContent className="grid md:grid-cols-2 gap-4">
+        {recommendedPost && (
+          <Card className="bg-muted/50">
+            <CardHeader className="pb-4">
+                <div className="flex items-center gap-2 mb-2">
+                    <BookOpen className="h-4 w-4 text-muted-foreground" />
+                    <h4 className="font-semibold text-foreground">Recommended Post</h4>
+                </div>
+                <p className="text-sm text-muted-foreground line-clamp-2">{recommendedPost.content}</p>
+            </CardHeader>
+            <CardFooter>
+              <Button size="sm" variant="outline" className="w-full" onClick={() => handleViewPost(recommendedPost.id)}>
+                View Post <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </CardFooter>
+          </Card>
+        )}
+        {recommendedVideo && (
+          <Card className="bg-muted/50">
+             <CardHeader className="pb-4">
+                <div className="flex items-center gap-2 mb-2">
+                    <Video className="h-4 w-4 text-muted-foreground" />
+                    <h4 className="font-semibold text-foreground">Recommended Video</h4>
+                </div>
+                <p className="text-sm text-muted-foreground">{recommendedVideo.title}</p>
+            </CardHeader>
+            <CardContent>
+              {videoThumbnail && (
+                <div className="aspect-video bg-muted rounded-md relative overflow-hidden">
+                    <Image src={videoThumbnail.imageUrl} alt={recommendedVideo.title} fill style={{ objectFit: 'cover' }} data-ai-hint={videoThumbnail.imageHint || 'video thumbnail'} />
+                    <Badge className="absolute bottom-2 right-2 bg-black/50 text-white">{recommendedVideo.duration}</Badge>
+                </div>
+              )}
+            </CardContent>
+             <CardFooter>
+              <Button size="sm" variant="outline" className="w-full" onClick={() => handleWatchVideo(recommendedVideo.id)}>
+                Watch Video <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </CardFooter>
+          </Card>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
 function FeedTab({
     posts,
     officialPosts,
@@ -267,7 +371,10 @@ function FeedTab({
     userProfile,
     onSetModule,
     onLike,
-    onCreatePost
+    onCreatePost,
+    videosData,
+    router,
+    pathname,
 }: {
     posts: Post[];
     officialPosts: Omit<OfficialPost, 'icon'>[];
@@ -278,6 +385,9 @@ function FeedTab({
     onSetModule: (module: any, context?: any) => void;
     onLike: (id: string) => void;
     onCreatePost: (post: Omit<Post, 'id' | 'timestamp' | 'author' | 'isHighSignal'>) => void;
+    videosData: CommunityState['videos'];
+    router: any;
+    pathname: string;
 }) {
     const [newPostContent, setNewPostContent] = useState("");
     const [newPostCategory, setNewPostCategory] = useState<'Chart' | 'Reflection' | 'Insight'>('Reflection');
@@ -364,6 +474,13 @@ function FeedTab({
 
     return (
         <div className="max-w-3xl mx-auto space-y-8">
+            <ArjunRecommendationBanner
+              arjunRecos={arjunRecos}
+              posts={posts}
+              videosData={videosData}
+              router={router}
+              pathname={pathname}
+            />
             <Card className="bg-muted/30 border-border/50">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -603,7 +720,7 @@ function LeadersTab({ posts, likesMap }: { posts: Post[], likesMap: Record<strin
             <Card className="bg-muted/30 border-primary/20">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2"><Crown className="h-5 w-5 text-primary" /> How to Become a Leader</CardTitle>
-                    <CardDescription>Leaders are promoted automatically based on consistent, high-signal contributions to the community—not P&L.</CardDescription>
+                    <CardDescription>Leaders are promoted automatically based on consistent, high-signal contributions to the community—not P&amp;L.</CardDescription>
                 </CardHeader>
                 <CardContent><p className="text-sm text-muted-foreground">The Leader badge is earned by consistently providing helpful posts, receiving positive engagement (likes, saves), and contributing to a disciplined trading culture.</p></CardContent>
             </Card>
@@ -696,12 +813,12 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
 
     // URL param handling
     useEffect(() => {
-        const videoId = recommendedVideoIdFromUrl || arjunRecos?.recommendedVideoId;
+        const videoId = recommendedVideoIdFromUrl;
         if (videoId) {
             setActiveTab('learn');
             setHighlightedVideo(videoId);
         }
-    }, [recommendedVideoIdFromUrl, arjunRecos]);
+    }, [recommendedVideoIdFromUrl]);
 
     const updateCommunityState = (updater: (prevState: CommunityState) => CommunityState) => {
         setCommunityState(prevState => {
@@ -778,6 +895,9 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
                         onSetModule={onSetModule}
                         onLike={handleLike}
                         onCreatePost={handleCreatePost}
+                        videosData={communityState.videos}
+                        router={router}
+                        pathname={pathname}
                     />
                 </TabsContent>
                 <TabsContent value="learn" className="mt-8">
@@ -794,4 +914,5 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
         </div>
     );
 }
+
 
