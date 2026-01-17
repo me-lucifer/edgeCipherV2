@@ -1,8 +1,8 @@
 
 
-"use client";
+      "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import Image from "next/image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -168,6 +168,7 @@ function FeedTab({ onSetModule }: { onSetModule: (module: any, context?: any) =>
     const [posts, setPosts] = useState<Post[]>(mockPosts);
     const [newPostContent, setNewPostContent] = useState("");
     const [newPostCategory, setNewPostCategory] = useState<'Chart' | 'Reflection' | 'Insight'>('Reflection');
+    const [postError, setPostError] = useState<string | null>(null);
     
     // Filter states
     const [categoryFilter, setCategoryFilter] = useState<'All' | 'Chart' | 'Reflection' | 'Insight'>('All');
@@ -215,7 +216,30 @@ function FeedTab({ onSetModule }: { onSetModule: (module: any, context?: any) =>
     };
 
     const handleCreatePost = () => {
-        if (!newPostContent.trim()) return;
+        setPostError(null);
+        const content = newPostContent.trim();
+
+        if (content.length < 20) {
+            setPostError("Post must be at least 20 characters long.");
+            return;
+        }
+
+        const linkPattern = /(http|https|www\.)/i;
+        if (linkPattern.test(content)) {
+            setPostError("Community is for learning and reflection — not signals. External links are not allowed.");
+            return;
+        }
+
+        const signalWords = ["buy now", "sell now", "entry at", "target", "guaranteed", "pump", "dump", "moon"];
+        const profanityWords = ["darn", "heck", "shoot"]; // simple examples
+        const bannedWords = [...signalWords, ...profanityWords];
+        const bannedWordPattern = new RegExp(`\\b(${bannedWords.join('|')})\\b`, 'i');
+        
+        if (bannedWordPattern.test(content)) {
+            setPostError("Community is for learning and reflection — not signals. Please avoid signal language or profanity.");
+            return;
+        }
+
         const newPost: Post = {
             id: String(Date.now()),
             author: { name: "You", avatar: "/avatars/user.png", role: "Member" },
@@ -329,7 +353,11 @@ function FeedTab({ onSetModule }: { onSetModule: (module: any, context?: any) =>
                                 placeholder="What did you learn today?"
                                 value={newPostContent}
                                 onChange={(e) => setNewPostContent(e.target.value)}
+                                className={cn(postError && "border-destructive focus-visible:ring-destructive")}
                             />
+                            {postError && (
+                                <p className="text-sm text-destructive mt-2">{postError}</p>
+                            )}
                             
                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                                 <div className="flex items-center gap-2">
@@ -341,7 +369,7 @@ function FeedTab({ onSetModule }: { onSetModule: (module: any, context?: any) =>
                                 </div>
                                 <div className="flex gap-2 self-end sm:self-center">
                                     <Button variant="ghost" disabled>Save draft</Button>
-                                    <Button onClick={handleCreatePost} disabled>Post (Prototype)</Button>
+                                    <Button onClick={handleCreatePost}>Post</Button>
                                 </div>
                             </div>
                         </div>
