@@ -7,9 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { ThumbsUp, MessageSquare, Bookmark, Crown, BookOpen, Video } from "lucide-react";
+import { ThumbsUp, MessageSquare, Bookmark, Crown, BookOpen, Video, AlertTriangle, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
+
 
 interface CommunityModuleProps {
     onSetModule: (module: any, context?: any) => void;
@@ -75,8 +77,6 @@ const learningResources = [
 ]
 
 function PostCard({ post, onLike }: { post: Post, onLike: (id: string) => void }) {
-    const [showComments, setShowComments] = useState(false);
-    
     return (
         <Card className="bg-muted/30 border-border/50">
             <CardHeader className="pb-4">
@@ -105,22 +105,13 @@ function PostCard({ post, onLike }: { post: Post, onLike: (id: string) => void }
                     <Button variant="ghost" size="sm" className="flex items-center gap-2" onClick={() => onLike(post.id)}>
                         <ThumbsUp className="h-4 w-4" /> {post.likes}
                     </Button>
-                    <Button variant="ghost" size="sm" className="flex items-center gap-2" onClick={() => setShowComments(!showComments)}>
+                    <Button variant="ghost" size="sm" className="flex items-center gap-2" disabled>
                         <MessageSquare className="h-4 w-4" /> {post.comments.length}
                     </Button>
                     <Button variant="ghost" size="sm" className="flex items-center gap-2 ml-auto">
                         <Bookmark className="h-4 w-4" /> Save
                     </Button>
                 </div>
-                {showComments && post.comments.length > 0 && (
-                    <div className="mt-4 space-y-4">
-                        {post.comments.map((comment, i) => (
-                            <div key={i} className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
-                                <span className="font-semibold text-foreground">{comment.author}: </span>{comment.text}
-                            </div>
-                        ))}
-                    </div>
-                )}
             </CardContent>
         </Card>
     );
@@ -129,6 +120,33 @@ function PostCard({ post, onLike }: { post: Post, onLike: (id: string) => void }
 function FeedTab() {
     const [posts, setPosts] = useState<Post[]>(mockPosts);
     const [newPostContent, setNewPostContent] = useState("");
+
+    const officialPosts = [
+        {
+            title: "The Art of the Stop Loss",
+            bullets: ["Why your SL is your best friend.", "How to set it based on volatility, not hope."],
+            tag: "Education",
+            icon: BookOpen,
+        },
+        {
+            title: "Market Warning: High VIX",
+            bullets: ["Crypto VIX is in the 'Elevated' zone.", "Consider reducing size and avoiding low-conviction trades."],
+            tag: "Market Warning",
+            icon: AlertTriangle,
+        },
+        {
+            title: "New Feature: Discipline Guardrails",
+            bullets: ["Get real-time warnings in your Trade Planning module.", "Enable them in Performance Analytics."],
+            tag: "Feature Update",
+            icon: Zap,
+        },
+        {
+            title: "Video: How to Journal a Losing Trade",
+            bullets: ["Turn your losses into your biggest lessons.", "A step-by-step guide to effective reflection."],
+            tag: "New Video",
+            icon: Video,
+        }
+    ];
 
     const handleLike = (id: string) => {
         setPosts(posts.map(p => p.id === id ? { ...p, likes: p.likes + 1 } : p));
@@ -149,27 +167,64 @@ function FeedTab() {
     };
 
     return (
-        <div className="max-w-3xl mx-auto space-y-6">
+        <div className="max-w-3xl mx-auto space-y-8">
             <Card className="bg-muted/30 border-border/50">
-                <CardHeader>
-                    <CardTitle>Share an insight</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="space-y-4">
-                        <Textarea 
-                            placeholder="What did you learn today? Share a trade breakdown, a psychological insight, or a question for the community."
-                            value={newPostContent}
-                            onChange={(e) => setNewPostContent(e.target.value)}
-                        />
-                        <div className="flex justify-end">
-                            <Button onClick={handleCreatePost}>Post (Prototype)</Button>
+              <CardHeader>
+                <CardTitle>EdgeCipher Official</CardTitle>
+                <CardDescription>Key updates and educational content from the team.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Carousel opts={{ align: "start" }} className="w-full">
+                  <CarouselContent className="-ml-4">
+                    {officialPosts.map((post, index) => (
+                      <CarouselItem key={index} className="pl-4 md:basis-1/2 lg:basis-1/3">
+                        <div className="p-1 h-full">
+                            <Card className="bg-muted/50 border-primary/20 h-full">
+                                <CardContent className="p-4 flex flex-col items-start gap-4 h-full">
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <post.icon className="h-4 w-4 text-primary" />
+                                            <p className="font-semibold text-foreground text-sm">{post.title}</p>
+                                        </div>
+                                        <ul className="list-disc list-inside text-xs text-muted-foreground space-y-1">
+                                            {post.bullets.map((bullet, i) => <li key={i}>{bullet}</li>)}
+                                        </ul>
+                                    </div>
+                                    <Badge variant="secondary" className="bg-primary/10 text-primary">{post.tag}</Badge>
+                                </CardContent>
+                            </Card>
                         </div>
-                    </div>
-                </CardContent>
+                      </CarouselItem>
+                    ))}
+                  </CarouselContent>
+                  <CarouselPrevious className="ml-12" />
+                  <CarouselNext className="mr-12" />
+                </Carousel>
+              </CardContent>
             </Card>
-            {posts.map(post => (
-                <PostCard key={post.id} post={post} onLike={handleLike} />
-            ))}
+
+            <div className="space-y-6">
+                <Card className="bg-muted/30 border-border/50">
+                    <CardHeader>
+                        <CardTitle>Share an insight</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-4">
+                            <Textarea 
+                                placeholder="What did you learn today? Share a trade breakdown, a psychological insight, or a question for the community."
+                                value={newPostContent}
+                                onChange={(e) => setNewPostContent(e.target.value)}
+                            />
+                            <div className="flex justify-end">
+                                <Button onClick={handleCreatePost}>Post (Prototype)</Button>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+                {posts.map(post => (
+                    <PostCard key={post.id} post={post} onLike={handleLike} />
+                ))}
+            </div>
         </div>
     );
 }
