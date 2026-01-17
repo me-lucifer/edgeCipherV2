@@ -1306,6 +1306,8 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
     const [selectedCoinForDrawer, setSelectedCoinForDrawer] = useState<string | null>(null);
     const [isTourOpen, setIsTourOpen] = useState(false);
 
+    const popularCoins = ["BTC", "ETH", "SOL", "BNB", "XRP"];
+
     const loadNews = useCallback((forceRefresh = false) => {
         setIsLoading(true);
         try {
