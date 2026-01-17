@@ -2041,150 +2041,173 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                                 <Button variant="ghost" size="sm" onClick={clearFilters}><X className="mr-2 h-4 w-4"/>Clear all</Button>
                             </div>
                         </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-                                <div className={cn("relative md:col-span-2 lg:col-span-4", (isRegulatoryMode || isExchangeMode) && "opacity-50 pointer-events-none")}>
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                    <Input 
-                                        placeholder="Search headline or source..." 
-                                        className="pl-9"
-                                        value={filters.search}
-                                        onChange={e => handleFilterChange('search', e.target.value)}
-                                        disabled={isRegulatoryMode || isExchangeMode}
-                                    />
-                                </div>
-                                <div id="high-impact-filter" className="flex items-center space-x-2">
-                                    <Switch
-                                        id="high-impact-only"
-                                        checked={filters.highImpactOnly}
-                                        onCheckedChange={checked => handleFilterChange('highImpactOnly', checked)}
-                                        disabled={isRegulatoryMode || isExchangeMode}
-                                    />
-                                    <Label htmlFor="high-impact-only">High Impact Only</Label>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                    <Switch
-                                        id="breaking-mode"
-                                        checked={isBreakingMode}
-                                        onCheckedChange={setIsBreakingMode}
-                                    />
-                                    <Label htmlFor="breaking-mode" className="flex items-center gap-1.5"><Radio className="h-4 w-4 text-red-500" /> Breaking</Label>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                    <Switch
-                                        id="regulatory-mode"
-                                        checked={isRegulatoryMode}
-                                        onCheckedChange={(checked) => { setIsRegulatoryMode(checked); if (checked) setIsExchangeMode(false); }}
-                                    />
-                                    <Label htmlFor="regulatory-mode" className="flex items-center gap-1.5"><Layers className="h-4 w-4 text-amber-500" /> Regulatory</Label>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                    <Switch
-                                        id="exchange-mode"
-                                        checked={isExchangeMode}
-                                        onCheckedChange={(checked) => { setIsExchangeMode(checked); if (checked) setIsRegulatoryMode(false); }}
-                                    />
-                                    <Label htmlFor="exchange-mode" className="flex items-center gap-1.5"><ShieldAlert className="h-4 w-4 text-blue-500" /> Exchange & Infra</Label>
-                                </div>
-                                 <div className="flex items-center space-x-2">
-                                    <Switch
-                                        id="followed-only"
-                                        checked={filters.followedOnly}
-                                        onCheckedChange={checked => handleFilterChange('followedOnly', checked)}
-                                        disabled={isRegulatoryMode || isExchangeMode}
-                                    />
-                                    <Label htmlFor="followed-only">My Followed Coins</Label>
-                                </div>
-                                 <Select value={filters.sortBy} onValueChange={(v) => handleFilterChange('sortBy', v as any)} disabled={isRegulatoryMode || isExchangeMode}>
-                                    <SelectTrigger disabled={isRegulatoryMode || isExchangeMode}>
-                                        <SelectValue placeholder="Sort by..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="newest">Newest</SelectItem>
-                                        <SelectItem value="highestImpact">Highest Impact</SelectItem>
-                                        <SelectItem value="mostNegative">Most Negative</SelectItem>
-                                    </SelectContent>
-                                </Select>
+                        <CardContent className="space-y-6">
+                            <div className={cn("relative", (isRegulatoryMode || isExchangeMode) && "opacity-50 pointer-events-none")}>
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input 
+                                    placeholder="Search headline or source..." 
+                                    className="pl-9"
+                                    value={filters.search}
+                                    onChange={e => handleFilterChange('search', e.target.value)}
+                                    disabled={isRegulatoryMode || isExchangeMode}
+                                />
                             </div>
-                            <div className={cn("flex flex-wrap items-center gap-2", (isRegulatoryMode || isExchangeMode) && "opacity-50 pointer-events-none")}>
-                                <div className="flex items-center gap-1 rounded-full bg-muted p-1">
-                                    {(["All", "Positive", "Neutral", "Negative"] as const).map(s => (
-                                        <Button
-                                            key={s}
-                                            size="sm"
-                                            variant={filters.sentiment === s ? 'secondary' : 'ghost'}
-                                            onClick={() => handleFilterChange('sentiment', s as Sentiment | "All")}
-                                            className="rounded-full h-8 px-3 text-xs"
-                                        >
-                                            {s}
-                                        </Button>
-                                    ))}
+
+                            <div className={cn("flex flex-wrap items-center justify-between gap-4", (isRegulatoryMode || isExchangeMode) && "opacity-50 pointer-events-none")}>
+                                <div className="flex flex-wrap items-center gap-4">
+                                    <div id="high-impact-filter" className="flex items-center space-x-2">
+                                        <Switch
+                                            id="high-impact-only"
+                                            checked={filters.highImpactOnly}
+                                            onCheckedChange={checked => handleFilterChange('highImpactOnly', checked)}
+                                            disabled={isRegulatoryMode || isExchangeMode}
+                                        />
+                                        <Label htmlFor="high-impact-only">High Impact Only</Label>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        <Switch
+                                            id="followed-only"
+                                            checked={filters.followedOnly}
+                                            onCheckedChange={checked => handleFilterChange('followedOnly', checked)}
+                                            disabled={isRegulatoryMode || isExchangeMode}
+                                        />
+                                        <Label htmlFor="followed-only">My Followed Coins</Label>
+                                    </div>
                                 </div>
-                                <Separator orientation="vertical" className="h-6" />
-                                <div className="flex items-center gap-1">
-                                    <Button
-                                        size="sm"
-                                        variant={filters.coins.length === 0 ? 'secondary' : 'ghost'}
-                                        onClick={() => handleFilterChange('coins', [])}
-                                        className="rounded-full h-8 px-3 text-xs"
-                                    >
-                                        All
-                                    </Button>
-                                    {popularCoins.map(coin => (
-                                        <Button
-                                            key={coin}
-                                            size="sm"
-                                            variant={filters.coins.includes(coin) ? 'secondary' : 'ghost'}
-                                            onClick={() => handleCoinToggle(coin)}
-                                            className="rounded-full h-8 px-3 text-xs"
-                                        >
-                                            {coin}
-                                        </Button>
-                                    ))}
+                                <div className="w-full sm:w-auto">
+                                    <Select value={filters.sortBy} onValueChange={(v) => handleFilterChange('sortBy', v as any)} disabled={isRegulatoryMode || isExchangeMode}>
+                                        <SelectTrigger disabled={isRegulatoryMode || isExchangeMode} className="w-full sm:w-[180px]">
+                                            <SelectValue placeholder="Sort by..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="newest">Newest</SelectItem>
+                                            <SelectItem value="highestImpact">Highest Impact</SelectItem>
+                                            <SelectItem value="mostNegative">Most Negative</SelectItem>
+                                        </SelectContent>
+                                    </Select>
                                 </div>
-                                <div className="flex-1" />
-                                <div className="flex items-center gap-2">
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button variant="outline" size="sm" className="w-40 justify-between">
-                                                <span>{activePresetId ? filterPresets.find(p => p.id === activePresetId)?.name : 'Presets'}</span>
-                                                <MoreHorizontal className="h-4 w-4" />
+                            </div>
+                            
+                            <Separator/>
+
+                            <div>
+                                <Label className="text-xs font-semibold text-muted-foreground">Special Modes</Label>
+                                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mt-2">
+                                    <div className="flex items-center space-x-2">
+                                        <Switch
+                                            id="breaking-mode"
+                                            checked={isBreakingMode}
+                                            onCheckedChange={setIsBreakingMode}
+                                        />
+                                        <Label htmlFor="breaking-mode" className="flex items-center gap-1.5"><Radio className="h-4 w-4 text-red-500" /> Breaking</Label>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        <Switch
+                                            id="regulatory-mode"
+                                            checked={isRegulatoryMode}
+                                            onCheckedChange={(checked) => { setIsRegulatoryMode(checked); if (checked) setIsExchangeMode(false); }}
+                                        />
+                                        <Label htmlFor="regulatory-mode" className="flex items-center gap-1.5"><Layers className="h-4 w-4 text-amber-500" /> Regulatory</Label>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        <Switch
+                                            id="exchange-mode"
+                                            checked={isExchangeMode}
+                                            onCheckedChange={(checked) => { setIsExchangeMode(checked); if (checked) setIsRegulatoryMode(false); }}
+                                        />
+                                        <Label htmlFor="exchange-mode" className="flex items-center gap-1.5"><ShieldAlert className="h-4 w-4 text-blue-500" /> Exchange & Infra</Label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <Separator />
+                            
+                            <div className={cn("space-y-4", (isRegulatoryMode || isExchangeMode) && "opacity-50 pointer-events-none")}>
+                                <div>
+                                    <Label className="text-xs font-semibold text-muted-foreground">Sentiment</Label>
+                                    <div className="flex items-center gap-1 rounded-full bg-muted p-1 mt-2 w-fit">
+                                        {(["All", "Positive", "Neutral", "Negative"] as const).map(s => (
+                                            <Button
+                                                key={s}
+                                                size="sm"
+                                                variant={filters.sentiment === s ? 'secondary' : 'ghost'}
+                                                onClick={() => handleFilterChange('sentiment', s as Sentiment | "All")}
+                                                className="rounded-full h-8 px-3 text-xs"
+                                            >
+                                                {s}
                                             </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end" className="w-56">
-                                            <DropdownMenuSeparator />
-                                            {filterPresets.map(preset => (
-                                                <DropdownMenuItem key={preset.id} onSelect={() => handleLoadPreset(preset)}>
-                                                    <span className="flex-1">{preset.name}</span>
-                                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleDeletePreset(preset.id); }}>
-                                                        <X className="h-3 w-3" />
-                                                    </Button>
-                                                </DropdownMenuItem>
-                                            ))}
-                                            {filterPresets.length === 0 && <DropdownMenuItem disabled>No presets saved</DropdownMenuItem>}
-                                            <DropdownMenuSeparator />
-                                            <DropdownMenuItem onSelect={clearFilters}>
-                                                Clear Active Preset
-                                            </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                     <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => {
-                                            if (activePresetId) {
-                                                const preset = filterPresets.find(p => p.id === activePresetId);
-                                                setNewPresetName(preset?.name || "");
-                                                setShowSavePresetDialog(true);
-                                            } else {
-                                                setNewPresetName("");
-                                                setShowSavePresetDialog(true);
-                                            }
-                                        }}
-                                    >
-                                        <Save className="mr-2 h-4 w-4" /> {activePresetId ? 'Update' : 'Save'}
-                                    </Button>
+                                        ))}
+                                    </div>
                                 </div>
+                                <div>
+                                    <Label className="text-xs font-semibold text-muted-foreground">Coins</Label>
+                                    <div className="flex flex-wrap items-center gap-1 mt-2">
+                                        <Button
+                                            size="sm"
+                                            variant={filters.coins.length === 0 ? 'secondary' : 'ghost'}
+                                            onClick={() => handleFilterChange('coins', [])}
+                                            className="rounded-full h-8 px-3 text-xs"
+                                        >
+                                            All
+                                        </Button>
+                                        {popularCoins.map(coin => (
+                                            <Button
+                                                key={coin}
+                                                size="sm"
+                                                variant={filters.coins.includes(coin) ? 'secondary' : 'ghost'}
+                                                onClick={() => handleCoinToggle(coin)}
+                                                className="rounded-full h-8 px-3 text-xs"
+                                            >
+                                                {coin}
+                                            </Button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <Separator />
+
+                            <div className="flex items-center gap-2">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="outline" size="sm" className="w-40 justify-between">
+                                            <span>{activePresetId ? filterPresets.find(p => p.id === activePresetId)?.name : 'Presets'}</span>
+                                            <MoreHorizontal className="h-4 w-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-56">
+                                        <DropdownMenuSeparator />
+                                        {filterPresets.map(preset => (
+                                            <DropdownMenuItem key={preset.id} onSelect={() => handleLoadPreset(preset)}>
+                                                <span className="flex-1">{preset.name}</span>
+                                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); handleDeletePreset(preset.id); }}>
+                                                    <X className="h-3 w-3" />
+                                                </Button>
+                                            </DropdownMenuItem>
+                                        ))}
+                                        {filterPresets.length === 0 && <DropdownMenuItem disabled>No presets saved</DropdownMenuItem>}
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem onSelect={clearFilters}>
+                                            Clear Active Preset
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                                    <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                        if (activePresetId) {
+                                            const preset = filterPresets.find(p => p.id === activePresetId);
+                                            setNewPresetName(preset?.name || "");
+                                            setShowSavePresetDialog(true);
+                                        } else {
+                                            setNewPresetName("");
+                                            setShowSavePresetDialog(true);
+                                        }
+                                    }}
+                                >
+                                    <Save className="mr-2 h-4 w-4" /> {activePresetId ? 'Update' : 'Save'}
+                                </Button>
                             </div>
                         </CardContent>
                     </Card>
@@ -2540,3 +2563,6 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
 
 
 
+
+
+  
