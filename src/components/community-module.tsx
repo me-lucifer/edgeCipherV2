@@ -167,8 +167,8 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
     return (
         <div className="space-y-8">
             <div>
-                <h1 className="text-2xl font-bold tracking-tight text-foreground">Community Hub</h1>
-                <p className="text-muted-foreground">Learn from others on the same journey.</p>
+                <h1 className="text-2xl font-bold tracking-tight text-foreground">Community — Discipline & Learning</h1>
+                <p className="text-muted-foreground">High-signal reflections, charts, and insights. No signals. No hype.</p>
             </div>
             
             <div className="grid lg:grid-cols-3 gap-8 items-start">
