@@ -26,6 +26,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
 import { NewsTour } from "./news-tour";
+import { useEventLog } from "@/context/event-log-provider";
 
 
 interface NewsModuleProps {
@@ -1263,6 +1264,13 @@ function CoinDetailDrawer({ coin, newsItems, followedCoins, onOpenChange, onSetM
     );
 }
 
+const getPersonaInsight = (newsItem: NewsItem, persona: PersonaType | null): { meaning: string; action: string } => {
+    const defaultPersona: PersonaType = 'Beginner';
+    const p = persona || defaultPersona;
+    const zone = getVixZone(newsItem.volatilityRiskScore);
+    return postureSuggestions[zone]?.[p] || postureSuggestions.Normal[defaultPersona];
+};
+
 export function NewsModule({ onSetModule }: NewsModuleProps) {
     const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -1285,6 +1293,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
     const [persona, setPersona] = useState<PersonaType | null>(null);
     const [isWarningActive, setIsWarningActive] = useState(false);
     const { toast } = useToast();
+    const { addLog } = useEventLog();
     const [filterPresets, setFilterPresets] = useState<NewsFilterPreset[]>([]);
     const [activePresetId, setActivePresetId] = useState<string | null>(null);
     const [showSavePresetDialog, setShowSavePresetDialog] = useState(false);
@@ -1296,17 +1305,6 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
     const [isExchangeMode, setIsExchangeMode] = useState(false);
     const [selectedCoinForDrawer, setSelectedCoinForDrawer] = useState<string | null>(null);
     const [isTourOpen, setIsTourOpen] = useState(false);
-
-    const getPersonaInsight = useCallback((newsItem: NewsItem, persona: PersonaType | null): { meaning: string; action: string } => {
-        const defaultPersona: PersonaType = 'Beginner';
-        const p = persona || defaultPersona;
-        const zone = getVixZone(newsItem.volatilityRiskScore);
-
-        return postureSuggestions[zone]?.[p] || postureSuggestions.Normal[defaultPersona];
-    }, []);
-
-    const allCategories = useMemo(() => ['All', ...[...new Set(mockNewsSource.map(item => item.category))]], []);
-    const popularCoins = ["BTC", "ETH", "SOL", "BNB", "XRP"];
 
     const loadNews = useCallback((forceRefresh = false) => {
         setIsLoading(true);
@@ -1369,7 +1367,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
             setNewsItems([]);
             setIsLoading(false);
         }
-    }, [toast, persona, getPersonaInsight]);
+    }, [toast, persona]);
     
     const handleSimulateShock = () => {
         try {
@@ -1451,6 +1449,53 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
             toast({ title: "Simulation failed", variant: "destructive" });
         }
     };
+
+    const handleRunDemo = () => {
+        localStorage.setItem('ec_news_demo_flow', 'start');
+    
+        // 1. Filter for high impact
+        setFilters(prev => ({ ...prev, highImpactOnly: true, search: '' }));
+    
+        // 2. Find and open the first high-impact cluster or item
+        // Use a timeout to allow the filter to apply and re-render
+        setTimeout(() => {
+            const firstHighImpact = newsItems.find(
+                item => item.volatilityImpact === 'High' && item.eventType === 'Breaking'
+            );
+            if (firstHighImpact) {
+                handleNewsSelect(firstHighImpact);
+            }
+        }, 100);
+    };
+
+    useEffect(() => {
+        const demoFlow = localStorage.getItem('ec_news_demo_flow');
+        if (demoFlow === 'start' && selectedNews?.volatilityImpact === 'High') {
+          // 3. Set active risk window
+          const newsRiskContext = {
+            active: true,
+            headline: selectedNews.headline,
+            volatilityImpact: selectedNews.volatilityImpact,
+            riskWindowMins: selectedNews.riskWindowMins,
+            expiresAt: Date.now() + selectedNews.riskWindowMins * 60 * 1000,
+            impactedCoins: selectedNews.impactedCoins,
+            sentiment: selectedNews.sentiment,
+          };
+          localStorage.setItem(NEWS_RISK_CONTEXT_KEY, JSON.stringify(newsRiskContext));
+          addLog('Demo: Active risk window set.');
+    
+          // 4. Navigate to Trade Planning
+          localStorage.setItem('ec_news_demo_flow', 'go_to_planning');
+          toast({
+            title: 'Demo Step 1/4: Risk Window Activated',
+            description: 'Navigating to Trade Planning to see the warning.',
+          });
+          setTimeout(() => {
+            setSelectedNews(null); // Close drawer before navigating
+            onSetModule('tradePlanning');
+          }, 1500);
+        }
+      }, [selectedNews, onSetModule, addLog, toast]);
 
     useEffect(() => {
         loadNews();
@@ -1910,6 +1955,9 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                         <p className="text-muted-foreground">AI-curated crypto futures news with sentiment + volatility impact—so you don’t trade blind.</p>
                     </div>
                     <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" onClick={() => handleRunDemo()}>
+                           <Zap className="mr-2 h-4 w-4" /> Run News Story Demo
+                        </Button>
                         <Button variant="outline" size="sm" onClick={() => setIsTourOpen(true)}>
                             <HelpCircle className="mr-2 h-4 w-4" />
                             Demo Tour

@@ -117,7 +117,7 @@ const postureSuggestions: Record<VixZone, Record<PersonaType, VixAdvice>> = {
         "Impulsive Sprinter": { interpretation: "Catastrophic risk is present. Your account is in extreme danger if you trade. Close your platform and walk away. The only winning move is not to play. This is non-negotiable for your persona. Any attempt to trade now is a direct path to significant financial and psychological damage.", rule: "DO NOT TRADE. The only trade that matters is protecting your account.", actions: [{label: "Seriously, close your trading platform"}, {label: "Go for a walk. Do not look at the charts."}, {label: "Protecting your capital is the only goal."}] },
         "Fearful Analyst": { interpretation: "The market is completely irrational. Your analysis does not apply. Do not attempt to find a bottom or top. Confirm all positions are closed or protected and wait for sanity to return. Your fear is justified today; it is a rational response to an irrational market. Trust it and stay flat.", rule: "Stay flat. This is a spectator sport right now.", actions: [{label: "Confirm all open positions are closed or protected"}, {label: "Read a book on trading psychology"}, {label: "Wait for volatility to return to normal levels"}] },
         "Disciplined Scalper": { interpretation: "There is no edge here. The market is in a state of cascading liquidations. Any position taken is a gamble, not a trade. Your discipline requires you to stay flat and protect your capital. This is not the environment for your strategy. Acknowledging that and stepping aside is the highest form of discipline.", rule: "Stay flat. There is no trading edge in a liquidation cascade.", actions: [{label: "Stay flat and protect your capital"}, {label: "Wait for volatility to return to normal levels"}, {label: "This is a day for risk managers, not traders"}] },
-        "Beginner": { interpretation: "DO NOT TRADE. DANGER. This is where new traders lose their accounts. Watch from a distance to learn that sometimes the best action is no action. The goal is to survive to trade another day.", actions: [{label: "Watch from a distance to learn"}, {label: "Understand that this is not a trading environment"}, {label: "The goal is to survive to trade another day"}] },
+        "Beginner": { interpretation: "DO NOT TRADE. DANGER. This is where new traders lose accounts. Watch from a distance to learn that sometimes the best action is no action. The goal is to survive to trade another day.", actions: [{label: "Watch from a distance to learn"}, {label: "Understand that this is not a trading environment"}, {label: "The goal is to survive to trade another day"}] },
     }
 };
 
@@ -762,6 +762,7 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
     const [persona, setPersona] = useState<PersonaType | null>(null);
     const [sensitivity, setSensitivity] = useState<'conservative' | 'balanced' | 'aggressive'>('balanced');
     const [showVideoModal, setShowVideoModal] = useState(false);
+    const { toast } = useToast();
 
 
     useEffect(() => {
@@ -782,8 +783,17 @@ export function CryptoVixModule({ onSetModule }: CryptoVixModuleProps) {
             if (storedSensitivity) {
                 setSensitivity(storedSensitivity as any);
             }
+
+            const demoFlow = localStorage.getItem('ec_news_demo_flow');
+            if (demoFlow === 'go_to_vix') {
+                toast({
+                    title: "Demo Step 4/4: VIX Module Updated",
+                    description: "Note how the 'News Sentiment' driver is now bearish, impacting the overall VIX score. This concludes the demo.",
+                });
+                localStorage.removeItem('ec_news_demo_flow');
+            }
         }
-    }, []);
+    }, [toast]);
 
     const handlePersonaChange = (newPersona: PersonaType) => {
         setPersona(newPersona);

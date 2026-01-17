@@ -930,6 +930,20 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
     });
 
     useEffect(() => {
+        const demoFlow = localStorage.getItem('ec_news_demo_flow');
+        if (demoFlow === 'go_to_planning') {
+            toast({
+                title: "Demo Step 2/4: Trade Plan Blocked",
+                description: "The active risk window is blocking new plans. Navigating to Dashboard.",
+            });
+            localStorage.setItem('ec_news_demo_flow', 'go_to_dashboard');
+            setTimeout(() => {
+                onSetModule('dashboard');
+            }, 2500);
+        }
+    }, [onSetModule, toast]);
+
+    useEffect(() => {
         if(typeof window !== "undefined") {
             const storedStrategies = localStorage.getItem("ec_strategies");
             if(storedStrategies) {

@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useAuth } from "@/context/auth-provider";
@@ -23,6 +22,7 @@ import { useVixState } from "@/hooks/use-vix-state";
 import { VixBadge } from "./ui/vix-badge";
 import type { NewsItem } from './news-module';
 import { formatDistanceToNow } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
 
 interface Persona {
     primaryPersonaName?: string;
@@ -681,6 +681,7 @@ interface DashboardModuleProps {
 
 export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps) {
     const { addLog } = useEventLog();
+    const { toast } = useToast();
     const [scenario, setScenario] = useState<DemoScenario>('normal');
     const [isWhyModalOpen, setWhyModalOpen] = useState(false);
     const [animateKey, setAnimateKey] = useState(0);
@@ -720,6 +721,20 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
             return () => window.removeEventListener('storage', handleStorageChange);
         }
     }, [addLog]);
+
+    useEffect(() => {
+        const demoFlow = localStorage.getItem('ec_news_demo_flow');
+        if (demoFlow === 'go_to_dashboard') {
+            toast({
+                title: "Demo Step 3/4: Dashboard Updated",
+                description: "The 'Top Risks' card reflects the breaking news. Navigating to VIX module.",
+            });
+            localStorage.setItem('ec_news_demo_flow', 'go_to_vix');
+            setTimeout(() => {
+                onSetModule('cryptoVix');
+            }, 2500);
+        }
+    }, [onSetModule, toast]);
 
     const handleEnableRecoveryMode = () => {
         if (typeof window !== "undefined") {
