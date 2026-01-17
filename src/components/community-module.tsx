@@ -6,7 +6,7 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import Image from "next/image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ThumbsUp, MessageSquare, Bookmark, Crown, BookOpen, Video, AlertTriangle, Zap, BrainCircuit, Sparkles, Bot, User, ImageUp } from "lucide-react";
@@ -89,12 +89,6 @@ const mockPosts: Post[] = [
         likes: 28,
         comments: [{ author: "Alex R.", text: "Great insight. Process over outcome." }],
     },
-];
-
-const leaders = [
-    { name: "Jane D.", knownFor: "Risk Discipline", avatar: "/avatars/04.png" },
-    { name: "Sam K.", knownFor: "Journaling Consistency", avatar: "/avatars/05.png" },
-    { name: "Eva L.", knownFor: "Psychology Tips", avatar: "/avatars/01.png" },
 ];
 
 function PostCard({ post, onLike, onDiscuss }: { post: Post, onLike: (id: string) => void, onDiscuss: (post: Post) => void }) {
@@ -557,30 +551,64 @@ function LearnTab({ highlightedVideoId, onClearHighlight }: { highlightedVideoId
 }
 
 function LeadersTab() {
+    const leaders = [
+        { name: "Jane D.", avatar: "/avatars/04.png", score: 480, tags: ["Risk Discipline", "Journaling"] },
+        { name: "Sam K.", avatar: "/avatars/05.png", score: 450, tags: ["Psychology", "Discipline"] },
+        { name: "Eva L.", avatar: "/avatars/01.png", score: 420, tags: ["Planning", "Psychology"] },
+        { name: "Chen W.", avatar: "/avatars/03.png", score: 390, tags: ["Discipline", "Breakouts"] },
+    ];
     return (
-        <div className="max-w-3xl mx-auto">
-             <Card className="bg-muted/30 border-border/50">
+        <div className="max-w-4xl mx-auto space-y-8">
+            <Card className="bg-muted/30 border-primary/20">
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Crown className="h-5 w-5 text-primary" /> Community Leaders</CardTitle>
-                    <CardDescription>Recognized members known for their helpful insights and discipline.</CardDescription>
+                    <CardTitle className="flex items-center gap-2"><Crown className="h-5 w-5 text-primary" /> How to Become a Leader</CardTitle>
+                    <CardDescription>
+                        Leaders are promoted automatically based on consistent, high-signal contributions to the community—not P&L.
+                    </CardDescription>
                 </CardHeader>
-                <CardContent className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {leaders.map(leader => (
-                        <Card key={leader.name} className="bg-muted/50">
-                             <CardContent className="p-4 flex items-center gap-4">
-                                <Avatar>
-                                    <AvatarImage src={leader.avatar} alt={leader.name} />
-                                    <AvatarFallback>{leader.name.charAt(0)}</AvatarFallback>
-                                </Avatar>
-                                <div>
-                                    <p className="font-semibold text-foreground">{leader.name}</p>
-                                    <p className="text-xs text-muted-foreground">Known for: {leader.knownFor}</p>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    ))}
+                <CardContent>
+                    <p className="text-sm text-muted-foreground">
+                        The Leader badge is earned by consistently providing helpful posts, receiving positive engagement (likes, saves), and contributing to a disciplined trading culture.
+                    </p>
                 </CardContent>
             </Card>
+
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {leaders.map(leader => (
+                    <Card key={leader.name} className="bg-muted/30">
+                        <CardHeader className="flex flex-row items-center gap-4">
+                            <Avatar>
+                                <AvatarImage src={leader.avatar} alt={leader.name} />
+                                <AvatarFallback>{leader.name.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            <div>
+                                <p className="font-semibold text-foreground">{leader.name}</p>
+                                <Badge variant="secondary" className="bg-primary/10 text-primary">Leader</Badge>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                             <div>
+                                <p className="text-xs text-muted-foreground font-semibold">Focus Areas</p>
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                    {leader.tags.map(tag => <Badge key={tag} variant="outline" className="text-xs">{tag}</Badge>)}
+                                </div>
+                            </div>
+                            <div>
+                                <p className="text-xs text-muted-foreground font-semibold">Helpful Score</p>
+                                <p className="text-lg font-bold font-mono text-foreground">{leader.score}</p>
+                            </div>
+                        </CardContent>
+                        <CardFooter className="flex flex-col gap-2">
+                            <Button variant="outline" className="w-full">
+                                <User className="mr-2 h-4 w-4" /> Follow
+                            </Button>
+                            <Button variant="ghost" className="w-full text-muted-foreground">
+                                View Posts
+                            </Button>
+                        </CardFooter>
+                    </Card>
+                ))}
+            </div>
         </div>
     );
 }
