@@ -1,18 +1,20 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { ThumbsUp, MessageSquare, Bookmark, Crown, BookOpen, Video, AlertTriangle, Zap } from "lucide-react";
+import { ThumbsUp, MessageSquare, Bookmark, Crown, BookOpen, Video, AlertTriangle, Zap, BrainCircuit } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 
 
 interface CommunityModuleProps {
@@ -70,13 +72,6 @@ const leaders = [
     { name: "Sam K.", knownFor: "Journaling Consistency", avatar: "/avatars/05.png" },
     { name: "Eva L.", knownFor: "Psychology Tips", avatar: "/avatars/01.png" },
 ];
-
-const learningResources = [
-    { title: "The Art of the Stop Loss", type: "Article", icon: BookOpen },
-    { title: "Trading Psychology: Handling Drawdowns", type: "Video", icon: Video },
-    { title: "A Guide to Effective Journaling", type: "Article", icon: BookOpen },
-    { title: "Understanding Market Volatility (VIX)", type: "Video", icon: Video },
-]
 
 function PostCard({ post, onLike }: { post: Post, onLike: (id: string) => void }) {
     return (
@@ -234,8 +229,19 @@ function FeedTab() {
     );
 }
 
-function LearnTab() {
+function LearnTab({ highlightedVideoId, onClearHighlight }: { highlightedVideoId: string | null; onClearHighlight: () => void; }) {
     const videoThumbnail = PlaceHolderImages.find(p => p.id === 'video-thumbnail');
+    const videoRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+    useEffect(() => {
+        if (highlightedVideoId) {
+            const videoElement = videoRefs.current[highlightedVideoId];
+            if (videoElement) {
+                videoElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+    }, [highlightedVideoId]);
+
     const featuredVideo = {
         title: "The Core Loop: How to Use EdgeCipher for Disciplined Trading",
         description: "A 5-minute walkthrough of the Plan -> Execute -> Journal -> Analyze workflow that builds consistency."
@@ -245,25 +251,41 @@ function LearnTab() {
             title: "Mastering Trading Psychology",
             description: "Learn to handle drawdowns, FOMO, and revenge trading.",
             videos: [
-                { title: "Handling Drawdowns Like a Pro", duration: "12:30" },
-                { title: "The Science of FOMO (and How to Beat It)", duration: "08:45" },
-                { title: "Building Elite Discipline", duration: "15:10" },
-                { title: "Journaling for Psychological Insight", duration: "11:05" },
+                { id: "handling-drawdowns", title: "Handling Drawdowns Like a Pro", duration: "12:30" },
+                { id: "fomo-science", title: "The Science of FOMO (and How to Beat It)", duration: "08:45" },
+                { id: "discipline_holding", title: "Discipline: Holding Winners to Target", duration: "10:00" },
+                { id: "elite-discipline", title: "Building Elite Discipline", duration: "15:10" },
+                { id: "journaling-insight", title: "Journaling for Psychological Insight", duration: "11:05" },
             ]
         },
         {
             title: "Advanced Risk Management",
             description: "Techniques to protect your capital and manage your exposure.",
             videos: [
-                { title: "Position Sizing for Crypto Futures", duration: "14:55" },
-                { title: "Using the VIX to Adapt Your Risk", duration: "09:20" },
-                { title: "Setting Stop Losses That Don't Get Hunted", duration: "18:00" },
+                { id: "position-sizing", title: "Position Sizing for Crypto Futures", duration: "14:55" },
+                { id: "vix-risk", title: "Using the VIX to Adapt Your Risk", duration: "09:20" },
+                { id: "stop-loss-strategy", title: "Setting Stop Losses That Don't Get Hunted", duration: "18:00" },
             ]
         }
     ];
 
     return (
         <div className="max-w-5xl mx-auto space-y-12">
+            {highlightedVideoId && (
+                <Alert className="bg-primary/10 border-primary/20 text-foreground">
+                    <BrainCircuit className="h-4 w-4 text-primary" />
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <AlertTitle className="text-primary">Arjun Recommended This Lesson</AlertTitle>
+                            <AlertDescription>
+                                This video may help with patterns Arjun has noticed in your recent trading.
+                            </AlertDescription>
+                        </div>
+                        <Button variant="ghost" size="sm" onClick={onClearHighlight}>Clear</Button>
+                    </div>
+                </Alert>
+            )}
+
             <Card className="bg-muted/30 border-border/50">
                 <CardHeader>
                     <CardTitle>{featuredVideo.title}</CardTitle>
@@ -295,7 +317,14 @@ function LearnTab() {
                         <CardContent>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {playlist.videos.map(video => (
-                                    <div key={video.title} className="group cursor-pointer">
+                                    <div
+                                        key={video.id}
+                                        ref={el => videoRefs.current[video.id] = el}
+                                        className={cn(
+                                            "group cursor-pointer p-1",
+                                            highlightedVideoId === video.id && "ring-2 ring-primary ring-offset-2 ring-offset-background rounded-lg"
+                                        )}
+                                    >
                                         <div className="aspect-video bg-muted rounded-md relative overflow-hidden">
                                             {videoThumbnail && <Image src={videoThumbnail.imageUrl} alt={video.title} fill style={{ objectFit: 'cover' }} data-ai-hint={videoThumbnail.imageHint} />}
                                             <Badge className="absolute bottom-2 right-2 bg-black/50 text-white">{video.duration}</Badge>
@@ -342,6 +371,28 @@ function LeadersTab() {
 }
 
 export function CommunityModule({ onSetModule }: CommunityModuleProps) {
+    const searchParams = useSearchParams();
+    const router = useRouter();
+    const pathname = usePathname();
+    const recommendedVideoId = searchParams.get('video');
+
+    const [activeTab, setActiveTab] = useState(recommendedVideoId ? 'learn' : 'feed');
+    const [highlightedVideo, setHighlightedVideo] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (recommendedVideoId) {
+            setActiveTab('learn');
+            setHighlightedVideo(recommendedVideoId);
+        }
+    }, [recommendedVideoId]);
+
+    const clearRecommendation = () => {
+        setHighlightedVideo(null);
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete('video');
+        router.replace(`${pathname}?${params.toString()}`);
+    };
+
     return (
         <div className="space-y-8">
             <div>
@@ -349,7 +400,12 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
                 <p className="text-muted-foreground">High-signal reflections, charts, and insights. No signals. No hype.</p>
             </div>
             
-            <Tabs defaultValue="feed" className="w-full">
+            <Tabs value={activeTab} onValueChange={(value) => {
+                setActiveTab(value);
+                if(value !== 'learn') {
+                    clearRecommendation();
+                }
+            }} className="w-full">
                 <TabsList className="grid w-full grid-cols-3 max-w-lg mx-auto">
                     <TabsTrigger value="feed">Feed</TabsTrigger>
                     <TabsTrigger value="learn">Learn</TabsTrigger>
@@ -359,7 +415,7 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
                     <FeedTab />
                 </TabsContent>
                 <TabsContent value="learn" className="mt-8">
-                    <LearnTab />
+                    <LearnTab highlightedVideoId={highlightedVideo} onClearHighlight={clearRecommendation} />
                 </TabsContent>
                 <TabsContent value="leaders" className="mt-8">
                     <LeadersTab />
