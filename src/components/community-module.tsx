@@ -177,6 +177,33 @@ function FeedTab({ onSetModule }: { onSetModule: (module: any, context?: any) =>
     const [highSignalOnly, setHighSignalOnly] = useState(false);
     const [arjunRecommended, setArjunRecommended] = useState(false);
 
+    const [nudge, setNudge] = useState("");
+
+    const coachingNudges = useMemo(() => [
+        "Write what you felt during the trade.",
+        "Name one rule you followed (or broke).",
+        "What will you do differently next time?",
+        "What was the market telling you at the time?",
+        "Did this trade align with your core strategy?"
+    ], []);
+
+    useEffect(() => {
+        // Set initial nudge
+        setNudge(coachingNudges[Math.floor(Math.random() * coachingNudges.length)]);
+
+        const interval = setInterval(() => {
+            setNudge(prevNudge => {
+                let newNudge = prevNudge;
+                while (newNudge === prevNudge) {
+                    newNudge = coachingNudges[Math.floor(Math.random() * coachingNudges.length)];
+                }
+                return newNudge;
+            });
+        }, 7000); // Change every 7 seconds
+
+        return () => clearInterval(interval);
+    }, [coachingNudges]);
+
     const filteredPosts = useMemo(() => {
         return posts.filter(post => {
             if (categoryFilter !== 'All' && post.type !== categoryFilter) return false;
@@ -341,6 +368,10 @@ function FeedTab({ onSetModule }: { onSetModule: (module: any, context?: any) =>
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-4">
+                            <div className="p-3 bg-primary/10 border border-primary/20 rounded-lg text-sm text-primary/90 flex items-center gap-3">
+                                <Sparkles className="h-4 w-4 flex-shrink-0" />
+                                <p className="italic">{nudge}</p>
+                            </div>
                             <Select value={newPostCategory} onValueChange={(v) => {
                                 setNewPostCategory(v as any);
                                 if (v !== 'Chart') {
