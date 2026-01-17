@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { ThumbsUp, MessageSquare, Bookmark, Crown, BookOpen, Video, AlertTriangle, Zap, BrainCircuit, Sparkles, Bot } from "lucide-react";
+import { ThumbsUp, MessageSquare, Bookmark, Crown, BookOpen, Video, AlertTriangle, Zap, BrainCircuit, Sparkles, Bot, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
@@ -30,7 +30,7 @@ type Post = {
     author: {
         name: string;
         avatar: string;
-        persona: string;
+        role: 'Leader' | 'Member';
     };
     timestamp: string;
     type: 'Chart' | 'Reflection' | 'Insight';
@@ -52,7 +52,7 @@ const chartPlaceholder = PlaceHolderImages.find(p => p.id === 'video-thumbnail')
 const mockPosts: Post[] = [
     {
         id: '1',
-        author: { name: "Alex R.", avatar: "/avatars/01.png", persona: "Disciplined Scalper" },
+        author: { name: "Alex R.", avatar: "/avatars/01.png", role: "Member" },
         timestamp: "2 hours ago",
         type: 'Reflection',
         isHighSignal: true,
@@ -64,7 +64,7 @@ const mockPosts: Post[] = [
     },
     {
         id: '2',
-        author: { name: "Maria S.", avatar: "/avatars/02.png", persona: "Patient Swing Trader" },
+        author: { name: "Maria S.", avatar: "/avatars/02.png", role: "Leader" },
         timestamp: "8 hours ago",
         type: 'Chart',
         isHighSignal: true,
@@ -78,7 +78,7 @@ const mockPosts: Post[] = [
     },
     {
         id: '3',
-        author: { name: "Chen W.", avatar: "/avatars/03.png", persona: "Data-Driven Analyst" },
+        author: { name: "Chen W.", avatar: "/avatars/03.png", role: "Member" },
         timestamp: "1 day ago",
         type: 'Insight',
         isHighSignal: false,
@@ -95,7 +95,7 @@ const leaders = [
     { name: "Eva L.", knownFor: "Psychology Tips", avatar: "/avatars/01.png" },
 ];
 
-function PostCard({ post, onLike }: { post: Post, onLike: (id: string) => void }) {
+function PostCard({ post, onLike, onDiscuss }: { post: Post, onLike: (id: string) => void, onDiscuss: (post: Post) => void }) {
     return (
         <Card className="bg-muted/30 border-border/50">
             <CardHeader className="pb-4">
@@ -107,7 +107,16 @@ function PostCard({ post, onLike }: { post: Post, onLike: (id: string) => void }
                         </Avatar>
                         <div>
                             <p className="font-semibold text-foreground">{post.author.name}</p>
-                            <p className="text-xs text-muted-foreground">{post.author.persona} &bull; {post.timestamp}</p>
+                            <p className="text-xs text-muted-foreground flex items-center gap-2">
+                                <Badge variant={post.author.role === 'Leader' ? 'default' : 'secondary'} className={cn(
+                                    "px-1.5 py-0 text-[10px]",
+                                    post.author.role === 'Leader' ? "bg-primary/80" : "bg-muted-foreground/20"
+                                )}>
+                                    {post.author.role}
+                                </Badge>
+                                <span>&bull;</span>
+                                <span>{post.timestamp}</span>
+                            </p>
                         </div>
                     </div>
                      <div className="flex items-center gap-2 flex-shrink-0">
@@ -118,7 +127,7 @@ function PostCard({ post, onLike }: { post: Post, onLike: (id: string) => void }
                 </div>
             </CardHeader>
             <CardContent>
-                <p className="text-muted-foreground mb-4 whitespace-pre-wrap">{post.content}</p>
+                <p className="text-muted-foreground mb-4 whitespace-pre-wrap line-clamp-6">{post.content}</p>
                 
                 {post.type === 'Chart' && post.image && (
                     <div className="relative aspect-video rounded-md overflow-hidden border border-border/50 mb-4">
@@ -134,14 +143,18 @@ function PostCard({ post, onLike }: { post: Post, onLike: (id: string) => void }
                         </span>
                     </div>
                 )}
-                <div className="flex items-center gap-4 mt-4 pt-4 border-t border-border/50 text-muted-foreground">
-                    <Button variant="ghost" size="sm" className="flex items-center gap-2" onClick={() => onLike(post.id)}>
+                <div className="flex items-center gap-2 mt-4 pt-4 border-t border-border/50 text-muted-foreground">
+                    <Button variant="ghost" size="sm" className="flex items-center gap-2 text-xs" onClick={() => onLike(post.id)}>
                         <ThumbsUp className="h-4 w-4" /> {post.likes}
                     </Button>
-                    <Button variant="ghost" size="sm" className="flex items-center gap-2" disabled>
+                    <Button variant="ghost" size="sm" className="flex items-center gap-2 text-xs" disabled>
                         <MessageSquare className="h-4 w-4" /> {post.comments.length}
                     </Button>
-                    <Button variant="ghost" size="sm" className="flex items-center gap-2 ml-auto">
+                    <div className="flex-grow" />
+                    <Button variant="ghost" size="sm" className="flex items-center gap-2 text-xs" onClick={() => onDiscuss(post)}>
+                        <Bot className="h-4 w-4" /> Discuss
+                    </Button>
+                    <Button variant="ghost" size="sm" className="flex items-center gap-2 text-xs">
                         <Bookmark className="h-4 w-4" /> Save
                     </Button>
                 </div>
@@ -203,7 +216,7 @@ function FeedTab() {
         if (!newPostContent.trim()) return;
         const newPost: Post = {
             id: String(Date.now()),
-            author: { name: "You", avatar: "/avatars/user.png", persona: "The Determined Trader" },
+            author: { name: "You", avatar: "/avatars/user.png", role: "Member" },
             timestamp: "Just now",
             type: 'Reflection',
             isHighSignal: false,
@@ -214,6 +227,11 @@ function FeedTab() {
         };
         setPosts([newPost, ...posts]);
         setNewPostContent("");
+    };
+
+    const handleDiscuss = (post: Post) => {
+        const prompt = `Arjun, I'm looking at this community post titled "${post.type}" by ${post.author.name}: "${post.content.substring(0, 150)}...". What's your professional take on this? Can you give me some feedback or ask a clarifying question?`;
+        onSetModule('aiCoaching', { initialMessage: prompt });
     };
 
     return (
@@ -305,7 +323,7 @@ function FeedTab() {
                     </CardContent>
                 </Card>
                 {filteredPosts.map(post => (
-                    <PostCard key={post.id} post={post} onLike={handleLike} />
+                    <PostCard key={post.id} post={post} onLike={handleLike} onDiscuss={handleDiscuss} />
                 ))}
             </div>
         </div>
