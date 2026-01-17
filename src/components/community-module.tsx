@@ -1,20 +1,24 @@
 
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import Image from "next/image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { ThumbsUp, MessageSquare, Bookmark, Crown, BookOpen, Video, AlertTriangle, Zap, BrainCircuit } from "lucide-react";
+import { ThumbsUp, MessageSquare, Bookmark, Crown, BookOpen, Video, AlertTriangle, Zap, BrainCircuit, Sparkles, Bot } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
+import { Label } from "./ui/label";
+import { Switch } from "./ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Separator } from "./ui/separator";
 
 
 interface CommunityModuleProps {
@@ -29,7 +33,12 @@ type Post = {
         persona: string;
     };
     timestamp: string;
+    type: 'Chart' | 'Reflection' | 'Insight';
+    isHighSignal: boolean;
+    isArjunRecommended: boolean;
     content: string;
+    image?: string;
+    imageHint?: string;
     trade?: {
         instrument: string;
         result: number;
@@ -38,11 +47,16 @@ type Post = {
     comments: { author: string; text: string }[];
 };
 
+const chartPlaceholder = PlaceHolderImages.find(p => p.id === 'video-thumbnail');
+
 const mockPosts: Post[] = [
     {
         id: '1',
         author: { name: "Alex R.", avatar: "/avatars/01.png", persona: "Disciplined Scalper" },
         timestamp: "2 hours ago",
+        type: 'Reflection',
+        isHighSignal: true,
+        isArjunRecommended: false,
         content: "What I saw: My ETH short setup was showing signs of invalidation in a choppy market.\nWhat I did: Instead of hoping, I followed my rules and cut the trade for a small loss.\nWhat I learned: A controlled loss is a win for discipline. The old me would have held and lost more.",
         trade: { instrument: "ETH-PERP", result: -1.0 },
         likes: 15,
@@ -52,7 +66,12 @@ const mockPosts: Post[] = [
         id: '2',
         author: { name: "Maria S.", avatar: "/avatars/02.png", persona: "Patient Swing Trader" },
         timestamp: "8 hours ago",
-        content: "What I saw: My A+ setup on BTC printed after two days of patient waiting.\nWhat I did: I executed the plan, set my SL and TP, and let the trade run without interference.\nWhat I learned: Trusting my analysis prevents me from second-guessing good trades. Journaling builds that trust.",
+        type: 'Chart',
+        isHighSignal: true,
+        isArjunRecommended: true,
+        content: "Here's the 4H BTC chart I was watching. The key was waiting for a clean break and retest of the $68k level (blue line) before entering. Patience paid off.",
+        image: chartPlaceholder?.imageUrl,
+        imageHint: chartPlaceholder?.imageHint,
         trade: { instrument: "BTC-PERP", result: 3.2 },
         likes: 42,
         comments: [],
@@ -61,9 +80,12 @@ const mockPosts: Post[] = [
         id: '3',
         author: { name: "Chen W.", avatar: "/avatars/03.png", persona: "Data-Driven Analyst" },
         timestamp: "1 day ago",
-        content: "Insight from my journal review: my win rate is 15% higher during the NY session. I'm going to stop trading the London session entirely for two weeks and see how it impacts my P&L.",
+        type: 'Insight',
+        isHighSignal: false,
+        isArjunRecommended: false,
+        content: "Mental Model: Instead of 'win rate', I'm now tracking my 'rule adherence rate'. My P&L has improved since I started focusing on executing my plan perfectly, regardless of the outcome of a single trade.",
         likes: 28,
-        comments: [{ author: "Alex R.", text: "Great insight. Session-based performance is so underrated." }],
+        comments: [{ author: "Alex R.", text: "Great insight. Process over outcome." }],
     },
 ];
 
@@ -77,19 +99,33 @@ function PostCard({ post, onLike }: { post: Post, onLike: (id: string) => void }
     return (
         <Card className="bg-muted/30 border-border/50">
             <CardHeader className="pb-4">
-                <div className="flex items-center gap-3">
-                    <Avatar>
-                        <AvatarImage src={post.author.avatar} alt={post.author.name} />
-                        <AvatarFallback>{post.author.name.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                        <p className="font-semibold text-foreground">{post.author.name}</p>
-                        <p className="text-xs text-muted-foreground">{post.author.persona} &bull; {post.timestamp}</p>
+                <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-3">
+                        <Avatar>
+                            <AvatarImage src={post.author.avatar} alt={post.author.name} />
+                            <AvatarFallback>{post.author.name.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                            <p className="font-semibold text-foreground">{post.author.name}</p>
+                            <p className="text-xs text-muted-foreground">{post.author.persona} &bull; {post.timestamp}</p>
+                        </div>
+                    </div>
+                     <div className="flex items-center gap-2 flex-shrink-0">
+                        {post.isHighSignal && <Badge variant="outline" className="border-amber-500/30 text-amber-300"><Sparkles className="mr-1 h-3 w-3" /> High-signal</Badge>}
+                        {post.isArjunRecommended && <Badge variant="secondary" className="bg-primary/10 text-primary"><Bot className="mr-1 h-3 w-3" /> Recommended</Badge>}
+                        <Badge variant="outline">{post.type}</Badge>
                     </div>
                 </div>
             </CardHeader>
             <CardContent>
                 <p className="text-muted-foreground mb-4 whitespace-pre-wrap">{post.content}</p>
+                
+                {post.type === 'Chart' && post.image && (
+                    <div className="relative aspect-video rounded-md overflow-hidden border border-border/50 mb-4">
+                         <Image src={post.image} alt="Chart analysis" layout="fill" objectFit="cover" data-ai-hint={post.imageHint || 'chart analysis'} />
+                    </div>
+                )}
+
                 {post.trade && (
                     <div className="p-3 rounded-md bg-muted/50 border border-border/50 flex items-center justify-between text-sm">
                         <span className="font-mono text-foreground">{post.trade.instrument}</span>
@@ -117,6 +153,20 @@ function PostCard({ post, onLike }: { post: Post, onLike: (id: string) => void }
 function FeedTab() {
     const [posts, setPosts] = useState<Post[]>(mockPosts);
     const [newPostContent, setNewPostContent] = useState("");
+    
+    // Filter states
+    const [categoryFilter, setCategoryFilter] = useState<'All' | 'Chart' | 'Reflection' | 'Insight'>('All');
+    const [highSignalOnly, setHighSignalOnly] = useState(false);
+    const [arjunRecommended, setArjunRecommended] = useState(false);
+
+    const filteredPosts = useMemo(() => {
+        return posts.filter(post => {
+            if (categoryFilter !== 'All' && post.type !== categoryFilter) return false;
+            if (highSignalOnly && !post.isHighSignal) return false;
+            if (arjunRecommended && !post.isArjunRecommended) return false;
+            return true;
+        });
+    }, [posts, categoryFilter, highSignalOnly, arjunRecommended]);
 
     const officialPosts = [
         {
@@ -155,6 +205,9 @@ function FeedTab() {
             id: String(Date.now()),
             author: { name: "You", avatar: "/avatars/user.png", persona: "The Determined Trader" },
             timestamp: "Just now",
+            type: 'Reflection',
+            isHighSignal: false,
+            isArjunRecommended: false,
             content: newPostContent,
             likes: 0,
             comments: [],
@@ -203,6 +256,36 @@ function FeedTab() {
               </CardContent>
             </Card>
 
+            <Card className="bg-muted/30 border-border/50">
+                <CardContent className="p-4 flex flex-col sm:flex-row flex-wrap items-center gap-4">
+                    <div className="flex items-center gap-2">
+                        <Label htmlFor="category-filter" className="text-sm">Category</Label>
+                        <Select value={categoryFilter} onValueChange={(v) => setCategoryFilter(v as any)}>
+                            <SelectTrigger id="category-filter" className="w-[150px]">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="All">All</SelectItem>
+                                <SelectItem value="Chart">Charts</SelectItem>
+                                <SelectItem value="Reflection">Reflections</SelectItem>
+                                <SelectItem value="Insight">Insights</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <Separator orientation="vertical" className="h-6 hidden sm:block" />
+                    <div className="flex items-center gap-4">
+                        <div className="flex items-center space-x-2">
+                            <Switch id="high-signal" checked={highSignalOnly} onCheckedChange={setHighSignalOnly} />
+                            <Label htmlFor="high-signal" className="text-sm">High-signal only</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <Switch id="arjun-recommended" checked={arjunRecommended} onCheckedChange={setArjunRecommended} />
+                            <Label htmlFor="arjun-recommended" className="text-sm">Arjun Recommended</Label>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
             <div className="space-y-6">
                 <Card className="bg-muted/30 border-border/50">
                     <CardHeader>
@@ -221,7 +304,7 @@ function FeedTab() {
                         </div>
                     </CardContent>
                 </Card>
-                {posts.map(post => (
+                {filteredPosts.map(post => (
                     <PostCard key={post.id} post={post} onLike={handleLike} />
                 ))}
             </div>
