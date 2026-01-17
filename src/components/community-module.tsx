@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -8,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { ThumbsUp, MessageSquare, Bookmark, Crown, BookOpen, Video, AlertTriangle, Zap, BrainCircuit, Sparkles, Bot, User } from "lucide-react";
+import { ThumbsUp, MessageSquare, Bookmark, Crown, BookOpen, Video, AlertTriangle, Zap, BrainCircuit, Sparkles, Bot, User, ImageUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
@@ -163,9 +164,10 @@ function PostCard({ post, onLike, onDiscuss }: { post: Post, onLike: (id: string
     );
 }
 
-function FeedTab() {
+function FeedTab({ onSetModule }: { onSetModule: (module: any, context?: any) => void; }) {
     const [posts, setPosts] = useState<Post[]>(mockPosts);
     const [newPostContent, setNewPostContent] = useState("");
+    const [newPostCategory, setNewPostCategory] = useState<'Chart' | 'Reflection' | 'Insight'>('Reflection');
     
     // Filter states
     const [categoryFilter, setCategoryFilter] = useState<'All' | 'Chart' | 'Reflection' | 'Insight'>('All');
@@ -218,7 +220,7 @@ function FeedTab() {
             id: String(Date.now()),
             author: { name: "You", avatar: "/avatars/user.png", role: "Member" },
             timestamp: "Just now",
-            type: 'Reflection',
+            type: newPostCategory,
             isHighSignal: false,
             isArjunRecommended: false,
             content: newPostContent,
@@ -308,20 +310,44 @@ function FeedTab() {
                 <Card className="bg-muted/30 border-border/50">
                     <CardHeader>
                         <CardTitle>Share an insight</CardTitle>
+                        <CardDescription>Share a trade breakdown, a psychological insight, or a question for the community.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-4">
+                            <Select value={newPostCategory} onValueChange={(v) => setNewPostCategory(v as any)}>
+                                <SelectTrigger className="w-full sm:w-[220px]">
+                                    <SelectValue placeholder="Select post category..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Reflection">Reflection (what I did & learned)</SelectItem>
+                                    <SelectItem value="Chart">Chart Analysis (no signals)</SelectItem>
+                                    <SelectItem value="Insight">Insight / Mental Model</SelectItem>
+                                </SelectContent>
+                            </Select>
+
                             <Textarea 
-                                placeholder="What did you learn today? Share a trade breakdown, a psychological insight, or a question for the community."
+                                placeholder="What did you learn today?"
                                 value={newPostContent}
                                 onChange={(e) => setNewPostContent(e.target.value)}
                             />
-                            <div className="flex justify-end">
-                                <Button onClick={handleCreatePost} disabled>Post (Prototype)</Button>
+                            
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                                <div className="flex items-center gap-2">
+                                     <Button variant="outline" size="sm" disabled={newPostCategory !== 'Chart'}>
+                                        <ImageUp className="mr-2 h-4 w-4" />
+                                        Upload Image
+                                    </Button>
+                                    <p className="text-xs text-muted-foreground">Chart uploads only. No links. No buy/sell calls.</p>
+                                </div>
+                                <div className="flex gap-2 self-end sm:self-center">
+                                    <Button variant="ghost" disabled>Save draft</Button>
+                                    <Button onClick={handleCreatePost} disabled>Post (Prototype)</Button>
+                                </div>
                             </div>
                         </div>
                     </CardContent>
                 </Card>
+
                 {filteredPosts.map(post => (
                     <PostCard key={post.id} post={post} onLike={handleLike} onDiscuss={handleDiscuss} />
                 ))}
@@ -513,7 +539,7 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
                     <TabsTrigger value="leaders">Leaders</TabsTrigger>
                 </TabsList>
                 <TabsContent value="feed" className="mt-8">
-                    <FeedTab />
+                    <FeedTab onSetModule={onSetModule} />
                 </TabsContent>
                 <TabsContent value="learn" className="mt-8">
                     <LearnTab highlightedVideoId={highlightedVideo} onClearHighlight={clearRecommendation} />
