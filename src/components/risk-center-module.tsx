@@ -1,5 +1,4 @@
 
-
       "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
@@ -7,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Pencil, ShieldAlert, BarChart as BarChartIcon, Info, CheckCircle, XCircle, AlertTriangle, Gauge, Calendar, Zap, Sun, Moon, Waves, User, ArrowRight, RefreshCw, SlidersHorizontal, TrendingUp, Sparkles, Droplets, TrendingDown, BookOpen, Layers, Settings, ShieldCheck, MoreHorizontal, Copy, Edit, Archive, Trash2, Scale, HeartPulse, HardHat, Globe, FileText, Clipboard, Flag, Flame, NotebookPen, BrainCircuit, ChevronDown } from "lucide-react";
+import { Bot, Pencil, ShieldAlert, BarChart as BarChartIcon, Info, CheckCircle, XCircle, AlertTriangle, Gauge, Calendar, Zap, Sun, Moon, Waves, User, ArrowRight, RefreshCw, SlidersHorizontal, TrendingUp, Sparkles, Droplets, TrendingDown, BookOpen, Layers, Settings, ShieldCheck, MoreHorizontal, Copy, Edit, Archive, Trash2, Scale, HeartPulse, HardHat, Globe, FileText, Clipboard, Flag, Flame, NotebookPen, BrainCircuit, ChevronDown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
 import { Input } from "./ui/input";
@@ -23,7 +22,7 @@ import {
 } from "@/components/ui/tooltip"
 import { useRiskState, type RiskState, type VixZone, type RiskDecision, type ActiveNudge, type SLDisciplineData, type LeverageDistributionData, type DisciplineLeaksData, type RiskHeatmapData, type TopRiskDriver } from "@/hooks/use-risk-state";
 import { Skeleton } from "./ui/skeleton";
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "./ui/drawer";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerClose } from "./ui/drawer";
 import { Slider } from "./ui/slider";
 import { Separator } from "./ui/separator";
 import { Switch } from "./ui/switch";
@@ -89,9 +88,19 @@ function TradeDecisionBar({ decision }: { decision: RiskState['decision'] | null
         <>
             <Drawer open={isWhyOpen} onOpenChange={setIsWhyOpen}>
                 <DrawerContent>
-                    <DrawerHeader>
-                        <DrawerTitle className="flex items-center gap-2"><HardHat /> Firewall Status</DrawerTitle>
-                        <DrawerDescription>These are the currently active rules affecting your trading decision.</DrawerDescription>
+                    <DrawerHeader className="text-left">
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <DrawerTitle className="flex items-center gap-2"><HardHat /> Firewall Status</DrawerTitle>
+                                <DrawerDescription>These are the currently active rules affecting your trading decision.</DrawerDescription>
+                            </div>
+                            <DrawerClose asChild>
+                                <Button variant="ghost" size="icon" className="-mt-2 -mr-2">
+                                    <X className="h-4 w-4" />
+                                    <span className="sr-only">Close</span>
+                                </Button>
+                            </DrawerClose>
+                        </div>
                     </DrawerHeader>
                     <div className="px-4 pb-4 grid md:grid-cols-2 gap-6">
                         <div className="space-y-3">
@@ -1841,3 +1850,4 @@ const DeltaIndicator = ({ delta, unit = "" }: { delta: number; unit?: string }) 
         </span>
     );
 };
+

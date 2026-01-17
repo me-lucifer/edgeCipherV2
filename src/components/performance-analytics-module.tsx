@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart, Brain, BrainCircuit, Calendar, Filter, AlertCircle, Info, TrendingUp, TrendingDown, Users, DollarSign, Target, Gauge, Zap, Award, ArrowRight, XCircle, CheckCircle, Circle, Bot, AlertTriangle, Clipboard, Star, Activity, BookOpen, BarChartHorizontal, Database, View, Flag, Presentation, ChevronsUpDown, Copy, MoreHorizontal, ShieldCheck, HelpCircle, ChevronUp } from "lucide-react";
+import { BarChart, Brain, BrainCircuit, Calendar, Filter, AlertCircle, Info, TrendingUp, TrendingDown, Users, DollarSign, Target, Gauge, Zap, Award, ArrowRight, XCircle, CheckCircle, Circle, Bot, AlertTriangle, Clipboard, Star, Activity, BookOpen, BarChartHorizontal, Database, View, Flag, Presentation, ChevronsUpDown, Copy, MoreHorizontal, ShieldCheck, HelpCircle, ChevronUp, X } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart as RechartsBarChart, CartesianGrid, XAxis, YAxis, Bar as RechartsBar, Line, LineChart, ResponsiveContainer, ReferenceDot, Dot } from "recharts";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -16,7 +16,7 @@ import { Label } from "./ui/label";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { Progress } from "./ui/progress";
 import { Alert, AlertTitle, AlertDescription } from "./ui/alert";
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "./ui/drawer";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerClose } from "./ui/drawer";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter, DialogClose } from "./ui/dialog";
 import { Separator } from "./ui/separator";
@@ -434,8 +434,8 @@ function ScoreGauge({ score, label, interpretation, delta }: { score: number; la
                 </div>
             </div>
              <p className="text-sm font-medium text-foreground -mt-4 h-10 flex items-center justify-center px-2">{label}</p>
-            <div className="flex items-baseline">
-                <p className={cn("text-sm font-semibold", interpretationColor)}>{interpretation}</p>
+            <div className="flex items-baseline h-4">
+                 <p className={cn("text-sm font-semibold", interpretationColor)}>{interpretation}</p>
                 {delta !== undefined && <DeltaIndicator delta={delta} />}
             </div>
         </div>
@@ -1318,9 +1318,19 @@ ${JSON.stringify(data, null, 2)}
 
             <Drawer open={isDataSourcesOpen} onOpenChange={setIsDataSourcesOpen}>
                 <DrawerContent>
-                    <DrawerHeader>
-                        <DrawerTitle>About Your Analytics Data</DrawerTitle>
-                        <DrawerDescription>This prototype uses a mix of real and simulated data.</DrawerDescription>
+                    <DrawerHeader className="text-left">
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <DrawerTitle>About Your Analytics Data</DrawerTitle>
+                                <DrawerDescription>This prototype uses a mix of real and simulated data.</DrawerDescription>
+                            </div>
+                            <DrawerClose asChild>
+                                <Button variant="ghost" size="icon" className="-mt-2 -mr-2">
+                                    <X className="h-4 w-4" />
+                                    <span className="sr-only">Close</span>
+                                </Button>
+                            </DrawerClose>
+                        </div>
                     </DrawerHeader>
                     <div className="p-4 space-y-4">
                         <DataStatusRow 
@@ -1748,11 +1758,21 @@ ${JSON.stringify(data, null, 2)}
                 <DrawerContent>
                     {selectedEvent && (
                         <div className="mx-auto w-full max-w-lg p-4">
-                             <DrawerHeader>
-                                <DrawerTitle>Trade Details</DrawerTitle>
-                                <DrawerDescription>
-                                    A snapshot of the trade associated with this event.
-                                </DrawerDescription>
+                            <DrawerHeader className="text-left">
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                        <DrawerTitle>Trade Details</DrawerTitle>
+                                        <DrawerDescription>
+                                            A snapshot of the trade associated with this event.
+                                        </DrawerDescription>
+                                    </div>
+                                    <DrawerClose asChild>
+                                        <Button variant="ghost" size="icon" className="-mt-2 -mr-2">
+                                            <X className="h-4 w-4" />
+                                            <span className="sr-only">Close</span>
+                                        </Button>
+                                    </DrawerClose>
+                                </div>
                             </DrawerHeader>
                             <div className="p-4">
                                 {/* Simplified view for the drawer */}

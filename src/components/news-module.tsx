@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark, Timer, Gauge, Star, Calendar, Copy, Clipboard, ThumbsUp, ThumbsDown, Meh, PlusCircle, MoreHorizontal, Save, Grid, Eye, Radio, RefreshCw, Layers, BarChart, FileText, ShieldAlert, Info, HelpCircle } from "lucide-react";
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "./ui/drawer";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerClose } from "./ui/drawer";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "./ui/skeleton";
 import { Separator } from "./ui/separator";
@@ -20,7 +20,8 @@ import { Progress } from "./ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "./ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "./ui/dialog";
+import { DialogClose } from "@radix-ui/react-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "./ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "./ui/tooltip";
@@ -110,16 +111,12 @@ const getRiskWindow = (category: NewsCategory, impact: VolatilityImpact): { risk
 };
 
 const summaryBulletPool = [
-    "The analysis emphasizes risk management and following a trading plan, not speculation.",
+    "The analysis emphasizes risk management, not speculation.",
     "This could influence transaction fees but is not a direct trading signal.",
     "Event is correlated with a short-term volatility increase; review risk parameters.",
     "A new date for an upcoming protocol upgrade has been confirmed by the core development team.",
     "The announcement sparked debate on the future of DeFi regulation among policymakers.",
     "On-chain data shows a shift in capital flows. This is an observation, not a signal.",
-    "The incident raises network security concerns. Review your own security practices.",
-    "The report outlines a multi-year roadmap for protocol and ecosystem growth.",
-    "This change is projected to affect staking rewards for token holders next epoch.",
-    "A new governance proposal is up for community vote; the outcome is uncertain."
 ];
 
 
@@ -186,7 +183,7 @@ const mockNewsSource: Omit<NewsItem, 'riskWindowMins' | 'eventType' | 'volatilit
 
     return {
         id: `${Date.now()}-${i}`,
-        headline: headline,
+        headline: headline.slice(0, 90),
         sourceName: sourceName,
         sourceTier: sourceTiers[sourceName],
         publishedAt: new Date(Date.now() - Math.random() * 1000 * 60 * 60 * 24 * 3).toISOString(),
@@ -203,34 +200,34 @@ type VixZone = "Extremely Calm" | "Normal" | "Volatile" | "High Volatility" | "E
 
 const postureSuggestions: Record<VixZone, Record<PersonaType, { meaning: string; action: string }>> = {
     "Extremely Calm": {
-        "Impulsive Sprinter": { meaning: "Low volatility can lead to impatience and forced trades. Adherence to your plan is key.", action: "Do not invent setups; wait for the market to present a clear opportunity." },
-        "Fearful Analyst": { meaning: "Ideal conditions to build confidence without market noise. Focus on analysis.", action: "Focus on planning and analysis, not forced execution." },
+        "Impulsive Sprinter": { meaning: "Low volatility can lead to impatience. Adherence to your plan is key.", action: "Do not invent setups; wait for a clear opportunity." },
+        "Fearful Analyst": { meaning: "Ideal conditions to build confidence. Focus on analysis.", action: "Focus on planning, not forced execution." },
         "Disciplined Scalper": { meaning: "Range strategies can work well, but be wary of chop eroding small gains.", action: "Execute your plan, but protect your capital from chop." },
-        "Beginner": { meaning: "Ideal environment to study market structure without high risk. Observe and learn; avoid aggressive trading.", action: "Today is for learning and observation, not for aggressive trading." },
+        "Beginner": { meaning: "Ideal environment to study market structure. Observe and learn; avoid aggressive trading.", action: "Today is for learning, not aggressive trading." },
     },
     "Normal": {
-        "Impulsive Sprinter": { meaning: "Impatience can lead to rule-breaking even in normal conditions. Aim for consistency.", action: "Follow your plan; no adding to losers or revenge trading." },
-        "Fearful Analyst": { meaning: "The market is providing favorable conditions for well-planned trades. Trust your analysis.", action: "Trust your analysis and execute your A+ setups with confidence." },
-        "Disciplined Scalper": { meaning: "Prime conditions. The market has direction but isn't chaotic. Your edge is sharpest now.", action: "Execute A+ setups cleanly and adhere to your rules." },
-        "Beginner": { meaning: "Good environment to practice. Focus on one or two simple setups with very small size.", action: "Practice disciplined execution with a minimal position size." },
+        "Impulsive Sprinter": { meaning: "Impatience can lead to rule-breaking. Aim for consistency.", action: "Follow your plan; no adding to losers." },
+        "Fearful Analyst": { meaning: "The market is providing favorable conditions. Trust your analysis.", action: "Trust your analysis and execute your A+ setups." },
+        "Disciplined Scalper": { meaning: "Prime conditions. Your edge is sharpest now.", action: "Execute A+ setups cleanly and adhere to your rules." },
+        "Beginner": { meaning: "Good environment to practice. Focus on one or two simple setups with small size.", action: "Practice disciplined execution with a minimal position size." },
     },
     "Volatile": {
         "Impulsive Sprinter": { meaning: "Danger zone. Volatility feels like opportunity, but it's where impulse errors are most costly.", action: "Cut position size by 50%. Wait for crystal-clear A+ setups." },
-        "Fearful Analyst": { meaning: "Analysis is difficult in choppy markets. It is acceptable to sit out. A flat day is a winning day.", action: "If not 100% confident in a setup, stay flat." },
-        "Disciplined Scalper": { meaning: "Your strategy is at high risk. Wider wicks can invalidate setups. Adapt or wait.", action: "Adapt your parameters for volatility or wait for calmer conditions." },
-        "Beginner": { meaning: "This is a 'sit on your hands' day. Watching the chaos from the sidelines is a valuable lesson.", action: "Observe the market; do not participate. Preserve your capital." },
+        "Fearful Analyst": { meaning: "Analysis is difficult. It is acceptable to sit out. A flat day is a winning day.", action: "If not 100% confident, stay flat." },
+        "Disciplined Scalper": { meaning: "Your strategy is at high risk. Wider wicks can invalidate setups. Adapt or wait.", action: "Adapt your parameters or wait for calmer conditions." },
+        "Beginner": { meaning: "This is a 'sit on your hands' day. Watching the chaos is a valuable lesson.", action: "Observe the market; do not participate." },
     },
     "High Volatility": {
-        "Impulsive Sprinter": { meaning: "This is a red alert. The market is erratic. Trading now is gambling, not executing an edge.", action: "Your only job today is to protect your capital by not trading." },
+        "Impulsive Sprinter": { meaning: "This is a red alert. The market is erratic. Trading now is gambling.", action: "Your only job is to protect your capital by not trading." },
         "Fearful Analyst": { meaning: "Your analysis is unreliable now. Pros are waiting, and so should you.", action: "Stay flat. Pros are waiting, and so should you." },
-        "Disciplined Scalper": { meaning: "Your edge does not exist here. Noise is too high. Stepping aside is the highest form of discipline.", action: "Cash is the strongest position right now. Preserve your capital." },
+        "Disciplined Scalper": { meaning: "Your edge does not exist here. Stepping aside is the highest form of discipline.", action: "Cash is the strongest position right now." },
         "Beginner": { meaning: "This is where new traders lose accounts. Do not trade. Your only job is to watch and learn.", action: "Do not trade. Your goal is to survive to trade another day." },
     },
     "Extreme": {
-        "Impulsive Sprinter": { meaning: "Catastrophic risk is present. Close your platform and walk away.", action: "DO NOT TRADE. The only trade that matters is protecting your account." },
+        "Impulsive Sprinter": { meaning: "Catastrophic risk is present. Close your platform and walk away.", action: "DO NOT TRADE. The only trade is protecting your account." },
         "Fearful Analyst": { meaning: "The market is irrational. Your analysis does not apply. Trust your fear and stay flat.", action: "Stay flat. This is a spectator sport right now." },
-        "Disciplined Scalper": { meaning: "No edge here. The market is in a liquidation cascade. Any position is a gamble.", action: "Stay flat. There is no trading edge in a liquidation cascade." },
-        "Beginner": { meaning: "DO NOT TRADE. DANGER. This is where new traders lose accounts.", action: "Observe the chaos from the sidelines. Survive to trade another day." },
+        "Disciplined Scalper": { meaning: "No edge here. The market is in a liquidation cascade. Any position is a gamble.", action: "Stay flat. There is no trading edge here." },
+        "Beginner": { meaning: "DO NOT TRADE. DANGER. Watch from a distance.", action: "Observe the chaos. Survive to trade another day." },
     }
 };
 
@@ -1380,7 +1377,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                     sourceName: "Blocksource",
                     sourceTier: 'A',
                     publishedAt: new Date().toISOString(),
-                    summaryBullets: ["Treasury statement hints at potential for new, stricter KYC/AML regulations for decentralized protocols.", "Market reacts with immediate sell-off across major assets."],
+                    summaryBullets: ["Treasury statement hints at potential for new, stricter KYC/AML regulations.", "Market reacts with immediate sell-off across major assets."],
                     sentiment: "Negative",
                     volatilityImpact: "High",
                     impactedCoins: ["BTC", "ETH", "USDC"],
@@ -1388,7 +1385,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                     eventType: "Breaking",
                     riskWindowMins: 240,
                     volatilityRiskScore: 95,
-                    arjunMeaning: "This is a significant market-moving event. The risk of unpredictable, cascading price action is extremely high.",
+                    arjunMeaning: "This is a significant market-moving event. The risk of unpredictable action is high.",
                     recommendedAction: "Cease all new trade planning. Protect capital. Wait for clarity.",
                 },
                 {
@@ -1397,7 +1394,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                     sourceName: "CryptoWire",
                     sourceTier: 'A',
                     publishedAt: new Date().toISOString(),
-                    summaryBullets: ["The exchange has confirmed they are investigating 'system irregularities' but has not given an ETA for a fix.", "This event adds to market uncertainty and may cause contagion fear."],
+                    summaryBullets: ["The exchange is investigating 'system irregularities' but has not given an ETA for a fix.", "This event adds to market uncertainty and may cause contagion fear."],
                     sentiment: "Negative",
                     volatilityImpact: "High",
                     impactedCoins: ["BTC", "ETH"],
@@ -1405,7 +1402,7 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                     eventType: "Breaking",
                     riskWindowMins: 120,
                     volatilityRiskScore: 90,
-                    arjunMeaning: "An exchange outage during a volatile period introduces execution risk and can exacerbate price swings.",
+                    arjunMeaning: "An exchange outage during a volatile period introduces execution risk.",
                     recommendedAction: "Avoid trading on affected exchanges. Be aware of potential for wider market impact."
                 }
             ];
@@ -2336,27 +2333,37 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
                 <DrawerContent>
                     {selectedNews && (
                         <div className="mx-auto w-full max-w-4xl p-4 md:p-6">
-                            <DrawerHeader>
-                                <DrawerTitle className="text-2xl">{selectedNews.headline}</DrawerTitle>
-                                <DrawerDescription className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-2">
-                                     <Badge variant="outline" className={cn(
-                                        'text-xs whitespace-nowrap',
-                                        selectedNews.sentiment === 'Positive' && 'bg-green-500/20 text-green-300 border-green-500/30',
-                                        selectedNews.sentiment === 'Negative' && 'bg-red-500/20 text-red-300 border-red-500/30',
-                                        selectedNews.sentiment === 'Neutral' && 'bg-secondary text-secondary-foreground border-border'
-                                    )}>{selectedNews.sentiment}</Badge>
-                                    <Badge variant="outline" className={cn(
-                                        "text-xs",
-                                        selectedNews.volatilityImpact === 'High' && 'border-red-500/50 text-red-400',
-                                        selectedNews.volatilityImpact === 'Medium' && 'border-amber-500/50 text-amber-400',
-                                        selectedNews.volatilityImpact === 'Low' && 'border-green-500/50 text-green-400',
-                                    )}>
-                                        <TrendingUp className="mr-1 h-3 w-3"/>
-                                        {selectedNews.volatilityImpact} Impact
-                                    </Badge>
-                                     <Badge variant="secondary" className="text-xs">{selectedNews.category}</Badge>
-                                    <span className="flex items-center gap-2 text-muted-foreground text-sm"><Clock className="h-4 w-4" />{formatDistanceToNow(new Date(selectedNews.publishedAt), { addSuffix: true })} via {selectedNews.sourceName} (Tier {selectedNews.sourceTier})</span>
-                                </DrawerDescription>
+                            <DrawerHeader className="text-left">
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                        <DrawerTitle className="text-2xl">{selectedNews.headline}</DrawerTitle>
+                                        <DrawerDescription className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-2">
+                                            <Badge variant="outline" className={cn(
+                                                'text-xs whitespace-nowrap',
+                                                selectedNews.sentiment === 'Positive' && 'bg-green-500/20 text-green-300 border-green-500/30',
+                                                selectedNews.sentiment === 'Negative' && 'bg-red-500/20 text-red-300 border-red-500/30',
+                                                selectedNews.sentiment === 'Neutral' && 'bg-secondary text-secondary-foreground border-border'
+                                            )}>{selectedNews.sentiment}</Badge>
+                                            <Badge variant="outline" className={cn(
+                                                "text-xs",
+                                                selectedNews.volatilityImpact === 'High' && 'border-red-500/50 text-red-400',
+                                                selectedNews.volatilityImpact === 'Medium' && 'border-amber-500/50 text-amber-400',
+                                                selectedNews.volatilityImpact === 'Low' && 'border-green-500/50 text-green-400',
+                                            )}>
+                                                <TrendingUp className="mr-1 h-3 w-3"/>
+                                                {selectedNews.volatilityImpact} Impact
+                                            </Badge>
+                                            <Badge variant="secondary" className="text-xs">{selectedNews.category}</Badge>
+                                            <span className="flex items-center gap-2 text-muted-foreground text-sm"><Clock className="h-4 w-4" />{formatDistanceToNow(new Date(selectedNews.publishedAt), { addSuffix: true })} via {selectedNews.sourceName} (Tier {selectedNews.sourceTier})</span>
+                                        </DrawerDescription>
+                                    </div>
+                                    <DrawerClose asChild>
+                                        <Button variant="ghost" size="icon" className="-mt-2 -mr-2">
+                                            <X className="h-4 w-4" />
+                                            <span className="sr-only">Close</span>
+                                        </Button>
+                                    </DrawerClose>
+                                </div>
                             </DrawerHeader>
                              
                             {(selectedNews.volatilityImpact === 'High' || selectedNews.volatilityRiskScore > 70) && (
@@ -2514,4 +2521,5 @@ export function NewsModule({ onSetModule }: NewsModuleProps) {
         </div>
     );
 }
+
 
