@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { ThumbsUp, MessageSquare, Bookmark, Crown, BookOpen, Video, ArrowRight, AlertTriangle, Zap, BrainCircuit, Sparkles, Bot, User, ImageUp } from "lucide-react";
+import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark, Timer, Gauge, Star, Calendar, Copy, Clipboard, ThumbsUp, ThumbsDown, Meh, PlusCircle, MoreHorizontal, Save, Grid, Eye, Radio, RefreshCw, Layers, BarChart, FileText, ShieldAlert, Info, HelpCircle, ChevronsUpDown } from "lucide-react";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerClose } from "./ui/drawer";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
@@ -21,6 +22,7 @@ import { Switch } from "./ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "./ui/separator";
 import { Checkbox } from "./ui/checkbox";
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
 
 interface CommunityModuleProps {
@@ -192,7 +194,7 @@ const initialArjunRecos: ArjunRecommendations = {
 // UI COMPONENTS
 // =================================================================
 
-function PostCard({ post, likes, commentsCount, isArjunRecommended, onLike, onDiscuss }: { post: Post, likes: number, commentsCount: number, isArjunRecommended: boolean, onLike: (id: string) => void, onDiscuss: (post: Post) => void }) {
+function PostCard({ post, likes, commentsCount, isArjunRecommended, recommendationReason, onLike, onDiscuss }: { post: Post, likes: number, commentsCount: number, isArjunRecommended: boolean, recommendationReason?: string, onLike: (id: string) => void, onDiscuss: (post: Post) => void }) {
     return (
         <Card id={`post-${post.id}`} className="bg-muted/30 border-border/50">
             <CardHeader className="pb-4">
@@ -218,7 +220,20 @@ function PostCard({ post, likes, commentsCount, isArjunRecommended, onLike, onDi
                     </div>
                      <div className="flex items-center gap-2 flex-shrink-0">
                         {post.isHighSignal && <Badge variant="outline" className="border-amber-500/30 text-amber-300"><Sparkles className="mr-1 h-3 w-3" /> High-signal</Badge>}
-                        {isArjunRecommended && <Badge variant="secondary" className="bg-primary/10 text-primary"><Bot className="mr-1 h-3 w-3" /> Recommended</Badge>}
+                        {isArjunRecommended && (
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Badge variant="secondary" className="bg-primary/10 text-primary cursor-help"><Bot className="mr-1 h-3 w-3" /> Recommended</Badge>
+                                    </TooltipTrigger>
+                                    {recommendationReason && (
+                                        <TooltipContent>
+                                            <p>{recommendationReason}</p>
+                                        </TooltipContent>
+                                    )}
+                                </Tooltip>
+                            </TooltipProvider>
+                        )}
                         <Badge variant="outline">{post.type}</Badge>
                     </div>
                 </div>
@@ -312,11 +327,21 @@ function ArjunRecommendationBanner({
   return (
     <Card className="bg-muted/30 border-primary/20">
       <CardHeader>
-        <CardTitle className="text-base flex items-center gap-2 text-primary">
-          <Sparkles className="h-4 w-4" />
-          Arjun recommended for you today
-        </CardTitle>
-        <CardDescription className="text-xs">{arjunRecos.reason}</CardDescription>
+        <TooltipProvider>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <CardTitle className="text-base flex items-center gap-2 text-primary cursor-help">
+                        <Sparkles className="h-4 w-4" />
+                        Arjun recommended for you today
+                        <Info className="h-3 w-3 text-primary/80" />
+                    </CardTitle>
+                </TooltipTrigger>
+                <TooltipContent>
+                    <p>{arjunRecos.reason}</p>
+                </TooltipContent>
+            </Tooltip>
+        </TooltipProvider>
+        <CardDescription className="text-xs">Based on your recent activity and persona.</CardDescription>
       </CardHeader>
       <CardContent className="grid md:grid-cols-2 gap-4">
         {recommendedPost && (
@@ -623,7 +648,14 @@ function FeedTab({
                         post={post} 
                         likes={likesMap[post.id] || 0}
                         commentsCount={commentsMap[post.id]?.length || 0}
-                        isArjunRecommended={arjunRecos.recommendedPostIds.includes(post.id) || (personaRecommendedPostIds || []).includes(post.id)}
+                        isArjunRecommended={(arjunRecos.recommendedPostIds.includes(post.id) || (personaRecommendedPostIds || []).includes(post.id))}
+                        recommendationReason={
+                            arjunRecos.recommendedPostIds.includes(post.id) 
+                            ? arjunRecos.reason 
+                            : (personaRecommendedPostIds || []).includes(post.id) 
+                            ? `Recommended based on your '${userProfile.persona}' persona.`
+                            : undefined
+                        }
                         onLike={onLike} 
                         onDiscuss={handleDiscuss} 
                     />
@@ -986,6 +1018,3 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
         </div>
     );
 }
-
-
-
