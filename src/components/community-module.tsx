@@ -82,6 +82,7 @@ type CommunityState = {
     likesMap: Record<string, number>;
     commentsMap: Record<string, { author: string; text: string }[]>;
     savedPostIds: string[];
+    personaRecommendedPostIds: string[];
 };
 
 type UserProfile = {
@@ -171,13 +172,14 @@ const initialCommunityState: CommunityState = {
                 ]
             }
         ]
-    }
+    },
+    personaRecommendedPostIds: [],
 };
 
 const initialUserProfile: UserProfile = {
     username: 'You',
     role: 'Member',
-    persona: 'The Determined Trader'
+    persona: 'Impulsive Sprinter'
 };
 
 const initialArjunRecos: ArjunRecommendations = {
@@ -375,6 +377,7 @@ function FeedTab({
     videosData,
     router,
     pathname,
+    personaRecommendedPostIds,
 }: {
     posts: Post[];
     officialPosts: Omit<OfficialPost, 'icon'>[];
@@ -388,6 +391,7 @@ function FeedTab({
     videosData: CommunityState['videos'];
     router: any;
     pathname: string;
+    personaRecommendedPostIds: string[];
 }) {
     const [newPostContent, setNewPostContent] = useState("");
     const [newPostCategory, setNewPostCategory] = useState<'Chart' | 'Reflection' | 'Insight'>('Reflection');
@@ -421,14 +425,28 @@ function FeedTab({
         return () => clearInterval(interval);
     }, [coachingNudges]);
 
-    const filteredPosts = useMemo(() => {
-        return posts.filter(post => {
-            if (categoryFilter !== 'All' && post.type !== categoryFilter) return false;
-            if (highSignalOnly && !post.isHighSignal) return false;
-            if (arjunRecommended && !arjunRecos.recommendedPostIds.includes(post.id)) return false;
-            return true;
-        });
-    }, [posts, categoryFilter, highSignalOnly, arjunRecommended, arjunRecos]);
+    const postsToRender = useMemo(() => {
+      let filtered = posts.filter(post => {
+          if (categoryFilter !== 'All' && post.type !== categoryFilter) return false;
+          if (highSignalOnly && !post.isHighSignal) return false;
+          if (arjunRecommended && !(arjunRecos.recommendedPostIds.includes(post.id) || (personaRecommendedPostIds || []).includes(post.id))) return false;
+          return true;
+      });
+
+      // New sorting logic
+      return [...filtered].sort((a, b) => {
+          const aIsRecommended = (personaRecommendedPostIds || []).includes(a.id);
+          const bIsRecommended = (personaRecommendedPostIds || []).includes(b.id);
+          
+          if (aIsRecommended && !bIsRecommended) return -1;
+          if (!aIsRecommended && bIsRecommended) return 1;
+          
+          // Fallback to original order (which is based on mock data's timestamp string)
+          return 0;
+      });
+
+    }, [posts, categoryFilter, highSignalOnly, arjunRecommended, arjunRecos, personaRecommendedPostIds]);
+
 
     const iconMap: Record<string, React.ElementType> = {
         "Education": BookOpen,
@@ -599,13 +617,13 @@ function FeedTab({
                     </CardContent>
                 </Card>
 
-                {filteredPosts.map(post => (
+                {postsToRender.map(post => (
                     <PostCard 
                         key={post.id} 
                         post={post} 
                         likes={likesMap[post.id] || 0}
                         commentsCount={commentsMap[post.id]?.length || 0}
-                        isArjunRecommended={arjunRecos.recommendedPostIds.includes(post.id)}
+                        isArjunRecommended={arjunRecos.recommendedPostIds.includes(post.id) || (personaRecommendedPostIds || []).includes(post.id)}
                         onLike={onLike} 
                         onDiscuss={handleDiscuss} 
                     />
@@ -759,6 +777,42 @@ function LeadersTab({ posts, likesMap }: { posts: Post[], likesMap: Record<strin
 // MAIN MODULE COMPONENT
 // =================================================================
 
+const getPersonaRecommendations = (posts: Post[], personaName: string): string[] => {
+    const personaKeywords: Record<string, string[]> = {
+        'Fearful Analyst': ['fear', 'hesitation', 'holding discipline', 'patience'],
+        'Impulsive Sprinter': ['max trades', 'cooldown', 'revenge trading', 'checklist', 'overtrading', 'impulse'],
+        'Overconfident': ['leverage', 'risk', 'humility', 'respect', 'stop loss', 'sl'],
+        'Beginner': ['basic structure', 'r:r', 'stop loss', 'sl placement', 'journaling'],
+        'Disciplined': ['strategy refinement', 'consistency', 'weekly review'],
+    };
+
+    const keywords = personaKeywords[personaName] || personaKeywords['Beginner'];
+    if (!keywords) return [];
+
+    const recommendedPosts: { id: string; score: number }[] = [];
+
+    posts.forEach(post => {
+        let score = 0;
+        const postText = (post.content || '').toLowerCase();
+        
+        keywords.forEach(keyword => {
+            if (postText.includes(keyword)) {
+                score++;
+            }
+        });
+
+        if (score > 0) {
+            recommendedPosts.push({ id: post.id, score });
+        }
+    });
+
+    // Sort by score and return top 3 post IDs
+    return recommendedPosts
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 3)
+        .map(p => p.id);
+};
+
 export function CommunityModule({ onSetModule }: CommunityModuleProps) {
     const searchParams = useSearchParams();
     const router = useRouter();
@@ -776,33 +830,49 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
     // Data loading and initialization
     useEffect(() => {
         try {
-            // Community State
             const communityStateRaw = localStorage.getItem(COMMUNITY_STATE_KEY);
-            if (communityStateRaw) {
-                setCommunityState(JSON.parse(communityStateRaw));
-            } else {
-                localStorage.setItem(COMMUNITY_STATE_KEY, JSON.stringify(initialCommunityState));
-                setCommunityState(initialCommunityState);
-            }
-            // User Profile
             const userProfileRaw = localStorage.getItem(USER_PROFILE_KEY);
-            if (userProfileRaw) {
-                setUserProfile(JSON.parse(userProfileRaw));
-            } else {
-                localStorage.setItem(USER_PROFILE_KEY, JSON.stringify(initialUserProfile));
-                setUserProfile(initialUserProfile);
-            }
-            // Arjun Recos
             const arjunRecosRaw = localStorage.getItem(ARJUN_RECO_KEY);
+
+            let finalCommunityState: CommunityState;
+            let finalUserProfile: UserProfile;
+            
+            if (communityStateRaw) {
+                finalCommunityState = JSON.parse(communityStateRaw);
+            } else {
+                finalCommunityState = initialCommunityState;
+            }
+
+            if (userProfileRaw) {
+                finalUserProfile = JSON.parse(userProfileRaw);
+            } else {
+                finalUserProfile = initialUserProfile;
+            }
+
+            const personaName = finalUserProfile.persona || 'Beginner';
+            const personaRecommendedIds = getPersonaRecommendations(finalCommunityState.posts, personaName);
+            finalCommunityState.personaRecommendedPostIds = personaRecommendedIds;
+            
+            setCommunityState(finalCommunityState);
+
             if (arjunRecosRaw) {
                 setArjunRecos(JSON.parse(arjunRecosRaw));
             } else {
                 localStorage.setItem(ARJUN_RECO_KEY, JSON.stringify(initialArjunRecos));
                 setArjunRecos(initialArjunRecos);
             }
+            
+            setUserProfile(finalUserProfile);
+
+            if (!communityStateRaw) {
+                localStorage.setItem(COMMUNITY_STATE_KEY, JSON.stringify(finalCommunityState));
+            }
+            if (!userProfileRaw) {
+                localStorage.setItem(USER_PROFILE_KEY, JSON.stringify(finalUserProfile));
+            }
+
         } catch (e) {
             console.error("Error loading community data from localStorage", e);
-            // Fallback to initial state in case of corrupted data
             setCommunityState(initialCommunityState);
             setUserProfile(initialUserProfile);
             setArjunRecos(initialArjunRecos);
@@ -810,6 +880,7 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
             setIsLoading(false);
         }
     }, []);
+
 
     // URL param handling
     useEffect(() => {
@@ -898,6 +969,7 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
                         videosData={communityState.videos}
                         router={router}
                         pathname={pathname}
+                        personaRecommendedPostIds={communityState.personaRecommendedPostIds || []}
                     />
                 </TabsContent>
                 <TabsContent value="learn" className="mt-8">
@@ -914,5 +986,6 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
         </div>
     );
 }
+
 
 
