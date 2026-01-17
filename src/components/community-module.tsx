@@ -37,7 +37,7 @@ const mockPosts: Post[] = [
         id: '1',
         author: { name: "Alex R.", avatar: "/avatars/01.png", persona: "Disciplined Scalper" },
         timestamp: "2 hours ago",
-        content: "Tough day. Followed my rules and cut a loser short on ETH. The old me would've held on hoping for a reversal. Small loss, but a big win for discipline.",
+        content: "What I saw: My ETH short setup was showing signs of invalidation in a choppy market.\nWhat I did: Instead of hoping, I followed my rules and cut the trade for a small loss.\nWhat I learned: A controlled loss is a win for discipline. The old me would have held and lost more.",
         trade: { instrument: "ETH-PERP", result: -1.0 },
         likes: 15,
         comments: [{ author: "Jane D.", text: "That's the way! A red day sticking to the plan is better than a green day breaking rules." }],
@@ -46,7 +46,7 @@ const mockPosts: Post[] = [
         id: '2',
         author: { name: "Maria S.", avatar: "/avatars/02.png", persona: "Patient Swing Trader" },
         timestamp: "8 hours ago",
-        content: "My A+ setup on BTC finally printed after two days of waiting. Let the trade play out to my target without interfering. Journaling helped me trust the plan.",
+        content: "What I saw: My A+ setup on BTC printed after two days of patient waiting.\nWhat I did: I executed the plan, set my SL and TP, and let the trade run without interference.\nWhat I learned: Trusting my analysis prevents me from second-guessing good trades. Journaling builds that trust.",
         trade: { instrument: "BTC-PERP", result: 3.2 },
         likes: 42,
         comments: [],
@@ -67,16 +67,8 @@ const leaders = [
     { name: "Eva L.", knownFor: "Psychology Tips", avatar: "/avatars/01.png" },
 ];
 
-function PostCard({ post, onLike, onAddComment }: { post: Post, onLike: (id: string) => void, onAddComment: (id: string, text: string) => void }) {
-    const [commentText, setCommentText] = useState("");
+function PostCard({ post, onLike }: { post: Post, onLike: (id: string) => void }) {
     const [showComments, setShowComments] = useState(false);
-
-    const handleCommentSubmit = () => {
-        if (commentText.trim()) {
-            onAddComment(post.id, commentText);
-            setCommentText("");
-        }
-    };
     
     return (
         <Card className="bg-muted/30 border-border/50">
@@ -93,7 +85,7 @@ function PostCard({ post, onLike, onAddComment }: { post: Post, onLike: (id: str
                 </div>
             </CardHeader>
             <CardContent>
-                <p className="text-muted-foreground mb-4">{post.content}</p>
+                <p className="text-muted-foreground mb-4 whitespace-pre-wrap">{post.content}</p>
                 {post.trade && (
                     <div className="p-3 rounded-md bg-muted/50 border border-border/50 flex items-center justify-between text-sm">
                         <span className="font-mono text-foreground">{post.trade.instrument}</span>
@@ -113,24 +105,13 @@ function PostCard({ post, onLike, onAddComment }: { post: Post, onLike: (id: str
                         <Bookmark className="h-4 w-4" /> Save
                     </Button>
                 </div>
-                {showComments && (
+                {showComments && post.comments.length > 0 && (
                     <div className="mt-4 space-y-4">
                         {post.comments.map((comment, i) => (
                             <div key={i} className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
                                 <span className="font-semibold text-foreground">{comment.author}: </span>{comment.text}
                             </div>
                         ))}
-                        <div className="relative">
-                            <Textarea 
-                                placeholder="Write a comment..." 
-                                className="pr-12"
-                                value={commentText}
-                                onChange={(e) => setCommentText(e.target.value)}
-                            />
-                            <Button size="icon" variant="ghost" className="absolute top-2 right-2 h-7 w-7" onClick={handleCommentSubmit}>
-                                <Send className="h-4 w-4" />
-                            </Button>
-                        </div>
                     </div>
                 )}
             </CardContent>
@@ -144,10 +125,6 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
 
     const handleLike = (id: string) => {
         setPosts(posts.map(p => p.id === id ? { ...p, likes: p.likes + 1 } : p));
-    };
-    
-    const handleAddComment = (id: string, text: string) => {
-        setPosts(posts.map(p => p.id === id ? { ...p, comments: [...p.comments, {author: "You", text}] } : p));
     };
 
     const handleCreatePost = () => {
@@ -192,7 +169,7 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
                         </CardContent>
                     </Card>
                     {posts.map(post => (
-                        <PostCard key={post.id} post={post} onLike={handleLike} onAddComment={handleAddComment} />
+                        <PostCard key={post.id} post={post} onLike={handleLike} />
                     ))}
                 </div>
 
