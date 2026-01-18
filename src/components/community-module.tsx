@@ -291,11 +291,16 @@ function PostCard({ post, likes, comments, isSaved, isArjunRecommended, recommen
     const isOwner = userProfile.username === post.author.name;
 
     const canEdit = useMemo(() => {
-        if (!isOwner) return false;
-        const postDate = new Date(post.timestamp);
-        const now = new Date();
-        const diffInMinutes = (now.getTime() - postDate.getTime()) / (1000 * 60);
-        return diffInMinutes < 10;
+        if (!isOwner || !post.timestamp) return false;
+        try {
+            const postDate = new Date(post.timestamp);
+            if (isNaN(postDate.getTime())) return false;
+            const now = new Date();
+            const diffInMinutes = (now.getTime() - postDate.getTime()) / (1000 * 60);
+            return diffInMinutes < 10;
+        } catch (e) {
+            return false;
+        }
     }, [post.timestamp, isOwner]);
 
     function onSubmit(values: z.infer<typeof commentSchema>) {
@@ -330,10 +335,10 @@ function PostCard({ post, likes, comments, isSaved, isArjunRecommended, recommen
                                 <TooltipProvider>
                                     <Tooltip>
                                         <TooltipTrigger>
-                                            <span>{formatDistanceToNow(new Date(post.timestamp), { addSuffix: true })}</span>
+                                            <span>{post.timestamp ? formatDistanceToNow(new Date(post.timestamp), { addSuffix: true }) : "some time ago"}</span>
                                         </TooltipTrigger>
                                         <TooltipContent>
-                                            <p>{new Date(post.timestamp).toLocaleString()}</p>
+                                            <p>{post.timestamp ? new Date(post.timestamp).toLocaleString() : "Date unavailable"}</p>
                                         </TooltipContent>
                                     </Tooltip>
                                 </TooltipProvider>
@@ -841,7 +846,7 @@ What is the lesson?
       
       switch (sortBy) {
           case 'newest':
-              // Default order is assumed to be newest first
+              items.sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
               break;
           case 'mostHelpful':
               items.sort((a, b) => {
@@ -2371,4 +2376,3 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
         </div>
     );
 }
-
