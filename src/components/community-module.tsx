@@ -661,8 +661,8 @@ What is the lesson?
               break;
           case 'mostHelpful':
               items.sort((a, b) => {
-                  const scoreA = (likesMap[a.id] || 0) + (savesMap[a.id] || 0);
-                  const scoreB = (likesMap[b.id] || 0) + (savesMap[b.id] || 0);
+                  const scoreA = (likesMap[a.id] || 0) * 1 + (savesMap[a.id] || 0) * 2 + (commentsMap[a.id]?.length || 0) * 1 + (a.isHighSignal ? 3 : 0);
+                  const scoreB = (likesMap[b.id] || 0) * 1 + (savesMap[b.id] || 0) * 2 + (commentsMap[b.id]?.length || 0) * 1 + (b.isHighSignal ? 3 : 0);
                   return scoreB - scoreA;
               });
               break;
@@ -678,7 +678,7 @@ What is the lesson?
       }
 
       return items;
-    }, [posts, categoryFilter, highSignalOnly, sortBy, likesMap, savesMap, arjunRecos, personaRecommendedPostIds, followedUsers]);
+    }, [posts, categoryFilter, highSignalOnly, sortBy, likesMap, savesMap, commentsMap, arjunRecos, personaRecommendedPostIds, followedUsers]);
 
 
     const displayedOfficialPosts = useMemo(() => {
@@ -1740,5 +1740,3 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
         </div>
     );
 }
-
-
