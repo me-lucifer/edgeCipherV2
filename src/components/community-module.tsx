@@ -335,14 +335,14 @@ function PostCard({ post, likes, comments, isSaved, isArjunRecommended, recommen
                                 <TooltipProvider>
                                     <Tooltip>
                                         <TooltipTrigger>
-                                            <span>{post.timestamp ? formatDistanceToNow(new Date(post.timestamp), { addSuffix: true }) : "some time ago"}</span>
+                                            <span>{post.timestamp && !isNaN(new Date(post.timestamp).getTime()) ? formatDistanceToNow(new Date(post.timestamp), { addSuffix: true }) : "some time ago"}</span>
                                         </TooltipTrigger>
                                         <TooltipContent>
-                                            <p>{post.timestamp ? new Date(post.timestamp).toLocaleString() : "Date unavailable"}</p>
+                                            <p>{post.timestamp && !isNaN(new Date(post.timestamp).getTime()) ? new Date(post.timestamp).toLocaleString() : "Date unavailable"}</p>
                                         </TooltipContent>
                                     </Tooltip>
                                 </TooltipProvider>
-                                 {post.editedAt && (
+                                 {post.editedAt && !isNaN(new Date(post.editedAt).getTime()) && (
                                     <TooltipProvider>
                                         <Tooltip>
                                             <TooltipTrigger>
@@ -1792,7 +1792,7 @@ const calculatePostQualityScore = (postData: Omit<Post, 'id' | 'timestamp' | 'au
     return Math.max(0, Math.min(100, score));
 };
 
-function ReportDialog({ isOpen, onOpenChange, onSubmit }: { isOpen: boolean; onOpenChange: (open: boolean) => void; onSubmit: (reason: string) => void; }) {
+function ReportDialog({ isOpen, onOpenChange, onSubmit }: { isOpen: boolean, onOpenChange: (open: boolean) => void, onSubmit: (reason: string) => void }) {
     const [reason, setReason] = useState('');
     const reportReasons = [
         "Spam or promotion",
