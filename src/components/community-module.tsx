@@ -1754,6 +1754,7 @@ function MyLibraryTab({
                                         comments={commentsMap[post.id] || []}
                                         isSaved={true}
                                         isArjunRecommended={arjunRecos?.recommendedPostIds.includes(post.id) || false}
+                                        recommendationReason={arjunRecos?.reason}
                                         isHidden={hiddenPostIds.includes(post.id)}
                                         isAdmin={isAdmin}
                                         onLike={onLike}
