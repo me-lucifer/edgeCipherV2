@@ -2,7 +2,7 @@
 "use client";
 
 import { useAuth } from "@/context/auth-provider";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -678,9 +678,10 @@ function NewsDrivenDayBanner({ signal, onSetModule }: { signal: any; onSetModule
 interface DashboardModuleProps {
     onSetModule: (module: any, context?: ModuleContext) => void;
     isLoading: boolean;
+    journalEntries: any[];
 }
 
-export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps) {
+export function DashboardModule({ onSetModule, isLoading, journalEntries }: DashboardModuleProps) {
     const { addLog } = useEventLog();
     const { toast } = useToast();
     const [scenario, setScenario] = useState<DemoScenario>('normal');
@@ -688,6 +689,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
     const [animateKey, setAnimateKey] = useState(0);
     const [isRecoveryMode, setIsRecoveryMode] = useState(false);
     const [newsDaySignal, setNewsDaySignal] = useState<any>(null);
+    const hasPendingJournals = useMemo(() => journalEntries.some(e => e.status === 'pending'), [journalEntries]);
     
     useEffect(() => {
         if (typeof window !== "undefined") {
@@ -893,6 +895,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
 
   return (
     <div className="space-y-8">
+        {hasPendingJournals && <JournalReflectionBanner onNavigate={() => onSetModule('community', { openCreatePost: 'Reflection' })} />}
         <ArjunGateBanner onWatchNow={(videoId) => onSetModule('community', { tab: 'learn', video: videoId })} />
         <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
             <Card id="demo-highlight-1" className="w-full bg-muted/20 border-border/50">

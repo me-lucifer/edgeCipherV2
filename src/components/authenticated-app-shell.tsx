@@ -74,7 +74,8 @@ export interface ModuleContext {
       instrument: string;
       direction?: 'Long' | 'Short';
       origin: string;
-    }
+    };
+    openCreatePost?: 'Reflection';
 }
 
 interface NavItem {
@@ -160,7 +161,7 @@ const NavItemGroup: React.FC<{
 
 function ModuleView({ currentModule, onSetModule, moduleContext, isLoading, journalEntries, updateJournalEntry }: { currentModule: Module; onSetModule: (module: Module, context?: ModuleContext) => void; moduleContext: ModuleContext | null; isLoading: boolean, journalEntries: any[], updateJournalEntry: (entry: any) => void }) {
     if (currentModule === 'dashboard') {
-        return <DashboardModule onSetModule={onSetModule} isLoading={isLoading} />;
+        return <DashboardModule onSetModule={onSetModule} isLoading={isLoading} journalEntries={journalEntries} />;
     }
 
     if (currentModule === 'aiCoaching') {
@@ -200,7 +201,7 @@ function ModuleView({ currentModule, onSetModule, moduleContext, isLoading, jour
     }
 
     if (currentModule === 'community') {
-        return <CommunityModule onSetModule={onSetModule} />;
+        return <CommunityModule onSetModule={onSetModule} context={moduleContext} />;
     }
 
     if (currentModule === 'settings') {
@@ -715,6 +716,7 @@ export function AuthenticatedAppShell() {
 }
 
     
+
 
 
 

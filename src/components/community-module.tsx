@@ -43,6 +43,9 @@ import { useRiskState } from "@/hooks/use-risk-state";
 
 interface CommunityModuleProps {
     onSetModule: (module: any, context?: any) => void;
+    context?: {
+        openCreatePost?: 'Reflection';
+    }
 }
 
 // =================================================================
@@ -495,6 +498,8 @@ function FeedTab({
     personaRecommendedPostIds,
     onAddComment,
     followedUsers,
+    createPostRef,
+    initialCategory,
 }: {
     posts: Post[];
     officialPosts: Omit<OfficialPost, 'icon'>[];
@@ -512,9 +517,12 @@ function FeedTab({
     personaRecommendedPostIds: string[];
     onAddComment: (postId: string, comment: string) => void;
     followedUsers: string[];
+    createPostRef: React.RefObject<HTMLDivElement>;
+    initialCategory?: 'Reflection';
 }) {
+    const { toast } = useToast();
     const [newPostContent, setNewPostContent] = useState("");
-    const [newPostCategory, setNewPostCategory] = useState<'Chart' | 'Reflection' | 'Insight'>('Reflection');
+    const [newPostCategory, setNewPostCategory] = useState<'Chart' | 'Reflection' | 'Insight'>(initialCategory || 'Reflection');
     const [postError, setPostError] = useState<string | null>(null);
     const [isChartConfirmed, setIsChartConfirmed] = useState(false);
     
@@ -687,6 +695,17 @@ What is the lesson?
         setIsChartConfirmed(false);
         setPostError(null); // Final clear
     };
+    
+    const handleSaveDraft = () => {
+        if (newPostContent.trim()) {
+            const draft = {
+                category: newPostCategory,
+                content: newPostContent,
+            };
+            localStorage.setItem('ec_community_drafts', JSON.stringify(draft));
+            toast({ title: 'Draft Saved' });
+        }
+    };
 
 
     const handleDiscuss = (post: Post) => {
@@ -784,7 +803,7 @@ What is the lesson?
             </Card>
 
             <div className="space-y-6">
-                <Card className="bg-muted/30 border-border/50">
+                <Card ref={createPostRef} className="bg-muted/30 border-border/50 scroll-mt-24">
                     <CardHeader>
                         <CardTitle>Share an insight</CardTitle>
                         <CardDescription>Share a trade breakdown, a psychological insight, or a question for the community.</CardDescription>
@@ -837,7 +856,7 @@ What is the lesson?
                                     <p className="text-xs text-muted-foreground">Chart uploads only. No links. No buy/sell calls.</p>
                                 </div>
                                 <div className="flex gap-2 self-end sm:self-center">
-                                    <Button variant="ghost" disabled>Save draft</Button>
+                                    <Button type="button" variant="ghost" onClick={handleSaveDraft} disabled={!newPostContent.trim()}>Save draft</Button>
                                     <Button onClick={handleCreatePost} disabled={newPostCategory === 'Chart' && !isChartConfirmed}>Post</Button>
                                 </div>
                             </div>
@@ -1234,12 +1253,13 @@ const calculatePostQualityScore = (postData: Omit<Post, 'id' | 'timestamp' | 'au
     return Math.max(0, Math.min(100, score));
 };
 
-export function CommunityModule({ onSetModule }: CommunityModuleProps) {
+export function CommunityModule({ onSetModule, context }: CommunityModuleProps) {
     const searchParams = useSearchParams();
     const router = useRouter();
     const pathname = usePathname();
     const [isLoading, setIsLoading] = useState(true);
     const { toast } = useToast();
+    const createPostRef = useRef<HTMLDivElement>(null);
 
     const [communityState, setCommunityState] = useState<CommunityState | null>(null);
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -1260,6 +1280,14 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
         params.delete('user');
         router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     };
+
+    useEffect(() => {
+        if (context?.openCreatePost === 'Reflection') {
+            setActiveTab('feed');
+            // Allow time for tab content to render before scrolling
+            setTimeout(() => createPostRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+        }
+    }, [context]);
 
     // Data loading and initialization
     useEffect(() => {
@@ -1559,6 +1587,8 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
                         personaRecommendedPostIds={communityState.personaRecommendedPostIds || []}
                         onAddComment={handleAddComment}
                         followedUsers={followedUsers}
+                        createPostRef={createPostRef}
+                        initialCategory={context?.openCreatePost}
                     />
                 </TabsContent>
                 <TabsContent value="learn" className="mt-8">
