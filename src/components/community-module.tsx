@@ -1,4 +1,5 @@
 
+
       "use client";
 
 import React, { useState, useMemo, useEffect, useRef } from "react";
@@ -1152,6 +1153,7 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
 
         setActiveTab(newTab);
         setHighlightedItem(itemToHighlight);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchParams]);
 
     // Scroll & Highlight effect
@@ -1286,7 +1288,7 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
                         onCreatePost={handleCreatePost}
                         videosData={communityState.videos}
                         onPostClick={handlePostClick}
-                        onVideoClick={onVideoClick}
+                        onVideoClick={handleVideoClick}
                         personaRecommendedPostIds={communityState.personaRecommendedPostIds || []}
                     />
                 </TabsContent>
@@ -1319,3 +1321,4 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
 }
 
     
+
