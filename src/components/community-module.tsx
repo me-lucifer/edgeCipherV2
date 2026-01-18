@@ -50,6 +50,7 @@ const COMMUNITY_STATE_KEY = 'ec_community_state';
 const USER_PROFILE_KEY = 'ec_user_profile';
 const ARJUN_RECO_KEY = 'ec_arjun_reco';
 const WATCHED_VIDEOS_KEY = 'ec_watched_videos';
+const FOLLOWED_USERS_KEY = 'ec_followed_users';
 
 type Post = {
     id: string;
@@ -491,6 +492,7 @@ function FeedTab({
     onVideoClick,
     personaRecommendedPostIds,
     onAddComment,
+    followedUsers,
 }: {
     posts: Post[];
     officialPosts: Omit<OfficialPost, 'icon'>[];
@@ -507,6 +509,7 @@ function FeedTab({
     onVideoClick: (videoId: string) => void;
     personaRecommendedPostIds: string[];
     onAddComment: (postId: string, comment: string) => void;
+    followedUsers: string[];
 }) {
     const [newPostContent, setNewPostContent] = useState("");
     const [newPostCategory, setNewPostCategory] = useState<'Chart' | 'Reflection' | 'Insight'>('Reflection');
@@ -557,6 +560,7 @@ function FeedTab({
     const [categoryFilter, setCategoryFilter] = useState<'All' | 'Chart' | 'Reflection' | 'Insight'>('All');
     const [highSignalOnly, setHighSignalOnly] = useState(false);
     const [arjunRecommended, setArjunRecommended] = useState(false);
+    const [followedOnly, setFollowedOnly] = useState(false);
 
 
     const reflectionPlaceholder = `What was the plan?
@@ -576,6 +580,7 @@ What is the lesson?
           if (categoryFilter !== 'All' && post.type !== categoryFilter) return false;
           if (highSignalOnly && !post.isHighSignal) return false;
           if (arjunRecommended && !(arjunRecos.recommendedPostIds.includes(post.id) || (personaRecommendedPostIds || []).includes(post.id))) return false;
+          if (followedOnly && !followedUsers.includes(post.author.name)) return false;
           return true;
       });
 
@@ -591,7 +596,7 @@ What is the lesson?
           return 0;
       });
 
-    }, [posts, categoryFilter, highSignalOnly, arjunRecommended, arjunRecos, personaRecommendedPostIds]);
+    }, [posts, categoryFilter, highSignalOnly, arjunRecommended, arjunRecos, personaRecommendedPostIds, followedOnly, followedUsers]);
 
 
     const iconMap: Record<string, React.ElementType> = {
@@ -721,6 +726,10 @@ What is the lesson?
                         <div className="flex items-center space-x-2">
                             <Switch id="arjun-recommended" checked={arjunRecommended} onCheckedChange={setArjunRecommended} />
                             <Label htmlFor="arjun-recommended" className="text-sm">Arjun Recommended</Label>
+                        </div>
+                         <div className="flex items-center space-x-2">
+                            <Switch id="followed-only" checked={followedOnly} onCheckedChange={setFollowedOnly} />
+                            <Label htmlFor="followed-only" className="text-sm">Following only</Label>
                         </div>
                     </div>
                 </CardContent>
@@ -1023,7 +1032,7 @@ function LearnTab({ videosData, onVideoClick, arjunRecos }: { videosData: Commun
     );
 }
 
-function LeadersTab({ posts, likesMap, savesMap, commentsMap }: { posts: Post[], likesMap: Record<string, number>, savesMap: Record<string, number>, commentsMap: Record<string, { author: string; text: string }[]> }) {
+function LeadersTab({ posts, likesMap, savesMap, commentsMap, followedUsers, onToggleFollow }: { posts: Post[], likesMap: Record<string, number>, savesMap: Record<string, number>, commentsMap: Record<string, { author: string; text: string }[]>, followedUsers: string[], onToggleFollow: (username: string) => void }) {
     const leaders = useMemo(() => {
         const leaderAuthors: Record<string, { name: string, avatar: string }> = {};
         posts.forEach(post => {
@@ -1084,7 +1093,10 @@ function LeadersTab({ posts, likesMap, savesMap, commentsMap }: { posts: Post[],
                             </div>
                         </CardContent>
                         <CardFooter className="flex flex-col gap-2">
-                            <Button variant="outline" className="w-full"><User className="mr-2 h-4 w-4" /> Follow</Button>
+                            <Button variant="outline" className="w-full" onClick={() => onToggleFollow(leader.name)}>
+                                <User className="mr-2 h-4 w-4" />
+                                {followedUsers.includes(leader.name) ? 'Unfollow' : 'Follow'}
+                            </Button>
                             <Button variant="ghost" className="w-full text-muted-foreground">View Posts</Button>
                         </CardFooter>
                     </Card>
@@ -1184,6 +1196,7 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
     const [communityState, setCommunityState] = useState<CommunityState | null>(null);
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const [arjunRecos, setArjunRecos] = useState<ArjunRecommendations | null>(null);
+    const [followedUsers, setFollowedUsers] = useState<string[]>([]);
 
     const [activeTab, setActiveTab] = useState('feed');
     const [highlightedItem, setHighlightedItem] = useState<string|null>(null);
@@ -1206,13 +1219,13 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
             const communityStateRaw = localStorage.getItem(COMMUNITY_STATE_KEY);
             const userProfileRaw = localStorage.getItem(USER_PROFILE_KEY);
             const arjunRecosRaw = localStorage.getItem(ARJUN_RECO_KEY);
+            const followedUsersRaw = localStorage.getItem(FOLLOWED_USERS_KEY);
 
             let finalCommunityState: CommunityState;
             let finalUserProfile: UserProfile;
             
             if (communityStateRaw) {
-                const parsedState = JSON.parse(communityStateRaw);
-                finalCommunityState = { ...initialCommunityState, ...parsedState };
+                finalCommunityState = { ...initialCommunityState, ...JSON.parse(communityStateRaw) };
             } else {
                 finalCommunityState = initialCommunityState;
             }
@@ -1234,6 +1247,10 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
             } else {
                 localStorage.setItem(ARJUN_RECO_KEY, JSON.stringify(initialArjunRecos));
                 setArjunRecos(initialArjunRecos);
+            }
+
+            if (followedUsersRaw) {
+                setFollowedUsers(JSON.parse(followedUsersRaw));
             }
             
             setUserProfile(finalUserProfile);
@@ -1311,7 +1328,9 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
             itemToHighlight = `leader-${userId.replace(/\s+/g, '-')}`;
         }
 
-        setActiveTab(newTab);
+        if (activeTab !== newTab) {
+            setActiveTab(newTab);
+        }
         setHighlightedItem(itemToHighlight);
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchParams]);
@@ -1432,6 +1451,19 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
         });
     };
 
+    const handleToggleFollowUser = (username: string) => {
+        setFollowedUsers(prev => {
+            const newUsers = prev.includes(username)
+                ? prev.filter(u => u !== username)
+                : [...prev, username];
+            localStorage.setItem(FOLLOWED_USERS_KEY, JSON.stringify(newUsers));
+            toast({
+                title: newUsers.includes(username) ? `Following ${username}` : `Unfollowed ${username}`
+            });
+            return newUsers;
+        });
+    };
+
     const handleVideoClick = (videoId: string) => {
         setClickedVideoId(videoId);
         setShowVideoModal(true);
@@ -1478,6 +1510,7 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
                         onVideoClick={handleVideoClick}
                         personaRecommendedPostIds={communityState.personaRecommendedPostIds || []}
                         onAddComment={handleAddComment}
+                        followedUsers={followedUsers}
                     />
                 </TabsContent>
                 <TabsContent value="learn" className="mt-8">
@@ -1493,6 +1526,8 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
                         likesMap={communityState.likesMap} 
                         savesMap={communityState.savesMap}
                         commentsMap={communityState.commentsMap}
+                        followedUsers={followedUsers}
+                        onToggleFollow={handleToggleFollowUser}
                     />
                 </TabsContent>
             </Tabs>
@@ -1512,4 +1547,3 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
         </div>
     );
 }
-
