@@ -38,6 +38,15 @@ import { Form, FormControl, FormField, FormItem, FormMessage } from "@/component
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
 import { useRiskState } from "@/hooks/use-risk-state";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { ScrollArea } from "./ui/scroll-area";
 
 
 interface CommunityModuleProps {
@@ -742,49 +751,89 @@ What is the lesson?
         <div className="grid lg:grid-cols-3 gap-8 items-start">
             {/* Main Column */}
             <div className="lg:col-span-2 space-y-8">
-                <Card className="bg-muted/30 border-border/50">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        EdgeCipher
-                        <Badge variant="secondary" className="text-xs bg-primary/10 text-primary">Official</Badge>
-                    </CardTitle>
-                    <CardDescription>Key updates and educational content from the team.</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <Carousel opts={{ align: "start" }} className="w-full">
-                      <CarouselContent className="-ml-4">
-                        {displayedOfficialPosts.map((post, index) => {
-                          const Icon = post.icon || iconMap[post.tag] || BrainCircuit;
-                          const isPinned = post.tag === "Pinned by Arjun";
-                          return (
-                          <CarouselItem key={index} className="pl-4 md:basis-1/2 lg:basis-1/3">
-                            <div className="p-1 h-full">
-                                <Card className={cn("bg-muted/50 h-full", isPinned ? "border-destructive/50" : "border-primary/20")}>
-                                    <CardContent className="p-4 flex flex-col items-start gap-4 h-full">
-                                        <div className="flex-1">
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <Icon className={cn("h-4 w-4", isPinned ? "text-destructive" : "text-primary")} />
-                                                <p className="font-semibold text-foreground text-sm">{post.title}</p>
-                                            </div>
-                                            <ul className="list-disc list-inside text-xs text-muted-foreground space-y-1">
-                                                {post.bullets.map((bullet, i) => <li key={i}>{bullet}</li>)}
-                                            </ul>
-                                        </div>
-                                        <Badge variant={isPinned ? "destructive" : "secondary"} className={cn(isPinned ? "" : "bg-primary/10 text-primary")}>
-                                            {isPinned && <Sparkles className="mr-1.5 h-3 w-3" />}
-                                            {post.tag}
-                                        </Badge>
-                                    </CardContent>
-                                </Card>
+                 <Dialog>
+                    <Card className="bg-muted/30 border-border/50">
+                      <CardHeader>
+                         <div className="flex items-center justify-between">
+                            <div>
+                                <CardTitle className="flex items-center gap-2">
+                                    EdgeCipher
+                                    <Badge variant="secondary" className="text-xs bg-primary/10 text-primary">Official</Badge>
+                                </CardTitle>
+                                <CardDescription>Key updates and educational content from the team.</CardDescription>
                             </div>
-                          </CarouselItem>
-                        )})}
-                      </CarouselContent>
-                      <CarouselPrevious className="ml-12" />
-                      <CarouselNext className="mr-12" />
-                    </Carousel>
-                  </CardContent>
-                </Card>
+                             <DialogTrigger asChild>
+                                <Button variant="outline" size="sm">View All</Button>
+                            </DialogTrigger>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="h-[250px]">
+                        <Carousel opts={{ align: "start" }} className="w-full h-full">
+                          <CarouselContent className="-ml-4 h-full">
+                            {displayedOfficialPosts.map((post, index) => {
+                              const Icon = post.icon || iconMap[post.tag] || BrainCircuit;
+                              const isPinned = post.tag === "Pinned by Arjun";
+                              return (
+                              <CarouselItem key={index} className="pl-4 md:basis-1/2 lg:basis-1/3">
+                                <div className="p-1 h-full">
+                                    <Card className={cn("bg-muted/50 h-full", isPinned ? "border-destructive/50" : "border-primary/20")}>
+                                        <CardContent className="p-4 flex flex-col items-start gap-4 h-full">
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <Icon className={cn("h-4 w-4", isPinned ? "text-destructive" : "text-primary")} />
+                                                    <p className="font-semibold text-foreground text-sm">{post.title}</p>
+                                                </div>
+                                                <ul className="list-disc list-inside text-xs text-muted-foreground space-y-1">
+                                                    {post.bullets.map((bullet, i) => <li key={i}>{bullet}</li>)}
+                                                </ul>
+                                            </div>
+                                            <Badge variant={isPinned ? "destructive" : "secondary"} className={cn(isPinned ? "" : "bg-primary/10 text-primary")}>
+                                                {isPinned && <Sparkles className="mr-1.5 h-3 w-3" />}
+                                                {post.tag}
+                                            </Badge>
+                                        </CardContent>
+                                    </Card>
+                                </div>
+                              </CarouselItem>
+                            )})}
+                          </CarouselContent>
+                          <CarouselPrevious className="ml-12" />
+                          <CarouselNext className="mr-12" />
+                        </Carousel>
+                      </CardContent>
+                    </Card>
+                    <DialogContent className="max-w-2xl">
+                        <DialogHeader>
+                            <DialogTitle>Official Posts</DialogTitle>
+                            <DialogDescription>Key updates and educational content from the team.</DialogDescription>
+                        </DialogHeader>
+                        <ScrollArea className="max-h-[60vh] pr-6">
+                            <div className="space-y-4">
+                                {displayedOfficialPosts.map((post, index) => {
+                                    const Icon = post.icon || iconMap[post.tag] || BrainCircuit;
+                                    const isPinned = post.tag === "Pinned by Arjun";
+                                    return (
+                                        <Card key={index} className={cn("bg-muted/50", isPinned ? "border-destructive/50" : "border-primary/20")}>
+                                            <CardContent className="p-4 flex items-start gap-4">
+                                                <Icon className={cn("h-5 w-5 mt-1 flex-shrink-0", isPinned ? "text-destructive" : "text-primary")} />
+                                                <div className="flex-1">
+                                                    <p className="font-semibold text-foreground text-sm">{post.title}</p>
+                                                    <ul className="list-disc list-inside text-xs text-muted-foreground space-y-1 mt-2">
+                                                        {post.bullets.map((bullet, i) => <li key={i}>{bullet}</li>)}
+                                                    </ul>
+                                                </div>
+                                                <Badge variant={isPinned ? "destructive" : "secondary"} className={cn("text-xs", isPinned ? "" : "bg-primary/10 text-primary")}>
+                                                    {isPinned && <Sparkles className="mr-1.5 h-3 w-3" />}
+                                                    {post.tag}
+                                                </Badge>
+                                            </CardContent>
+                                        </Card>
+                                    );
+                                })}
+                            </div>
+                        </ScrollArea>
+                    </DialogContent>
+                </Dialog>
 
                 <div className="space-y-6">
                     {postsToRender.slice(0, visibleCount).map(post => (
@@ -1667,3 +1716,4 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
         </div>
     );
 }
+
