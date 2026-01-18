@@ -1,5 +1,4 @@
 
-
       "use client";
 
 import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
@@ -1477,7 +1476,7 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
                         onPostClick={handlePostClick}
                         onVideoClick={handleVideoClick}
                         personaRecommendedPostIds={communityState.personaRecommendedPostIds || []}
-                        onAddComment={onAddComment}
+                        onAddComment={handleAddComment}
                     />
                 </TabsContent>
                 <TabsContent value="learn" className="mt-8">
