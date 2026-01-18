@@ -1,4 +1,5 @@
 
+
       "use client";
 
 import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
@@ -514,6 +515,7 @@ function FeedTab({
     officialPosts,
     likesMap,
     commentsMap,
+    savesMap,
     arjunRecos,
     userProfile,
     onSetModule,
@@ -533,6 +535,7 @@ function FeedTab({
     officialPosts: Omit<OfficialPost, 'icon'>[];
     likesMap: Record<string, number>;
     commentsMap: Record<string, { author: string; text: string }[]>;
+    savesMap: Record<string, number>;
     arjunRecos: ArjunRecommendations;
     userProfile: UserProfile;
     onSetModule: (module: any, context?: any) => void;
@@ -622,13 +625,12 @@ function FeedTab({
     // Filter states
     const [categoryFilter, setCategoryFilter] = useState<'All' | 'Chart' | 'Reflection' | 'Insight'>('All');
     const [highSignalOnly, setHighSignalOnly] = useState(false);
-    const [arjunRecommended, setArjunRecommended] = useState(false);
-    const [followedOnly, setFollowedOnly] = useState(false);
+    const [sortBy, setSortBy] = useState<'newest' | 'mostHelpful' | 'arjunPicks' | 'following'>('newest');
     const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
 
     useEffect(() => {
         setVisibleCount(ITEMS_PER_PAGE);
-    }, [categoryFilter, highSignalOnly, arjunRecommended, followedOnly]);
+    }, [categoryFilter, highSignalOnly, sortBy]);
 
     const reflectionPlaceholder = `What was the plan?
 - e.g., Planned to enter BTC long on a retest of 68k.
@@ -643,27 +645,40 @@ What is the lesson?
 - e.g., Stick to the plan. Waiting for confirmation prevents chasing bad entries.`;
 
     const postsToRender = useMemo(() => {
-      let filtered = posts.filter(post => {
-          if (categoryFilter !== 'All' && post.type !== categoryFilter) return false;
-          if (highSignalOnly && !post.isHighSignal) return false;
-          if (arjunRecommended && !(arjunRecos.recommendedPostIds.includes(post.id) || (personaRecommendedPostIds || []).includes(post.id))) return false;
-          if (followedOnly && !followedUsers.includes(post.author.name)) return false;
-          return true;
-      });
+      let items = [...posts];
 
-      // New sorting logic
-      return [...filtered].sort((a, b) => {
-          const aIsRecommended = (personaRecommendedPostIds || []).includes(a.id);
-          const bIsRecommended = (personaRecommendedPostIds || []).includes(b.id);
-          
-          if (aIsRecommended && !bIsRecommended) return -1;
-          if (!aIsRecommended && bIsRecommended) return 1;
-          
-          // Fallback to original order (which is based on mock data's timestamp string)
-          return 0;
-      });
+      if (categoryFilter !== 'All') {
+          items = items.filter(post => post.type === categoryFilter);
+      }
+      
+      if (highSignalOnly) {
+          items = items.filter(p => p.isHighSignal);
+      }
+      
+      switch (sortBy) {
+          case 'newest':
+              // Default order is assumed to be newest first
+              break;
+          case 'mostHelpful':
+              items.sort((a, b) => {
+                  const scoreA = (likesMap[a.id] || 0) + (savesMap[a.id] || 0);
+                  const scoreB = (likesMap[b.id] || 0) + (savesMap[b.id] || 0);
+                  return scoreB - scoreA;
+              });
+              break;
+          case 'arjunPicks':
+              items = items.filter(post => 
+                  arjunRecos.recommendedPostIds.includes(post.id) || 
+                  (personaRecommendedPostIds || []).includes(post.id)
+              );
+              break;
+          case 'following':
+              items = items.filter(post => followedUsers.includes(post.author.name));
+              break;
+      }
 
-    }, [posts, categoryFilter, highSignalOnly, arjunRecommended, arjunRecos, personaRecommendedPostIds, followedOnly, followedUsers]);
+      return items;
+    }, [posts, categoryFilter, highSignalOnly, sortBy, likesMap, savesMap, arjunRecos, personaRecommendedPostIds, followedUsers]);
 
 
     const displayedOfficialPosts = useMemo(() => {
@@ -835,6 +850,29 @@ What is the lesson?
                     </DialogContent>
                 </Dialog>
 
+                <Card className="bg-muted/30 border-border/50">
+                    <CardContent className="p-4 flex flex-wrap items-center gap-x-6 gap-y-3">
+                        <div className="flex items-center gap-2">
+                            <Label htmlFor="sort-by" className="text-sm font-medium">Feed</Label>
+                            <Select value={sortBy} onValueChange={(v) => setSortBy(v as any)}>
+                                <SelectTrigger id="sort-by" className="w-[180px]">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="newest">Newest</SelectItem>
+                                    <SelectItem value="mostHelpful">Most Helpful</SelectItem>
+                                    <SelectItem value="arjunPicks">Arjun Picks</SelectItem>
+                                    <SelectItem value="following">Following</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <Switch id="high-signal" checked={highSignalOnly} onCheckedChange={setHighSignalOnly} />
+                            <Label htmlFor="high-signal" className="text-sm font-medium">High-signal only</Label>
+                        </div>
+                    </CardContent>
+                </Card>
+
                 <div className="space-y-6">
                     {postsToRender.slice(0, visibleCount).map(post => (
                         <PostCard 
@@ -954,21 +992,6 @@ What is the lesson?
                                     <SelectItem value="Insight">Insights</SelectItem>
                                 </SelectContent>
                             </Select>
-                        </div>
-                        <Separator />
-                        <div className="flex flex-col gap-4">
-                            <div className="flex items-center space-x-2">
-                                <Switch id="high-signal" checked={highSignalOnly} onCheckedChange={setHighSignalOnly} />
-                                <Label htmlFor="high-signal" className="text-sm">High-signal only</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                                <Switch id="arjun-recommended" checked={arjunRecommended} onCheckedChange={setArjunRecommended} />
-                                <Label htmlFor="arjun-recommended" className="text-sm">Arjun Recommended</Label>
-                            </div>
-                             <div className="flex items-center space-x-2">
-                                <Switch id="followed-only" checked={followedOnly} onCheckedChange={setFollowedOnly} />
-                                <Label htmlFor="followed-only" className="text-sm">Following only</Label>
-                            </div>
                         </div>
                     </CardContent>
                 </Card>
@@ -1666,6 +1689,7 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
                         officialPosts={communityState.officialPosts}
                         likesMap={communityState.likesMap}
                         commentsMap={communityState.commentsMap}
+                        savesMap={communityState.savesMap}
                         arjunRecos={arjunRecos}
                         userProfile={userProfile}
                         onSetModule={onSetModule}
@@ -1716,4 +1740,5 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
         </div>
     );
 }
+
 
