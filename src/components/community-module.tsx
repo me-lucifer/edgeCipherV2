@@ -78,6 +78,7 @@ const ARJUN_RECO_KEY = 'ec_arjun_reco';
 const WATCHED_VIDEOS_KEY = 'ec_watched_videos';
 const FOLLOWED_USERS_KEY = 'ec_followed_users';
 const HIDDEN_POSTS_KEY = 'ec_hidden_post_ids';
+const POST_TIMESTAMPS_KEY = 'ec_post_timestamps';
 const ARJUN_ASSIGNMENTS_KEY = 'ec_arjun_assignments';
 const ITEMS_PER_PAGE = 9;
 
@@ -166,7 +167,7 @@ const mockPostsData: Omit<Post, 'likes' | 'comments' | 'saves'>[] = [
         timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
         type: 'Reflection',
         isHighSignal: false,
-        content: "Mistake: I revenge traded after a small loss on SOL and it snowballed.\nWhat I did: Instead of taking a break, I jumped back in with a larger size and no plan.\nLesson: My '2 losses and walk away' rule is there for a reason. Respecting it would have saved me -2.5R today. Shutting it down for the day to reset.",
+        content: "Rule Broken: My rule is '2 losses and walk away'. I broke it today.\nWhat I Did: After a small loss on SOL, I revenge traded with a larger size and no plan. This turned a -0.5R day into a -2.5R day.\nLesson: The rule is there for a reason. Respecting it would have saved me. Shutting it down to reset.",
         trade: { instrument: "SOL-PERP", result: -2.5 },
     },
     {
@@ -175,7 +176,7 @@ const mockPostsData: Omit<Post, 'likes' | 'comments' | 'saves'>[] = [
         timestamp: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(),
         type: 'Chart',
         isHighSignal: true,
-        content: "Setup Idea: BTC 4H is consolidating after a strong impulse. A clean break and retest of $68.5k could signal trend continuation.\nRisk Plan: My plan would be to enter on a confirmed retest, with an SL below the range midpoint to invalidate the idea. This is for analysis only, not a signal.",
+        content: "Setup Context: BTC 4H is consolidating after a strong impulse up. A clean break and retest of the range high at $68.5k could signal trend continuation.\nRisk Plan: My plan would be to enter on a confirmed retest of $68.5k, with an SL below the range midpoint (~$67.8k) to invalidate the idea. This is for analysis only, not a signal.",
         image: chartPlaceholder?.imageUrl,
         imageHint: chartPlaceholder?.imageHint,
     },
@@ -185,7 +186,7 @@ const mockPostsData: Omit<Post, 'likes' | 'comments' | 'saves'>[] = [
         timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
         type: 'Insight',
         isHighSignal: true,
-        content: "Mental Model Shift: Instead of 'win rate', I'm now tracking my 'rule adherence rate'. My P&L has improved since I started focusing on executing my plan perfectly, regardless of a single trade's outcome. Process > Outcome.",
+        content: "Mental Model Shift: I've stopped tracking 'win rate' and started tracking my 'rule adherence rate'. My P&L has improved since I started focusing on executing my plan perfectly, regardless of a single trade's outcome. The process is what creates the edge, not the result of one flip.",
     },
     {
         id: '4',
@@ -193,7 +194,7 @@ const mockPostsData: Omit<Post, 'likes' | 'comments' | 'saves'>[] = [
         timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
         type: 'Reflection',
         isHighSignal: true,
-        content: "What I saw: My ETH short setup was showing signs of invalidation in a choppy market.\nWhat I did: Instead of hoping, I followed my rules and cut the trade for a small, controlled loss.\nWhat I learned: A red trade that follows the plan is a win for discipline. The old me would have held and wiped out the week's gains.",
+        content: "What I Saw: My ETH short setup was showing signs of invalidation (bullish divergence on 15m RSI) in a choppy market.\nWhat I Did: Instead of hoping, I followed my rule to cut trades that show clear invalidation signals. I closed for a small, controlled -0.8R loss.\nWhat I Learned: A red trade that follows the plan is a win for discipline. The old me would have held and wiped out the week's gains.",
         trade: { instrument: "ETH-PERP", result: -0.8 },
     },
     {
@@ -202,7 +203,7 @@ const mockPostsData: Omit<Post, 'likes' | 'comments' | 'saves'>[] = [
         timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
         type: 'Insight',
         isHighSignal: true,
-        content: "My pre-trade checklist has become non-negotiable:\n1. Does this fit one of my defined strategies?\n2. Is the market context (VIX, news) favorable?\n3. Have I defined my entry, SL, and TP in my plan?\n4. Am I emotionally neutral and not chasing?\nIf any answer is 'no', I don't take the trade. Simple, but effective.",
+        content: "My pre-trade checklist has become non-negotiable. Sharing in case it helps others:\n1. Does this fit one of my three defined A+ strategies?\n2. Is the market context (VIX, news) favorable for this strategy?\n3. Have I defined my entry, SL, and TP in my trade plan before opening the order form?\n4. Am I emotionally neutral and not chasing?\nIf any answer is 'no', I do not take the trade. Simple, but it has saved me from countless bad trades.",
     }
 ];
 
@@ -339,9 +340,8 @@ function PostCard({ post, likes, comments, isSaved, isArjunRecommended, recommen
                         <div>
                             <p className="font-semibold text-foreground">{post.author.name}</p>
                             <p className="text-xs text-muted-foreground flex items-center gap-2">
-                                <Badge variant={post.author.role === 'Leader' ? 'default' : 'secondary'} className={cn(
-                                    "px-1.5 py-0 text-[10px]",
-                                    post.author.role === 'Leader' ? "bg-primary/80" : "bg-muted-foreground/20"
+                                <Badge variant={post.author.role === 'Leader' ? 'secondary' : 'outline'} className={cn(
+                                    post.author.role === 'Leader' ? "bg-primary/10 text-primary border-primary/20" : ""
                                 )}>
                                     {post.author.role}
                                 </Badge>
@@ -945,7 +945,7 @@ What is the lesson?
     const handleCreatePost = () => {
         const now = Date.now();
         const TEN_MINUTES_MS = 10 * 60 * 1000;
-        const postTimestamps: number[] = JSON.parse(localStorage.getItem('ec_post_timestamps') || '[]');
+        const postTimestamps: number[] = JSON.parse(localStorage.getItem(POST_TIMESTAMPS_KEY) || '[]');
         const recentTimestamps = postTimestamps.filter(ts => now - ts < TEN_MINUTES_MS);
 
         if (recentTimestamps.length >= 3) {
@@ -989,7 +989,7 @@ What is the lesson?
             flagReason,
         } as any);
 
-        localStorage.setItem('ec_post_timestamps', JSON.stringify([...recentTimestamps, now]));
+        localStorage.setItem(POST_TIMESTAMPS_KEY, JSON.stringify([...recentTimestamps, now]));
 
         setNewPostContent("");
         setIsChartConfirmed(false);
@@ -1450,7 +1450,7 @@ function ArjunQueue({ arjunRecos, videosData, onVideoClick }: { arjunRecos: Arju
 function VideoCard({ video, onVideoClick, isWatched, isAssigned, assignmentDueToday, assignmentReason }: { video: VideoData, onVideoClick: (videoId: string) => void, isWatched: boolean, isAssigned?: boolean, assignmentDueToday?: boolean, assignmentReason?: string }) {
     const videoThumbnail = PlaceHolderImages.find(p => p.id === 'video-thumbnail');
     return (
-        <div id={`video-${video.id}`} className="group cursor-pointer p-1 rounded-lg" onClick={() => onVideoClick(video.id)}>
+        <div id={`video-${video.id}`} className="group cursor-pointer rounded-lg" onClick={() => onVideoClick(video.id)}>
             <div className="aspect-video bg-muted rounded-md relative overflow-hidden">
                 {videoThumbnail && <Image src={videoThumbnail.imageUrl} alt={video.title} fill style={{ objectFit: 'cover' }} data-ai-hint={videoThumbnail.imageHint} />}
                 {isAssigned && (
@@ -2054,8 +2054,8 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
     }, []);
 
     const checkAndPromoteToLeader = useCallback(() => {
-        if (!userProfile || !communityState || userProfile.role === 'Leader') {
-            return;
+        if (!userProfile || !communityState || userProfile.role === 'Leader' || userProfile.role === 'Admin') {
+            return false;
         }
 
         const userPosts = communityState.posts.filter(p => p.author.name === userProfile.username);
@@ -2076,13 +2076,17 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
             const newUserProfile = { ...userProfile, role: 'Leader' as const };
             setUserProfile(newUserProfile);
             localStorage.setItem(USER_PROFILE_KEY, JSON.stringify(newUserProfile));
-            setJustPromoted(true);
+            return true;
         }
+        return false;
     }, [userProfile, communityState]);
 
+
     useEffect(() => {
-        checkAndPromoteToLeader();
-    }, [communityState, checkAndPromoteToLeader]);
+        if (checkAndPromoteToLeader()) {
+            setJustPromoted(true);
+        }
+    }, [checkAndPromoteToLeader]);
 
 
     // URL param handling
