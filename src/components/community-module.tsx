@@ -828,6 +828,20 @@ What is the lesson?
     };
 
     const handleCreatePost = () => {
+        const now = Date.now();
+        const TEN_MINUTES_MS = 10 * 60 * 1000;
+        const postTimestamps: number[] = JSON.parse(localStorage.getItem('ec_post_timestamps') || '[]');
+        const recentTimestamps = postTimestamps.filter(ts => now - ts < TEN_MINUTES_MS);
+
+        if (recentTimestamps.length >= 3) {
+            toast({
+                title: "Rate Limit Exceeded",
+                description: "Slow down — community is for high-signal reflections. Please wait a few minutes.",
+                variant: "destructive"
+            });
+            return;
+        }
+
         setPostError(null);
         const content = newPostContent.trim();
         
@@ -865,6 +879,8 @@ What is the lesson?
             isFlagged,
             flagReason,
         } as any);
+
+        localStorage.setItem('ec_post_timestamps', JSON.stringify([...recentTimestamps, now]));
 
         setNewPostContent("");
         setIsChartConfirmed(false);
@@ -1620,7 +1636,7 @@ function ReportDialog({ isOpen, onOpenChange, onSubmit }: { isOpen: boolean; onO
                 </DialogFooter>
             </DialogContent>
         </Dialog>
-    )
+    );
 }
 
 export function CommunityModule({ onSetModule, context }: CommunityModuleProps) {
