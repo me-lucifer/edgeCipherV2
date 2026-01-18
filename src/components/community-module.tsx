@@ -31,7 +31,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+} from "@/components/ui/alert-dialog"
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -1024,27 +1024,36 @@ function LearnTab({ videosData, onVideoClick, arjunRecos }: { videosData: Commun
     );
 }
 
-function LeadersTab({ posts, likesMap }: { posts: Post[], likesMap: Record<string, number> }) {
+function LeadersTab({ posts, likesMap, savesMap, commentsMap }: { posts: Post[], likesMap: Record<string, number>, savesMap: Record<string, number>, commentsMap: Record<string, { author: string; text: string }[]> }) {
     const leaders = useMemo(() => {
-        const leaderContributions: Record<string, { postCount: number, totalLikes: number, avatar: string }> = {};
+        const leaderAuthors: Record<string, { name: string, avatar: string }> = {};
         posts.forEach(post => {
             if (post.author.role === 'Leader') {
-                if (!leaderContributions[post.author.name]) {
-                    leaderContributions[post.author.name] = { postCount: 0, totalLikes: 0, avatar: post.author.avatar };
-                }
-                leaderContributions[post.author.name].postCount++;
-                leaderContributions[post.author.name].totalLikes += (likesMap[post.id] || 0);
+                leaderAuthors[post.author.name] = { name: post.author.name, avatar: post.author.avatar };
             }
         });
-        
-        return Object.entries(leaderContributions).map(([name, data]) => ({
-            name,
-            avatar: data.avatar,
-            score: data.postCount * 10 + data.totalLikes,
-            tags: ["Risk Discipline", "Journaling"] // Mock tags
-        })).sort((a,b) => b.score - a.score);
 
-    }, [posts, likesMap]);
+        const leaderStats = Object.values(leaderAuthors).map(author => {
+            const leaderPosts = posts.filter(p => p.author.name === author.name);
+            
+            const likesReceived = leaderPosts.reduce((sum, post) => sum + (likesMap[post.id] || 0), 0);
+            const savesReceived = leaderPosts.reduce((sum, post) => sum + (savesMap[post.id] || 0), 0);
+            const commentsReceived = leaderPosts.reduce((sum, post) => sum + (commentsMap[post.id]?.length || 0), 0);
+            const highSignalPosts = leaderPosts.filter(p => p.isHighSignal).length;
+
+            const helpfulScore = (likesReceived * 1) + (savesReceived * 2) + (commentsReceived * 1) + (highSignalPosts * 3);
+
+            return {
+                name: author.name,
+                avatar: author.avatar,
+                score: helpfulScore,
+                tags: ["Risk Discipline", "Journaling"] // Mock tags
+            };
+        });
+
+        return leaderStats.sort((a, b) => b.score - a.score);
+
+    }, [posts, likesMap, savesMap, commentsMap]);
 
     return (
         <div className="max-w-4xl mx-auto space-y-8">
@@ -1468,7 +1477,7 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
                         onPostClick={handlePostClick}
                         onVideoClick={handleVideoClick}
                         personaRecommendedPostIds={communityState.personaRecommendedPostIds || []}
-                        onAddComment={handleAddComment}
+                        onAddComment={onAddComment}
                     />
                 </TabsContent>
                 <TabsContent value="learn" className="mt-8">
@@ -1479,7 +1488,12 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
                     />
                 </TabsContent>
                 <TabsContent value="leaders" className="mt-8">
-                    <LeadersTab posts={communityState.posts} likesMap={communityState.likesMap} />
+                    <LeadersTab 
+                        posts={communityState.posts} 
+                        likesMap={communityState.likesMap} 
+                        savesMap={communityState.savesMap}
+                        commentsMap={communityState.commentsMap}
+                    />
                 </TabsContent>
             </Tabs>
              <AlertDialog open={showVideoModal} onOpenChange={setShowVideoModal}>
