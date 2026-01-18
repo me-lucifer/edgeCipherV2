@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark, Timer, Gauge, Star, Calendar, Copy, Clipboard, ThumbsUp, ThumbsDown, Meh, PlusCircle, MoreHorizontal, Save, Grid, Eye, Radio, RefreshCw, Layers, BarChart, FileText, ShieldAlert, Info, HelpCircle, ChevronsUpDown, Crown, ImageUp, MessageSquare, Video, BookOpen } from "lucide-react";
+import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark, Timer, Gauge, Star, Calendar, Copy, Clipboard, ThumbsUp, ThumbsDown, Meh, PlusCircle, MoreHorizontal, Save, Grid, Eye, Radio, RefreshCw, Layers, BarChart, FileText, ShieldAlert, Info, HelpCircle, ChevronsUpDown, Crown, ImageUp, MessageSquare, Video, BookOpen, User } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerClose } from "./ui/drawer";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
@@ -1285,3 +1285,6 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
 
   
 
+
+
+    
