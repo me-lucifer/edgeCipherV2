@@ -1,4 +1,5 @@
 
+
       "use client";
 
 import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
@@ -8,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark, Timer, Gauge, Star, Calendar, Copy, Clipboard, ThumbsUp, ThumbsDown, Meh, PlusCircle, MoreHorizontal, Save, Grid, Eye, Radio, RefreshCw, Layers, BarChart, FileText, ShieldAlert, Info, HelpCircle, ChevronsUpDown, Crown, ImageUp, MessageSquare, Video, BookOpen, User } from "lucide-react";
+import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark, Timer, Gauge, Star, Calendar, Copy, Clipboard, ThumbsUp, ThumbsDown, Meh, PlusCircle, MoreHorizontal, Save, Grid, Eye, Radio, RefreshCw, Layers, BarChart, FileText, ShieldAlert, Info, HelpCircle, ChevronsUpDown, Crown, ImageUp, MessageSquare, Video, BookOpen, User, BrainCircuit } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerClose } from "./ui/drawer";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
@@ -37,6 +38,7 @@ import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
+import { useRiskState } from "@/hooks/use-risk-state";
 
 
 interface CommunityModuleProps {
@@ -88,7 +90,7 @@ type OfficialPost = {
     title: string;
     bullets: string[];
     tag: string;
-    icon: React.ElementType; // This won't be stored in JSON, but used for rendering
+    icon?: React.ElementType; // This won't be stored in JSON, but used for rendering
 }
 
 type CommunityState = {
@@ -517,6 +519,31 @@ function FeedTab({
     const [isChartConfirmed, setIsChartConfirmed] = useState(false);
     
     const [nudge, setNudge] = useState("");
+    const { riskState } = useRiskState();
+    const [isNewsDrivenDay, setIsNewsDrivenDay] = useState(false);
+
+    useEffect(() => {
+        const checkNewsSignal = () => {
+            const newsSignal = localStorage.getItem('ec_news_day_signal');
+            if (newsSignal) {
+                try {
+                    setIsNewsDrivenDay(JSON.parse(newsSignal).isNewsDrivenDay);
+                } catch(e) {
+                    setIsNewsDrivenDay(false);
+                }
+            } else {
+                 setIsNewsDrivenDay(false);
+            }
+        };
+        checkNewsSignal();
+        const storageHandler = (e: StorageEvent) => {
+            if (e.key === 'ec_news_day_signal') {
+                checkNewsSignal();
+            }
+        };
+        window.addEventListener('storage', storageHandler);
+        return () => window.removeEventListener('storage', storageHandler);
+    }, []);
 
     const coachingNudges = useMemo(() => [
         "Write what you felt during the trade.",
@@ -599,11 +626,28 @@ What is the lesson?
     }, [posts, categoryFilter, highSignalOnly, arjunRecommended, arjunRecos, personaRecommendedPostIds, followedOnly, followedUsers]);
 
 
+    const displayedOfficialPosts = useMemo(() => {
+        const isHighRisk = riskState?.decision.level === 'red' || isNewsDrivenDay;
+        
+        if (isHighRisk) {
+            const pinnedPost: OfficialPost = {
+                title: "Market Warning: Volatility elevated — reduce risk.",
+                bullets: ["VIX is high or a market-moving news event is active.", "Consider reducing size, widening stops, or staying flat."],
+                tag: "Pinned by Arjun",
+                icon: AlertTriangle,
+            };
+            return [pinnedPost, ...officialPosts];
+        }
+        
+        return officialPosts;
+    }, [officialPosts, riskState, isNewsDrivenDay]);
+
     const iconMap: Record<string, React.ElementType> = {
         "Education": BookOpen,
         "Market Warning": AlertTriangle,
         "Feature Update": Zap,
-        "New Video": Video
+        "New Video": Video,
+        "Pinned by Arjun": AlertTriangle,
     };
 
     const handleCreatePost = () => {
@@ -672,23 +716,27 @@ What is the lesson?
               <CardContent>
                 <Carousel opts={{ align: "start" }} className="w-full">
                   <CarouselContent className="-ml-4">
-                    {officialPosts.map((post, index) => {
-                      const Icon = iconMap[post.tag] || BrainCircuit;
+                    {displayedOfficialPosts.map((post, index) => {
+                      const Icon = post.icon || iconMap[post.tag] || BrainCircuit;
+                      const isPinned = post.tag === "Pinned by Arjun";
                       return (
                       <CarouselItem key={index} className="pl-4 md:basis-1/2 lg:basis-1/3">
                         <div className="p-1 h-full">
-                            <Card className="bg-muted/50 border-primary/20 h-full">
+                            <Card className={cn("bg-muted/50 h-full", isPinned ? "border-destructive/50" : "border-primary/20")}>
                                 <CardContent className="p-4 flex flex-col items-start gap-4 h-full">
                                     <div className="flex-1">
                                         <div className="flex items-center gap-2 mb-2">
-                                            <Icon className="h-4 w-4 text-primary" />
+                                            <Icon className={cn("h-4 w-4", isPinned ? "text-destructive" : "text-primary")} />
                                             <p className="font-semibold text-foreground text-sm">{post.title}</p>
                                         </div>
                                         <ul className="list-disc list-inside text-xs text-muted-foreground space-y-1">
                                             {post.bullets.map((bullet, i) => <li key={i}>{bullet}</li>)}
                                         </ul>
                                     </div>
-                                    <Badge variant="secondary" className="bg-primary/10 text-primary">{post.tag}</Badge>
+                                    <Badge variant={isPinned ? "destructive" : "secondary"} className={cn(isPinned ? "" : "bg-primary/10 text-primary")}>
+                                        {isPinned && <Sparkles className="mr-1.5 h-3 w-3" />}
+                                        {post.tag}
+                                    </Badge>
                                 </CardContent>
                             </Card>
                         </div>
