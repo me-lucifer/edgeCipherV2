@@ -1,5 +1,4 @@
 
-
       "use client";
 
 import React, { useState, useMemo, useEffect, useRef } from "react";
@@ -1040,6 +1039,16 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
     const [clickedVideoId, setClickedVideoId] = useState<string | null>(null);
 
 
+    const handleTabChange = (tab: string) => {
+        const params = new URLSearchParams(searchParams.toString());
+        params.set('tab', tab);
+        // Clear other params when tab is manually changed to avoid conflicts
+        params.delete('video');
+        params.delete('post');
+        params.delete('user');
+        router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    };
+
     // Data loading and initialization
     useEffect(() => {
         try {
@@ -1097,7 +1106,7 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
 
     // URL param handling
     useEffect(() => {
-        const tab = searchParams.get('tab');
+        const tab = searchParams.get('tab') || 'feed';
         const videoId = searchParams.get('video');
         const postId = searchParams.get('post');
         const userId = searchParams.get('user');
@@ -1116,11 +1125,9 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
             itemToHighlight = `leader-${userId.replace(/\s+/g, '-')}`;
         }
 
-        if (newTab && newTab !== activeTab) {
-            setActiveTab(newTab);
-        }
+        setActiveTab(newTab);
         setHighlightedItem(itemToHighlight);
-    }, [searchParams, activeTab]);
+    }, [searchParams]);
 
     // Scroll & Highlight effect
     useEffect(() => {
@@ -1228,7 +1235,7 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
                 <p className="text-muted-foreground">High-signal reflections, charts, and insights. No signals. No hype.</p>
             </div>
             
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
                 <TabsList className="grid w-full grid-cols-3 max-w-lg mx-auto">
                     <TabsTrigger value="feed">Feed</TabsTrigger>
                     <TabsTrigger value="learn">Learn</TabsTrigger>
