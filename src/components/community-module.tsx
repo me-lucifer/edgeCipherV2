@@ -1952,6 +1952,17 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
 
     const [isAdmin, setIsAdmin] = useState(false);
     const [hiddenPostIds, setHiddenPostIds] = useState<string[]>([]);
+    const [justPromoted, setJustPromoted] = useState(false);
+
+    useEffect(() => {
+        if (justPromoted) {
+            toast({
+                title: "You’ve been promoted to Leader — keep it disciplined.",
+            });
+            setJustPromoted(false);
+        }
+    }, [justPromoted, toast]);
+
 
     const handleTabChange = (tab: string) => {
         const params = new URLSearchParams();
@@ -2064,11 +2075,9 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
             const newUserProfile = { ...userProfile, role: 'Leader' as const };
             setUserProfile(newUserProfile);
             localStorage.setItem(USER_PROFILE_KEY, JSON.stringify(newUserProfile));
-            toast({
-                title: "You’ve been promoted to Leader — keep it disciplined.",
-            });
+            setJustPromoted(true);
         }
-    }, [userProfile, communityState, toast]);
+    }, [userProfile, communityState]);
 
     useEffect(() => {
         checkAndPromoteToLeader();
