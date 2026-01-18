@@ -141,7 +141,7 @@ const mockPostsData: Omit<Post, 'likes' | 'comments'>[] = [
         timestamp: "8 hours ago",
         type: 'Chart',
         isHighSignal: true,
-        content: "Here's the 4H BTC chart I was watching. The key was waiting for a clean break and retest of the $68k level (blue line) before entering. Patience paid off.",
+        content: "Setup Idea: BTC 4H is consolidating. A clean break above $68.5k could be a trend continuation setup.\nRisk Plan: My plan would be to enter on a retest, with an SL below the range midpoint to invalidate the idea. This is for analysis only, not a signal.",
         image: chartPlaceholder?.imageUrl,
         imageHint: chartPlaceholder?.imageHint,
         trade: { instrument: "BTC-PERP", result: 3.2 },
@@ -154,16 +154,35 @@ const mockPostsData: Omit<Post, 'likes' | 'comments'>[] = [
         isHighSignal: false,
         content: "Mental Model: Instead of 'win rate', I'm now tracking my 'rule adherence rate'. My P&L has improved since I started focusing on executing my plan perfectly, regardless of the outcome of a single trade.",
     },
+    {
+        id: '4',
+        author: { name: "Jane D.", avatar: "/avatars/04.png", role: "Leader" },
+        timestamp: "2 days ago",
+        type: 'Insight',
+        isHighSignal: true,
+        content: "My pre-trade checklist:\n1. Does this fit one of my defined strategies?\n2. Is the market context (VIX, news) favorable?\n3. Have I defined my entry, SL, and TP in my plan?\n4. Am I emotionally neutral?\nIf any answer is 'no', I don't take the trade.",
+    },
+    {
+        id: '5',
+        author: { name: "Sam K.", avatar: "/avatars/05.png", role: "Member" },
+        timestamp: "3 days ago",
+        type: 'Reflection',
+        isHighSignal: false,
+        content: "Mistake: I took a revenge trade after a small loss and it turned into a much bigger one.\nLesson: My cooldown rule (1 hour break after 2 losses) is there for a reason. Need to respect it. Closed the platform for the rest of the day.",
+        trade: { instrument: "SOL-PERP", result: -2.5 },
+    }
 ];
 
 const initialCommunityState: CommunityState = {
     posts: mockPostsData as Post[],
-    likesMap: { '1': 15, '2': 42, '3': 28 },
-    savesMap: { '1': 5, '2': 20, '3': 12 },
+    likesMap: { '1': 15, '2': 42, '3': 28, '4': 55, '5': 18 },
+    savesMap: { '1': 5, '2': 20, '3': 12, '4': 30, '5': 7 },
     commentsMap: {
         '1': [{ author: "Jane D.", text: "That's the way! A red day sticking to the plan is better than a green day breaking rules." }],
         '2': [],
-        '3': [{ author: "Alex R.", text: "Great insight. Process over outcome." }]
+        '3': [{ author: "Alex R.", text: "Great insight. Process over outcome." }],
+        '4': [{ author: "Chen W.", text: "This is so important. My checklist has saved me from so many bad trades." }],
+        '5': []
     },
     savedPostIds: [],
     officialPosts: [
@@ -218,6 +237,7 @@ const initialCommunityState: CommunityState = {
     },
     personaRecommendedPostIds: [],
 };
+
 
 const initialUserProfile: UserProfile = {
     username: 'You',
@@ -1633,3 +1653,6 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
     );
 }
 
+
+
+    
