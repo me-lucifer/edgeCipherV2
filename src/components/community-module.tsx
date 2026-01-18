@@ -57,6 +57,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Input } from "./ui/input";
 
 
 interface CommunityModuleProps {
@@ -644,6 +645,7 @@ function FeedTab({
     onHidePost,
     onDeletePost,
     onMarkAsOfficial,
+    onCreateOfficialPost,
 }: {
     posts: Post[];
     officialPosts: Omit<OfficialPost, 'icon'>[];
@@ -656,6 +658,7 @@ function FeedTab({
     onLike: (id: string) => void;
     onSave: (id: string) => void;
     onCreatePost: (post: Omit<Post, 'id' | 'timestamp' | 'author' | 'isHighSignal'>) => void;
+    onCreateOfficialPost: (post: Omit<OfficialPost, 'icon'>) => void;
     videosData: CommunityState['videos'];
     onPostClick: (postId: string) => void;
     onVideoClick: (videoId: string) => void;
@@ -680,6 +683,12 @@ function FeedTab({
     const [nudge, setNudge] = useState("");
     const { riskState } = useRiskState();
     const [isNewsDrivenDay, setIsNewsDrivenDay] = useState(false);
+
+    const [isCreateOfficialOpen, setIsCreateOfficialOpen] = useState(false);
+    const [newOfficialTitle, setNewOfficialTitle] = useState("");
+    const [newOfficialBullets, setNewOfficialBullets] = useState("");
+    const [newOfficialTag, setNewOfficialTag] = useState<string>("Education");
+
 
     useEffect(() => {
         const checkNewsSignal = () => {
@@ -879,6 +888,37 @@ What is the lesson?
         onSetModule('aiCoaching', { initialMessage: prompt });
     };
 
+    const handleCreateOfficialPostClick = () => {
+        if (!newOfficialTitle.trim() || !newOfficialBullets.trim()) {
+            toast({
+                title: "Missing fields",
+                description: "Please provide a title and at least one bullet point.",
+                variant: "destructive"
+            });
+            return;
+        }
+        const bulletsArray = newOfficialBullets.split('\n').filter(b => b.trim() !== '');
+        if (bulletsArray.length > 3) {
+            toast({
+                title: "Too many bullet points",
+                description: "Please provide a maximum of 3 bullet points.",
+                variant: "destructive"
+            });
+            return;
+        }
+
+        onCreateOfficialPost({
+            title: newOfficialTitle,
+            bullets: bulletsArray,
+            tag: newOfficialTag
+        });
+
+        setIsCreateOfficialOpen(false);
+        setNewOfficialTitle("");
+        setNewOfficialBullets("");
+        setNewOfficialTag("Education");
+    };
+
     return (
         <div className="grid lg:grid-cols-3 gap-8 items-start">
             {/* Main Column */}
@@ -964,9 +1004,57 @@ What is the lesson?
                                 })}
                             </div>
                         </ScrollArea>
+                        <DialogFooter className="mt-4 border-t pt-4">
+                            {isAdmin && (
+                                <Button onClick={() => setIsCreateOfficialOpen(true)}>
+                                    <PlusCircle className="mr-2 h-4 w-4" />
+                                    Create Official Post
+                                </Button>
+                            )}
+                        </DialogFooter>
                     </DialogContent>
                 </Dialog>
                 
+                 <Dialog open={isCreateOfficialOpen} onOpenChange={setIsCreateOfficialOpen}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Create Official Post</DialogTitle>
+                            <DialogDescription>
+                                This post will appear in the official carousel for all users.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="py-4 space-y-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="official-title">Title</Label>
+                                <Input id="official-title" value={newOfficialTitle} onChange={e => setNewOfficialTitle(e.target.value)} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="official-tag">Tag</Label>
+                                <Select value={newOfficialTag} onValueChange={setNewOfficialTag}>
+                                    <SelectTrigger id="official-tag">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Education">Education</SelectItem>
+                                        <SelectItem value="Market Warning">Market Warning</SelectItem>
+                                        <SelectItem value="Feature Update">Feature Update</SelectItem>
+                                        <SelectItem value="New Video">New Video</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="official-bullets">Bullets (1 per line, max 3)</Label>
+                                <Textarea id="official-bullets" value={newOfficialBullets} onChange={e => setNewOfficialBullets(e.target.value)} placeholder="• First point...&#x0a;• Second point..." />
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button variant="ghost" onClick={() => setIsCreateOfficialOpen(false)}>Cancel</Button>
+                            <Button onClick={handleCreateOfficialPostClick}>Create Post</Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+
                 <ArjunHighlightsStrip
                   arjunRecos={arjunRecos}
                   posts={posts}
@@ -1803,6 +1891,14 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
             posts: [newPost, ...prev.posts]
         }));
     };
+    
+    const handleCreateOfficialPost = (post: Omit<OfficialPost, 'icon'>) => {
+        updateCommunityState(prev => ({
+            ...prev,
+            officialPosts: [post, ...prev.officialPosts]
+        }));
+        toast({ title: "Official post created." });
+    };
 
     const handleAddComment = (postId: string, commentText: string) => {
         if (!userProfile) return;
@@ -1941,6 +2037,7 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
                         onLike={handleLike}
                         onSave={handleSave}
                         onCreatePost={handleCreatePost}
+                        onCreateOfficialPost={handleCreateOfficialPost}
                         videosData={communityState.videos}
                         onPostClick={handlePostClick}
                         onVideoClick={handleVideoClick}
