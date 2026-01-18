@@ -149,7 +149,7 @@ const mockPostsData: Omit<Post, 'likes' | 'comments'>[] = [
 ];
 
 const initialCommunityState: CommunityState = {
-    posts: mockPostsData,
+    posts: mockPostsData as Post[],
     likesMap: { '1': 15, '2': 42, '3': 28 },
     commentsMap: {
         '1': [{ author: "Jane D.", text: "That's the way! A red day sticking to the plan is better than a green day breaking rules." }],
@@ -1119,6 +1119,46 @@ const getPersonaRecommendations = (posts: Post[], personaName: string): string[]
         .map(p => p.id);
 };
 
+const calculatePostQualityScore = (postData: Omit<Post, 'id' | 'timestamp' | 'author' | 'isHighSignal'>): number => {
+    let score = 0;
+    const { type, content } = postData;
+
+    // Category weight
+    if (type === 'Reflection' || type === 'Insight') {
+        score += 30;
+    } else {
+        score += 10;
+    }
+
+    // Text length
+    const len = content.length;
+    if (len >= 20 && len <= 600) {
+        score += 30;
+    } else if (len > 600) {
+        score += 10; // Still valuable but might be too long
+    }
+
+    // Keyword presence
+    const lessonKeywords = ['lesson', 'learned', 'realized', 'understand', 'mistake', 'realisation'];
+    if (lessonKeywords.some(kw => content.toLowerCase().includes(kw))) {
+        score += 25;
+    }
+
+    // Forbidden patterns (already handled partially in submit logic)
+    const signalKeywords = ["entry", "target", "buy now", "sell now", "guaranteed", "pump", "dump", "moon", "signal", "sl at", "tp at"];
+    if (signalKeywords.some(kw => content.toLowerCase().includes(kw))) {
+        score -= 50;
+    }
+    
+    // Links
+    const linkPattern = /(http|https|www\.)/i;
+    if (linkPattern.test(content)) {
+        score = 0;
+    }
+
+    return Math.max(0, Math.min(100, score));
+};
+
 export function CommunityModule({ onSetModule }: CommunityModuleProps) {
     const searchParams = useSearchParams();
     const router = useRouter();
@@ -1304,12 +1344,13 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
 
     const handleCreatePost = (newPostData: Omit<Post, 'id' | 'timestamp' | 'author' | 'isHighSignal'>) => {
         if (!userProfile) return;
+        const qualityScore = calculatePostQualityScore(newPostData);
         const newPost: Post = {
             ...newPostData,
             id: String(Date.now()),
             timestamp: "Just now",
             author: { name: userProfile.username, avatar: "/avatars/user.png", role: userProfile.role },
-            isHighSignal: false, // This would be determined by backend logic in a real app
+            isHighSignal: qualityScore > 75,
         };
         updateCommunityState(prev => ({
             ...prev,
