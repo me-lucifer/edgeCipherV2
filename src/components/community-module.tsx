@@ -305,14 +305,14 @@ function ArjunRecommendationBanner({
   arjunRecos,
   posts,
   videosData,
-  router,
-  pathname,
+  onVideoClick,
+  onPostClick,
 }: {
   arjunRecos: ArjunRecommendations;
   posts: Post[];
   videosData: CommunityState['videos'];
-  router: any;
-  pathname: string;
+  onVideoClick: (videoId: string) => void;
+  onPostClick: (postId: string) => void;
 }) {
   const recommendedPost = useMemo(() => {
     if (!arjunRecos?.recommendedPostIds?.length) return null;
@@ -336,20 +336,6 @@ function ArjunRecommendationBanner({
       </Card>
     )
   }
-
-  const handleWatchVideo = (videoId: string) => {
-    const params = new URLSearchParams();
-    params.set('tab', 'learn');
-    params.set('video', videoId);
-    router.push(`${pathname}?${params.toString()}`);
-  };
-
-  const handleViewPost = (postId: string) => {
-    const params = new URLSearchParams();
-    params.set('tab', 'feed');
-    params.set('post', postId);
-    router.push(`${pathname}?${params.toString()}`);
-  };
 
   return (
     <Card className="bg-muted/30 border-primary/20">
@@ -381,7 +367,7 @@ function ArjunRecommendationBanner({
                 <p className="text-sm text-muted-foreground line-clamp-2">{recommendedPost.content}</p>
             </CardHeader>
             <CardFooter>
-              <Button size="sm" variant="outline" className="w-full" onClick={() => handleViewPost(recommendedPost.id)}>
+              <Button size="sm" variant="outline" className="w-full" onClick={() => onPostClick(recommendedPost.id)}>
                 View Post <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </CardFooter>
@@ -405,7 +391,7 @@ function ArjunRecommendationBanner({
               )}
             </CardContent>
              <CardFooter>
-              <Button size="sm" variant="outline" className="w-full" onClick={() => handleWatchVideo(recommendedVideo.id)}>
+              <Button size="sm" variant="outline" className="w-full" onClick={() => onVideoClick(recommendedVideo.id)}>
                 Watch Video <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </CardFooter>
@@ -427,8 +413,8 @@ function FeedTab({
     onLike,
     onCreatePost,
     videosData,
-    router,
-    pathname,
+    onPostClick,
+    onVideoClick,
     personaRecommendedPostIds,
 }: {
     posts: Post[];
@@ -441,8 +427,8 @@ function FeedTab({
     onLike: (id: string) => void;
     onCreatePost: (post: Omit<Post, 'id' | 'timestamp' | 'author' | 'isHighSignal'>) => void;
     videosData: CommunityState['videos'];
-    router: any;
-    pathname: string;
+    onPostClick: (postId: string) => void;
+    onVideoClick: (videoId: string) => void;
     personaRecommendedPostIds: string[];
 }) {
     const [newPostContent, setNewPostContent] = useState("");
@@ -450,11 +436,6 @@ function FeedTab({
     const [postError, setPostError] = useState<string | null>(null);
     const [isChartConfirmed, setIsChartConfirmed] = useState(false);
     
-    // Filter states
-    const [categoryFilter, setCategoryFilter] = useState<'All' | 'Chart' | 'Reflection' | 'Insight'>('All');
-    const [highSignalOnly, setHighSignalOnly] = useState(false);
-    const [arjunRecommended, setArjunRecommended] = useState(false);
-
     const [nudge, setNudge] = useState("");
 
     const coachingNudges = useMemo(() => [
@@ -476,6 +457,30 @@ function FeedTab({
         }, 7000);
         return () => clearInterval(interval);
     }, [coachingNudges]);
+
+    const signalKeywords = useMemo(() => ["entry", "target", "buy now", "sell now", "guaranteed", "pump", "dump", "moon", "signal", "sl at", "tp at"], []);
+    const signalRegex = useMemo(() => new RegExp(`\\b(${signalKeywords.join('|')})\\b`, 'i'), [signalKeywords]);
+
+    // This is the real-time gentle warning
+    useEffect(() => {
+        const content = newPostContent.toLowerCase();
+        if (content.length > 0 && signalRegex.test(content)) {
+            // Only set the gentle warning if there isn't a hard error from submission
+            if (!postError || postError === "Tip: Avoid signals. Share your reasoning + lesson instead.") {
+                setPostError("Tip: Avoid signals. Share your reasoning + lesson instead.");
+            }
+        } else if (postError === "Tip: Avoid signals. Share your reasoning + lesson instead.") {
+            // Only clear the gentle warning
+            setPostError(null);
+        }
+    }, [newPostContent, signalRegex, postError]);
+
+    
+    // Filter states
+    const [categoryFilter, setCategoryFilter] = useState<'All' | 'Chart' | 'Reflection' | 'Insight'>('All');
+    const [highSignalOnly, setHighSignalOnly] = useState(false);
+    const [arjunRecommended, setArjunRecommended] = useState(false);
+
 
     const reflectionPlaceholder = `What was the plan?
 - e.g., Planned to enter BTC long on a retest of 68k.
@@ -520,23 +525,30 @@ What is the lesson?
     };
 
     const handleCreatePost = () => {
-        setPostError(null);
+        setPostError(null); // Clear previous submit errors
         const content = newPostContent.trim();
+        
         if (content.length < 20) {
             setPostError("Post must be at least 20 characters long.");
             return;
         }
+
         const linkPattern = /(http|https|www\.)/i;
         if (linkPattern.test(content)) {
-            setPostError("Community is for learning and reflection — not signals. External links are not allowed.");
+            setPostError("Community is for learning and reflection. External links are not allowed.");
             return;
         }
-        const signalWords = ["buy now", "sell now", "entry at", "target", "guaranteed", "pump", "dump", "moon"];
-        const profanityWords = ["darn", "heck", "shoot"];
-        const bannedWords = [...signalWords, ...profanityWords];
-        const bannedWordPattern = new RegExp(`\\b(${bannedWords.join('|')})\\b`, 'i');
-        if (bannedWordPattern.test(content)) {
-            setPostError("Community is for learning and reflection — not signals. Please avoid signal language or profanity.");
+        
+        // Hard block for signal words on submit
+        if (signalRegex.test(content)) {
+            setPostError("Please remove signal language (e.g., 'buy now', 'target') before posting.");
+            return;
+        }
+
+        const profanityWords = ["darn", "heck", "shoot"]; // keeping it mild
+        const profanityRegex = new RegExp(`\\b(${profanityWords.join('|')})\\b`, 'i');
+        if (profanityRegex.test(content)) {
+            setPostError("Please avoid profanity.");
             return;
         }
 
@@ -547,12 +559,16 @@ What is the lesson?
 
         setNewPostContent("");
         setIsChartConfirmed(false);
+        setPostError(null); // Final clear
     };
+
 
     const handleDiscuss = (post: Post) => {
         const prompt = `Arjun, I'm looking at this community post titled "${post.type}" by ${post.author.name}: "${post.content.substring(0, 150)}...". What's your professional take on this? Can you give me some feedback or ask a clarifying question?`;
         onSetModule('aiCoaching', { initialMessage: prompt });
     };
+    
+    const isGentleWarning = postError?.startsWith("Tip:");
 
     return (
         <div className="max-w-3xl mx-auto space-y-8">
@@ -560,8 +576,8 @@ What is the lesson?
               arjunRecos={arjunRecos}
               posts={posts}
               videosData={videosData}
-              router={router}
-              pathname={pathname}
+              onPostClick={onPostClick}
+              onVideoClick={onVideoClick}
             />
             <Card className="bg-muted/30 border-border/50">
               <CardHeader>
@@ -658,10 +674,18 @@ What is the lesson?
                                 placeholder={newPostCategory === 'Reflection' ? reflectionPlaceholder : "What did you learn today?"}
                                 value={newPostContent}
                                 onChange={(e) => setNewPostContent(e.target.value)}
-                                className={cn(postError && "border-destructive focus-visible:ring-destructive", "min-h-[150px]")}
+                                className={cn(postError && !isGentleWarning && "border-destructive focus-visible:ring-destructive", "min-h-[150px]")}
                             />
                             
-                            {postError && (<p className="text-sm text-destructive mt-2">{postError}</p>)}
+                            {postError && (
+                                <p className={cn(
+                                    "text-sm mt-2 flex items-start gap-2",
+                                    isGentleWarning ? "text-amber-500" : "text-destructive"
+                                )}>
+                                    <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                                    <span>{postError}</span>
+                                </p>
+                            )}
 
                             {newPostCategory === 'Chart' && (
                                 <div className="flex items-start space-x-3 pt-2">
@@ -1117,6 +1141,7 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
         if (videoId) {
             newTab = 'learn';
             itemToHighlight = `video-${videoId}`;
+            handleVideoClick(videoId); // Show modal immediately
         } else if (postId) {
             newTab = 'feed';
             itemToHighlight = `post-${postId}`;
@@ -1223,6 +1248,13 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
         setClickedVideoId(videoId);
         setShowVideoModal(true);
     };
+    
+    const handlePostClick = (postId: string) => {
+        const params = new URLSearchParams();
+        params.set('tab', 'feed');
+        params.set('post', postId);
+        router.push(`${pathname}?${params.toString()}`);
+    };
 
     if (isLoading || !communityState || !userProfile || !arjunRecos) {
         return <div>Loading...</div>; // Or a skeleton loader
@@ -1253,8 +1285,8 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
                         onLike={handleLike}
                         onCreatePost={handleCreatePost}
                         videosData={communityState.videos}
-                        router={router}
-                        pathname={pathname}
+                        onPostClick={handlePostClick}
+                        onVideoClick={onVideoClick}
                         personaRecommendedPostIds={communityState.personaRecommendedPostIds || []}
                     />
                 </TabsContent>
@@ -1285,13 +1317,5 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
         </div>
     );
 }
-
-
-
-
-
-  
-
-
 
     
