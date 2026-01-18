@@ -1211,7 +1211,8 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
             let finalUserProfile: UserProfile;
             
             if (communityStateRaw) {
-                finalCommunityState = JSON.parse(communityStateRaw);
+                const parsedState = JSON.parse(communityStateRaw);
+                finalCommunityState = { ...initialCommunityState, ...parsedState };
             } else {
                 finalCommunityState = initialCommunityState;
             }
@@ -1511,3 +1512,4 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
         </div>
     );
 }
+
