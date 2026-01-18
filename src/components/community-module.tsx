@@ -409,105 +409,98 @@ function PostCard({ post, likes, comments, isArjunRecommended, recommendationRea
     );
 }
 
-function ArjunRecommendationBanner({
+function ArjunHighlightsStrip({
   arjunRecos,
   posts,
-  videosData,
-  onVideoClick,
   onPostClick,
+  userProfile,
+  personaRecommendedPostIds,
 }: {
   arjunRecos: ArjunRecommendations;
   posts: Post[];
-  videosData: CommunityState['videos'];
-  onVideoClick: (videoId: string) => void;
   onPostClick: (postId: string) => void;
+  userProfile: UserProfile;
+  personaRecommendedPostIds: string[];
 }) {
-  const recommendedPost = useMemo(() => {
-    if (!arjunRecos?.recommendedPostIds?.length) return null;
-    return posts.find(p => p.id === arjunRecos.recommendedPostIds[0]);
-  }, [posts, arjunRecos]);
+  const recommendedPosts = useMemo(() => {
+    const allRecommendedIds = [
+      ...(arjunRecos?.recommendedPostIds || []),
+      ...(personaRecommendedPostIds || []),
+    ];
+    const uniqueIds = [...new Set(allRecommendedIds)];
 
-  const recommendedVideo = useMemo(() => {
-    if (!arjunRecos?.recommendedVideoId || !videosData) return null;
-    return videosData.playlists.flatMap(p => p.videos).find(v => v.id === arjunRecos.recommendedVideoId);
-  }, [videosData, arjunRecos]);
+    const recommended = uniqueIds.map(id => posts.find(p => p.id === id)).filter(Boolean) as Post[];
 
-  const videoThumbnail = PlaceHolderImages.find(p => p.id === 'video-thumbnail');
+    const reflection = recommended.find(p => p.type === 'Reflection');
+    const insight = recommended.find(p => p.type === 'Insight');
+    const chart = recommended.find(p => p.type === 'Chart');
+    
+    const highlights = new Set([reflection, insight, chart].filter(Boolean) as Post[]);
+    
+    if (highlights.size < 3) {
+      for (const p of recommended) {
+        if (highlights.size >= 3) break;
+        highlights.add(p);
+      }
+    }
+    
+    return Array.from(highlights);
 
-  if (!recommendedPost && !recommendedVideo) {
-    return (
-      <Card className="bg-muted/30 border-border/50">
-        <CardContent className="p-6 text-center">
-          <h3 className="font-semibold text-foreground">No recommendations yet</h3>
-          <p className="text-sm text-muted-foreground mt-1">Complete your journal to unlock personalized guidance from Arjun.</p>
-        </CardContent>
-      </Card>
-    )
+  }, [posts, arjunRecos, personaRecommendedPostIds]);
+
+  if (recommendedPosts.length === 0) {
+    return null;
   }
 
   return (
     <Card className="bg-muted/30 border-primary/20">
       <CardHeader>
-        <TooltipProvider>
-            <Tooltip>
-                <TooltipTrigger asChild>
-                    <CardTitle className="text-base flex items-center gap-2 text-primary cursor-help">
-                        <Sparkles className="h-4 w-4" />
-                        Arjun recommended for you today
-                        <Info className="h-3 w-3 text-primary/80" />
-                    </CardTitle>
-                </TooltipTrigger>
-                <TooltipContent>
-                    <p>{arjunRecos.reason}</p>
-                </TooltipContent>
-            </Tooltip>
-        </TooltipProvider>
+        <CardTitle className="text-base flex items-center gap-2 text-primary">
+          <Sparkles className="h-4 w-4" />
+          Highlights for you today
+        </CardTitle>
         <CardDescription className="text-xs">Based on your recent activity and persona.</CardDescription>
       </CardHeader>
-      <CardContent className="grid md:grid-cols-2 gap-4">
-        {recommendedPost && (
-          <Card className="bg-muted/50">
-            <CardHeader className="pb-4">
-                <div className="flex items-center gap-2 mb-2">
-                    <BookOpen className="h-4 w-4 text-muted-foreground" />
-                    <h4 className="font-semibold text-foreground">Recommended Post</h4>
-                </div>
-                <p className="text-sm text-muted-foreground line-clamp-2">{recommendedPost.content}</p>
-            </CardHeader>
-            <CardFooter>
-              <Button size="sm" variant="outline" className="w-full" onClick={() => onPostClick(recommendedPost.id)}>
-                View Post <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </CardFooter>
-          </Card>
-        )}
-        {recommendedVideo && (
-          <Card className="bg-muted/50">
-             <CardHeader className="pb-4">
-                <div className="flex items-center gap-2 mb-2">
-                    <Video className="h-4 w-4 text-muted-foreground" />
-                    <h4 className="font-semibold text-foreground">Recommended Video</h4>
-                </div>
-                <p className="text-sm text-muted-foreground">{recommendedVideo.title}</p>
-            </CardHeader>
-            <CardContent>
-              {videoThumbnail && (
-                <div className="aspect-video bg-muted rounded-md relative overflow-hidden">
-                    <Image src={videoThumbnail.imageUrl} alt={recommendedVideo.title} fill style={{ objectFit: 'cover' }} data-ai-hint={videoThumbnail.imageHint || 'video thumbnail'} />
-                    <Badge className="absolute bottom-2 right-2 bg-black/50 text-white">{recommendedVideo.duration}</Badge>
-                </div>
-              )}
-            </CardContent>
-             <CardFooter>
-              <Button size="sm" variant="outline" className="w-full" onClick={() => onVideoClick(recommendedVideo.id)}>
-                Watch Video <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </CardFooter>
-          </Card>
-        )}
+      <CardContent className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {recommendedPosts.map(post => {
+            const isArjunRecommended = (arjunRecos?.recommendedPostIds || []).includes(post.id);
+            const reason = isArjunRecommended 
+                ? arjunRecos.reason 
+                : `Recommended based on your '${userProfile.persona}' persona.`;
+            
+            const title = post.content.split('\n')[0].split('. ')[0];
+
+            return (
+                 <Card key={post.id} className="bg-muted/50 h-full flex flex-col">
+                    <CardHeader className="pb-4">
+                         <div className="flex items-start justify-between">
+                            <h4 className="font-semibold text-foreground leading-tight line-clamp-2 pr-2">{title}</h4>
+                             <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Info className="h-4 w-4 text-muted-foreground cursor-help flex-shrink-0" />
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p className="max-w-xs">{reason}</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        </div>
+                    </CardHeader>
+                     <CardContent className="flex-1">
+                        <Badge variant="outline">{post.type}</Badge>
+                    </CardContent>
+                    <CardFooter>
+                      <Button size="sm" variant="outline" className="w-full" onClick={() => onPostClick(post.id)}>
+                        Open Post <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </CardFooter>
+                  </Card>
+            )
+        })}
       </CardContent>
     </Card>
-  )
+  );
 }
 
 function FeedTab({
@@ -849,6 +842,14 @@ What is the lesson?
                         </ScrollArea>
                     </DialogContent>
                 </Dialog>
+                
+                <ArjunHighlightsStrip
+                  arjunRecos={arjunRecos}
+                  posts={posts}
+                  onPostClick={onPostClick}
+                  userProfile={userProfile}
+                  personaRecommendedPostIds={personaRecommendedPostIds}
+                />
 
                 <Card className="bg-muted/30 border-border/50">
                     <CardContent className="p-4 flex flex-wrap items-center gap-x-6 gap-y-3">
@@ -907,13 +908,6 @@ What is the lesson?
 
             {/* Sidebar */}
             <div className="lg:col-span-1 space-y-8 lg:sticky lg:top-24">
-                <ArjunRecommendationBanner
-                  arjunRecos={arjunRecos}
-                  posts={posts}
-                  videosData={videosData}
-                  onPostClick={onPostClick}
-                  onVideoClick={onVideoClick}
-                />
                  <Card ref={createPostRef} className="bg-muted/30 border-border/50 scroll-mt-24">
                     <CardHeader>
                         <CardTitle>Share an insight</CardTitle>
@@ -1740,3 +1734,4 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
         </div>
     );
 }
+
