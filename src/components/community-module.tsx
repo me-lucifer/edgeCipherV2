@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark, Timer, Gauge, Star, Calendar, Copy, Clipboard, ThumbsUp, ThumbsDown, Meh, PlusCircle, MoreHorizontal, Save, Grid, Eye, Radio, RefreshCw, Layers, BarChart, FileText, ShieldAlert, Info, HelpCircle, ChevronsUpDown, BookOpen, Crown, ImageUp, MessageSquare, Video, Trophy, BrainCircuit, User } from "lucide-react";
+import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark, Timer, Gauge, Star, Calendar, Copy, Clipboard, ThumbsUp, ThumbsDown, Meh, PlusCircle, MoreHorizontal, Save, Grid, Eye, Radio, RefreshCw, Layers, BarChart, FileText, ShieldAlert, Info, HelpCircle, ChevronsUpDown, Crown, ImageUp, MessageSquare, Video, BookOpen } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerClose } from "./ui/drawer";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
@@ -19,7 +19,7 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { Label } from "./ui/label";
 import { Switch } from "./ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Separator } from "./ui/separator";
 import { Checkbox } from "./ui/checkbox";
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "./ui/tooltip";
@@ -718,8 +718,54 @@ function LearningStreakCard({ watchedIds }: { watchedIds: string[] }) {
     );
 }
 
+function ArjunQueue({ arjunRecos, videosData, onVideoClick }: { arjunRecos: ArjunRecommendations | null, videosData: CommunityState['videos'], onVideoClick: (videoId: string) => void }) {
+    const recommendedVideo = useMemo(() => {
+        if (!arjunRecos?.recommendedVideoId || !videosData) return null;
+        return videosData.playlists.flatMap(p => p.videos).find(v => v.id === arjunRecos.recommendedVideoId);
+    }, [videosData, arjunRecos]);
+    
+    const videoThumbnail = PlaceHolderImages.find(p => p.id === 'video-thumbnail');
 
-function LearnTab({ videosData, onVideoClick }: { videosData: CommunityState['videos'], onVideoClick: (videoId: string) => void }) {
+    if (!recommendedVideo) {
+        return (
+            <Card className="bg-muted/30 border-border/50">
+                <CardHeader>
+                    <CardTitle className="text-base flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary" /> Arjun Queue</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-center text-muted-foreground text-sm py-4">
+                        Complete onboarding + journal to personalize your queue.
+                    </p>
+                </CardContent>
+            </Card>
+        );
+    }
+
+    return (
+        <Card className="bg-muted/30 border-primary/20">
+            <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary" /> Arjun Queue</CardTitle>
+                <CardDescription>A lesson prioritized for you: {arjunRecos?.reason}</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div key={recommendedVideo.id} className="group cursor-pointer p-1 rounded-lg" onClick={() => onVideoClick(recommendedVideo.id)}>
+                    <div className="grid md:grid-cols-3 gap-4 items-center">
+                        <div className="md:col-span-1 aspect-video bg-muted rounded-md relative overflow-hidden">
+                            {videoThumbnail && <Image src={videoThumbnail.imageUrl} alt={recommendedVideo.title} fill style={{ objectFit: 'cover' }} data-ai-hint={videoThumbnail.imageHint || 'video thumbnail'} />}
+                            <Badge className="absolute bottom-2 right-2 bg-black/50 text-white">{recommendedVideo.duration}</Badge>
+                        </div>
+                        <div className="md:col-span-2">
+                            <p className="font-medium text-lg mt-2 text-foreground group-hover:text-primary transition-colors">{recommendedVideo.title}</p>
+                            <p className="text-sm text-muted-foreground mt-1">{recommendedVideo.description}</p>
+                        </div>
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
+function LearnTab({ videosData, onVideoClick, arjunRecos }: { videosData: CommunityState['videos'], onVideoClick: (videoId: string) => void, arjunRecos: ArjunRecommendations | null }) {
     const videoThumbnail = PlaceHolderImages.find(p => p.id === 'video-thumbnail');
     const searchParams = useSearchParams();
     const router = useRouter();
@@ -771,6 +817,7 @@ function LearnTab({ videosData, onVideoClick }: { videosData: CommunityState['vi
                     </div>
                 </Alert>
             )}
+             <ArjunQueue arjunRecos={arjunRecos} videosData={videosData} onVideoClick={handleWatchVideo} />
              <div className="grid lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2">
                     <Card className="bg-muted/30 border-border/50 h-full">
@@ -1165,6 +1212,7 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
                     <LearnTab 
                         videosData={communityState.videos}
                         onVideoClick={handleVideoClick}
+                        arjunRecos={arjunRecos}
                     />
                 </TabsContent>
                 <TabsContent value="leaders" className="mt-8">
@@ -1187,6 +1235,7 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
         </div>
     );
 }
+
 
 
 
