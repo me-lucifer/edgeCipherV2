@@ -110,10 +110,28 @@
         animation: metric-pulse 0.5s ease-out;
     }
 
+    .highlight-glow {
+        animation: highlight-glow-animation 3s ease-out;
+        border-radius: var(--radius);
+    }
+
+    @keyframes highlight-glow-animation {
+        0% {
+            box-shadow: 0 0 0 0 hsl(var(--primary) / 0.7);
+        }
+        30% {
+            box-shadow: 0 0 20px 4px hsl(var(--primary) / 0.7);
+        }
+        100% {
+            box-shadow: 0 0 0 0 hsl(var(--primary) / 0);
+        }
+    }
+
     @media (prefers-reduced-motion) {
       .animate-in,
       .animate-out,
-      .animate-metric-pulse {
+      .animate-metric-pulse,
+      .highlight-glow {
         animation: none;
       }
     }

@@ -1,5 +1,4 @@
 
-
       "use client";
 
 import React, { useState, useMemo, useEffect, useRef } from "react";
@@ -9,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark, Timer, Gauge, Star, Calendar, Copy, Clipboard, ThumbsUp, ThumbsDown, Meh, PlusCircle, MoreHorizontal, Save, Grid, Eye, Radio, RefreshCw, Layers, BarChart, FileText, ShieldAlert, Info, HelpCircle, ChevronsUpDown, BookOpen, Crown, ImageUp, MessageSquare, Video } from "lucide-react";
+import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark, Timer, Gauge, Star, Calendar, Copy, Clipboard, ThumbsUp, ThumbsDown, Meh, PlusCircle, MoreHorizontal, Save, Grid, Eye, Radio, RefreshCw, Layers, BarChart, FileText, ShieldAlert, Info, HelpCircle, ChevronsUpDown, BookOpen, Crown, ImageUp, MessageSquare, Video, User } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerClose } from "./ui/drawer";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -194,9 +193,9 @@ const initialArjunRecos: ArjunRecommendations = {
 // UI COMPONENTS
 // =================================================================
 
-function PostCard({ post, likes, commentsCount, isArjunRecommended, recommendationReason, onLike, onDiscuss }: { post: Post, likes: number, commentsCount: number, isArjunRecommended: boolean, recommendationReason?: string, onLike: (id: string) => void, onDiscuss: (post: Post) => void }) {
+function PostCard({ id, post, likes, commentsCount, isArjunRecommended, recommendationReason, onLike, onDiscuss }: { id?: string; post: Post, likes: number, commentsCount: number, isArjunRecommended: boolean, recommendationReason?: string, onLike: (id: string) => void, onDiscuss: (post: Post) => void }) {
     return (
-        <Card id={`post-${post.id}`} className="bg-muted/30 border-border/50">
+        <Card id={id} className="bg-muted/30 border-border/50">
             <CardHeader className="pb-4">
                 <div className="flex justify-between items-start">
                     <div className="flex items-center gap-3">
@@ -280,7 +279,7 @@ function ArjunRecommendationBanner({
   posts,
   videosData,
   router,
-  pathname
+  pathname,
 }: {
   arjunRecos: ArjunRecommendations;
   posts: Post[];
@@ -313,15 +312,16 @@ function ArjunRecommendationBanner({
 
   const handleWatchVideo = (videoId: string) => {
     const params = new URLSearchParams();
+    params.set('tab', 'learn');
     params.set('video', videoId);
     router.push(`${pathname}?${params.toString()}`);
   };
 
   const handleViewPost = (postId: string) => {
-    const element = document.getElementById(`post-${postId}`);
-    if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
+    const params = new URLSearchParams();
+    params.set('tab', 'feed');
+    params.set('post', postId);
+    router.push(`${pathname}?${params.toString()}`);
   };
 
   return (
@@ -645,6 +645,7 @@ function FeedTab({
                 {postsToRender.map(post => (
                     <PostCard 
                         key={post.id} 
+                        id={`post-${post.id}`}
                         post={post} 
                         likes={likesMap[post.id] || 0}
                         commentsCount={commentsMap[post.id]?.length || 0}
@@ -665,24 +666,25 @@ function FeedTab({
     );
 }
 
-function LearnTab({ videosData, highlightedVideoId, onClearHighlight }: { videosData: CommunityState['videos'], highlightedVideoId: string | null; onClearHighlight: () => void; }) {
+function LearnTab({ videosData }: { videosData: CommunityState['videos'] }) {
     const videoThumbnail = PlaceHolderImages.find(p => p.id === 'video-thumbnail');
-    const videoRefs = useRef<Record<string, HTMLDivElement | null>>({});
+    const searchParams = useSearchParams();
+    const router = useRouter();
+    const pathname = usePathname();
 
-    useEffect(() => {
-        if (highlightedVideoId) {
-            const videoElement = videoRefs.current[highlightedVideoId];
-            if (videoElement) {
-                videoElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-        }
-    }, [highlightedVideoId]);
+    const showArjunBanner = !!searchParams.get('video');
+
+    const handleClearBanner = () => {
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete('video');
+        router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    }
 
     const { featured: featuredVideo, playlists } = videosData;
 
     return (
         <div className="max-w-5xl mx-auto space-y-12">
-            {highlightedVideoId && (
+            {showArjunBanner && (
                 <Alert className="bg-primary/10 border-primary/20 text-foreground">
                     <BrainCircuit className="h-4 w-4 text-primary" />
                     <div className="flex items-center justify-between">
@@ -690,7 +692,7 @@ function LearnTab({ videosData, highlightedVideoId, onClearHighlight }: { videos
                             <AlertTitle className="text-primary">Arjun Recommended This Lesson</AlertTitle>
                             <AlertDescription>This video may help with patterns Arjun has noticed in your recent trading.</AlertDescription>
                         </div>
-                        <Button variant="ghost" size="sm" onClick={onClearHighlight}>Clear</Button>
+                        <Button variant="ghost" size="sm" onClick={handleClearBanner}>Clear</Button>
                     </div>
                 </Alert>
             )}
@@ -726,7 +728,7 @@ function LearnTab({ videosData, highlightedVideoId, onClearHighlight }: { videos
                         <CardContent>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {playlist.videos.map(video => (
-                                    <div key={video.id} ref={el => videoRefs.current[video.id] = el} className={cn("group cursor-pointer p-1", highlightedVideoId === video.id && "ring-2 ring-primary ring-offset-2 ring-offset-background rounded-lg")}>
+                                    <div key={video.id} id={`video-${video.id}`} className="group cursor-pointer p-1 rounded-lg">
                                         <div className="aspect-video bg-muted rounded-md relative overflow-hidden">
                                             {videoThumbnail && <Image src={videoThumbnail.imageUrl} alt={video.title} fill style={{ objectFit: 'cover' }} data-ai-hint={videoThumbnail.imageHint} />}
                                             <Badge className="absolute bottom-2 right-2 bg-black/50 text-white">{video.duration}</Badge>
@@ -777,7 +779,7 @@ function LeadersTab({ posts, likesMap }: { posts: Post[], likesMap: Record<strin
 
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {leaders.map(leader => (
-                    <Card key={leader.name} className="bg-muted/30">
+                    <Card key={leader.name} id={`leader-${leader.name.replace(/\s+/g, '-')}`} className="bg-muted/30">
                         <CardHeader className="flex flex-row items-center gap-4">
                             <Avatar><AvatarImage src={leader.avatar} alt={leader.name} /><AvatarFallback>{leader.name.charAt(0)}</AvatarFallback></Avatar>
                             <div><p className="font-semibold text-foreground">{leader.name}</p><Badge variant="secondary" className="bg-primary/10 text-primary">Leader</Badge></div>
@@ -849,7 +851,6 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
     const searchParams = useSearchParams();
     const router = useRouter();
     const pathname = usePathname();
-    const recommendedVideoIdFromUrl = searchParams.get('video');
     const [isLoading, setIsLoading] = useState(true);
 
     const [communityState, setCommunityState] = useState<CommunityState | null>(null);
@@ -857,7 +858,8 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
     const [arjunRecos, setArjunRecos] = useState<ArjunRecommendations | null>(null);
 
     const [activeTab, setActiveTab] = useState('feed');
-    const [highlightedVideo, setHighlightedVideo] = useState<string | null>(null);
+    const [highlightedItem, setHighlightedItem] = useState<string|null>(null);
+
 
     // Data loading and initialization
     useEffect(() => {
@@ -916,12 +918,86 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
 
     // URL param handling
     useEffect(() => {
-        const videoId = recommendedVideoIdFromUrl;
+        const tab = searchParams.get('tab');
+        const videoId = searchParams.get('video');
+        const postId = searchParams.get('post');
+        const userId = searchParams.get('user');
+
+        let newTab = tab;
+        let itemToHighlight: string | null = null;
+
         if (videoId) {
-            setActiveTab('learn');
-            setHighlightedVideo(videoId);
+            newTab = 'learn';
+            itemToHighlight = `video-${videoId}`;
+        } else if (postId) {
+            newTab = 'feed';
+            itemToHighlight = `post-${postId}`;
+        } else if (userId) {
+            newTab = 'leaders';
+            itemToHighlight = `leader-${userId.replace(/\s+/g, '-')}`;
         }
-    }, [recommendedVideoIdFromUrl]);
+
+        if (newTab && newTab !== activeTab) {
+            setActiveTab(newTab);
+        }
+        setHighlightedItem(itemToHighlight);
+    }, [searchParams, activeTab]);
+
+    // Scroll & Highlight effect
+    useEffect(() => {
+        if (highlightedItem && !isLoading) {
+            const element = document.getElementById(highlightedItem);
+            if (element) {
+                // Wait for tab switch to complete
+                setTimeout(() => {
+                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    element.classList.add('highlight-glow');
+                    const timer = setTimeout(() => {
+                        element.classList.remove('highlight-glow');
+                    }, 3000);
+                    
+                    // Cleanup URL and state after animation
+                    const urlTimer = setTimeout(() => {
+                        setHighlightedItem(null);
+                        const params = new URLSearchParams(searchParams.toString());
+                        params.delete('video');
+                        params.delete('post');
+                        params.delete('user');
+                        router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+                    }, 3500);
+
+                    return () => {
+                        clearTimeout(timer);
+                        clearTimeout(urlTimer);
+                    };
+                }, 100); // Small delay to allow tab content to render
+            } else {
+                // If element not found after a short delay, clear highlight state
+                const checkAgain = setTimeout(() => {
+                    const element = document.getElementById(highlightedItem);
+                     if (element) {
+                        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        element.classList.add('highlight-glow');
+                        const timer = setTimeout(() => {
+                            element.classList.remove('highlight-glow');
+                        }, 3000);
+                        const urlTimer = setTimeout(() => {
+                            setHighlightedItem(null);
+                            const params = new URLSearchParams(searchParams.toString());
+                            params.delete('video');
+                            params.delete('post');
+                            params.delete('user');
+                            router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+                        }, 3500);
+                        return () => { clearTimeout(timer); clearTimeout(urlTimer); };
+                     } else {
+                        setHighlightedItem(null);
+                     }
+                }, 500);
+                return () => clearTimeout(checkAgain);
+            }
+        }
+    }, [highlightedItem, isLoading, pathname, router, searchParams]);
 
     const updateCommunityState = (updater: (prevState: CommunityState) => CommunityState) => {
         setCommunityState(prevState => {
@@ -957,19 +1033,6 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
         }));
     };
 
-    const clearRecommendation = () => {
-        setHighlightedVideo(null);
-        setArjunRecos(prev => {
-            if (!prev) return null;
-            const newRecos = { ...prev, recommendedVideoId: null };
-            localStorage.setItem(ARJUN_RECO_KEY, JSON.stringify(newRecos));
-            return newRecos;
-        });
-        const params = new URLSearchParams(searchParams.toString());
-        params.delete('video');
-        router.replace(`${pathname}?${params.toString()}`);
-    };
-
     if (isLoading || !communityState || !userProfile || !arjunRecos) {
         return <div>Loading...</div>; // Or a skeleton loader
     }
@@ -981,7 +1044,7 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
                 <p className="text-muted-foreground">High-signal reflections, charts, and insights. No signals. No hype.</p>
             </div>
             
-            <Tabs value={activeTab} onValueChange={(value) => { setActiveTab(value); if(value !== 'learn') { clearRecommendation(); } }} className="w-full">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="grid w-full grid-cols-3 max-w-lg mx-auto">
                     <TabsTrigger value="feed">Feed</TabsTrigger>
                     <TabsTrigger value="learn">Learn</TabsTrigger>
@@ -1006,9 +1069,7 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
                 </TabsContent>
                 <TabsContent value="learn" className="mt-8">
                     <LearnTab 
-                        videosData={communityState.videos} 
-                        highlightedVideoId={highlightedVideo} 
-                        onClearHighlight={clearRecommendation} 
+                        videosData={communityState.videos}
                     />
                 </TabsContent>
                 <TabsContent value="leaders" className="mt-8">
