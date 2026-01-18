@@ -232,15 +232,6 @@ const initialCommunityState: CommunityState = {
                     { id: "stop-loss-strategy", title: "Setting Stops That Don't Get Hunted", description: "Place your SL based on logic, not hope.", duration: "18:00" },
                     { id: "rr-strategy", title: "Defining Your R:R Strategy", description: "Understand the math behind profitable trading.", duration: "13:25" },
                 ]
-            },
-            {
-                title: "Risk Management",
-                description: "The art of protecting your capital.",
-                videos: [
-                    { id: "position-sizing", title: "Position Sizing for Crypto Futures", description: "The most important skill you can learn.", duration: "14:55" },
-                    { id: "vix-risk", title: "Using the VIX to Adapt Your Risk", description: "How to trade smaller when markets are wild.", duration: "09:20" },
-                    { id: "drawdown-math", title: "The Math of Drawdowns", description: "Why small losses are critical to long-term survival.", duration: "10:30" },
-                ]
             }
         ]
     },
@@ -277,6 +268,7 @@ function PostCard({ post, likes, comments, isArjunRecommended, recommendationRea
         resolver: zodResolver(commentSchema),
         defaultValues: { comment: "" },
     });
+    const [isOpen, setIsOpen] = React.useState(false);
 
     function onSubmit(values: z.infer<typeof commentSchema>) {
         onAddComment(post.id, values.comment);
@@ -284,7 +276,7 @@ function PostCard({ post, likes, comments, isArjunRecommended, recommendationRea
     }
 
     return (
-        <Collapsible>
+        <Collapsible open={isOpen} onOpenChange={setIsOpen}>
             <Card id={`post-${post.id}`} className="bg-muted/30 border-border/50">
                 <CardHeader className="pb-4">
                     <div className="flex justify-between items-start">
@@ -328,7 +320,7 @@ function PostCard({ post, likes, comments, isArjunRecommended, recommendationRea
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <p className="text-muted-foreground mb-4 whitespace-pre-wrap line-clamp-6">{post.content}</p>
+                    <p className={cn("text-muted-foreground mb-4 whitespace-pre-wrap", !isOpen && "line-clamp-6")}>{post.content}</p>
                     
                     {post.type === 'Chart' && post.image && (
                         <div className="relative aspect-video rounded-md overflow-hidden border border-border/50 mb-4">
@@ -349,12 +341,17 @@ function PostCard({ post, likes, comments, isArjunRecommended, recommendationRea
                         <Button variant="ghost" size="sm" className="flex items-center gap-2 text-xs" onClick={() => onLike(post.id)}>
                             <ThumbsUp className="h-4 w-4" /> {likes}
                         </Button>
+                        <Button variant="ghost" size="sm" className="flex items-center gap-2 text-xs" onClick={() => setIsOpen(!isOpen)}>
+                            <MessageSquare className="h-4 w-4" /> {comments.length}
+                        </Button>
+                        <div className="flex-grow" />
+
                         <CollapsibleTrigger asChild>
-                            <Button variant="ghost" size="sm" className="flex items-center gap-2 text-xs">
-                                <MessageSquare className="h-4 w-4" /> {comments.length}
+                            <Button variant="link" size="sm" className="text-xs text-muted-foreground">
+                                {isOpen ? 'Show less' : 'Read more & Discuss'}
                             </Button>
                         </CollapsibleTrigger>
-                        <div className="flex-grow" />
+
                         <Button variant="ghost" size="sm" className="flex items-center gap-2 text-xs" onClick={() => onDiscuss(post)}>
                             <Bot className="h-4 w-4" /> Discuss
                         </Button>
@@ -1734,4 +1731,5 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
         </div>
     );
 }
+
 
