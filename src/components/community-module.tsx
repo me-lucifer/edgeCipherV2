@@ -1,5 +1,4 @@
 
-
       "use client";
 
 import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
@@ -56,6 +55,7 @@ const USER_PROFILE_KEY = 'ec_user_profile';
 const ARJUN_RECO_KEY = 'ec_arjun_reco';
 const WATCHED_VIDEOS_KEY = 'ec_watched_videos';
 const FOLLOWED_USERS_KEY = 'ec_followed_users';
+const ITEMS_PER_PAGE = 9;
 
 type Post = {
     id: string;
@@ -596,7 +596,11 @@ function FeedTab({
     const [highSignalOnly, setHighSignalOnly] = useState(false);
     const [arjunRecommended, setArjunRecommended] = useState(false);
     const [followedOnly, setFollowedOnly] = useState(false);
+    const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
 
+    useEffect(() => {
+        setVisibleCount(ITEMS_PER_PAGE);
+    }, [categoryFilter, highSignalOnly, arjunRecommended, followedOnly]);
 
     const reflectionPlaceholder = `What was the plan?
 - e.g., Planned to enter BTC long on a retest of 68k.
@@ -864,7 +868,7 @@ What is the lesson?
                     </CardContent>
                 </Card>
 
-                {postsToRender.map(post => (
+                {postsToRender.slice(0, visibleCount).map(post => (
                     <PostCard 
                         key={post.id} 
                         post={post} 
@@ -884,6 +888,14 @@ What is the lesson?
                         onAddComment={onAddComment}
                     />
                 ))}
+
+                {visibleCount < postsToRender.length && (
+                    <div className="mt-8 text-center">
+                        <Button variant="outline" onClick={() => setVisibleCount(prev => prev + ITEMS_PER_PAGE)}>
+                            Load More ({postsToRender.length - visibleCount} remaining)
+                        </Button>
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -1183,7 +1195,6 @@ const getPersonaRecommendations = (posts: Post[], personaName: string): string[]
         'Impulsive Sprinter': ['max trades', 'cooldown', 'revenge trading', 'checklist', 'overtrading', 'impulse'],
         'Overconfident': ['leverage', 'risk', 'humility', 'respect', 'stop loss', 'sl'],
         'Beginner': ['basic structure', 'r:r', 'stop loss', 'sl placement', 'journaling'],
-        'Disciplined': ['strategy refinement', 'consistency', 'weekly review'],
     };
 
     const keywords = personaKeywords[personaName] || personaKeywords['Beginner'];
@@ -1272,12 +1283,8 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
     const [clickedVideoId, setClickedVideoId] = useState<string | null>(null);
 
     const handleTabChange = (tab: string) => {
-        const params = new URLSearchParams(searchParams.toString());
+        const params = new URLSearchParams();
         params.set('tab', tab);
-        // Clear other params when tab is manually changed to avoid conflicts
-        params.delete('video');
-        params.delete('post');
-        params.delete('user');
         router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     };
 
@@ -1527,7 +1534,7 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
         });
     };
 
-    const handleToggleFollowUser = (username: string) => {
+    const handleToggleFollow = (username: string) => {
         setFollowedUsers(prev => {
             const newUsers = prev.includes(username)
                 ? prev.filter(u => u !== username)
@@ -1605,7 +1612,7 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
                         savesMap={communityState.savesMap}
                         commentsMap={communityState.commentsMap}
                         followedUsers={followedUsers}
-                        onToggleFollow={handleToggleFollowUser}
+                        onToggleFollow={handleToggleFollow}
                     />
                 </TabsContent>
             </Tabs>
@@ -1625,3 +1632,4 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
         </div>
     );
 }
+
