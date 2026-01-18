@@ -268,7 +268,9 @@ function PostCard({ post, likes, comments, isArjunRecommended, recommendationRea
         resolver: zodResolver(commentSchema),
         defaultValues: { comment: "" },
     });
-    const [isOpen, setIsOpen] = React.useState(false);
+    const [isExpanded, setIsExpanded] = React.useState(false);
+    const [isCommentsOpen, setIsCommentsOpen] = React.useState(false);
+    const CONTENT_LENGTH_THRESHOLD = 300;
 
     function onSubmit(values: z.infer<typeof commentSchema>) {
         onAddComment(post.id, values.comment);
@@ -276,160 +278,164 @@ function PostCard({ post, likes, comments, isArjunRecommended, recommendationRea
     }
 
     return (
-        <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-            <Card id={`post-${post.id}`} className="bg-muted/30 border-border/50">
-                <CardHeader className="pb-4">
-                    <div className="flex justify-between items-start">
-                        <div className="flex items-center gap-3">
-                            <Avatar>
-                                <AvatarImage src={post.author.avatar} alt={post.author.name} />
-                                <AvatarFallback>{post.author.name.charAt(0)}</AvatarFallback>
-                            </Avatar>
-                            <div>
-                                <p className="font-semibold text-foreground">{post.author.name}</p>
-                                <p className="text-xs text-muted-foreground flex items-center gap-2">
-                                    <Badge variant={post.author.role === 'Leader' ? 'default' : 'secondary'} className={cn(
-                                        "px-1.5 py-0 text-[10px]",
-                                        post.author.role === 'Leader' ? "bg-primary/80" : "bg-muted-foreground/20"
-                                    )}>
-                                        {post.author.role}
-                                    </Badge>
-                                    <span>&bull;</span>
-                                    <span>{post.timestamp}</span>
-                                </p>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                            {post.isHighSignal && <Badge variant="outline" className="border-amber-500/30 text-amber-300"><Sparkles className="mr-1 h-3 w-3" /> High-signal</Badge>}
-                            {isArjunRecommended && (
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Badge variant="secondary" className="bg-primary/10 text-primary cursor-help"><Bot className="mr-1 h-3 w-3" /> Recommended</Badge>
-                                        </TooltipTrigger>
-                                        {recommendationReason && (
-                                            <TooltipContent>
-                                                <p>{recommendationReason}</p>
-                                            </TooltipContent>
-                                        )}
-                                    </Tooltip>
-                                </TooltipProvider>
-                            )}
-                            <Badge variant="outline">{post.type}</Badge>
+        <Card id={`post-${post.id}`} className="bg-muted/30 border-border/50">
+            <CardHeader className="pb-4">
+                <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-3">
+                        <Avatar>
+                            <AvatarImage src={post.author.avatar} alt={post.author.name} />
+                            <AvatarFallback>{post.author.name.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                            <p className="font-semibold text-foreground">{post.author.name}</p>
+                            <p className="text-xs text-muted-foreground flex items-center gap-2">
+                                <Badge variant={post.author.role === 'Leader' ? 'default' : 'secondary'} className={cn(
+                                    "px-1.5 py-0 text-[10px]",
+                                    post.author.role === 'Leader' ? "bg-primary/80" : "bg-muted-foreground/20"
+                                )}>
+                                    {post.author.role}
+                                </Badge>
+                                <span>&bull;</span>
+                                <span>{post.timestamp}</span>
+                            </p>
                         </div>
                     </div>
-                </CardHeader>
-                <CardContent>
-                    <p className={cn("text-muted-foreground mb-4 whitespace-pre-wrap", !isOpen && "line-clamp-6")}>{post.content}</p>
-                    
-                     {post.type === 'Chart' && post.image && (
-                        <Dialog>
-                            <div className="mb-4">
-                                <TooltipProvider>
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <DialogTrigger asChild>
-                                                <div className="relative aspect-video rounded-md overflow-hidden border border-border/50 cursor-pointer group">
-                                                    <Image src={post.image} alt="Chart analysis" layout="fill" objectFit="cover" data-ai-hint={post.imageHint || 'chart analysis'} />
-                                                    <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                                                        <Search className="h-8 w-8 text-white" />
-                                                    </div>
-                                                </div>
-                                            </DialogTrigger>
-                                        </TooltipTrigger>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                        {post.isHighSignal && <Badge variant="outline" className="border-amber-500/30 text-amber-300"><Sparkles className="mr-1 h-3 w-3" /> High-signal</Badge>}
+                        {isArjunRecommended && (
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Badge variant="secondary" className="bg-primary/10 text-primary cursor-help"><Bot className="mr-1 h-3 w-3" /> Recommended</Badge>
+                                    </TooltipTrigger>
+                                    {recommendationReason && (
                                         <TooltipContent>
-                                            <p>Charts are for learning, not signals. Click to expand.</p>
+                                            <p>{recommendationReason}</p>
                                         </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                                <p className="text-xs text-muted-foreground mt-2">
-                                    Context: {post.content.split('\n')[0]}
-                                </p>
-                            </div>
-
-                            <DialogContent className="max-w-4xl p-2 bg-background border-border">
-                                <div className="relative aspect-video">
-                                    <Image src={post.image} alt="Chart analysis" layout="fill" objectFit="contain" />
-                                </div>
-                            </DialogContent>
-                        </Dialog>
-                    )}
-
-                    {post.trade && (
-                        <div className="p-3 rounded-md bg-muted/50 border border-border/50 flex items-center justify-between text-sm">
-                            <span className="font-mono text-foreground">{post.trade.instrument}</span>
-                            <span className={cn("font-semibold font-mono", post.trade.result > 0 ? "text-green-400" : "text-red-400")}>
-                                {post.trade.result > 0 ? '+' : ''}{post.trade.result.toFixed(2)}R
-                            </span>
-                        </div>
-                    )}
-                </CardContent>
-                 <CardFooter className="flex items-center gap-2 mt-4 pt-4 border-t border-border/50 text-muted-foreground">
-                        <Button variant="ghost" size="sm" className="flex items-center gap-2 text-xs" onClick={() => onLike(post.id)}>
-                            <ThumbsUp className="h-4 w-4" /> {likes}
-                        </Button>
-                        <Button variant="ghost" size="sm" className="flex items-center gap-2 text-xs" onClick={() => setIsOpen(!isOpen)}>
-                            <MessageSquare className="h-4 w-4" /> {comments.length}
-                        </Button>
-                        <div className="flex-grow" />
-
-                        <CollapsibleTrigger asChild>
-                            <Button variant="link" size="sm" className="text-xs text-muted-foreground">
-                                {isOpen ? 'Show less' : 'Read more & Discuss'}
-                            </Button>
-                        </CollapsibleTrigger>
-
-                        <Button variant="ghost" size="sm" className="flex items-center gap-2 text-xs" onClick={() => onDiscuss(post)}>
-                            <Bot className="h-4 w-4" /> Discuss
-                        </Button>
-                        <Button variant="ghost" size="sm" className="flex items-center gap-2 text-xs" onClick={() => onSave(post.id)}>
-                            <Bookmark className="h-4 w-4" /> Save
-                        </Button>
-                    </CardFooter>
-            </Card>
-            <CollapsibleContent>
-                <CardContent className="pt-4 border-t">
-                     <div className="space-y-4">
-                        {comments.map((comment, index) => (
-                            <div key={index} className="flex items-start gap-3">
-                                <Avatar className="h-8 w-8">
-                                    <AvatarImage src={`/avatars/${comment.author.toLowerCase().replace(/\s/g, '').replace('.', '')}.png`} alt={comment.author} />
-                                    <AvatarFallback>{comment.author.charAt(0)}</AvatarFallback>
-                                </Avatar>
-                                <div>
-                                    <p className="text-sm font-semibold text-foreground">{comment.author}</p>
-                                    <p className="text-sm text-muted-foreground">{comment.text}</p>
-                                </div>
-                            </div>
-                        ))}
-                        {comments.length === 0 && <p className="text-sm text-center text-muted-foreground py-4">Be the first to comment.</p>}
-                        
-                        <Separator className="my-4" />
-
-                         <Form {...form}>
-                            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-2">
-                                <FormField
-                                    control={form.control}
-                                    name="comment"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormControl>
-                                                <Textarea placeholder="Add a comment..." {...field} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
                                     )}
-                                />
-                                <div className="flex justify-between items-center">
-                                    <p className="text-xs text-muted-foreground">Ask about process, not predictions.</p>
-                                    <Button type="submit" size="sm">Post Comment</Button>
-                                </div>
-                            </form>
-                        </Form>
+                                </Tooltip>
+                            </TooltipProvider>
+                        )}
+                        <Badge variant="outline">{post.type}</Badge>
                     </div>
-                </CardContent>
-            </CollapsibleContent>
-        </Collapsible>
+                </div>
+            </CardHeader>
+            <CardContent>
+                <p className={cn("text-muted-foreground mb-4 whitespace-pre-wrap", !isExpanded && "line-clamp-6")}>{post.content}</p>
+                
+                 {post.type === 'Chart' && post.image && (
+                    <Dialog>
+                        <div className="mb-4">
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <DialogTrigger asChild>
+                                            <div className="relative aspect-video rounded-md overflow-hidden border border-border/50 cursor-pointer group">
+                                                <Image src={post.image} alt="Chart analysis" layout="fill" objectFit="cover" data-ai-hint={post.imageHint || 'chart analysis'} />
+                                                <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                                    <Search className="h-8 w-8 text-white" />
+                                                </div>
+                                            </div>
+                                        </DialogTrigger>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>Charts are for learning, not signals. Click to expand.</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                            <p className="text-xs text-muted-foreground mt-2">
+                                Context: {post.content.split('\n')[0]}
+                            </p>
+                        </div>
+
+                        <DialogContent className="max-w-4xl p-2 bg-background border-border">
+                            <div className="relative aspect-video">
+                                <Image src={post.image} alt="Chart analysis" layout="fill" objectFit="contain" />
+                            </div>
+                        </DialogContent>
+                    </Dialog>
+                )}
+
+                {post.trade && (
+                    <div className="p-3 rounded-md bg-muted/50 border border-border/50 flex items-center justify-between text-sm">
+                        <span className="font-mono text-foreground">{post.trade.instrument}</span>
+                        <span className={cn("font-semibold font-mono", post.trade.result > 0 ? "text-green-400" : "text-red-400")}>
+                            {post.trade.result > 0 ? '+' : ''}{post.trade.result.toFixed(2)}R
+                        </span>
+                    </div>
+                )}
+            </CardContent>
+             <CardFooter className="flex items-center gap-2 mt-4 pt-4 border-t border-border/50 text-muted-foreground">
+                <Button variant="ghost" size="sm" className="flex items-center gap-2 text-xs" onClick={() => onLike(post.id)}>
+                    <ThumbsUp className="h-4 w-4" /> {likes}
+                </Button>
+                <Button variant="ghost" size="sm" className="flex items-center gap-2 text-xs" onClick={() => setIsCommentsOpen(prev => !prev)}>
+                    <MessageSquare className="h-4 w-4" /> {comments.length}
+                </Button>
+                <div className="flex-grow" />
+
+                {post.content.length > CONTENT_LENGTH_THRESHOLD && (
+                    <Button variant="link" size="sm" className="text-xs text-muted-foreground" onClick={() => setIsExpanded(prev => !prev)}>
+                        {isExpanded ? 'Show less' : 'Read more'}
+                    </Button>
+                )}
+
+                <Button variant="ghost" size="sm" className="flex items-center gap-2 text-xs" onClick={() => onDiscuss(post)}>
+                    <Bot className="h-4 w-4" /> Discuss
+                </Button>
+                <Button variant="ghost" size="sm" className="flex items-center gap-2 text-xs" onClick={() => onSave(post.id)}>
+                    <Bookmark className="h-4 w-4" /> Save
+                </Button>
+            </CardFooter>
+            <Collapsible open={isCommentsOpen}>
+                <CollapsibleContent>
+                    <CardContent className="pt-4 border-t">
+                        <div className="space-y-4">
+                            <div className="flex justify-between items-center">
+                                <h4 className="text-sm font-semibold text-foreground">Comments</h4>
+                                <div className="text-xs text-muted-foreground">Sort by: Top (soon)</div>
+                            </div>
+                            {comments.map((comment, index) => (
+                                <div key={index} className="flex items-start gap-3">
+                                    <Avatar className="h-8 w-8">
+                                        <AvatarImage src={`/avatars/${comment.author.toLowerCase().replace(/\s/g, '').replace('.', '')}.png`} alt={comment.author} />
+                                        <AvatarFallback>{comment.author.charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                    <div>
+                                        <p className="text-sm font-semibold text-foreground">{comment.author}</p>
+                                        <p className="text-sm text-muted-foreground">{comment.text}</p>
+                                    </div>
+                                </div>
+                            ))}
+                            {comments.length === 0 && <p className="text-sm text-center text-muted-foreground py-4">Be the first to comment.</p>}
+                            
+                            <Separator className="my-4" />
+
+                            <Form {...form}>
+                                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-2">
+                                    <FormField
+                                        control={form.control}
+                                        name="comment"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormControl>
+                                                    <Textarea placeholder="Add a comment..." {...field} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <div className="flex justify-between items-center">
+                                        <p className="text-xs text-muted-foreground">Ask about process, not predictions.</p>
+                                        <Button type="submit" size="sm">Post Comment</Button>
+                                    </div>
+                                </form>
+                            </Form>
+                        </div>
+                    </CardContent>
+                </CollapsibleContent>
+            </Collapsible>
+        </Card>
     );
 }
 
@@ -1758,6 +1764,4 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
         </div>
     );
 }
-
-
 
