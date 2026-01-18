@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark, Timer, Gauge, Star, Calendar, Copy, Clipboard, ThumbsUp, ThumbsDown, Meh, PlusCircle, MoreHorizontal, Save, Grid, Eye, Radio, RefreshCw, Layers, BarChart, FileText, ShieldAlert, Info, HelpCircle, ChevronsUpDown, Crown, ImageUp, MessageSquare, Video, BookOpen, User, BrainCircuit, Flag, Trash2 } from "lucide-react";
+import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark, Timer, Gauge, Star, Calendar, Copy, Clipboard, ThumbsUp, ThumbsDown, Meh, PlusCircle, MoreHorizontal, Save, Grid, Eye, Radio, RefreshCw, Layers, BarChart, FileText, ShieldAlert, Info, HelpCircle, ChevronsUpDown, Crown, ImageUp, MessageSquare, Video, BookOpen, User, BrainCircuit, Flag, Trash2, Edit } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerClose } from "./ui/drawer";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
@@ -58,6 +58,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Input } from "./ui/input";
+import { formatDistanceToNow } from "date-fns";
 
 
 interface CommunityModuleProps {
@@ -86,6 +87,7 @@ type Post = {
         role: 'Leader' | 'Member';
     };
     timestamp: string;
+    editedAt?: string;
     type: 'Chart' | 'Reflection' | 'Insight';
     isHighSignal: boolean;
     content: string;
@@ -152,7 +154,7 @@ const mockPostsData: Omit<Post, 'likes' | 'comments' | 'saves'>[] = [
     {
         id: '1',
         author: { name: "Alex R.", avatar: "/avatars/01.png", role: "Member" },
-        timestamp: "2 hours ago",
+        timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
         type: 'Reflection',
         isHighSignal: true,
         content: "What I saw: My ETH short setup was showing signs of invalidation in a choppy market.\nWhat I did: Instead of hoping, I followed my rules and cut the trade for a small loss.\nWhat I learned: A controlled loss is a win for discipline. The old me would have held and lost more.",
@@ -161,7 +163,7 @@ const mockPostsData: Omit<Post, 'likes' | 'comments' | 'saves'>[] = [
     {
         id: '2',
         author: { name: "Maria S.", avatar: "/avatars/02.png", role: "Leader" },
-        timestamp: "8 hours ago",
+        timestamp: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(),
         type: 'Chart',
         isHighSignal: true,
         content: "Setup Idea: BTC 4H is consolidating. A clean break above $68.5k could be a trend continuation setup.\nRisk Plan: My plan would be to enter on a retest, with an SL below the range midpoint to invalidate the idea. This is for analysis only, not a signal.",
@@ -171,7 +173,7 @@ const mockPostsData: Omit<Post, 'likes' | 'comments' | 'saves'>[] = [
     {
         id: '3',
         author: { name: "Chen W.", avatar: "/avatars/03.png", role: "Member" },
-        timestamp: "1 day ago",
+        timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
         type: 'Insight',
         isHighSignal: false,
         content: "Mental Model: Instead of 'win rate', I'm now tracking my 'rule adherence rate'. My P&L has improved since I started focusing on executing my plan perfectly, regardless of the outcome of a single trade.",
@@ -179,7 +181,7 @@ const mockPostsData: Omit<Post, 'likes' | 'comments' | 'saves'>[] = [
     {
         id: '4',
         author: { name: "Jane D.", avatar: "/avatars/04.png", role: "Leader" },
-        timestamp: "2 days ago",
+        timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
         type: 'Insight',
         isHighSignal: true,
         content: "My pre-trade checklist:\n1. Does this fit one of my defined strategies?\n2. Is the market context (VIX, news) favorable?\n3. Have I defined my entry, SL, and TP in my plan?\n4. Am I emotionally neutral?\nIf any answer is 'no', I don't take the trade.",
@@ -187,7 +189,7 @@ const mockPostsData: Omit<Post, 'likes' | 'comments' | 'saves'>[] = [
     {
         id: '5',
         author: { name: "Sam K.", avatar: "/avatars/05.png", role: "Member" },
-        timestamp: "3 days ago",
+        timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
         type: 'Reflection',
         isHighSignal: false,
         content: "Mistake: I took a revenge trade after a small loss and it turned into a much bigger one.\nLesson: My cooldown rule (1 hour break after 2 losses) is there for a reason. Need to respect it. Closed the platform for the rest of the day.",
@@ -274,19 +276,37 @@ const commentSchema = z.object({
 });
 
 
-function PostCard({ post, likes, comments, isArjunRecommended, recommendationReason, isHidden, isAdmin, onLike, onSave, onDiscuss, onAddComment, onReport, onHide, onDelete, onMarkAsOfficial }: { post: Post, likes: number, comments: { author: string; text: string }[], isArjunRecommended: boolean, recommendationReason?: string, isHidden: boolean, isAdmin: boolean, onLike: (id: string) => void, onSave: (id: string) => void, onDiscuss: (post: Post) => void, onAddComment: (postId: string, comment: string) => void, onReport: (id: string, type: 'post' | 'comment') => void, onHide: (id: string) => void, onDelete: (id: string) => void, onMarkAsOfficial: (post: Post) => void }) {
+function PostCard({ post, likes, comments, isArjunRecommended, recommendationReason, isHidden, isAdmin, onLike, onSave, onDiscuss, onAddComment, onReport, onHide, onDelete, onMarkAsOfficial, userProfile, onUpdatePost }: { post: Post, likes: number, comments: { author: string; text: string }[], isArjunRecommended: boolean, recommendationReason?: string, isHidden: boolean, isAdmin: boolean, onLike: (id: string) => void, onSave: (id: string) => void, onDiscuss: (post: Post) => void, onAddComment: (postId: string, comment: string) => void, onReport: (id: string, type: 'post' | 'comment') => void, onHide: (id: string) => void, onDelete: (id: string) => void, onMarkAsOfficial: (post: Post) => void, userProfile: UserProfile, onUpdatePost: (postId: string, newContent: string) => void }) {
     const form = useForm<z.infer<typeof commentSchema>>({
         resolver: zodResolver(commentSchema),
         defaultValues: { comment: "" },
     });
     const [isExpanded, setIsExpanded] = React.useState(false);
     const [isCommentsOpen, setIsCommentsOpen] = React.useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [editedContent, setEditedContent] = useState(post.content);
+    
     const CONTENT_LENGTH_THRESHOLD = 300;
+
+    const isOwner = userProfile.username === post.author.name;
+
+    const canEdit = useMemo(() => {
+        if (!isOwner) return false;
+        const postDate = new Date(post.timestamp);
+        const now = new Date();
+        const diffInMinutes = (now.getTime() - postDate.getTime()) / (1000 * 60);
+        return diffInMinutes < 10;
+    }, [post.timestamp, isOwner]);
 
     function onSubmit(values: z.infer<typeof commentSchema>) {
         onAddComment(post.id, values.comment);
         form.reset();
     }
+    
+    const handleSaveEdit = () => {
+        onUpdatePost(post.id, editedContent);
+        setIsEditing(false);
+    };
 
     return (
         <Card id={`post-${post.id}`} className={cn("bg-muted/30 border-border/50", isHidden && "opacity-50 border-dashed border-destructive/50")}>
@@ -307,7 +327,28 @@ function PostCard({ post, likes, comments, isArjunRecommended, recommendationRea
                                     {post.author.role}
                                 </Badge>
                                 <span>&bull;</span>
-                                <span>{post.timestamp}</span>
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger>
+                                            <span>{formatDistanceToNow(new Date(post.timestamp), { addSuffix: true })}</span>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>{new Date(post.timestamp).toLocaleString()}</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                                 {post.editedAt && (
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger>
+                                                <span className="italic">(edited)</span>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Edited at {new Date(post.editedAt).toLocaleString()}</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                )}
                             </p>
                         </div>
                     </div>
@@ -336,6 +377,13 @@ function PostCard({ post, likes, comments, isArjunRecommended, recommendationRea
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
+                                {isOwner && (
+                                    <DropdownMenuItem onSelect={() => setIsEditing(true)} disabled={!canEdit}>
+                                        <Edit className="mr-2 h-4 w-4" />
+                                        Edit Post
+                                        {!canEdit && <span className="text-xs ml-auto text-muted-foreground">(Locked)</span>}
+                                    </DropdownMenuItem>
+                                )}
                                 <DropdownMenuItem onSelect={() => onReport(post.id, 'post')}>
                                     <Flag className="mr-2 h-4 w-4" /> Report Post
                                 </DropdownMenuItem>
@@ -369,7 +417,17 @@ function PostCard({ post, likes, comments, isArjunRecommended, recommendationRea
                         </AlertDescription>
                     </Alert>
                 )}
-                <p className={cn("text-muted-foreground mb-4 whitespace-pre-wrap", !isExpanded && "line-clamp-6")}>{post.content}</p>
+                 {isEditing ? (
+                    <div className="space-y-2 mb-4">
+                        <Textarea value={editedContent} onChange={(e) => setEditedContent(e.target.value)} className="min-h-[120px]" />
+                        <div className="flex justify-end gap-2">
+                            <Button variant="ghost" size="sm" onClick={() => { setIsEditing(false); setEditedContent(post.content); }}>Cancel</Button>
+                            <Button size="sm" onClick={handleSaveEdit}>Save Changes</Button>
+                        </div>
+                    </div>
+                ) : (
+                    <p className={cn("text-muted-foreground mb-4 whitespace-pre-wrap", !isExpanded && "line-clamp-6")}>{post.content}</p>
+                )}
                 
                  {post.type === 'Chart' && post.image && (
                     <Dialog>
@@ -481,12 +539,12 @@ function PostCard({ post, likes, comments, isArjunRecommended, recommendationRea
                                                 <FormControl>
                                                     <Textarea placeholder="Add a thoughtful comment..." {...field} />
                                                 </FormControl>
+                                                <p className="text-xs text-muted-foreground">Ask about process: setup, risk, mindset. Avoid predictions.</p>
                                                 <FormMessage />
                                             </FormItem>
                                         )}
                                     />
-                                    <div className="flex justify-between items-center">
-                                        <p className="text-xs text-muted-foreground">Ask about process: setup, risk, mindset. Avoid predictions.</p>
+                                    <div className="flex justify-end items-center">
                                         <Button type="submit" size="sm">Post Comment</Button>
                                     </div>
                                 </form>
@@ -646,6 +704,7 @@ function FeedTab({
     onDeletePost,
     onMarkAsOfficial,
     onCreateOfficialPost,
+    onUpdatePost,
 }: {
     posts: Post[];
     officialPosts: Omit<OfficialPost, 'icon'>[];
@@ -673,6 +732,7 @@ function FeedTab({
     onHidePost: (id: string) => void;
     onDeletePost: (id: string) => void;
     onMarkAsOfficial: (post: Post) => void;
+    onUpdatePost: (postId: string, newContent: string) => void;
 }) {
     const { toast } = useToast();
     const [newPostContent, setNewPostContent] = useState("");
@@ -1127,6 +1187,8 @@ What is the lesson?
                             onHide={onHidePost}
                             onDelete={onDeletePost}
                             onMarkAsOfficial={onMarkAsOfficial}
+                            userProfile={userProfile}
+                            onUpdatePost={onUpdatePost}
                         />
                     ))}
 
@@ -1898,7 +1960,7 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
         const newPost: Post = {
             ...newPostData,
             id: String(Date.now()),
-            timestamp: "Just now",
+            timestamp: new Date().toISOString(),
             author: { name: userProfile.username, avatar: "/avatars/user.png", role: userProfile.role },
             isHighSignal: qualityScore > 75,
         };
@@ -1908,6 +1970,33 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
         }));
     };
     
+    const handleUpdatePost = (postId: string, newContent: string) => {
+        updateCommunityState(prev => {
+            if (!prev) return null;
+            const now = new Date();
+            const postToUpdate = prev.posts.find(p => p.id === postId);
+
+            if (!postToUpdate || (userProfile?.username !== postToUpdate.author.name)) {
+                toast({ variant: 'destructive', title: "Not authorized" });
+                return prev;
+            }
+
+            const postDate = new Date(postToUpdate.timestamp);
+            const diffInMinutes = (now.getTime() - postDate.getTime()) / (1000 * 60);
+
+            if (diffInMinutes > 10) {
+                 toast({ variant: 'destructive', title: "Edit window expired", description: "You can only edit posts for 10 minutes." });
+                 return prev;
+            }
+
+            const updatedPosts = prev.posts.map(p =>
+                p.id === postId ? { ...p, content: newContent, editedAt: now.toISOString() } : p
+            );
+            return { ...prev, posts: updatedPosts };
+        });
+        toast({ title: "Post updated successfully" });
+    };
+
     const handleCreateOfficialPost = (post: Omit<OfficialPost, 'icon'>) => {
         updateCommunityState(prev => ({
             ...prev,
@@ -2068,6 +2157,7 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
                         onHidePost={handleHidePost}
                         onDeletePost={handleDeletePost}
                         onMarkAsOfficial={handleMarkAsOfficial}
+                        onUpdatePost={handleUpdatePost}
                     />
                 </TabsContent>
                 <TabsContent value="learn" className="mt-8">
