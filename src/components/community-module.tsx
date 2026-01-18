@@ -125,7 +125,7 @@ type ArjunRecommendations = {
 // INITIAL DATA - used if localStorage is empty
 const chartPlaceholder = PlaceHolderImages.find(p => p.id === 'video-thumbnail');
 
-const mockPostsData: Omit<Post, 'likes' | 'comments'>[] = [
+const mockPostsData: Omit<Post, 'likes' | 'comments' | 'saves'>[] = [
     {
         id: '1',
         author: { name: "Alex R.", avatar: "/avatars/01.png", role: "Member" },
@@ -144,7 +144,6 @@ const mockPostsData: Omit<Post, 'likes' | 'comments'>[] = [
         content: "Setup Idea: BTC 4H is consolidating. A clean break above $68.5k could be a trend continuation setup.\nRisk Plan: My plan would be to enter on a retest, with an SL below the range midpoint to invalidate the idea. This is for analysis only, not a signal.",
         image: chartPlaceholder?.imageUrl,
         imageHint: chartPlaceholder?.imageHint,
-        trade: { instrument: "BTC-PERP", result: 3.2 },
     },
     {
         id: '3',
@@ -740,94 +739,95 @@ What is the lesson?
     const isGentleWarning = postError?.startsWith("Tip:");
 
     return (
-        <div className="max-w-3xl mx-auto space-y-8">
-            <ArjunRecommendationBanner
-              arjunRecos={arjunRecos}
-              posts={posts}
-              videosData={videosData}
-              onPostClick={onPostClick}
-              onVideoClick={onVideoClick}
-            />
-            <Card className="bg-muted/30 border-border/50">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    EdgeCipher
-                    <Badge variant="secondary" className="text-xs bg-primary/10 text-primary">Official</Badge>
-                </CardTitle>
-                <CardDescription>Key updates and educational content from the team.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Carousel opts={{ align: "start" }} className="w-full">
-                  <CarouselContent className="-ml-4">
-                    {displayedOfficialPosts.map((post, index) => {
-                      const Icon = post.icon || iconMap[post.tag] || BrainCircuit;
-                      const isPinned = post.tag === "Pinned by Arjun";
-                      return (
-                      <CarouselItem key={index} className="pl-4 md:basis-1/2 lg:basis-1/3">
-                        <div className="p-1 h-full">
-                            <Card className={cn("bg-muted/50 h-full", isPinned ? "border-destructive/50" : "border-primary/20")}>
-                                <CardContent className="p-4 flex flex-col items-start gap-4 h-full">
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <Icon className={cn("h-4 w-4", isPinned ? "text-destructive" : "text-primary")} />
-                                            <p className="font-semibold text-foreground text-sm">{post.title}</p>
+        <div className="grid lg:grid-cols-3 gap-8 items-start">
+            {/* Main Column */}
+            <div className="lg:col-span-2 space-y-8">
+                <Card className="bg-muted/30 border-border/50">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        EdgeCipher
+                        <Badge variant="secondary" className="text-xs bg-primary/10 text-primary">Official</Badge>
+                    </CardTitle>
+                    <CardDescription>Key updates and educational content from the team.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Carousel opts={{ align: "start" }} className="w-full">
+                      <CarouselContent className="-ml-4">
+                        {displayedOfficialPosts.map((post, index) => {
+                          const Icon = post.icon || iconMap[post.tag] || BrainCircuit;
+                          const isPinned = post.tag === "Pinned by Arjun";
+                          return (
+                          <CarouselItem key={index} className="pl-4 md:basis-1/2 lg:basis-1/3">
+                            <div className="p-1 h-full">
+                                <Card className={cn("bg-muted/50 h-full", isPinned ? "border-destructive/50" : "border-primary/20")}>
+                                    <CardContent className="p-4 flex flex-col items-start gap-4 h-full">
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <Icon className={cn("h-4 w-4", isPinned ? "text-destructive" : "text-primary")} />
+                                                <p className="font-semibold text-foreground text-sm">{post.title}</p>
+                                            </div>
+                                            <ul className="list-disc list-inside text-xs text-muted-foreground space-y-1">
+                                                {post.bullets.map((bullet, i) => <li key={i}>{bullet}</li>)}
+                                            </ul>
                                         </div>
-                                        <ul className="list-disc list-inside text-xs text-muted-foreground space-y-1">
-                                            {post.bullets.map((bullet, i) => <li key={i}>{bullet}</li>)}
-                                        </ul>
-                                    </div>
-                                    <Badge variant={isPinned ? "destructive" : "secondary"} className={cn(isPinned ? "" : "bg-primary/10 text-primary")}>
-                                        {isPinned && <Sparkles className="mr-1.5 h-3 w-3" />}
-                                        {post.tag}
-                                    </Badge>
-                                </CardContent>
-                            </Card>
-                        </div>
-                      </CarouselItem>
-                    )})}
-                  </CarouselContent>
-                  <CarouselPrevious className="ml-12" />
-                  <CarouselNext className="mr-12" />
-                </Carousel>
-              </CardContent>
-            </Card>
+                                        <Badge variant={isPinned ? "destructive" : "secondary"} className={cn(isPinned ? "" : "bg-primary/10 text-primary")}>
+                                            {isPinned && <Sparkles className="mr-1.5 h-3 w-3" />}
+                                            {post.tag}
+                                        </Badge>
+                                    </CardContent>
+                                </Card>
+                            </div>
+                          </CarouselItem>
+                        )})}
+                      </CarouselContent>
+                      <CarouselPrevious className="ml-12" />
+                      <CarouselNext className="mr-12" />
+                    </Carousel>
+                  </CardContent>
+                </Card>
 
-            <Card className="bg-muted/30 border-border/50">
-                <CardContent className="p-4 flex flex-col sm:flex-row flex-wrap items-center gap-4">
-                    <div className="flex items-center gap-2">
-                        <Label htmlFor="category-filter" className="text-sm">Category</Label>
-                        <Select value={categoryFilter} onValueChange={(v) => setCategoryFilter(v as any)}>
-                            <SelectTrigger id="category-filter" className="w-[150px]">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="All">All</SelectItem>
-                                <SelectItem value="Chart">Charts</SelectItem>
-                                <SelectItem value="Reflection">Reflections</SelectItem>
-                                <SelectItem value="Insight">Insights</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <Separator orientation="vertical" className="h-6 hidden sm:block" />
-                    <div className="flex items-center gap-4">
-                        <div className="flex items-center space-x-2">
-                            <Switch id="high-signal" checked={highSignalOnly} onCheckedChange={setHighSignalOnly} />
-                            <Label htmlFor="high-signal" className="text-sm">High-signal only</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                            <Switch id="arjun-recommended" checked={arjunRecommended} onCheckedChange={setArjunRecommended} />
-                            <Label htmlFor="arjun-recommended" className="text-sm">Arjun Recommended</Label>
-                        </div>
-                         <div className="flex items-center space-x-2">
-                            <Switch id="followed-only" checked={followedOnly} onCheckedChange={setFollowedOnly} />
-                            <Label htmlFor="followed-only" className="text-sm">Following only</Label>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
+                <div className="space-y-6">
+                    {postsToRender.slice(0, visibleCount).map(post => (
+                        <PostCard 
+                            key={post.id} 
+                            post={post} 
+                            likes={likesMap[post.id] || 0}
+                            comments={commentsMap[post.id] || []}
+                            isArjunRecommended={(arjunRecos.recommendedPostIds.includes(post.id) || (personaRecommendedPostIds || []).includes(post.id))}
+                            recommendationReason={
+                                arjunRecos.recommendedPostIds.includes(post.id) 
+                                ? arjunRecos.reason 
+                                : (personaRecommendedPostIds || []).includes(post.id) 
+                                ? `Recommended based on your '${userProfile.persona}' persona.`
+                                : undefined
+                            }
+                            onLike={onLike} 
+                            onSave={onSave}
+                            onDiscuss={handleDiscuss}
+                            onAddComment={onAddComment}
+                        />
+                    ))}
 
-            <div className="space-y-6">
-                <Card ref={createPostRef} className="bg-muted/30 border-border/50 scroll-mt-24">
+                    {visibleCount < postsToRender.length && (
+                        <div className="mt-8 text-center">
+                            <Button variant="outline" onClick={() => setVisibleCount(prev => prev + ITEMS_PER_PAGE)}>
+                                Load More ({postsToRender.length - visibleCount} remaining)
+                            </Button>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Sidebar */}
+            <div className="lg:col-span-1 space-y-8 lg:sticky lg:top-24">
+                <ArjunRecommendationBanner
+                  arjunRecos={arjunRecos}
+                  posts={posts}
+                  videosData={videosData}
+                  onPostClick={onPostClick}
+                  onVideoClick={onVideoClick}
+                />
+                 <Card ref={createPostRef} className="bg-muted/30 border-border/50 scroll-mt-24">
                     <CardHeader>
                         <CardTitle>Share an insight</CardTitle>
                         <CardDescription>Share a trade breakdown, a psychological insight, or a question for the community.</CardDescription>
@@ -887,35 +887,42 @@ What is the lesson?
                         </div>
                     </CardContent>
                 </Card>
-
-                {postsToRender.slice(0, visibleCount).map(post => (
-                    <PostCard 
-                        key={post.id} 
-                        post={post} 
-                        likes={likesMap[post.id] || 0}
-                        comments={commentsMap[post.id] || []}
-                        isArjunRecommended={(arjunRecos.recommendedPostIds.includes(post.id) || (personaRecommendedPostIds || []).includes(post.id))}
-                        recommendationReason={
-                            arjunRecos.recommendedPostIds.includes(post.id) 
-                            ? arjunRecos.reason 
-                            : (personaRecommendedPostIds || []).includes(post.id) 
-                            ? `Recommended based on your '${userProfile.persona}' persona.`
-                            : undefined
-                        }
-                        onLike={onLike} 
-                        onSave={onSave}
-                        onDiscuss={handleDiscuss}
-                        onAddComment={onAddComment}
-                    />
-                ))}
-
-                {visibleCount < postsToRender.length && (
-                    <div className="mt-8 text-center">
-                        <Button variant="outline" onClick={() => setVisibleCount(prev => prev + ITEMS_PER_PAGE)}>
-                            Load More ({postsToRender.length - visibleCount} remaining)
-                        </Button>
-                    </div>
-                )}
+                <Card className="bg-muted/30 border-border/50">
+                    <CardHeader>
+                        <CardTitle>Filters</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-4 flex flex-col gap-4">
+                        <div className="flex items-center gap-2">
+                            <Label htmlFor="category-filter" className="text-sm">Category</Label>
+                            <Select value={categoryFilter} onValueChange={(v) => setCategoryFilter(v as any)}>
+                                <SelectTrigger id="category-filter" className="w-[150px]">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="All">All</SelectItem>
+                                    <SelectItem value="Chart">Charts</SelectItem>
+                                    <SelectItem value="Reflection">Reflections</SelectItem>
+                                    <SelectItem value="Insight">Insights</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <Separator />
+                        <div className="flex flex-col gap-4">
+                            <div className="flex items-center space-x-2">
+                                <Switch id="high-signal" checked={highSignalOnly} onCheckedChange={setHighSignalOnly} />
+                                <Label htmlFor="high-signal" className="text-sm">High-signal only</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <Switch id="arjun-recommended" checked={arjunRecommended} onCheckedChange={setArjunRecommended} />
+                                <Label htmlFor="arjun-recommended" className="text-sm">Arjun Recommended</Label>
+                            </div>
+                             <div className="flex items-center space-x-2">
+                                <Switch id="followed-only" checked={followedOnly} onCheckedChange={setFollowedOnly} />
+                                <Label htmlFor="followed-only" className="text-sm">Following only</Label>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
             </div>
         </div>
     );
@@ -1585,9 +1592,17 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
 
     return (
         <div className="space-y-8">
-            <div>
-                <h1 className="text-2xl font-bold tracking-tight text-foreground">Community — Discipline & Learning</h1>
-                <p className="text-muted-foreground">High-signal reflections, charts, and insights. No signals. No hype.</p>
+            <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold tracking-tight text-foreground">Community — Discipline & Learning</h1>
+                    <p className="text-muted-foreground">High-signal reflections, charts, and insights. No signals. No hype.</p>
+                </div>
+                 <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={() => createPostRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Create Post
+                    </Button>
+                </div>
             </div>
             
             <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
@@ -1652,7 +1667,3 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
         </div>
     );
 }
-
-
-
-    
