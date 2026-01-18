@@ -1,4 +1,5 @@
 
+
       "use client";
 
 import React, { useState, useMemo, useEffect, useRef } from "react";
@@ -8,10 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark, Timer, Gauge, Star, Calendar, Copy, Clipboard, ThumbsUp, ThumbsDown, Meh, PlusCircle, MoreHorizontal, Save, Grid, Eye, Radio, RefreshCw, Layers, BarChart, FileText, ShieldAlert, Info, HelpCircle, ChevronsUpDown, BookOpen, Crown, ImageUp, MessageSquare, Video, User } from "lucide-react";
+import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark, Timer, Gauge, Star, Calendar, Copy, Clipboard, ThumbsUp, ThumbsDown, Meh, PlusCircle, MoreHorizontal, Save, Grid, Eye, Radio, RefreshCw, Layers, BarChart, FileText, ShieldAlert, Info, HelpCircle, ChevronsUpDown, BookOpen, Crown, ImageUp, MessageSquare, Video, Trophy, BrainCircuit, User } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerClose } from "./ui/drawer";
 import { cn } from "@/lib/utils";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
@@ -22,6 +23,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "./ui/separator";
 import { Checkbox } from "./ui/checkbox";
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "./ui/tooltip";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 
 interface CommunityModuleProps {
@@ -34,6 +44,7 @@ interface CommunityModuleProps {
 const COMMUNITY_STATE_KEY = 'ec_community_state';
 const USER_PROFILE_KEY = 'ec_user_profile';
 const ARJUN_RECO_KEY = 'ec_arjun_reco';
+const WATCHED_VIDEOS_KEY = 'ec_watched_videos';
 
 type Post = {
     id: string;
@@ -666,11 +677,58 @@ function FeedTab({
     );
 }
 
-function LearnTab({ videosData }: { videosData: CommunityState['videos'] }) {
+function LearningStreakCard({ watchedIds }: { watchedIds: string[] }) {
+    const streak = useMemo(() => {
+        // This is a mock streak. A real implementation would check dates.
+        if (watchedIds.length === 0) return 0;
+        return (watchedIds.length % 5) + 1;
+    }, [watchedIds]);
+
+    return (
+        <Card className="bg-muted/30 border-border/50 h-full">
+            <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                    <Trophy className="h-5 w-5 text-amber-400" />
+                    Learning Streak
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="text-center">
+                <p className="text-5xl font-bold font-mono text-foreground">{streak}</p>
+                <p className="text-sm text-muted-foreground">day streak</p>
+                <p className="text-xs text-muted-foreground mt-2">Keep it up! Consistency is key to building good habits.</p>
+            </CardContent>
+        </Card>
+    );
+}
+
+
+function LearnTab({ videosData, onVideoClick }: { videosData: CommunityState['videos'], onVideoClick: (videoId: string) => void }) {
     const videoThumbnail = PlaceHolderImages.find(p => p.id === 'video-thumbnail');
     const searchParams = useSearchParams();
     const router = useRouter();
     const pathname = usePathname();
+
+    const [watchedIds, setWatchedIds] = useState<string[]>([]);
+    
+    useEffect(() => {
+        try {
+            const stored = localStorage.getItem(WATCHED_VIDEOS_KEY);
+            if (stored) {
+                setWatchedIds(JSON.parse(stored));
+            }
+        } catch(e) {
+            console.error("Failed to parse watched videos", e);
+        }
+    }, []);
+
+    const handleWatchVideo = (videoId: string) => {
+        if (!watchedIds.includes(videoId)) {
+            const newIds = [...watchedIds, videoId];
+            setWatchedIds(newIds);
+            localStorage.setItem(WATCHED_VIDEOS_KEY, JSON.stringify(newIds));
+        }
+        onVideoClick(videoId);
+    }
 
     const showArjunBanner = !!searchParams.get('video');
 
@@ -696,27 +754,33 @@ function LearnTab({ videosData }: { videosData: CommunityState['videos'] }) {
                     </div>
                 </Alert>
             )}
-
-            <Card className="bg-muted/30 border-border/50">
-                <CardHeader>
-                    <CardTitle>{featuredVideo.title}</CardTitle>
-                    <CardDescription>{featuredVideo.description}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="aspect-video bg-muted rounded-lg flex items-center justify-center relative group cursor-pointer overflow-hidden">
-                        {videoThumbnail && (
-                            <Image src={videoThumbnail.imageUrl} alt="Featured video thumbnail" fill style={{ objectFit: 'cover' }} className="opacity-20 group-hover:opacity-30 transition-opacity" data-ai-hint={videoThumbnail.imageHint} />
-                        )}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
-                        <div className="relative z-10 text-center">
-                            <div className="w-20 h-20 rounded-full bg-primary/20 text-primary flex items-center justify-center mb-4 transition-transform group-hover:scale-110">
-                                <Video className="h-10 w-10" />
+             <div className="grid lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-2">
+                    <Card className="bg-muted/30 border-border/50 h-full">
+                        <CardHeader>
+                            <CardTitle>{featuredVideo.title}</CardTitle>
+                            <CardDescription>{featuredVideo.description}</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="aspect-video bg-muted rounded-lg flex items-center justify-center relative group cursor-pointer overflow-hidden" onClick={() => handleWatchVideo('featured-video')}>
+                                {videoThumbnail && (
+                                    <Image src={videoThumbnail.imageUrl} alt="Featured video thumbnail" fill style={{ objectFit: 'cover' }} className="opacity-20 group-hover:opacity-30 transition-opacity" data-ai-hint={videoThumbnail.imageHint} />
+                                )}
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                                <div className="relative z-10 text-center">
+                                    <div className="w-20 h-20 rounded-full bg-primary/20 text-primary flex items-center justify-center mb-4 transition-transform group-hover:scale-110">
+                                        <Video className="h-10 w-10" />
+                                    </div>
+                                    <p className="font-semibold text-foreground">Watch Now (Prototype)</p>
+                                </div>
                             </div>
-                            <p className="font-semibold text-foreground">Watch Now (Prototype)</p>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
+                        </CardContent>
+                    </Card>
+                </div>
+                <div className="lg:col-span-1">
+                    <LearningStreakCard watchedIds={watchedIds} />
+                </div>
+            </div>
 
             <div className="space-y-8">
                 {playlists.map(playlist => (
@@ -728,10 +792,15 @@ function LearnTab({ videosData }: { videosData: CommunityState['videos'] }) {
                         <CardContent>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {playlist.videos.map(video => (
-                                    <div key={video.id} id={`video-${video.id}`} className="group cursor-pointer p-1 rounded-lg">
+                                    <div key={video.id} id={`video-${video.id}`} className="group cursor-pointer p-1 rounded-lg" onClick={() => handleWatchVideo(video.id)}>
                                         <div className="aspect-video bg-muted rounded-md relative overflow-hidden">
                                             {videoThumbnail && <Image src={videoThumbnail.imageUrl} alt={video.title} fill style={{ objectFit: 'cover' }} data-ai-hint={videoThumbnail.imageHint} />}
                                             <Badge className="absolute bottom-2 right-2 bg-black/50 text-white">{video.duration}</Badge>
+                                            {watchedIds.includes(video.id) && (
+                                                <div className="absolute inset-0 bg-background/70 flex items-center justify-center backdrop-blur-sm">
+                                                    <CheckCircle className="h-10 w-10 text-primary" />
+                                                </div>
+                                            )}
                                         </div>
                                         <p className="font-medium text-sm mt-2 text-foreground group-hover:text-primary transition-colors">{video.title}</p>
                                     </div>
@@ -859,6 +928,8 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
 
     const [activeTab, setActiveTab] = useState('feed');
     const [highlightedItem, setHighlightedItem] = useState<string|null>(null);
+    const [showVideoModal, setShowVideoModal] = useState(false);
+    const [clickedVideoId, setClickedVideoId] = useState<string | null>(null);
 
 
     // Data loading and initialization
@@ -1033,6 +1104,11 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
         }));
     };
 
+    const handleVideoClick = (videoId: string) => {
+        setClickedVideoId(videoId);
+        setShowVideoModal(true);
+    };
+
     if (isLoading || !communityState || !userProfile || !arjunRecos) {
         return <div>Loading...</div>; // Or a skeleton loader
     }
@@ -1070,12 +1146,27 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
                 <TabsContent value="learn" className="mt-8">
                     <LearnTab 
                         videosData={communityState.videos}
+                        onVideoClick={handleVideoClick}
                     />
                 </TabsContent>
                 <TabsContent value="leaders" className="mt-8">
                     <LeadersTab posts={communityState.posts} likesMap={communityState.likesMap} />
                 </TabsContent>
             </Tabs>
+             <AlertDialog open={showVideoModal} onOpenChange={setShowVideoModal}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Prototype Video</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This is a prototype. In the live product, this would play the real explainer video for video ID: {clickedVideoId}.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogAction onClick={() => setShowVideoModal(false)}>Close</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }
+
