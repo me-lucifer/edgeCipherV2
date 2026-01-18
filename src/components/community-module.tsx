@@ -68,6 +68,7 @@ type Post = {
 type VideoData = {
     id: string;
     title: string;
+    description: string;
     duration: string;
 }
 
@@ -164,23 +165,39 @@ const initialCommunityState: CommunityState = {
         },
         playlists: [
             {
-                title: "Mastering Trading Psychology",
-                description: "Learn to handle drawdowns, FOMO, and revenge trading.",
+                title: "Psychology",
+                description: "Master the mental game of trading.",
                 videos: [
-                    { id: "handling-drawdowns", title: "Handling Drawdowns Like a Pro", duration: "12:30" },
-                    { id: "fomo-science", title: "The Science of FOMO (and How to Beat It)", duration: "08:45" },
-                    { id: "discipline_holding", title: "Discipline: Holding Winners to Target", duration: "10:00" },
-                    { id: "elite-discipline", title: "Building Elite Discipline", duration: "15:10" },
-                    { id: "journaling-insight", title: "Journaling for Psychological Insight", duration: "11:05" },
+                    { id: "handling-drawdowns", title: "Handling Drawdowns Like a Pro", description: "Learn to stay objective and recover from losses.", duration: "12:30" },
+                    { id: "fomo-science", title: "The Science of FOMO", description: "Understand what drives FOMO and how to beat it.", duration: "08:45" },
+                    { id: "elite-discipline", title: "Building Elite Discipline", description: "Techniques to make rule-following a habit.", duration: "15:10" },
                 ]
             },
             {
-                title: "Advanced Risk Management",
-                description: "Techniques to protect your capital and manage your exposure.",
+                title: "Discipline",
+                description: "The bridge between your strategy and consistent results.",
                 videos: [
-                    { id: "position-sizing", title: "Position Sizing for Crypto Futures", duration: "14:55" },
-                    { id: "vix-risk", title: "Using the VIX to Adapt Your Risk", duration: "09:20" },
-                    { id: "stop-loss-strategy", title: "Setting Stop Losses That Don't Get Hunted", duration: "18:00" },
+                     { id: "discipline_holding", title: "Discipline: Holding Winners to Target", description: "Avoid taking profits too early.", duration: "10:00" },
+                     { id: "revenge-trading", title: "How to Stop Revenge Trading", description: "Break the cycle of making back losses.", duration: "09:15" },
+                     { id: "checklist-power", title: "The Power of a Pre-Trade Checklist", description: "Your final check before risking capital.", duration: "07:50" },
+                ]
+            },
+            {
+                title: "Trade Planning",
+                description: "How to build a complete, testable trade plan.",
+                videos: [
+                    { id: "aplus-setup", title: "Anatomy of an A+ Setup", description: "Define the exact conditions for your best trades.", duration: "11:40" },
+                    { id: "stop-loss-strategy", title: "Setting Stops That Don't Get Hunted", description: "Place your SL based on logic, not hope.", duration: "18:00" },
+                    { id: "rr-strategy", title: "Defining Your R:R Strategy", description: "Understand the math behind profitable trading.", duration: "13:25" },
+                ]
+            },
+            {
+                title: "Risk Management",
+                description: "The art of protecting your capital.",
+                videos: [
+                    { id: "position-sizing", title: "Position Sizing for Crypto Futures", description: "The most important skill you can learn.", duration: "14:55" },
+                    { id: "vix-risk", title: "Using the VIX to Adapt Your Risk", description: "How to trade smaller when markets are wild.", duration: "09:20" },
+                    { id: "drawdown-math", title: "The Math of Drawdowns", description: "Why small losses are critical to long-term survival.", duration: "10:30" },
                 ]
             }
         ]
@@ -803,6 +820,7 @@ function LearnTab({ videosData, onVideoClick }: { videosData: CommunityState['vi
                                             )}
                                         </div>
                                         <p className="font-medium text-sm mt-2 text-foreground group-hover:text-primary transition-colors">{video.title}</p>
+                                        <p className="text-xs text-muted-foreground mt-1">{video.description}</p>
                                     </div>
                                 ))}
                             </div>
@@ -1169,4 +1187,6 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
         </div>
     );
 }
+
+
 
