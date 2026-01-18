@@ -31,7 +31,7 @@ import { PerformanceAnalyticsModule } from './performance-analytics-module';
 import { StrategyManagementModule } from './strategy-management-module';
 import { RiskCenterModule } from './risk-center-module';
 import { CryptoVixModule } from './crypto-vix-module';
-import { NewsModule } from './news-module';
+import { NewsModule, NEWS_RISK_CONTEXT_KEY } from './news-module';
 import { CommunityModule } from './community-module';
 import { ProfileSettingsModule } from './profile-settings-module';
 import { DashboardDemoHelper } from './dashboard-demo-helper';
@@ -449,6 +449,56 @@ export function AuthenticatedAppShell() {
   const hasPendingJournals = pendingJournalCount > 0;
 
   useEffect(() => {
+    // --- GATE LOGIC ---
+    const newsRiskContextString = localStorage.getItem(NEWS_RISK_CONTEXT_KEY);
+    let newsRiskActive = false;
+    if (newsRiskContextString) {
+        try {
+            const newsRiskContext = JSON.parse(newsRiskContextString);
+            if (newsRiskContext.active && newsRiskContext.expiresAt > Date.now()) {
+                newsRiskActive = true;
+            }
+        } catch (e) { console.error(e) }
+    }
+
+    const vixHigh = riskState?.marketRisk.vixZone === 'High Volatility' || riskState?.marketRisk.vixZone === 'Extreme';
+
+    const gateString = localStorage.getItem("ec_arjun_gate");
+    const gateState = gateString ? JSON.parse(gateString) : { active: false };
+
+    if (!gateState.expiresAt || Date.now() > gateState.expiresAt) {
+      let shouldActivate = false;
+      let reason = '';
+      let videoId = 'discipline_holding';
+
+      if (vixHigh) {
+          shouldActivate = true;
+          reason = "High market volatility detected.";
+          videoId = 'vix-risk';
+      } else if (newsRiskActive) {
+          shouldActivate = true;
+          reason = "An active news risk window is affecting your traded assets.";
+          videoId = 'handling-drawdowns';
+      } else if (hasPendingJournals) {
+          shouldActivate = true;
+          reason = "You have unjournaled trades that need review.";
+          videoId = 'journaling-insight';
+      }
+      
+      if (shouldActivate) {
+          const newGateState = { active: true, reason, videoId };
+          if (!gateState.active || gateState.reason !== reason) {
+              localStorage.setItem("ec_arjun_gate", JSON.stringify(newGateState));
+              window.dispatchEvent(new StorageEvent('storage', { key: 'ec_arjun_gate' }));
+          }
+      } else if (gateState.active) {
+          localStorage.removeItem("ec_arjun_gate");
+          window.dispatchEvent(new StorageEvent('storage', { key: 'ec_arjun_gate' }));
+      }
+    }
+  }, [riskState, hasPendingJournals, journalEntries]);
+
+  useEffect(() => {
     const timer = setTimeout(() => {
       setInitialLoading(false);
     }, 1200);
@@ -665,6 +715,7 @@ export function AuthenticatedAppShell() {
 }
 
     
+
 
 
 

@@ -23,6 +23,7 @@ import { VixBadge } from "./ui/vix-badge";
 import type { NewsItem } from './news-module';
 import { formatDistanceToNow } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { ArjunGateBanner } from "./arjun-gate-banner";
 
 interface Persona {
     primaryPersonaName?: string;
@@ -892,6 +893,7 @@ export function DashboardModule({ onSetModule, isLoading }: DashboardModuleProps
 
   return (
     <div className="space-y-8">
+        <ArjunGateBanner onWatchNow={(videoId) => onSetModule('community', { tab: 'learn', video: videoId })} />
         <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
             <Card id="demo-highlight-1" className="w-full bg-muted/20 border-border/50">
                 <CardContent className="p-6 grid md:grid-cols-3 gap-6 items-center">

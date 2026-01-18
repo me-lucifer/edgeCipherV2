@@ -1,4 +1,5 @@
 
+
       "use client";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useForm, useWatch } from "react-hook-form";
@@ -35,6 +36,7 @@ import { Check } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
 import { useRiskState, type RiskDecision, type ActiveNudge, type VixZone } from "@/hooks/use-risk-state";
 import { VixBadge } from "./ui/vix-badge";
+import { ArjunGateBanner } from "./arjun-gate-banner";
 
 
 interface TradePlanningModuleProps {
@@ -1156,6 +1158,7 @@ export function TradePlanningModule({ onSetModule, planContext }: TradePlanningM
 
     return (
         <div className="space-y-8">
+            <ArjunGateBanner onWatchNow={(videoId) => onSetModule('community', { tab: 'learn', video: videoId })} />
             <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight text-foreground">Trade Planning</h1>

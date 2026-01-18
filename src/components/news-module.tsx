@@ -248,7 +248,7 @@ const getVixZone = (vix: number): VixZone => {
 
 const NEWS_CACHE_KEY = "ec_news_state_v2";
 const VIX_CACHE_KEY = "ec_vix_state";
-const NEWS_RISK_CONTEXT_KEY = "ec_news_risk_context";
+export const NEWS_RISK_CONTEXT_KEY = "ec_news_risk_context";
 const NEWS_DAY_SIGNAL_KEY = "ec_news_day_signal";
 const NEWS_TOP_COINS_KEY = "ec_news_top_coins_today";
 const NEWS_TTL_MS = 5 * 60 * 1000; // 5 minutes
