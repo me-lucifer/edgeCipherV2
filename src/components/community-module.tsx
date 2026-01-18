@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark, Timer, Gauge, Star, Calendar, Copy, Clipboard, ThumbsUp, ThumbsDown, Meh, PlusCircle, MoreHorizontal, Save, Grid, Eye, Radio, RefreshCw, Layers, BarChart, FileText, ShieldAlert, Info, HelpCircle, ChevronsUpDown, Crown, ImageUp, MessageSquare, Video, BookOpen, User, BrainCircuit } from "lucide-react";
+import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark, Timer, Gauge, Star, Calendar, Copy, Clipboard, ThumbsUp, ThumbsDown, Meh, PlusCircle, MoreHorizontal, Save, Grid, Eye, Radio, RefreshCw, Layers, BarChart, FileText, ShieldAlert, Info, HelpCircle, ChevronsUpDown, Crown, ImageUp, MessageSquare, Video, BookOpen, User, BrainCircuit, Flag } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerClose } from "./ui/drawer";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
@@ -46,8 +46,16 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter
 } from "@/components/ui/dialog"
 import { ScrollArea } from "./ui/scroll-area";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 
 
 interface CommunityModuleProps {
@@ -84,6 +92,8 @@ type Post = {
         instrument: string;
         result: number;
     };
+    isFlagged?: boolean;
+    flagReason?: string;
 };
 
 type VideoData = {
@@ -258,12 +268,10 @@ const initialArjunRecos: ArjunRecommendations = {
 const commentSchema = z.object({
     comment: z.string()
       .min(5, "Comment must be at least 5 characters.")
-      .refine(val => !/(http|https|www\.)/i.test(val), { message: "External links are not allowed." })
-      .refine(val => !/\b(darn|heck|shoot)\b/i.test(val), { message: "Please avoid profanity." })
 });
 
 
-function PostCard({ post, likes, comments, isArjunRecommended, recommendationReason, onLike, onSave, onDiscuss, onAddComment }: { post: Post, likes: number, comments: { author: string; text: string }[], isArjunRecommended: boolean, recommendationReason?: string, onLike: (id: string) => void, onSave: (id: string) => void, onDiscuss: (post: Post) => void, onAddComment: (postId: string, comment: string) => void }) {
+function PostCard({ post, likes, comments, isArjunRecommended, recommendationReason, onLike, onSave, onDiscuss, onAddComment, onReport }: { post: Post, likes: number, comments: { author: string; text: string }[], isArjunRecommended: boolean, recommendationReason?: string, onLike: (id: string) => void, onSave: (id: string) => void, onDiscuss: (post: Post) => void, onAddComment: (postId: string, comment: string) => void, onReport: (id: string, type: 'post' | 'comment') => void }) {
     const form = useForm<z.infer<typeof commentSchema>>({
         resolver: zodResolver(commentSchema),
         defaultValues: { comment: "" },
@@ -317,10 +325,31 @@ function PostCard({ post, likes, comments, isArjunRecommended, recommendationRea
                             </TooltipProvider>
                         )}
                         <Badge variant="outline">{post.type}</Badge>
+                         <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 -mr-2">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem onSelect={() => onReport(post.id, 'post')}>
+                                    <Flag className="mr-2 h-4 w-4" /> Report Post
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </div>
                 </div>
             </CardHeader>
             <CardContent>
+                {post.isFlagged && (
+                    <Alert variant="destructive" className="mb-4">
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertTitle>Post Flagged for Review</AlertTitle>
+                        <AlertDescription>
+                            Reason: {post.flagReason || 'Content policy violation'}.
+                        </AlertDescription>
+                    </Alert>
+                )}
                 <p className={cn("text-muted-foreground mb-4 whitespace-pre-wrap", !isExpanded && "line-clamp-6")}>{post.content}</p>
                 
                  {post.type === 'Chart' && post.image && (
@@ -396,15 +425,27 @@ function PostCard({ post, likes, comments, isArjunRecommended, recommendationRea
                                 <div className="text-xs text-muted-foreground">Sort by: Top (soon)</div>
                             </div>
                             {comments.map((comment, index) => (
-                                <div key={index} className="flex items-start gap-3">
+                                <div key={index} className="flex items-start gap-3 group">
                                     <Avatar className="h-8 w-8">
                                         <AvatarImage src={`/avatars/${comment.author.toLowerCase().replace(/\s/g, '').replace('.', '')}.png`} alt={comment.author} />
                                         <AvatarFallback>{comment.author.charAt(0)}</AvatarFallback>
                                     </Avatar>
-                                    <div>
+                                    <div className="flex-1">
                                         <p className="text-sm font-semibold text-foreground">{comment.author}</p>
                                         <p className="text-sm text-muted-foreground">{comment.text}</p>
                                     </div>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100">
+                                                <MoreHorizontal className="h-4 w-4" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuItem onSelect={() => onReport(`${post.id}-${index}`, 'comment')}>
+                                                <Flag className="mr-2 h-4 w-4" /> Report Comment
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
                                 </div>
                             ))}
                             {comments.length === 0 && <p className="text-sm text-center text-muted-foreground py-4">Be the first to comment.</p>}
@@ -419,7 +460,7 @@ function PostCard({ post, likes, comments, isArjunRecommended, recommendationRea
                                         render={({ field }) => (
                                             <FormItem>
                                                 <FormControl>
-                                                    <Textarea placeholder="Add a comment..." {...field} />
+                                                    <Textarea placeholder="Add a thoughtful comment..." {...field} />
                                                 </FormControl>
                                                 <FormMessage />
                                             </FormItem>
@@ -553,6 +594,7 @@ function FeedTab({
     followedUsers,
     createPostRef,
     initialCategory,
+    onReport,
 }: {
     posts: Post[];
     officialPosts: Omit<OfficialPost, 'icon'>[];
@@ -573,6 +615,7 @@ function FeedTab({
     followedUsers: string[];
     createPostRef: React.RefObject<HTMLDivElement>;
     initialCategory?: 'Reflection';
+    onReport: (id: string, type: 'post' | 'comment') => void;
 }) {
     const { toast } = useToast();
     const [newPostContent, setNewPostContent] = useState("");
@@ -627,24 +670,6 @@ function FeedTab({
         return () => clearInterval(interval);
     }, [coachingNudges]);
 
-    const signalKeywords = useMemo(() => ["entry", "target", "buy now", "sell now", "guaranteed", "pump", "dump", "moon", "signal", "sl at", "tp at"], []);
-    const signalRegex = useMemo(() => new RegExp(`\\b(${signalKeywords.join('|')})\\b`, 'i'), [signalKeywords]);
-
-    // This is the real-time gentle warning
-    useEffect(() => {
-        const content = newPostContent.toLowerCase();
-        if (content.length > 0 && signalRegex.test(content)) {
-            // Only set the gentle warning if there isn't a hard error from submission
-            if (!postError || postError === "Tip: Avoid signals. Share your reasoning + lesson instead.") {
-                setPostError("Tip: Avoid signals. Share your reasoning + lesson instead.");
-            }
-        } else if (postError === "Tip: Avoid signals. Share your reasoning + lesson instead.") {
-            // Only clear the gentle warning
-            setPostError(null);
-        }
-    }, [newPostContent, signalRegex, postError]);
-
-    
     // Filter states
     const [categoryFilter, setCategoryFilter] = useState<'All' | 'Chart' | 'Reflection' | 'Insight'>('All');
     const [highSignalOnly, setHighSignalOnly] = useState(false);
@@ -729,7 +754,7 @@ What is the lesson?
     };
 
     const handleCreatePost = () => {
-        setPostError(null); // Clear previous submit errors
+        setPostError(null);
         const content = newPostContent.trim();
         
         if (content.length < 20) {
@@ -737,33 +762,39 @@ What is the lesson?
             return;
         }
 
+        let isFlagged = false;
+        let flagReason = '';
+
         const linkPattern = /(http|https|www\.)/i;
         if (linkPattern.test(content)) {
-            setPostError("Community is for learning and reflection. External links are not allowed.");
-            return;
-        }
-        
-        // Hard block for signal words on submit
-        if (signalRegex.test(content)) {
-            setPostError("Please remove signal language (e.g., 'buy now', 'target') before posting.");
-            return;
+            isFlagged = true;
+            flagReason = 'Contains Link/Promotion';
         }
 
         const profanityWords = ["darn", "heck", "shoot"]; // keeping it mild
         const profanityRegex = new RegExp(`\\b(${profanityWords.join('|')})\\b`, 'i');
         if (profanityRegex.test(content)) {
-            setPostError("Please avoid profanity.");
-            return;
+            isFlagged = true;
+            flagReason = 'Contains Profanity';
+        }
+
+        const signalKeywords = ["entry", "target", "buy now", "sell now", "guaranteed", "pump", "dump", "moon", "signal", "sl at", "tp at"];
+        const signalRegex = new RegExp(`\\b(${signalKeywords.join('|')})\\b`, 'i');
+        if (!isFlagged && signalRegex.test(content)) {
+            isFlagged = true;
+            flagReason = 'Potential Signal Language';
         }
 
         onCreatePost({
             type: newPostCategory,
             content: newPostContent,
-        });
+            isFlagged,
+            flagReason,
+        } as any);
 
         setNewPostContent("");
         setIsChartConfirmed(false);
-        setPostError(null); // Final clear
+        setPostError(null);
     };
     
     const handleSaveDraft = () => {
@@ -782,8 +813,6 @@ What is the lesson?
         const prompt = `Arjun, I'm looking at this community post titled "${post.type}" by ${post.author.name}: "${post.content.substring(0, 150)}...". What's your professional take on this? Can you give me some feedback or ask a clarifying question?`;
         onSetModule('aiCoaching', { initialMessage: prompt });
     };
-    
-    const isGentleWarning = postError?.startsWith("Tip:");
 
     return (
         <div className="grid lg:grid-cols-3 gap-8 items-start">
@@ -923,6 +952,7 @@ What is the lesson?
                             onSave={onSave}
                             onDiscuss={handleDiscuss}
                             onAddComment={onAddComment}
+                            onReport={onReport}
                         />
                     ))}
 
@@ -962,14 +992,11 @@ What is the lesson?
                                 placeholder={newPostCategory === 'Reflection' ? reflectionPlaceholder : "What did you learn today?"}
                                 value={newPostContent}
                                 onChange={(e) => setNewPostContent(e.target.value)}
-                                className={cn(postError && !isGentleWarning && "border-destructive focus-visible:ring-destructive", "min-h-[150px]")}
+                                className={cn(postError && "border-destructive focus-visible:ring-destructive", "min-h-[150px]")}
                             />
                             
                             {postError && (
-                                <p className={cn(
-                                    "text-sm mt-2 flex items-start gap-2",
-                                    isGentleWarning ? "text-amber-500" : "text-destructive"
-                                )}>
+                                <p className="text-sm text-destructive mt-2 flex items-start gap-2">
                                     <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
                                     <span>{postError}</span>
                                 </p>
@@ -1387,6 +1414,49 @@ const calculatePostQualityScore = (postData: Omit<Post, 'id' | 'timestamp' | 'au
     return Math.max(0, Math.min(100, score));
 };
 
+function ReportDialog({ isOpen, onOpenChange, onSubmit }: { isOpen: boolean; onOpenChange: (open: boolean) => void; onSubmit: (reason: string) => void; }) {
+    const [reason, setReason] = useState('');
+    const reportReasons = [
+        "Spam or promotion",
+        "Signals / financial advice",
+        "Profanity or hate speech",
+        "Other",
+    ];
+
+    const handleSubmit = () => {
+        if (reason) {
+            onSubmit(reason);
+        }
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Report Content</DialogTitle>
+                    <DialogDescription>
+                        Why are you reporting this content? Your report is anonymous.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                    <RadioGroup value={reason} onValueChange={setReason} className="space-y-2">
+                        {reportReasons.map(r => (
+                            <div key={r} className="flex items-center space-x-2">
+                                <RadioGroupItem value={r} id={r} />
+                                <Label htmlFor={r}>{r}</Label>
+                            </div>
+                        ))}
+                    </RadioGroup>
+                </div>
+                <DialogFooter>
+                    <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
+                    <Button onClick={handleSubmit} disabled={!reason}>Submit Report</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
 export function CommunityModule({ onSetModule, context }: CommunityModuleProps) {
     const searchParams = useSearchParams();
     const router = useRouter();
@@ -1399,6 +1469,9 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const [arjunRecos, setArjunRecos] = useState<ArjunRecommendations | null>(null);
     const [followedUsers, setFollowedUsers] = useState<string[]>([]);
+    
+    const [reportDialogOpen, setReportDialogOpen] = useState(false);
+    const [itemToReport, setItemToReport] = useState<{ id: string, type: 'post' | 'comment' } | null>(null);
 
     const [activeTab, setActiveTab] = useState('feed');
     const [highlightedItem, setHighlightedItem] = useState<string|null>(null);
@@ -1682,6 +1755,34 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
         router.push(`${pathname}?${params.toString()}`);
     };
 
+    const handleOpenReportDialog = (id: string, type: 'post' | 'comment') => {
+        setItemToReport({ id, type });
+        setReportDialogOpen(true);
+    };
+    
+    const handleReportSubmit = (reason: string) => {
+        if (!itemToReport) return;
+        
+        const newReport = {
+            itemId: itemToReport.id,
+            itemType: itemToReport.type,
+            reason,
+            timestamp: new Date().toISOString(),
+        };
+
+        const reports = JSON.parse(localStorage.getItem('ec_community_reports') || '[]');
+        reports.push(newReport);
+        localStorage.setItem('ec_community_reports', JSON.stringify(reports));
+
+        toast({
+            title: "Report Submitted",
+            description: "Thank you. Our team will review this shortly.",
+        });
+
+        setReportDialogOpen(false);
+        setItemToReport(null);
+    };
+
     if (isLoading || !communityState || !userProfile || !arjunRecos) {
         return <div>Loading...</div>; // Or a skeleton loader
     }
@@ -1728,6 +1829,7 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
                         followedUsers={followedUsers}
                         createPostRef={createPostRef}
                         initialCategory={context?.openCreatePost}
+                        onReport={handleOpenReportDialog}
                     />
                 </TabsContent>
                 <TabsContent value="learn" className="mt-8">
@@ -1761,7 +1863,11 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+            <ReportDialog 
+                isOpen={reportDialogOpen} 
+                onOpenChange={setReportDialogOpen}
+                onSubmit={handleReportSubmit} 
+            />
         </div>
     );
 }
-
