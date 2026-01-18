@@ -1,7 +1,8 @@
 
+
       "use client";
 
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { useToast } from "@/hooks/use-toast";
 
 
 interface CommunityModuleProps {
@@ -97,6 +99,7 @@ type CommunityState = {
         playlists: PlaylistData[];
     };
     likesMap: Record<string, number>;
+    savesMap: Record<string, number>;
     commentsMap: Record<string, { author: string; text: string }[]>;
     savedPostIds: string[];
     personaRecommendedPostIds: string[];
@@ -151,6 +154,7 @@ const mockPostsData: Omit<Post, 'likes' | 'comments'>[] = [
 const initialCommunityState: CommunityState = {
     posts: mockPostsData as Post[],
     likesMap: { '1': 15, '2': 42, '3': 28 },
+    savesMap: { '1': 5, '2': 20, '3': 12 },
     commentsMap: {
         '1': [{ author: "Jane D.", text: "That's the way! A red day sticking to the plan is better than a green day breaking rules." }],
         '2': [],
@@ -234,7 +238,7 @@ const commentSchema = z.object({
 });
 
 
-function PostCard({ post, likes, comments, isArjunRecommended, recommendationReason, onLike, onDiscuss, onAddComment }: { post: Post, likes: number, comments: { author: string; text: string }[], isArjunRecommended: boolean, recommendationReason?: string, onLike: (id: string) => void, onDiscuss: (post: Post) => void, onAddComment: (postId: string, comment: string) => void }) {
+function PostCard({ post, likes, comments, isArjunRecommended, recommendationReason, onLike, onSave, onDiscuss, onAddComment }: { post: Post, likes: number, comments: { author: string; text: string }[], isArjunRecommended: boolean, recommendationReason?: string, onLike: (id: string) => void, onSave: (id: string) => void, onDiscuss: (post: Post) => void, onAddComment: (postId: string, comment: string) => void }) {
     const form = useForm<z.infer<typeof commentSchema>>({
         resolver: zodResolver(commentSchema),
         defaultValues: { comment: "" },
@@ -320,7 +324,7 @@ function PostCard({ post, likes, comments, isArjunRecommended, recommendationRea
                         <Button variant="ghost" size="sm" className="flex items-center gap-2 text-xs" onClick={() => onDiscuss(post)}>
                             <Bot className="h-4 w-4" /> Discuss
                         </Button>
-                        <Button variant="ghost" size="sm" className="flex items-center gap-2 text-xs">
+                        <Button variant="ghost" size="sm" className="flex items-center gap-2 text-xs" onClick={() => onSave(post.id)}>
                             <Bookmark className="h-4 w-4" /> Save
                         </Button>
                     </CardFooter>
@@ -481,6 +485,7 @@ function FeedTab({
     userProfile,
     onSetModule,
     onLike,
+    onSave,
     onCreatePost,
     videosData,
     onPostClick,
@@ -496,6 +501,7 @@ function FeedTab({
     userProfile: UserProfile;
     onSetModule: (module: any, context?: any) => void;
     onLike: (id: string) => void;
+    onSave: (id: string) => void;
     onCreatePost: (post: Omit<Post, 'id' | 'timestamp' | 'author' | 'isHighSignal'>) => void;
     videosData: CommunityState['videos'];
     onPostClick: (postId: string) => void;
@@ -798,6 +804,7 @@ What is the lesson?
                             : undefined
                         }
                         onLike={onLike} 
+                        onSave={onSave}
                         onDiscuss={handleDiscuss}
                         onAddComment={onAddComment}
                     />
@@ -1164,6 +1171,7 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
     const router = useRouter();
     const pathname = usePathname();
     const [isLoading, setIsLoading] = useState(true);
+    const { toast } = useToast();
 
     const [communityState, setCommunityState] = useState<CommunityState | null>(null);
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -1173,7 +1181,6 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
     const [highlightedItem, setHighlightedItem] = useState<string|null>(null);
     const [showVideoModal, setShowVideoModal] = useState(false);
     const [clickedVideoId, setClickedVideoId] = useState<string | null>(null);
-
 
     const handleTabChange = (tab: string) => {
         const params = new URLSearchParams(searchParams.toString());
@@ -1238,6 +1245,39 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
             setIsLoading(false);
         }
     }, []);
+
+    const checkAndPromoteToLeader = useCallback(() => {
+        if (!userProfile || !communityState || userProfile.role === 'Leader') {
+            return;
+        }
+
+        const userPosts = communityState.posts.filter(p => p.author.name === userProfile.username);
+        
+        const postCount = userPosts.length;
+        const likesReceived = userPosts.reduce((acc, post) => acc + (communityState.likesMap[post.id] || 0), 0);
+        const savesReceived = userPosts.reduce((acc, post) => acc + (communityState.savesMap[post.id] || 0), 0);
+        const commentsReceived = userPosts.reduce((acc, post) => acc + (communityState.commentsMap[post.id]?.length || 0), 0);
+        const highSignalPosts = userPosts.filter(p => p.isHighSignal).length;
+
+        const isEligible = 
+            postCount >= 5 &&
+            likesReceived >= 15 &&
+            (savesReceived >= 10 || commentsReceived >= 10) &&
+            highSignalPosts >= 3;
+
+        if (isEligible) {
+            const newUserProfile = { ...userProfile, role: 'Leader' as const };
+            setUserProfile(newUserProfile);
+            localStorage.setItem(USER_PROFILE_KEY, JSON.stringify(newUserProfile));
+            toast({
+                title: "You’ve been promoted to Leader — keep it disciplined.",
+            });
+        }
+    }, [userProfile, communityState, toast]);
+
+    useEffect(() => {
+        checkAndPromoteToLeader();
+    }, [communityState, checkAndPromoteToLeader]);
 
 
     // URL param handling
@@ -1341,6 +1381,16 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
             }
         }));
     };
+    
+    const handleSave = (postId: string) => {
+        updateCommunityState(prev => ({
+            ...prev,
+            savesMap: {
+                ...prev.savesMap,
+                [postId]: (prev.savesMap[postId] || 0) + 1,
+            }
+        }));
+    };
 
     const handleCreatePost = (newPostData: Omit<Post, 'id' | 'timestamp' | 'author' | 'isHighSignal'>) => {
         if (!userProfile) return;
@@ -1412,6 +1462,7 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
                         userProfile={userProfile}
                         onSetModule={onSetModule}
                         onLike={handleLike}
+                        onSave={handleSave}
                         onCreatePost={handleCreatePost}
                         videosData={communityState.videos}
                         onPostClick={handlePostClick}
