@@ -322,10 +322,37 @@ function PostCard({ post, likes, comments, isArjunRecommended, recommendationRea
                 <CardContent>
                     <p className={cn("text-muted-foreground mb-4 whitespace-pre-wrap", !isOpen && "line-clamp-6")}>{post.content}</p>
                     
-                    {post.type === 'Chart' && post.image && (
-                        <div className="relative aspect-video rounded-md overflow-hidden border border-border/50 mb-4">
-                            <Image src={post.image} alt="Chart analysis" layout="fill" objectFit="cover" data-ai-hint={post.imageHint || 'chart analysis'} />
-                        </div>
+                     {post.type === 'Chart' && post.image && (
+                        <Dialog>
+                            <div className="mb-4">
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <DialogTrigger asChild>
+                                                <div className="relative aspect-video rounded-md overflow-hidden border border-border/50 cursor-pointer group">
+                                                    <Image src={post.image} alt="Chart analysis" layout="fill" objectFit="cover" data-ai-hint={post.imageHint || 'chart analysis'} />
+                                                    <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                                        <Search className="h-8 w-8 text-white" />
+                                                    </div>
+                                                </div>
+                                            </DialogTrigger>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>Charts are for learning, not signals. Click to expand.</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                                <p className="text-xs text-muted-foreground mt-2">
+                                    Context: {post.content.split('\n')[0]}
+                                </p>
+                            </div>
+
+                            <DialogContent className="max-w-4xl p-2 bg-background border-border">
+                                <div className="relative aspect-video">
+                                    <Image src={post.image} alt="Chart analysis" layout="fill" objectFit="contain" />
+                                </div>
+                            </DialogContent>
+                        </Dialog>
                     )}
 
                     {post.trade && (
@@ -1731,5 +1758,6 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
         </div>
     );
 }
+
 
 
