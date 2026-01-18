@@ -478,6 +478,18 @@ function FeedTab({
         return () => clearInterval(interval);
     }, [coachingNudges]);
 
+    const reflectionPlaceholder = `What was the plan?
+- e.g., Planned to enter BTC long on a retest of 68k.
+
+What did I actually do?
+- e.g., Entered early out of FOMO.
+
+What emotion showed up?
+- e.g., Felt anxious and impatient.
+
+What is the lesson?
+- e.g., Stick to the plan. Waiting for confirmation prevents chasing bad entries.`;
+
     const postsToRender = useMemo(() => {
       let filtered = posts.filter(post => {
           if (categoryFilter !== 'All' && post.type !== categoryFilter) return false;
@@ -643,7 +655,13 @@ function FeedTab({
                                 </SelectContent>
                             </Select>
 
-                            <Textarea placeholder="What did you learn today?" value={newPostContent} onChange={(e) => setNewPostContent(e.target.value)} className={cn(postError && "border-destructive focus-visible:ring-destructive")} />
+                            <Textarea
+                                placeholder={newPostCategory === 'Reflection' ? reflectionPlaceholder : "What did you learn today?"}
+                                value={newPostContent}
+                                onChange={(e) => setNewPostContent(e.target.value)}
+                                className={cn(postError && "border-destructive focus-visible:ring-destructive", "min-h-[150px]")}
+                            />
+                            
                             {postError && (<p className="text-sm text-destructive mt-2">{postError}</p>)}
 
                             {newPostCategory === 'Chart' && (
@@ -693,6 +711,31 @@ function FeedTab({
         </div>
     );
 }
+
+function Trophy(props: React.SVGProps<SVGSVGElement>) {
+    return (
+        <svg
+            {...props}
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+        >
+            <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+            <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+            <path d="M4 22h16" />
+            <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
+            <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
+            <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+        </svg>
+    )
+}
+
 
 function LearningStreakCard({ watchedIds }: { watchedIds: string[] }) {
     const streak = useMemo(() => {
@@ -1238,4 +1281,7 @@ export function CommunityModule({ onSetModule }: CommunityModuleProps) {
 
 
 
+
+
+  
 
