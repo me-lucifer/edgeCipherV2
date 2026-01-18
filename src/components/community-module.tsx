@@ -77,6 +77,7 @@ const ARJUN_RECO_KEY = 'ec_arjun_reco';
 const WATCHED_VIDEOS_KEY = 'ec_watched_videos';
 const FOLLOWED_USERS_KEY = 'ec_followed_users';
 const HIDDEN_POSTS_KEY = 'ec_hidden_post_ids';
+const ARJUN_ASSIGNMENTS_KEY = 'ec_arjun_assignments';
 const ITEMS_PER_PAGE = 9;
 
 type Post = {
@@ -145,6 +146,13 @@ type ArjunRecommendations = {
     recommendedVideoId: string | null;
     recommendedPostIds: string[];
     reason: string;
+};
+
+type Assignment = {
+    type: 'video' | 'post';
+    id: string;
+    reason: string;
+    dueToday: boolean;
 };
 
 // INITIAL DATA - used if localStorage is empty
@@ -276,7 +284,7 @@ const commentSchema = z.object({
 });
 
 
-function PostCard({ post, likes, comments, isSaved, isArjunRecommended, recommendationReason, isHidden, isAdmin, onLike, onSave, onDiscuss, onAddComment, onReport, onHide, onDelete, onMarkAsOfficial, userProfile, onUpdatePost }: { post: Post, likes: number, comments: { author: string; text: string }[], isSaved: boolean, isArjunRecommended: boolean, recommendationReason?: string, isHidden: boolean, isAdmin: boolean, onLike: (id: string) => void, onSave: (id: string) => void, onDiscuss: (post: Post) => void, onAddComment: (postId: string, comment: string) => void, onReport: (id: string, type: 'post' | 'comment') => void, onHide: (id: string) => void, onDelete: (id: string) => void, onMarkAsOfficial: (post: Post) => void, userProfile: UserProfile, onUpdatePost: (postId: string, newContent: string) => void }) {
+function PostCard({ post, likes, comments, isSaved, isArjunRecommended, recommendationReason, isHidden, isAdmin, onLike, onSave, onDiscuss, onAddComment, onReport, onHide, onDelete, onMarkAsOfficial, userProfile, onUpdatePost, isAssigned, assignmentReason, assignmentDueToday }: { post: Post, likes: number, comments: { author: string; text: string }[], isSaved: boolean, isArjunRecommended: boolean, recommendationReason?: string, isHidden: boolean, isAdmin: boolean, onLike: (id: string) => void, onSave: (id: string) => void, onDiscuss: (post: Post) => void, onAddComment: (postId: string, comment: string) => void, onReport: (id: string, type: 'post' | 'comment') => void, onHide: (id: string) => void, onDelete: (id: string) => void, onMarkAsOfficial: (post: Post) => void, userProfile: UserProfile, onUpdatePost: (postId: string, newContent: string) => void, isAssigned?: boolean, assignmentReason?: string, assignmentDueToday?: boolean }) {
     const form = useForm<z.infer<typeof commentSchema>>({
         resolver: zodResolver(commentSchema),
         defaultValues: { comment: "" },
@@ -358,6 +366,26 @@ function PostCard({ post, likes, comments, isSaved, isArjunRecommended, recommen
                         </div>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
+                        {isAssigned && (
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Badge variant="outline" className={cn(
+                                            "cursor-help",
+                                            assignmentDueToday ? "border-amber-500/50 bg-amber-950/30 text-amber-300" : "border-primary/30 text-primary"
+                                        )}>
+                                            <CheckCircle className="mr-1 h-3 w-3" />
+                                            Assigned{assignmentDueToday && " Today"}
+                                        </Badge>
+                                    </TooltipTrigger>
+                                    {assignmentReason && (
+                                        <TooltipContent>
+                                            <p>{assignmentReason}</p>
+                                        </TooltipContent>
+                                    )}
+                                </Tooltip>
+                            </TooltipProvider>
+                        )}
                         {isHidden && <Badge variant="destructive">Hidden</Badge>}
                         {post.isHighSignal && <Badge variant="outline" className="border-amber-500/30 text-amber-300"><Sparkles className="mr-1 h-3 w-3" /> High-signal</Badge>}
                         {isArjunRecommended && (
@@ -711,6 +739,7 @@ function FeedTab({
     onMarkAsOfficial,
     onCreateOfficialPost,
     onUpdatePost,
+    assignments,
 }: {
     posts: Post[];
     officialPosts: Omit<OfficialPost, 'icon'>[];
@@ -740,6 +769,7 @@ function FeedTab({
     onDeletePost: (id: string) => void;
     onMarkAsOfficial: (post: Post) => void;
     onUpdatePost: (postId: string, newContent: string) => void;
+    assignments: Assignment[];
 }) {
     const { toast } = useToast();
     const [newPostContent, setNewPostContent] = useState("");
@@ -1170,35 +1200,41 @@ What is the lesson?
                 </Card>
 
                 <div className="space-y-6">
-                    {postsToRender.slice(0, visibleCount).map(post => (
-                        <PostCard 
-                            key={post.id} 
-                            post={post} 
-                            likes={likesMap[post.id] || 0}
-                            comments={commentsMap[post.id] || []}
-                            isSaved={savedPostIds.includes(post.id)}
-                            isArjunRecommended={(arjunRecos.recommendedPostIds.includes(post.id) || (personaRecommendedPostIds || []).includes(post.id))}
-                            recommendationReason={
-                                arjunRecos.recommendedPostIds.includes(post.id) 
-                                ? arjunRecos.reason 
-                                : (personaRecommendedPostIds || []).includes(post.id) 
-                                ? `Recommended based on your '${userProfile.persona}' persona.`
-                                : undefined
-                            }
-                            isHidden={hiddenPostIds.includes(post.id)}
-                            isAdmin={isAdmin}
-                            onLike={onLike} 
-                            onSave={onSave}
-                            onDiscuss={handleDiscuss}
-                            onAddComment={onAddComment}
-                            onReport={onReport}
-                            onHide={onHidePost}
-                            onDelete={onDeletePost}
-                            onMarkAsOfficial={onMarkAsOfficial}
-                            userProfile={userProfile}
-                            onUpdatePost={onUpdatePost}
-                        />
-                    ))}
+                    {postsToRender.slice(0, visibleCount).map(post => {
+                        const postAssignment = assignments.find(a => a.type === 'post' && a.id === post.id);
+                        return (
+                            <PostCard 
+                                key={post.id} 
+                                post={post} 
+                                likes={likesMap[post.id] || 0}
+                                comments={commentsMap[post.id] || []}
+                                isSaved={savedPostIds.includes(post.id)}
+                                isArjunRecommended={(arjunRecos.recommendedPostIds.includes(post.id) || (personaRecommendedPostIds || []).includes(post.id))}
+                                recommendationReason={
+                                    arjunRecos.recommendedPostIds.includes(post.id) 
+                                    ? arjunRecos.reason 
+                                    : (personaRecommendedPostIds || []).includes(post.id) 
+                                    ? `Recommended based on your '${userProfile.persona}' persona.`
+                                    : undefined
+                                }
+                                isHidden={hiddenPostIds.includes(post.id)}
+                                isAdmin={isAdmin}
+                                onLike={onLike} 
+                                onSave={onSave}
+                                onDiscuss={handleDiscuss}
+                                onAddComment={onAddComment}
+                                onReport={onReport}
+                                onHide={onHidePost}
+                                onDelete={onDeletePost}
+                                onMarkAsOfficial={onMarkAsOfficial}
+                                userProfile={userProfile}
+                                onUpdatePost={onUpdatePost}
+                                isAssigned={!!postAssignment}
+                                assignmentDueToday={postAssignment?.dueToday}
+                                assignmentReason={postAssignment?.reason}
+                            />
+                        )
+                    })}
 
                     {visibleCount < postsToRender.length && (
                         <div className="mt-8 text-center">
@@ -1399,12 +1435,32 @@ function ArjunQueue({ arjunRecos, videosData, onVideoClick }: { arjunRecos: Arju
     );
 }
 
-function VideoCard({ video, onVideoClick, isWatched }: { video: VideoData, onVideoClick: (videoId: string) => void, isWatched: boolean }) {
+function VideoCard({ video, onVideoClick, isWatched, isAssigned, assignmentDueToday, assignmentReason }: { video: VideoData, onVideoClick: (videoId: string) => void, isWatched: boolean, isAssigned?: boolean, assignmentDueToday?: boolean, assignmentReason?: string }) {
     const videoThumbnail = PlaceHolderImages.find(p => p.id === 'video-thumbnail');
     return (
         <div id={`video-${video.id}`} className="group cursor-pointer p-1 rounded-lg" onClick={() => onVideoClick(video.id)}>
             <div className="aspect-video bg-muted rounded-md relative overflow-hidden">
                 {videoThumbnail && <Image src={videoThumbnail.imageUrl} alt={video.title} fill style={{ objectFit: 'cover' }} data-ai-hint={videoThumbnail.imageHint} />}
+                {isAssigned && (
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Badge variant="outline" className={cn(
+                                    "absolute top-2 left-2 z-10 cursor-help",
+                                    assignmentDueToday ? "border-amber-500/50 bg-amber-950/30 text-amber-300" : "border-primary/30 bg-primary/10 text-primary"
+                                )}>
+                                    <CheckCircle className="mr-1 h-3 w-3" />
+                                    Assigned{assignmentDueToday && " Today"}
+                                </Badge>
+                            </TooltipTrigger>
+                            {assignmentReason && (
+                                <TooltipContent>
+                                    <p>{assignmentReason}</p>
+                                </TooltipContent>
+                            )}
+                        </Tooltip>
+                    </TooltipProvider>
+                )}
                 <Badge className="absolute bottom-2 right-2 bg-black/50 text-white">{video.duration}</Badge>
                 {isWatched && (
                     <div className="absolute inset-0 bg-background/70 flex items-center justify-center backdrop-blur-sm">
@@ -1418,7 +1474,7 @@ function VideoCard({ video, onVideoClick, isWatched }: { video: VideoData, onVid
     );
 }
 
-function LearnTab({ videosData, onVideoClick, arjunRecos }: { videosData: CommunityState['videos'], onVideoClick: (videoId: string) => void, arjunRecos: ArjunRecommendations | null }) {
+function LearnTab({ videosData, onVideoClick, arjunRecos, assignments }: { videosData: CommunityState['videos'], onVideoClick: (videoId: string) => void, arjunRecos: ArjunRecommendations | null, assignments: Assignment[] }) {
     const videoThumbnail = PlaceHolderImages.find(p => p.id === 'video-thumbnail');
     const searchParams = useSearchParams();
     const router = useRouter();
@@ -1508,14 +1564,20 @@ function LearnTab({ videosData, onVideoClick, arjunRecos }: { videosData: Commun
                         </CardHeader>
                         <CardContent>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {playlist.videos.map(video => (
-                                    <VideoCard
-                                        key={video.id}
-                                        video={video}
-                                        isWatched={watchedIds.includes(video.id)}
-                                        onVideoClick={handleWatchVideo}
-                                    />
-                                ))}
+                                {playlist.videos.map(video => {
+                                    const videoAssignment = assignments.find(a => a.type === 'video' && a.id === video.id);
+                                    return (
+                                        <VideoCard
+                                            key={video.id}
+                                            video={video}
+                                            isWatched={watchedIds.includes(video.id)}
+                                            onVideoClick={handleWatchVideo}
+                                            isAssigned={!!videoAssignment}
+                                            assignmentDueToday={videoAssignment?.dueToday}
+                                            assignmentReason={videoAssignment?.reason}
+                                        />
+                                    )
+                                })}
                             </div>
                         </CardContent>
                     </Card>
@@ -1619,7 +1681,8 @@ function MyLibraryTab({
     userProfile,
     isAdmin,
     hiddenPostIds,
-    onUpdatePost
+    onUpdatePost,
+    assignments
 }: {
     savedPostIds: string[];
     posts: Post[];
@@ -1641,6 +1704,7 @@ function MyLibraryTab({
     isAdmin: boolean;
     hiddenPostIds: string[];
     onUpdatePost: (postId: string, newContent: string) => void;
+    assignments: Assignment[];
 }) {
     const savedPosts = useMemo(() => {
         return posts.filter(p => savedPostIds.includes(p.id));
@@ -1668,28 +1732,34 @@ function MyLibraryTab({
                 <CardContent>
                     {savedPosts.length > 0 ? (
                         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {savedPosts.map(post => (
-                                <PostCard
-                                    key={post.id}
-                                    post={post}
-                                    likes={likesMap[post.id] || 0}
-                                    comments={commentsMap[post.id] || []}
-                                    isSaved={true}
-                                    isArjunRecommended={arjunRecos?.recommendedPostIds.includes(post.id) || false}
-                                    isHidden={hiddenPostIds.includes(post.id)}
-                                    isAdmin={isAdmin}
-                                    onLike={onLike}
-                                    onSave={onSave}
-                                    onDiscuss={onDiscuss}
-                                    onAddComment={onAddComment}
-                                    onReport={onReport}
-                                    onHide={onHidePost}
-                                    onDelete={onDeletePost}
-                                    onMarkAsOfficial={onMarkAsOfficial}
-                                    userProfile={userProfile}
-                                    onUpdatePost={onUpdatePost}
-                                />
-                            ))}
+                            {savedPosts.map(post => {
+                                const postAssignment = assignments.find(a => a.type === 'post' && a.id === post.id);
+                                return (
+                                    <PostCard
+                                        key={post.id}
+                                        post={post}
+                                        likes={likesMap[post.id] || 0}
+                                        comments={commentsMap[post.id] || []}
+                                        isSaved={true}
+                                        isArjunRecommended={arjunRecos?.recommendedPostIds.includes(post.id) || false}
+                                        isHidden={hiddenPostIds.includes(post.id)}
+                                        isAdmin={isAdmin}
+                                        onLike={onLike}
+                                        onSave={onSave}
+                                        onDiscuss={onDiscuss}
+                                        onAddComment={onAddComment}
+                                        onReport={onReport}
+                                        onHide={onHidePost}
+                                        onDelete={onDeletePost}
+                                        onMarkAsOfficial={onMarkAsOfficial}
+                                        userProfile={userProfile}
+                                        onUpdatePost={onUpdatePost}
+                                        isAssigned={!!postAssignment}
+                                        assignmentDueToday={postAssignment?.dueToday}
+                                        assignmentReason={postAssignment?.reason}
+                                    />
+                                )
+                            })}
                         </div>
                     ) : <p className="text-center text-muted-foreground py-8">You haven't saved any posts yet. Click the bookmark icon on a post to save it for later.</p>}
                 </CardContent>
@@ -1702,9 +1772,20 @@ function MyLibraryTab({
                 <CardContent>
                      {watchedVideos.length > 0 ? (
                         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {watchedVideos.map(video => (
-                                <VideoCard key={video.id} video={video} isWatched={true} onVideoClick={onVideoClick} />
-                            ))}
+                            {watchedVideos.map(video => {
+                                const videoAssignment = assignments.find(a => a.type === 'video' && a.id === video.id);
+                                return (
+                                    <VideoCard 
+                                        key={video.id} 
+                                        video={video} 
+                                        isWatched={true} 
+                                        onVideoClick={onVideoClick} 
+                                        isAssigned={!!videoAssignment}
+                                        assignmentDueToday={videoAssignment?.dueToday}
+                                        assignmentReason={videoAssignment?.reason}
+                                    />
+                                )
+                            })}
                         </div>
                     ) : <p className="text-center text-muted-foreground py-8">You haven't watched any videos yet.</p>}
                 </CardContent>
@@ -1846,6 +1927,7 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
     const [communityState, setCommunityState] = useState<CommunityState | null>(null);
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const [arjunRecos, setArjunRecos] = useState<ArjunRecommendations | null>(null);
+    const [assignments, setAssignments] = useState<Assignment[]>([]);
     const [followedUsers, setFollowedUsers] = useState<string[]>([]);
     
     const [reportDialogOpen, setReportDialogOpen] = useState(false);
@@ -1879,6 +1961,7 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
             const communityStateRaw = localStorage.getItem(COMMUNITY_STATE_KEY);
             const userProfileRaw = localStorage.getItem(USER_PROFILE_KEY);
             const arjunRecosRaw = localStorage.getItem(ARJUN_RECO_KEY);
+            const assignmentsRaw = localStorage.getItem(ARJUN_ASSIGNMENTS_KEY);
             const followedUsersRaw = localStorage.getItem(FOLLOWED_USERS_KEY);
             const hiddenIdsRaw = localStorage.getItem(HIDDEN_POSTS_KEY);
 
@@ -1915,6 +1998,10 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
             } else {
                 localStorage.setItem(ARJUN_RECO_KEY, JSON.stringify(initialArjunRecos));
                 setArjunRecos(initialArjunRecos);
+            }
+            
+            if (assignmentsRaw) {
+                setAssignments(JSON.parse(assignmentsRaw));
             }
 
             if (followedUsersRaw) {
@@ -2132,6 +2219,11 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
                 return prev;
             }
 
+            if (!postToUpdate.timestamp || isNaN(new Date(postToUpdate.timestamp).getTime())) {
+                toast({ variant: 'destructive', title: "Invalid Post Date", description: "Cannot edit this post due to an invalid timestamp." });
+                return prev;
+            }
+
             const postDate = new Date(postToUpdate.timestamp);
             const diffInMinutes = (now.getTime() - postDate.getTime()) / (1000 * 60);
 
@@ -2311,6 +2403,7 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
                         onDeletePost={handleDeletePost}
                         onMarkAsOfficial={handleMarkAsOfficial}
                         onUpdatePost={handleUpdatePost}
+                        assignments={assignments}
                     />
                 </TabsContent>
                 <TabsContent value="learn" className="mt-8">
@@ -2318,6 +2411,7 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
                         videosData={communityState.videos}
                         onVideoClick={handleVideoClick}
                         arjunRecos={arjunRecos}
+                        assignments={assignments}
                     />
                 </TabsContent>
                 <TabsContent value="leaders" className="mt-8">
@@ -2352,6 +2446,7 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
                         isAdmin={isAdmin}
                         hiddenPostIds={hiddenPostIds}
                         onUpdatePost={handleUpdatePost}
+                        assignments={assignments}
                     />
                 </TabsContent>
             </Tabs>
