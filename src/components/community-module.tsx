@@ -275,6 +275,11 @@ const initialArjunRecos: ArjunRecommendations = {
     reason: "Your recent analytics show a pattern of exiting winning trades too early. This content may help."
 };
 
+const sanitizeContent = (text: string): string => {
+    const urlRegex = /(?:(?:https?|ftp):\/\/|www\.)[\n\S]+/gi;
+    return text.replace(urlRegex, '[Link removed — community is link-free by design]');
+};
+
 // =================================================================
 // UI COMPONENTS
 // =================================================================
@@ -313,12 +318,12 @@ function PostCard({ post, likes, comments, isSaved, isArjunRecommended, recommen
     }, [post.timestamp, isOwner]);
 
     function onSubmit(values: z.infer<typeof commentSchema>) {
-        onAddComment(post.id, values.comment);
+        onAddComment(post.id, sanitizeContent(values.comment));
         form.reset();
     }
     
     const handleSaveEdit = () => {
-        onUpdatePost(post.id, editedContent);
+        onUpdatePost(post.id, sanitizeContent(editedContent));
         setIsEditing(false);
     };
 
@@ -460,7 +465,7 @@ function PostCard({ post, likes, comments, isSaved, isArjunRecommended, recommen
                         </div>
                     </div>
                 ) : (
-                    <p className={cn("text-muted-foreground mb-4 whitespace-pre-wrap", !isExpanded && "line-clamp-6")}>{post.content}</p>
+                    <p className={cn("text-muted-foreground mb-4 whitespace-pre-wrap", !isExpanded && post.content.length > CONTENT_LENGTH_THRESHOLD && "line-clamp-6")}>{post.content}</p>
                 )}
                 
                  {post.type === 'Chart' && post.image && (
@@ -953,7 +958,7 @@ What is the lesson?
         }
 
         setPostError(null);
-        const content = newPostContent.trim();
+        const content = sanitizeContent(newPostContent.trim());
         
         if (content.length < 20) {
             setPostError("Post must be at least 20 characters long.");
@@ -962,12 +967,6 @@ What is the lesson?
 
         let isFlagged = false;
         let flagReason = '';
-
-        const linkPattern = /(http|https|www\.)/i;
-        if (linkPattern.test(content)) {
-            isFlagged = true;
-            flagReason = 'Contains Link/Promotion';
-        }
 
         const profanityWords = ["darn", "heck", "shoot"]; // keeping it mild
         const profanityRegex = new RegExp(`\\b(${profanityWords.join('|')})\\b`, 'i');
@@ -985,7 +984,7 @@ What is the lesson?
 
         onCreatePost({
             type: newPostCategory,
-            content: newPostContent,
+            content,
             isFlagged,
             flagReason,
         } as any);
