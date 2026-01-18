@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark, Timer, Gauge, Star, Calendar, Copy, Clipboard, ThumbsUp, ThumbsDown, Meh, PlusCircle, MoreHorizontal, Save, Grid, Eye, Radio, RefreshCw, Layers, BarChart, FileText, ShieldAlert, Info, HelpCircle, ChevronsUpDown, Crown, ImageUp, MessageSquare, Video, BookOpen, User, BrainCircuit, Flag } from "lucide-react";
+import { Bot, Filter, Clock, Loader2, ArrowRight, TrendingUp, Zap, Sparkles, Search, X, AlertTriangle, CheckCircle, Bookmark, Timer, Gauge, Star, Calendar, Copy, Clipboard, ThumbsUp, ThumbsDown, Meh, PlusCircle, MoreHorizontal, Save, Grid, Eye, Radio, RefreshCw, Layers, BarChart, FileText, ShieldAlert, Info, HelpCircle, ChevronsUpDown, Crown, ImageUp, MessageSquare, Video, BookOpen, User, BrainCircuit, Flag, Trash2 } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerClose } from "./ui/drawer";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
@@ -54,6 +54,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 
@@ -73,6 +74,7 @@ const USER_PROFILE_KEY = 'ec_user_profile';
 const ARJUN_RECO_KEY = 'ec_arjun_reco';
 const WATCHED_VIDEOS_KEY = 'ec_watched_videos';
 const FOLLOWED_USERS_KEY = 'ec_followed_users';
+const HIDDEN_POSTS_KEY = 'ec_hidden_post_ids';
 const ITEMS_PER_PAGE = 9;
 
 type Post = {
@@ -132,7 +134,7 @@ type CommunityState = {
 
 type UserProfile = {
     username: string;
-    role: 'Member' | 'Leader';
+    role: 'Member' | 'Leader' | 'Admin';
     persona: string;
 };
 
@@ -271,7 +273,7 @@ const commentSchema = z.object({
 });
 
 
-function PostCard({ post, likes, comments, isArjunRecommended, recommendationReason, onLike, onSave, onDiscuss, onAddComment, onReport }: { post: Post, likes: number, comments: { author: string; text: string }[], isArjunRecommended: boolean, recommendationReason?: string, onLike: (id: string) => void, onSave: (id: string) => void, onDiscuss: (post: Post) => void, onAddComment: (postId: string, comment: string) => void, onReport: (id: string, type: 'post' | 'comment') => void }) {
+function PostCard({ post, likes, comments, isArjunRecommended, recommendationReason, isHidden, isAdmin, onLike, onSave, onDiscuss, onAddComment, onReport, onHide, onDelete, onMarkAsOfficial }: { post: Post, likes: number, comments: { author: string; text: string }[], isArjunRecommended: boolean, recommendationReason?: string, isHidden: boolean, isAdmin: boolean, onLike: (id: string) => void, onSave: (id: string) => void, onDiscuss: (post: Post) => void, onAddComment: (postId: string, comment: string) => void, onReport: (id: string, type: 'post' | 'comment') => void, onHide: (id: string) => void, onDelete: (id: string) => void, onMarkAsOfficial: (post: Post) => void }) {
     const form = useForm<z.infer<typeof commentSchema>>({
         resolver: zodResolver(commentSchema),
         defaultValues: { comment: "" },
@@ -286,7 +288,7 @@ function PostCard({ post, likes, comments, isArjunRecommended, recommendationRea
     }
 
     return (
-        <Card id={`post-${post.id}`} className="bg-muted/30 border-border/50">
+        <Card id={`post-${post.id}`} className={cn("bg-muted/30 border-border/50", isHidden && "opacity-50 border-dashed border-destructive/50")}>
             <CardHeader className="pb-4">
                 <div className="flex justify-between items-start">
                     <div className="flex items-center gap-3">
@@ -309,6 +311,7 @@ function PostCard({ post, likes, comments, isArjunRecommended, recommendationRea
                         </div>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
+                        {isHidden && <Badge variant="destructive">Hidden</Badge>}
                         {post.isHighSignal && <Badge variant="outline" className="border-amber-500/30 text-amber-300"><Sparkles className="mr-1 h-3 w-3" /> High-signal</Badge>}
                         {isArjunRecommended && (
                             <TooltipProvider>
@@ -335,6 +338,21 @@ function PostCard({ post, likes, comments, isArjunRecommended, recommendationRea
                                 <DropdownMenuItem onSelect={() => onReport(post.id, 'post')}>
                                     <Flag className="mr-2 h-4 w-4" /> Report Post
                                 </DropdownMenuItem>
+                                {isAdmin && (
+                                    <>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem onSelect={() => onHide(post.id)}>
+                                            <Eye className="mr-2 h-4 w-4" /> {isHidden ? 'Unhide' : 'Hide'} Post
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onSelect={() => onMarkAsOfficial(post)}>
+                                            <Star className="mr-2 h-4 w-4" /> Mark as Official
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => onDelete(post.id)}>
+                                            <Trash2 className="mr-2 h-4 w-4" /> Delete Post
+                                        </DropdownMenuItem>
+                                    </>
+                                )}
                             </DropdownMenuContent>
                         </DropdownMenu>
                     </div>
@@ -467,7 +485,7 @@ function PostCard({ post, likes, comments, isArjunRecommended, recommendationRea
                                         )}
                                     />
                                     <div className="flex justify-between items-center">
-                                        <p className="text-xs text-muted-foreground">Ask about process, not predictions.</p>
+                                        <p className="text-xs text-muted-foreground">Ask about process: setup, risk, mindset. Avoid predictions.</p>
                                         <Button type="submit" size="sm">Post Comment</Button>
                                     </div>
                                 </form>
@@ -574,6 +592,32 @@ function ArjunHighlightsStrip({
   );
 }
 
+function AdminToolsCard({ showFlaggedOnly, onToggleFlaggedOnly, flaggedCount, hiddenCount }: { showFlaggedOnly: boolean; onToggleFlaggedOnly: (show: boolean) => void; flaggedCount: number; hiddenCount: number; }) {
+    return (
+        <Card className="bg-destructive/10 border-destructive/20">
+            <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2"><ShieldAlert className="h-5 w-5 text-destructive" />Admin Tools</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="flex items-center justify-between rounded-lg border border-border/50 p-3 bg-muted/50">
+                    <div className="space-y-0.5">
+                        <Label htmlFor="show-flagged">Show flagged only</Label>
+                        <p className="text-xs text-muted-foreground">{flaggedCount} posts flagged</p>
+                    </div>
+                    <Switch
+                        id="show-flagged"
+                        checked={showFlaggedOnly}
+                        onCheckedChange={onToggleFlaggedOnly}
+                    />
+                </div>
+                <p className="text-xs text-muted-foreground">{hiddenCount} posts currently hidden.</p>
+                <p className="text-xs text-muted-foreground/80 italic">Set your role to "Admin" in localStorage key 'ec_user_profile' to see these tools.</p>
+            </CardContent>
+        </Card>
+    );
+}
+
+
 function FeedTab({
     posts,
     officialPosts,
@@ -595,6 +639,11 @@ function FeedTab({
     createPostRef,
     initialCategory,
     onReport,
+    isAdmin,
+    hiddenPostIds,
+    onHidePost,
+    onDeletePost,
+    onMarkAsOfficial,
 }: {
     posts: Post[];
     officialPosts: Omit<OfficialPost, 'icon'>[];
@@ -616,6 +665,11 @@ function FeedTab({
     createPostRef: React.RefObject<HTMLDivElement>;
     initialCategory?: 'Reflection';
     onReport: (id: string, type: 'post' | 'comment') => void;
+    isAdmin: boolean;
+    hiddenPostIds: string[];
+    onHidePost: (id: string) => void;
+    onDeletePost: (id: string) => void;
+    onMarkAsOfficial: (post: Post) => void;
 }) {
     const { toast } = useToast();
     const [newPostContent, setNewPostContent] = useState("");
@@ -675,10 +729,11 @@ function FeedTab({
     const [highSignalOnly, setHighSignalOnly] = useState(false);
     const [sortBy, setSortBy] = useState<'newest' | 'mostHelpful' | 'arjunPicks' | 'following'>('newest');
     const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
+    const [showFlaggedOnly, setShowFlaggedOnly] = useState(false);
 
     useEffect(() => {
         setVisibleCount(ITEMS_PER_PAGE);
-    }, [categoryFilter, highSignalOnly, sortBy]);
+    }, [categoryFilter, highSignalOnly, sortBy, showFlaggedOnly]);
 
     const reflectionPlaceholder = `What was the plan?
 - e.g., Planned to enter BTC long on a retest of 68k.
@@ -694,6 +749,16 @@ What is the lesson?
 
     const postsToRender = useMemo(() => {
       let items = [...posts];
+
+      // Admin filters first
+      if (isAdmin && showFlaggedOnly) {
+          items = items.filter(p => p.isFlagged);
+      }
+
+      // Filter hidden posts for non-admins
+      if (!isAdmin) {
+          items = items.filter(p => !hiddenPostIds.includes(p.id));
+      }
 
       if (categoryFilter !== 'All') {
           items = items.filter(post => post.type === categoryFilter);
@@ -726,7 +791,7 @@ What is the lesson?
       }
 
       return items;
-    }, [posts, categoryFilter, highSignalOnly, sortBy, likesMap, savesMap, commentsMap, arjunRecos, personaRecommendedPostIds, followedUsers]);
+    }, [posts, categoryFilter, highSignalOnly, sortBy, likesMap, savesMap, commentsMap, arjunRecos, personaRecommendedPostIds, followedUsers, isAdmin, showFlaggedOnly, hiddenPostIds]);
 
 
     const displayedOfficialPosts = useMemo(() => {
@@ -948,11 +1013,16 @@ What is the lesson?
                                 ? `Recommended based on your '${userProfile.persona}' persona.`
                                 : undefined
                             }
+                            isHidden={hiddenPostIds.includes(post.id)}
+                            isAdmin={isAdmin}
                             onLike={onLike} 
                             onSave={onSave}
                             onDiscuss={handleDiscuss}
                             onAddComment={onAddComment}
                             onReport={onReport}
+                            onHide={onHidePost}
+                            onDelete={onDeletePost}
+                            onMarkAsOfficial={onMarkAsOfficial}
                         />
                     ))}
 
@@ -968,6 +1038,14 @@ What is the lesson?
 
             {/* Sidebar */}
             <div className="lg:col-span-1 space-y-8 lg:sticky lg:top-24">
+                {isAdmin && (
+                    <AdminToolsCard
+                        showFlaggedOnly={showFlaggedOnly}
+                        onToggleFlaggedOnly={setShowFlaggedOnly}
+                        flaggedCount={posts.filter(p => p.isFlagged).length}
+                        hiddenCount={hiddenPostIds.length}
+                    />
+                )}
                  <Card ref={createPostRef} className="bg-muted/30 border-border/50 scroll-mt-24">
                     <CardHeader>
                         <CardTitle>Share an insight</CardTitle>
@@ -1478,6 +1556,9 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
     const [showVideoModal, setShowVideoModal] = useState(false);
     const [clickedVideoId, setClickedVideoId] = useState<string | null>(null);
 
+    const [isAdmin, setIsAdmin] = useState(false);
+    const [hiddenPostIds, setHiddenPostIds] = useState<string[]>([]);
+
     const handleTabChange = (tab: string) => {
         const params = new URLSearchParams();
         params.set('tab', tab);
@@ -1499,6 +1580,7 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
             const userProfileRaw = localStorage.getItem(USER_PROFILE_KEY);
             const arjunRecosRaw = localStorage.getItem(ARJUN_RECO_KEY);
             const followedUsersRaw = localStorage.getItem(FOLLOWED_USERS_KEY);
+            const hiddenIdsRaw = localStorage.getItem(HIDDEN_POSTS_KEY);
 
             let finalCommunityState: CommunityState;
             let finalUserProfile: UserProfile;
@@ -1511,8 +1593,15 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
 
             if (userProfileRaw) {
                 finalUserProfile = JSON.parse(userProfileRaw);
+                if (finalUserProfile.role === 'Admin') {
+                    setIsAdmin(true);
+                }
             } else {
                 finalUserProfile = initialUserProfile;
+            }
+
+            if (hiddenIdsRaw) {
+                setHiddenPostIds(JSON.parse(hiddenIdsRaw));
             }
 
             const personaName = finalUserProfile.persona || 'Beginner';
@@ -1783,6 +1872,37 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
         setItemToReport(null);
     };
 
+    const handleHidePost = (postId: string) => {
+        const newHiddenIds = hiddenPostIds.includes(postId)
+            ? hiddenPostIds.filter(id => id !== postId)
+            : [...hiddenPostIds, postId];
+        setHiddenPostIds(newHiddenIds);
+        localStorage.setItem(HIDDEN_POSTS_KEY, JSON.stringify(newHiddenIds));
+        toast({ title: `Post ${newHiddenIds.includes(postId) ? 'hidden' : 'made visible'}` });
+    };
+
+    const handleDeletePost = (postId: string) => {
+        updateCommunityState(prev => ({
+            ...prev,
+            posts: prev.posts.filter(p => p.id !== postId)
+        }));
+        toast({ title: "Post permanently deleted" });
+    };
+
+    const handleMarkAsOfficial = (post: Post) => {
+        const newOfficialPost = {
+            title: post.content.split('\n')[0].substring(0, 50),
+            bullets: post.content.split('\n').slice(1),
+            tag: "Community Insight"
+        };
+        updateCommunityState(prev => ({
+            ...prev,
+            posts: prev.posts.filter(p => p.id !== post.id),
+            officialPosts: [newOfficialPost, ...prev.officialPosts]
+        }));
+        toast({ title: "Post marked as official" });
+    };
+
     if (isLoading || !communityState || !userProfile || !arjunRecos) {
         return <div>Loading...</div>; // Or a skeleton loader
     }
@@ -1830,6 +1950,11 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
                         createPostRef={createPostRef}
                         initialCategory={context?.openCreatePost}
                         onReport={handleOpenReportDialog}
+                        isAdmin={isAdmin}
+                        hiddenPostIds={hiddenPostIds}
+                        onHidePost={handleHidePost}
+                        onDeletePost={handleDeletePost}
+                        onMarkAsOfficial={handleMarkAsOfficial}
                     />
                 </TabsContent>
                 <TabsContent value="learn" className="mt-8">
@@ -1871,3 +1996,4 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
         </div>
     );
 }
+
