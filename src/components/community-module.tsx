@@ -276,7 +276,7 @@ const commentSchema = z.object({
 });
 
 
-function PostCard({ post, likes, comments, isArjunRecommended, recommendationReason, isHidden, isAdmin, onLike, onSave, onDiscuss, onAddComment, onReport, onHide, onDelete, onMarkAsOfficial, userProfile, onUpdatePost }: { post: Post, likes: number, comments: { author: string; text: string }[], isArjunRecommended: boolean, recommendationReason?: string, isHidden: boolean, isAdmin: boolean, onLike: (id: string) => void, onSave: (id: string) => void, onDiscuss: (post: Post) => void, onAddComment: (postId: string, comment: string) => void, onReport: (id: string, type: 'post' | 'comment') => void, onHide: (id: string) => void, onDelete: (id: string) => void, onMarkAsOfficial: (post: Post) => void, userProfile: UserProfile, onUpdatePost: (postId: string, newContent: string) => void }) {
+function PostCard({ post, likes, comments, isSaved, isArjunRecommended, recommendationReason, isHidden, isAdmin, onLike, onSave, onDiscuss, onAddComment, onReport, onHide, onDelete, onMarkAsOfficial, userProfile, onUpdatePost }: { post: Post, likes: number, comments: { author: string; text: string }[], isSaved: boolean, isArjunRecommended: boolean, recommendationReason?: string, isHidden: boolean, isAdmin: boolean, onLike: (id: string) => void, onSave: (id: string) => void, onDiscuss: (post: Post) => void, onAddComment: (postId: string, comment: string) => void, onReport: (id: string, type: 'post' | 'comment') => void, onHide: (id: string) => void, onDelete: (id: string) => void, onMarkAsOfficial: (post: Post) => void, userProfile: UserProfile, onUpdatePost: (postId: string, newContent: string) => void }) {
     const form = useForm<z.infer<typeof commentSchema>>({
         resolver: zodResolver(commentSchema),
         defaultValues: { comment: "" },
@@ -490,7 +490,7 @@ function PostCard({ post, likes, comments, isArjunRecommended, recommendationRea
                     <Bot className="h-4 w-4" /> Discuss
                 </Button>
                 <Button variant="ghost" size="sm" className="flex items-center gap-2 text-xs" onClick={() => onSave(post.id)}>
-                    <Bookmark className="h-4 w-4" /> Save
+                    <Bookmark className={cn("h-4 w-4", isSaved && "fill-primary text-primary")} /> Save
                 </Button>
             </CardFooter>
             <Collapsible open={isCommentsOpen}>
@@ -683,6 +683,7 @@ function FeedTab({
     likesMap,
     commentsMap,
     savesMap,
+    savedPostIds,
     arjunRecos,
     userProfile,
     onSetModule,
@@ -711,6 +712,7 @@ function FeedTab({
     likesMap: Record<string, number>;
     commentsMap: Record<string, { author: string; text: string }[]>;
     savesMap: Record<string, number>;
+    savedPostIds: string[];
     arjunRecos: ArjunRecommendations;
     userProfile: UserProfile;
     onSetModule: (module: any, context?: any) => void;
@@ -1169,6 +1171,7 @@ What is the lesson?
                             post={post} 
                             likes={likesMap[post.id] || 0}
                             comments={commentsMap[post.id] || []}
+                            isSaved={savedPostIds.includes(post.id)}
                             isArjunRecommended={(arjunRecos.recommendedPostIds.includes(post.id) || (personaRecommendedPostIds || []).includes(post.id))}
                             recommendationReason={
                                 arjunRecos.recommendedPostIds.includes(post.id) 
@@ -1391,6 +1394,25 @@ function ArjunQueue({ arjunRecos, videosData, onVideoClick }: { arjunRecos: Arju
     );
 }
 
+function VideoCard({ video, onVideoClick, isWatched }: { video: VideoData, onVideoClick: (videoId: string) => void, isWatched: boolean }) {
+    const videoThumbnail = PlaceHolderImages.find(p => p.id === 'video-thumbnail');
+    return (
+        <div id={`video-${video.id}`} className="group cursor-pointer p-1 rounded-lg" onClick={() => onVideoClick(video.id)}>
+            <div className="aspect-video bg-muted rounded-md relative overflow-hidden">
+                {videoThumbnail && <Image src={videoThumbnail.imageUrl} alt={video.title} fill style={{ objectFit: 'cover' }} data-ai-hint={videoThumbnail.imageHint} />}
+                <Badge className="absolute bottom-2 right-2 bg-black/50 text-white">{video.duration}</Badge>
+                {isWatched && (
+                    <div className="absolute inset-0 bg-background/70 flex items-center justify-center backdrop-blur-sm">
+                        <CheckCircle className="h-10 w-10 text-primary" />
+                    </div>
+                )}
+            </div>
+            <p className="font-medium text-sm mt-2 text-foreground group-hover:text-primary transition-colors">{video.title}</p>
+            <p className="text-xs text-muted-foreground mt-1">{video.description}</p>
+        </div>
+    );
+}
+
 function LearnTab({ videosData, onVideoClick, arjunRecos }: { videosData: CommunityState['videos'], onVideoClick: (videoId: string) => void, arjunRecos: ArjunRecommendations | null }) {
     const videoThumbnail = PlaceHolderImages.find(p => p.id === 'video-thumbnail');
     const searchParams = useSearchParams();
@@ -1482,19 +1504,12 @@ function LearnTab({ videosData, onVideoClick, arjunRecos }: { videosData: Commun
                         <CardContent>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {playlist.videos.map(video => (
-                                    <div key={video.id} id={`video-${video.id}`} className="group cursor-pointer p-1 rounded-lg" onClick={() => handleWatchVideo(video.id)}>
-                                        <div className="aspect-video bg-muted rounded-md relative overflow-hidden">
-                                            {videoThumbnail && <Image src={videoThumbnail.imageUrl} alt={video.title} fill style={{ objectFit: 'cover' }} data-ai-hint={videoThumbnail.imageHint} />}
-                                            <Badge className="absolute bottom-2 right-2 bg-black/50 text-white">{video.duration}</Badge>
-                                            {watchedIds.includes(video.id) && (
-                                                <div className="absolute inset-0 bg-background/70 flex items-center justify-center backdrop-blur-sm">
-                                                    <CheckCircle className="h-10 w-10 text-primary" />
-                                                </div>
-                                            )}
-                                        </div>
-                                        <p className="font-medium text-sm mt-2 text-foreground group-hover:text-primary transition-colors">{video.title}</p>
-                                        <p className="text-xs text-muted-foreground mt-1">{video.description}</p>
-                                    </div>
+                                    <VideoCard
+                                        key={video.id}
+                                        video={video}
+                                        isWatched={watchedIds.includes(video.id)}
+                                        onVideoClick={handleWatchVideo}
+                                    />
                                 ))}
                             </div>
                         </CardContent>
@@ -1575,6 +1590,120 @@ function LeadersTab({ posts, likesMap, savesMap, commentsMap, followedUsers, onT
                     </Card>
                 ))}
             </div>
+        </div>
+    );
+}
+
+function MyLibraryTab({
+    savedPostIds,
+    posts,
+    videosData,
+    arjunRecos,
+    onVideoClick,
+    onPostClick,
+    likesMap,
+    commentsMap,
+    onLike,
+    onSave,
+    onDiscuss,
+    onAddComment,
+    onReport,
+    onHidePost,
+    onDeletePost,
+    onMarkAsOfficial,
+    userProfile,
+    isAdmin,
+    hiddenPostIds,
+    onUpdatePost
+}: {
+    savedPostIds: string[];
+    posts: Post[];
+    videosData: CommunityState['videos'];
+    arjunRecos: ArjunRecommendations | null;
+    onVideoClick: (videoId: string) => void;
+    onPostClick: (postId: string) => void;
+    likesMap: Record<string, number>;
+    commentsMap: Record<string, { author: string; text: string }[]>;
+    onLike: (id: string) => void;
+    onSave: (id: string) => void;
+    onDiscuss: (post: Post) => void;
+    onAddComment: (postId: string, comment: string) => void;
+    onReport: (id: string, type: 'post' | 'comment') => void;
+    onHidePost: (id: string) => void;
+    onDeletePost: (id: string) => void;
+    onMarkAsOfficial: (post: Post) => void;
+    userProfile: UserProfile;
+    isAdmin: boolean;
+    hiddenPostIds: string[];
+    onUpdatePost: (postId: string, newContent: string) => void;
+}) {
+    const savedPosts = useMemo(() => {
+        return posts.filter(p => savedPostIds.includes(p.id));
+    }, [posts, savedPostIds]);
+
+    const [watchedIds, setWatchedIds] = useState<string[]>([]);
+    useEffect(() => {
+        const stored = localStorage.getItem(WATCHED_VIDEOS_KEY);
+        if (stored) setWatchedIds(JSON.parse(stored));
+    }, []);
+
+    const watchedVideos = useMemo(() => {
+        if (!videosData) return [];
+        return videosData.playlists.flatMap(p => p.videos).filter(v => watchedIds.includes(v.id));
+    }, [videosData, watchedIds]);
+
+    return (
+        <div className="space-y-12">
+            {arjunRecos && <ArjunQueue arjunRecos={arjunRecos} videosData={videosData} onVideoClick={onVideoClick} />}
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Bookmark className="h-5 w-5" />Saved Posts</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    {savedPosts.length > 0 ? (
+                        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {savedPosts.map(post => (
+                                <PostCard
+                                    key={post.id}
+                                    post={post}
+                                    likes={likesMap[post.id] || 0}
+                                    comments={commentsMap[post.id] || []}
+                                    isSaved={true}
+                                    isArjunRecommended={arjunRecos?.recommendedPostIds.includes(post.id) || false}
+                                    isHidden={hiddenPostIds.includes(post.id)}
+                                    isAdmin={isAdmin}
+                                    onLike={onLike}
+                                    onSave={onSave}
+                                    onDiscuss={onDiscuss}
+                                    onAddComment={onAddComment}
+                                    onReport={onReport}
+                                    onHide={onHidePost}
+                                    onDelete={onDeletePost}
+                                    onMarkAsOfficial={onMarkAsOfficial}
+                                    userProfile={userProfile}
+                                    onUpdatePost={onUpdatePost}
+                                />
+                            ))}
+                        </div>
+                    ) : <p className="text-center text-muted-foreground py-8">You haven't saved any posts yet. Click the bookmark icon on a post to save it for later.</p>}
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Video className="h-5 w-5" />Watched Videos</CardTitle>
+                </CardHeader>
+                <CardContent>
+                     {watchedVideos.length > 0 ? (
+                        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {watchedVideos.map(video => (
+                                <VideoCard key={video.id} video={video} isWatched={true} onVideoClick={onVideoClick} />
+                            ))}
+                        </div>
+                    ) : <p className="text-center text-muted-foreground py-8">You haven't watched any videos yet.</p>}
+                </CardContent>
+            </Card>
         </div>
     );
 }
@@ -1944,14 +2073,31 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
         }));
     };
     
-    const handleSave = (postId: string) => {
-        updateCommunityState(prev => ({
-            ...prev,
-            savesMap: {
-                ...prev.savesMap,
-                [postId]: (prev.savesMap[postId] || 0) + 1,
-            }
-        }));
+    const handleToggleSave = (postId: string) => {
+        updateCommunityState(prev => {
+            if (!prev) return null;
+            const isSaved = prev.savedPostIds.includes(postId);
+            const newSavedPostIds = isSaved
+                ? prev.savedPostIds.filter(id => id !== postId)
+                : [...prev.savedPostIds, postId];
+    
+            // Also toggle public save count for ranking
+            const currentSaves = prev.savesMap[postId] || 0;
+            const newSaves = isSaved ? Math.max(0, currentSaves - 1) : currentSaves + 1;
+    
+            toast({
+                title: !isSaved ? "Post saved to your library" : "Post removed from your library",
+            });
+    
+            return {
+                ...prev,
+                savedPostIds: newSavedPostIds,
+                savesMap: {
+                    ...prev.savesMap,
+                    [postId]: newSaves,
+                }
+            };
+        });
     };
 
     const handleCreatePost = (newPostData: Omit<Post, 'id' | 'timestamp' | 'author' | 'isHighSignal'>) => {
@@ -2124,10 +2270,11 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
             </div>
             
             <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-                <TabsList className="grid w-full grid-cols-3 max-w-lg mx-auto">
+                <TabsList className="grid w-full grid-cols-4 max-w-lg mx-auto">
                     <TabsTrigger value="feed">Feed</TabsTrigger>
                     <TabsTrigger value="learn">Learn</TabsTrigger>
                     <TabsTrigger value="leaders">Leaders</TabsTrigger>
+                    <TabsTrigger value="my-library">My Library</TabsTrigger>
                 </TabsList>
                 <TabsContent value="feed" className="mt-8">
                     <FeedTab 
@@ -2136,11 +2283,12 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
                         likesMap={communityState.likesMap}
                         commentsMap={communityState.commentsMap}
                         savesMap={communityState.savesMap}
+                        savedPostIds={communityState.savedPostIds}
                         arjunRecos={arjunRecos}
                         userProfile={userProfile}
                         onSetModule={onSetModule}
                         onLike={handleLike}
-                        onSave={handleSave}
+                        onSave={handleToggleSave}
                         onCreatePost={handleCreatePost}
                         onCreateOfficialPost={handleCreateOfficialPost}
                         videosData={communityState.videos}
@@ -2175,6 +2323,30 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
                         commentsMap={communityState.commentsMap}
                         followedUsers={followedUsers}
                         onToggleFollow={handleToggleFollow}
+                    />
+                </TabsContent>
+                <TabsContent value="my-library" className="mt-8">
+                    <MyLibraryTab
+                        savedPostIds={communityState.savedPostIds}
+                        posts={communityState.posts}
+                        videosData={communityState.videos}
+                        arjunRecos={arjunRecos}
+                        onVideoClick={handleVideoClick}
+                        onPostClick={handlePostClick}
+                        likesMap={communityState.likesMap}
+                        commentsMap={communityState.commentsMap}
+                        onLike={handleLike}
+                        onSave={handleToggleSave}
+                        onDiscuss={(post) => onSetModule('aiCoaching', { initialMessage: `Let's discuss this saved post: "${post.content.substring(0, 100)}..."` })}
+                        onAddComment={handleAddComment}
+                        onReport={handleOpenReportDialog}
+                        onHidePost={handleHidePost}
+                        onDeletePost={handleDeletePost}
+                        onMarkAsOfficial={handleMarkAsOfficial}
+                        userProfile={userProfile}
+                        isAdmin={isAdmin}
+                        hiddenPostIds={hiddenPostIds}
+                        onUpdatePost={handleUpdatePost}
                     />
                 </TabsContent>
             </Tabs>
