@@ -1,4 +1,5 @@
 
+
       "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
@@ -39,6 +40,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collap
 import { Skeleton } from "./ui/skeleton";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerClose } from "./ui/drawer";
 import { useDailyCounters } from "@/hooks/use-daily-counters";
+import { ToastAction } from "@/components/ui/toast";
 
 
 export interface JournalFilters {
@@ -144,7 +146,7 @@ const mockJournalEntries: JournalEntry[] = [
     },
 ];
 
-export const useJournal = () => {
+export const useJournal = (onSetModule?: TradeJournalModuleProps['onSetModule']) => {
     const { toast } = useToast();
     const { addLog } = useEventLog();
     const [entries, setEntries] = useState<JournalEntry[]>([]);
@@ -232,11 +234,38 @@ export const useJournal = () => {
                         "Journal updated. Arjun can now use this to refine your Growth Plan.",
                         "Good discipline. Most traders skip this part; they also stay stuck."
                     ];
-                    
-                    toast({
-                        title: "Journal Completed",
-                        description: completionMessages[Math.floor(Math.random() * completionMessages.length)],
-                    });
+
+                    if (onSetModule) {
+                        const reflectionText = `**Trade Reflection on ${updatedEntry.technical.instrument}**
+
+**My Plan:**
+${updatedEntry.planning.planNotes || 'No specific plan notes.'}
+
+**What I felt:**
+${updatedEntry.review?.emotionsTags || 'No emotions tagged.'}
+
+**What I learned:**
+${updatedEntry.review?.learningNotes || 'No specific learning notes.'}`;
+
+                        toast({
+                            title: "Journal Completed",
+                            description: "Want to share a reflection with the community?",
+                            action: (
+                                <ToastAction altText="Share Reflection" onClick={() => {
+                                    onSetModule('community', {
+                                        openCreatePost: 'Reflection',
+                                        reflectionContent: reflectionText,
+                                    });
+                                }}>Share Reflection</ToastAction>
+                            ),
+                            duration: 10000,
+                        });
+                    } else {
+                        toast({
+                            title: "Journal Completed",
+                            description: completionMessages[Math.floor(Math.random() * completionMessages.length)],
+                        });
+                    }
                 } else if (!isDraft) {
                     const completed = JSON.parse(localStorage.getItem("ec_journal_entries") || "[]");
                     const newCompleted = completed.map((e: any) => e.id === updatedEntry.id ? updatedEntry : e);

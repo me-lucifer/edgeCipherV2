@@ -65,6 +65,7 @@ interface CommunityModuleProps {
     onSetModule: (module: any, context?: any) => void;
     context?: {
         openCreatePost?: 'Reflection';
+        reflectionContent?: string;
     }
 }
 
@@ -299,7 +300,7 @@ function PostCard({ post, likes, comments, isSaved, isArjunRecommended, recommen
     const isOwner = userProfile.username === post.author.name;
 
     const canEdit = useMemo(() => {
-        if (!isOwner || !post.timestamp) return false;
+        if (!isOwner || !post.timestamp || isNaN(new Date(post.timestamp).getTime())) return false;
         try {
             const postDate = new Date(post.timestamp);
             if (isNaN(postDate.getTime())) return false;
@@ -740,6 +741,7 @@ function FeedTab({
     onCreateOfficialPost,
     onUpdatePost,
     assignments,
+    reflectionContent,
 }: {
     posts: Post[];
     officialPosts: Omit<OfficialPost, 'icon'>[];
@@ -770,6 +772,7 @@ function FeedTab({
     onMarkAsOfficial: (post: Post) => void;
     onUpdatePost: (postId: string, newContent: string) => void;
     assignments: Assignment[];
+    reflectionContent?: string;
 }) {
     const { toast } = useToast();
     const [newPostContent, setNewPostContent] = useState("");
@@ -786,6 +789,12 @@ function FeedTab({
     const [newOfficialBullets, setNewOfficialBullets] = useState("");
     const [newOfficialTag, setNewOfficialTag] = useState<string>("Education");
 
+    useEffect(() => {
+        if (reflectionContent) {
+            setNewPostContent(reflectionContent);
+            setNewPostCategory('Reflection');
+        }
+    }, [reflectionContent]);
 
     useEffect(() => {
         const checkNewsSignal = () => {
@@ -876,7 +885,11 @@ What is the lesson?
       
       switch (sortBy) {
           case 'newest':
-              items.sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+              items.sort((a,b) => {
+                  const dateA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+                  const dateB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+                  return dateB - dateA;
+              });
               break;
           case 'mostHelpful':
               items.sort((a, b) => {
@@ -1750,7 +1763,7 @@ function MyLibraryTab({
                                         onAddComment={onAddComment}
                                         onReport={onReport}
                                         onHide={onHidePost}
-                                        onDelete={onDeletePost}
+                                        onDeletePost={onDeletePost}
                                         onMarkAsOfficial={onMarkAsOfficial}
                                         userProfile={userProfile}
                                         onUpdatePost={onUpdatePost}
@@ -1951,7 +1964,9 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
         if (context?.openCreatePost === 'Reflection') {
             setActiveTab('feed');
             // Allow time for tab content to render before scrolling
-            setTimeout(() => createPostRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+            setTimeout(() => {
+                createPostRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 100);
         }
     }, [context]);
 
@@ -2404,6 +2419,7 @@ export function CommunityModule({ onSetModule, context }: CommunityModuleProps) 
                         onMarkAsOfficial={handleMarkAsOfficial}
                         onUpdatePost={handleUpdatePost}
                         assignments={assignments}
+                        reflectionContent={context?.reflectionContent}
                     />
                 </TabsContent>
                 <TabsContent value="learn" className="mt-8">
